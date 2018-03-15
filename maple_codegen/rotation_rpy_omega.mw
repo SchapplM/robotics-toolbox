@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Worksheet>
+<Version major="18" minor="2"/>
+<Label-Scheme value="2" prefix=""/>
+<View-Properties presentation="true" autoexpanding_sections="true">
+</View-Properties>
+<MapleNet-Properties elisiondigitsbefore="100" labelling="true" indentamount="4" elisiontermsthreshold="10000" ansi="false" errorbreak="1" useclientjvm="true" echo="1" imaginaryunit="I" labelwidth="20" unitattributes="&quot;fontweight&quot; = &quot;bold&quot;" contextmenusize="automatic" plotdriver="opengl" elisiondigitsafter="100" plotoutput="terminal" helpbrowser="standard" rtablesize="10" elisiontermsbefore="100" elisiondigitsthreshold="10000" typesetting="standard" plotdevice="inline" verboseproc="1" showassumed="1" quiet="false" errorcursor="false" longdelim="true" plotoptions="" elisiontermsafter="100" screenwidth="79" preplot="" prettyprint="3" displayprecision="-1" screenpixelheight="1080" warnlevel="3" screenheight="25" latexwidth="8.0" postplot="" prompt="&gt; " ShowLabels="true"/>
+<Styles>
+<Font name="Ordered List 1" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Annotation Text" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Ordered List 2" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Ordered List 3" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Ordered List 4" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Ordered List 5" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Author" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Annotation Title" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="18" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Warning" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Caption Reference" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Maple Input Placeholder" background="[255,255,255]" bold="true" executable="true" family="Courier New" foreground="[200,0,200]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="true"/>
+<Font name="Maple Plot" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Code" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[255,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Line Printed Output" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Text Output" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Diagnostic" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[40,120,40]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="2D Inert Output" background="[255,255,255]" bold="false" executable="true" family="Times New Roman" foreground="[144,144,144]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Normal" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Hyperlink" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,128,128]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="true" placeholder="false"/>
+<Font name="Maple Output" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Dash Item" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="2D Math" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Maple Input" background="[255,255,255]" bold="true" executable="true" family="Courier New" foreground="[120,0,14]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="2D Output" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="2D Input" background="[255,255,255]" bold="false" executable="true" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="HyperlinkError" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[255,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="true" placeholder="false"/>
+<Font name="Header and Footer" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="10" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Error" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[255,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Title" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="18" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Heading 1" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="18" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Text" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Bullet Item" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Heading 4" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="true" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Equation Label" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Heading 3" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="true" opaque="false" readonly="false" size="14" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Heading 2" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="16" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="HyperlinkWarning" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="true" placeholder="false"/>
+<Font name="Dictionary Hyperlink" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[147,0,15]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="true" placeholder="false"/>
+<Font name="Atomic Variable" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[175,0,175]" italic="true" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="Caption Text" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Font name="List Item" background="[255,255,255]" bold="false" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
+<Layout name="Ordered List 1" alignment="left" bullet="numeric" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="-1" bulletsuffix=""/>
+<Layout name="Ordered List 2" alignment="left" bullet="alphabetic" firstindent="0" leftmargin="36" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="-1" bulletsuffix=""/>
+<Layout name="Ordered List 3" alignment="left" bullet="roman" firstindent="0" leftmargin="72" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="-1" bulletsuffix=""/>
+<Layout name="Ordered List 4" alignment="left" bullet="ALPHABETIC" firstindent="0" leftmargin="108" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="-1" bulletsuffix=""/>
+<Layout name="Ordered List 5" alignment="left" bullet="ROMAN" firstindent="0" leftmargin="144" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="-1" bulletsuffix=""/>
+<Layout name="Author" alignment="centred" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="8" spacebelow="8" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Warning" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Annotation Title" alignment="centred" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="12" spacebelow="12" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Maple Plot" alignment="centred" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Line Printed Output" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="any" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Text Output" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="newline" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Diagnostic" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="any" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Normal" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Maple Output" alignment="centred" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.3" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Dash Item" alignment="left" bullet="dash" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="HyperlinkError" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Error" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Title" alignment="centred" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="12" spacebelow="12" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Heading 1" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="8" spacebelow="4" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Bullet Item" alignment="left" bullet="dot" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Heading 4" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Heading 3" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="Heading 2" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="8" spacebelow="2" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="HyperlinkWarning" alignment="left" bullet="none" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="0" spacebelow="0" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Layout name="List Item" alignment="left" bullet="indent" firstindent="0" leftmargin="0" rightmargin="0" linespacing="0.0" spaceabove="3" spacebelow="3" linebreak="space" pagebreak-before="false" initial="0" bulletsuffix=""/>
+<Pencil-style name="Pencil 5" pen-color="[255,0,0]" pen-height="5.0" pen-width="5.0" pen-opacity="1.0"/>
+<Pencil-style name="Pencil 4" pen-color="[0,0,255]" pen-height="3.0" pen-width="3.0" pen-opacity="1.0"/>
+<Pencil-style name="Pencil 3" pen-color="[0,0,0]" pen-height="3.0" pen-width="3.0" pen-opacity="1.0"/>
+<Pencil-style name="Pencil 2" pen-color="[0,0,255]" pen-height="1.0" pen-width="1.0" pen-opacity="1.0"/>
+<Pencil-style name="Pencil 1" pen-color="[0,0,0]" pen-height="1.0" pen-width="1.0" pen-opacity="1.0"/>
+<Highlighter-style name="Highlighter 2" pen-color="[255,204,0]" pen-height="14.0" pen-width="14.0" pen-opacity="0.8"/>
+<Highlighter-style name="Highlighter 1" pen-color="[255,153,255]" pen-height="12.0" pen-width="8.0" pen-opacity="0.8"/>
+<Highlighter-style name="Highlighter 4" pen-color="[0,255,255]" pen-height="32.0" pen-width="32.0" pen-opacity="0.8"/>
+<Highlighter-style name="Highlighter 3" pen-color="[51,255,0]" pen-height="24.0" pen-width="24.0" pen-opacity="0.8"/>
+<Highlighter-style name="Highlighter 5" pen-color="[255,255,0]" pen-height="48.0" pen-width="48.0" pen-opacity="0.8"/>
+</Styles>
+<Task-table>
+    <Task-category name="&lt;default&gt;"/>
+</Task-table>
+<Task/><Presentation-Block>
+<Group view="code" labelreference="L14" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Zusammenhang von Winkelgeschwindigkeit und Rotationsdarstellung in RPY-Winkeln</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L19" drawlabel="true">
+<Input>
+<Text-field style="Normal" layout="Normal">Moritz Schappler, schappler@irt.uni-hannover.de, 2015-09</Text-field>
+<Text-field style="Normal" layout="Normal">Institut fuer Regelungstechnik, Leibniz Universitaet Hannover</Text-field>
+</Input>
+</Group></Presentation-Block>
+<Section collapsed="false" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title>
+<Text-field style="Heading 1" layout="Heading 1">Initialisierung</Text-field></Title>
+<Group labelreference="L142" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">restart:</Text-field>
+</Input>
+</Group>
+<Group labelreference="L141" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">with(LinearAlgebra):</Text-field>
+</Input>
+</Group>
+<Group labelreference="L145" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Lade Maple-Repo. Der Repo-Pfad muss in der Datei &quot;maplerepopath&quot; in diesem Verzeichnis angegeben sein.
+Z.B. mit `path_maple := &quot;/home/schappler/IRT_REPOS/maple&quot;:`</Text-field>
+</Input>
+</Group>
+<Group labelreference="L140" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">read &quot;maplerepopath&quot;:
+read sprintf(&quot;%s/transformation/proc_rotx&quot;, path_maple):
+read sprintf(&quot;%s/transformation/proc_roty&quot;, path_maple):
+read sprintf(&quot;%s/transformation/proc_rotz&quot;, path_maple):
+
+read sprintf(&quot;%s/helper/proc_MatlabExport&quot;, path_maple):</Text-field>
+</Input>
+</Group>
+</Section>
+<Section collapsed="false" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title>
+<Text-field style="Heading 1" layout="Heading 1">Rotation, Winkelgeschwindigkeit, Winkelbeschleunigung direkt aus Euler-Winkeln</Text-field></Title><Presentation-Block>
+<Group view="presentation" hide-input="false" hide-output="true" inline-output="false" labelreference="L120" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L132" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Definitionen</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L128" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">abc_t:=Matrix(3,1,&lt;alpha(t),beta(t),gamma(t)&gt;):
+abcD_t:=diff~(abc_t,t):
+abcDD_t:=diff~(abcD_t,t):
+abc_s:=Matrix(3,1,&lt;alpha_s,beta_s,gamma_s&gt;):
+abcD_s:=Matrix(3,1,&lt;alphaD_s,betaD_s,gammaD_s&gt;):
+abcDD_s:=Matrix(3,1,&lt;alphaDD_s,betaDD_s,gammaDD_s&gt;):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L125" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Rotationsmatrix mit RPY-Konvention</Text-field>
+</Input>
+</Group>
+<Group labelreference="L124" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">R_rpy_t:=rotx(abc_t[1,1]).roty(abc_t[2,1]).rotz(abc_t[3,1]):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L122" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Winkelgeschwindigkeit und -beschleunigung aus der Zeitableitung der Rotationsmatrix</Text-field>
+</Input>
+</Group>
+<Group labelreference="L131" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">omegatilde_t:=diff~(R_rpy_t,t).Transpose(R_rpy_t):</Text-field>
+</Input>
+</Group>
+<Group labelreference="L133" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">omegaDtilde_t:=diff~(omegatilde_t,t):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L127" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">omega_t := Matrix(3,1,&lt;omegatilde_t(3,2), omegatilde_t(1,3), omegatilde_t(2,1)&gt;):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L126" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal"> </Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L130" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Ausdr\303\274cke substituieren</Font></Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L129" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">R_rpy_s := R_rpy_t:
+omega_s := omega_t:
+omegatilde_s:=omegatilde_t:
+omegaDtilde_s:=omegaDtilde_t:
+for i from 1 to 3 do
+
+  omegatilde_s:= subs({abcDD_t[i,1] = abcDD_s[i,1]},omegatilde_s):
+  omegaDtilde_s:= subs({abcDD_t[i,1] = abcDD_s[i,1]},omegaDtilde_s):
+
+  omega_s:= subs({abcD_t[i,1] = abcD_s[i,1]},omega_s):
+  omegatilde_s:= subs({abcD_t[i,1] = abcD_s[i,1]},omegatilde_s):
+  omegaDtilde_s:= subs({abcD_t[i,1] = abcD_s[i,1]},omegaDtilde_s):
+  
+
+  R_rpy_s:= subs({abc_t[i,1] = abc_s[i,1]},R_rpy_s):
+  omega_s:= subs({abc_t[i,1] = abc_s[i,1]},omega_s):
+  omegatilde_s:= subs({abc_t[i,1] = abc_s[i,1]},omegatilde_s):
+  omegaDtilde_s:= subs({abc_t[i,1] = abc_s[i,1]},omegaDtilde_s):
+
+end do:</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L121" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section>
+<Section collapsed="false" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title>
+<Text-field style="Heading 1" layout="Heading 1">Transformationsmatrizn</Text-field></Title><Presentation-Block>
+<Group view="presentation" hide-input="false" hide-output="true" inline-output="false" labelreference="L91" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L96" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Transformationsmatrizen Omega</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L94" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">T_rpy_s := Matrix(3,3):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L95" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">for i from 1 to 3 do
+  for j from 1 to 3 do
+    T_rpy_s(i,j) :=diff(omega_s(i,1), abcD_s(j,1)):
+  end do:
+end do:</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L93" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">T_rpy_t := T_rpy_s:</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L98" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">for i from 1 to 3 do
+  T_rpy_t := subs({abc_s[i,1] = abc_t[i,1]},T_rpy_t):
+end do:</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L97" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">T_rpy_t := simplify((T_rpy_t)):</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L92" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal">Transformationsmatrizen OmegaD</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L99" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">TD_rpy_t := diff~(T_rpy_t, t):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L103" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">TD_rpy_t := simplify(TD_rpy_t):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L101" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">TD_rpy_s := TD_rpy_t:</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L100" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">for i from 1 to 3 do
+  TD_rpy_s:= subs({abcD_t[i,1] = abcD_s[i,1]},TD_rpy_s):
+  TD_rpy_s:= subs({abc_t[i,1] = abc_s[i,1]},TD_rpy_s):
+end do:</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L102" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section>
+<Section collapsed="false" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title>
+<Text-field style="Heading 1" layout="Heading 1">Matlab Export</Text-field></Title><Presentation-Block>
+<Group view="code" labelreference="L138" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">MatlabExport(R_rpy_s, sprintf(&quot;codeexport/R_from_rpy.m&quot;), 2):</Text-field>
+</Input>
+</Group>
+<Group labelreference="L112" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" alignment="left" firstindent="0" spacebelow="0" leftmargin="0" linespacing="0.0" initial="0" linebreak="space" rightmargin="0" bulletsuffix="" spaceabove="0" bullet="none" pagebreak-before="false">MatlabExport(omegatilde_s, sprintf(&quot;codeexport/omega_from_rpy.m&quot;), 2):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L111" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">MatlabExport(omegaDtilde_s, sprintf(&quot;codeexport/omegaD_from_rpy.m&quot;), 2):</Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section>
+<Section collapsed="false" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title>
+<Text-field style="Heading 1" layout="Heading 1">Testbereich: Gleichungssystem</Text-field></Title><Presentation-Block>
+<Group view="code" labelreference="L115" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal"><Font encoding="UTF-8">RPY-Winkelableitung aus Omega berechnen und nach RPY-Winkelableitung aufl\303\266sen</Font></Text-field>
+</Input>
+</Group>
+<Group labelreference="L119" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">OmegaT:=[[0, -wz, wy],[wz, 0, -wx],[-wy, wx, 0]]:</Text-field>
+</Input>
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" alignment="left" firstindent="0" spacebelow="0" leftmargin="0" linespacing="0.0" initial="0" linebreak="space" rightmargin="0" bulletsuffix="" spaceabove="0" bullet="none" pagebreak-before="false">rpyD:=solve([omegatilde_s[1,1]=OmegaT[1,1],omegatilde_s[1,2]=OmegaT[1,2],omegatilde_s[1,3]=OmegaT[1,3],omegatilde_s[2,1]=OmegaT[2,1],omegatilde_s[2,2]=OmegaT[2,2],omegatilde_s[2,3]=OmegaT[2,3],omegatilde_s[3,1]=OmegaT[3,1],omegatilde_s[3,2]=OmegaT[3,2],omegatilde_s[3,3]=OmegaT[3,3]],[alphaD_s,betaD_s,gammaD_s]):</Text-field>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">rpyD:=simplify(rpyD):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L114" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">rpyD_export:=Matrix(3,1,&lt;rhs(rpyD[1,1]),rhs(rpyD[1,2]),rhs(rpyD[1,3])&gt;):</Text-field>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">MatlabExport(rpyD_export, sprintf(&quot;codeexport/rpyD_from_omega.m&quot;), 2):</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L117" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">#rhs(rpyD[1, 1]); 
+#singular(rhs(rpyD[1, 1]));</Text-field>
+</Input>
+</Group>
+<Group labelreference="L118" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">#rhs(rpyD[1, 2]); 
+#singular(rhs(rpyD[1, 2]));</Text-field>
+</Input>
+</Group>
+<Group labelreference="L116" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal">#rhs(rpyD[1, 3]); 
+#singular(rhs(rpyD[1, 3]));</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L113" drawlabel="true">
+<Input>
+<Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section><Presentation-Block>
+<Group view="presentation" hide-input="false" hide-output="true" inline-output="false" labelreference="L144" drawlabel="true">
+<Input>
+<Text-field style="Text" layout="Normal"><Equation executable="false" style="2D Math" input-equation="" display="LUklbXJvd0c2Iy9JK21vZHVsZW5hbWVHNiJJLFR5cGVzZXR0aW5nR0koX3N5c2xpYkdGJzYkLUkjbWlHRiQ2I1EhRicvJSxtYXRodmFyaWFudEdRJ25vcm1hbEYn">LUklbXJvd0c2Iy9JK21vZHVsZW5hbWVHNiJJLFR5cGVzZXR0aW5nR0koX3N5c2xpYkdGJzYjLUkjbWlHRiQ2I1EhRic=</Equation></Text-field>
+</Input>
+</Group></Presentation-Block>
+</Worksheet>
