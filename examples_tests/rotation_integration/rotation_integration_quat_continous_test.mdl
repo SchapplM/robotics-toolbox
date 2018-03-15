@@ -881,7 +881,7 @@ Model {
       ForegroundColor	      "red"
       BackgroundColor	      "yellow"
       LibraryVersion	      "1.118"
-      SourceBlock	      "rigid_body_kinematics/Rotation_quat_continuous"
+      SourceBlock	      "lib_rigid_body_kinematics/Rotation_quat_continuous"
       SourceType	      ""
       ContentPreviewEnabled   off
       quat_t0		      "quat_t0"

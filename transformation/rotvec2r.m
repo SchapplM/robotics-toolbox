@@ -9,10 +9,13 @@
 
 function R = rotvec2r(rotvec)
 
+assert(isa(rotvec,'double') && isreal(rotvec) && all(size(rotvec) == [3 1]), ...
+      'rotvec2r: rotvec = [3x1] double');  
+    
 theta = norm(rotvec);
 if theta == 0
   R = eye(3);
 else
   k = rotvec / theta; % Einheitsvektor, um den rotiert wird
-  R = angvec2r(theta, k');
+  R = angvec2r(theta, k);
 end

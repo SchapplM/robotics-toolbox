@@ -2283,7 +2283,7 @@ Library {
 	  ZOrder		  45
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.104"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -2296,7 +2296,7 @@ Library {
 	  ZOrder		  46
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.104"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3820,7 +3820,7 @@ Library {
 	  ZOrder		  48
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.104"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3833,7 +3833,7 @@ Library {
 	  ZOrder		  49
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.104"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -4547,7 +4547,7 @@ Stateflow {
       "(k) == [3 1]), ...\n  'Rotationssteifigkeit muss [3x1] double sein.');\n\n%% Berechnung\n\n% Eingangs-Quaternion"
       "en in Quaternion-Klasse umwandeln für weitere\n% Operationen\nQ_d = Quaternion(q_d);\nQ_e = Quaternion(q_e);\n\n"
       "% Quaternion-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% Reglerausgang:"
-      " [1], (2.56)\nR_e = quat2r(q_e');\nM = k .* (R_e * (q_de(2:4)'));\n"
+      " [1], (2.56)\nR_e = quat2r(q_e);\nM = k .* (R_e * (q_de(2:4)'));\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -4726,8 +4726,7 @@ Stateflow {
       "ert(isa(Rc,'double') && isreal(Rc) && all(size(Rc) == [3 3]), ...\n  'Rotationsmatrix Rc muss [3x3] double sein."
       "');\nassert(isa(k,'double') && isreal(k) && all(size(k) == [3 1]), ...\n  'Rotationssteifigkeit muss [3x3] doubl"
       "e sein.');\n\n%% Berechnung\n% [1], (3,21)\nR_cd = Rc' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd "
-      "= r2rpy(R_cd);\n\nalpha = phi_cd(1);\nbeta = phi_cd(2);\ngamma = phi_cd(3);\n\nT = angvelotrans_rpy(alpha, beta,"
-      " gamma);\n\nmu_ce = T \\ (k .* (phi_cd'));\n\n% assert(isa(mu_ce,'double') && isreal(mu_ce) && all(size(mu_ce) ="
+      "= r2rpy(R_cd);\n\nalpha = phi_cd(1);\nbeta = phi_cd(2);\ngamma = phi_cd(3);\n\nT = angvelotrans_rpy(phi_cd);\n\nmu_ce = T \\ (k .* (phi_cd'));\n\n% assert(isa(mu_ce,'double') && isreal(mu_ce) && all(size(mu_ce) ="
       "= [3 1]), ...\n%   'Reglermoment muss [3x1] double sein.');\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4913,8 +4912,7 @@ Stateflow {
       "uaternion q_d muss [4x1] double sein.');\nassert(isa(k_P_r,'double') && isreal(k_P_r) && all(size(k_P_r) == [3 1"
       "]), ...\n  'Rotationssteifigkeit muss [3x1] double sein.');\n\n%% Berechnung\n\n% Eingangs-Quaternionen in Quate"
       "rnion-Klasse umwandeln für weitere\n% Operationen\nQ_d = Quaternion(q_d);\nQ_e = Quaternion(q_e);\n\n% Quaterni"
-      "on-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% [1], (2.56)\nR_e = quat2"
-      "r(q_e');\nM_P = k_P_r .* (R_e * (q_de(2:4)'));\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
+      "on-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% [1], (2.56)\nR_e = quat2r(q_e);\nM_P = k_P_r .* (R_e * (q_de(2:4)'));\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -5100,8 +5098,7 @@ Stateflow {
       ", ...\n  'Rotationsmatrix Rd muss [3x3] double sein.');\nassert(isa(Rc,'double') && isreal(Rc) && all(size(Rc) ="
       "= [3 3]), ...\n  'Rotationsmatrix Rc muss [3x3] double sein.');\nassert(isa(k,'double') && isreal(k) && all(size"
       "(k) == [3 1]), ...\n  'Rotationssteifigkeit muss [3x3] double sein.');\n\n%% Berechnung\n% [1], (3,21)\nR_cd = R"
-      "c' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd = r2rpy(R_cd);\nphi_cd = phi_cd(:);\n\nTw = angvelot"
-      "rans_rpy(phi_cd(1), phi_cd(2), phi_cd(3)); % [1], (2.34)\n% Te = Rc*Tw; % [1], (2.31); Bereits unten eingesetzt\n"
+      "c' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd = r2rpy(R_cd);\nphi_cd = phi_cd(:);\n\nTw = angvelotrans_rpy(phi_cd); % [1], (2.34)\n% Te = Rc*Tw; % [1], (2.31); Bereits unten eingesetzt\n"
       "\n% Rückstellendes Moment: Federmoment in mitgedrehten Koordinaten,\n% Transformation in kartesische Koordinate"
       "n mit Tw und Rotation vom KS c\n% ins Welt-KS mit Rc\nmu_ce = Rc * (Tw' \\ (k .* phi_cd)); % [1], (2.32); Dort T"
       "ransponiert-Invertiert vergessen\n\n% Energie\nE = sum(0.5 * k .* phi_cd.^2);\n"

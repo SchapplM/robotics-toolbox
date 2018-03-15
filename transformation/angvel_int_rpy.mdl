@@ -850,7 +850,7 @@ Model {
       Position		      [350, 180, 415, 220]
       ZOrder		      159
       LibraryVersion	      "1.194"
-      SourceBlock	      "rigid_body_kinematics/angvel_int_rpy"
+      SourceBlock	      "lib_rigid_body_kinematics/angvel_int_rpy"
       SourceType	      ""
       ContentPreviewEnabled   off
       R_0E_t0		      "R_t0"

@@ -874,7 +874,7 @@ Model {
       Position		      [165, 80, 230, 120]
       ZOrder		      109
       LibraryVersion	      "1.105"
-      SourceBlock	      "rigid_body_kinematics/Rotation_R_continuous"
+      SourceBlock	      "lib_rigid_body_kinematics/Rotation_R_continuous"
       SourceType	      ""
       ContentPreviewEnabled   off
       R_0E_t0		      "R_t0"

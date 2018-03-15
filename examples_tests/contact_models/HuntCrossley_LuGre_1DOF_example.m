@@ -56,9 +56,9 @@
 clear
 clc
 %% Init
-tb_path = fileparts(which('irt_tb_init.m'));
-addpath(fullfile(tb_path, 'testfunctions', 'rigidbody_fdyn'));
-addpath(fullfile(tb_path, 'testfunctions', 'contact_models'));
+tb_path = fileparts(which('robotics_toolbox_path_init.m'));
+addpath(fullfile(tb_path, 'examples_tests', 'dynamics', 'rigidbody_fdyn'));
+addpath(fullfile(tb_path, 'examples_tests', 'contact_models'));
 %% Benutzereingaben
 usr_BilderSpeichern = 0;
 
@@ -137,7 +137,8 @@ simin_F_ext = struct('time', [0;t_rampe1;t_rampe2;20], ...
 sl_Modellname = 'rigid_body_fdyn_HC_LuGre';
 t_End = 20;
 Ts = 1e-4;
-erg_pfad = fullfile(tb_path, 'testfunctions', 'results');
+erg_pfad = fullfile(tb_path, 'examples_tests', 'results');
+
 ErgStruct = {};
 ergdat_pfad = {};
 
@@ -600,7 +601,7 @@ for i_Modus = 1:nModus
   if i_Modus==nModus
     legend(Namen); 
     linkxaxes; 
-    remove_InnerLabels_byHandle(axhdl,1); 
+    remove_inner_labels(axhdl,1); 
   end
   
   %% Plot: Winkelbeschleunigung
@@ -655,7 +656,7 @@ for i_Modus = 1:nModus
   end
   if i_Modus==nModus
     legend(Namen); 
-    remove_InnerLabels_byHandle(axhdl,1); 
+    remove_inner_labels(axhdl,1); 
     subplot_expand(50, nC, 3, axhdl);
   end
   linkxaxes
@@ -673,7 +674,7 @@ for i_Modus = 1:nModus
   end
   if i_Modus==nModus
     legend(Namen); 
-    remove_InnerLabels_byHandle(axhdl,1); 
+    remove_inner_labels(axhdl,1); 
     subplot_expand(53, nC, 3, axhdl);
   end
   linkxaxes
@@ -690,7 +691,7 @@ for i_Modus = 1:nModus
   end
   if i_Modus==nModus
     legend(Namen); 
-    remove_InnerLabels_byHandle(axhdl,1); 
+    remove_inner_labels(axhdl,1); 
     subplot_expand(51, nC, 2, axhdl);
   end
   
@@ -707,7 +708,7 @@ for i_Modus = 1:nModus
   end
   if i_Modus==nModus
     legend(Namen); 
-    remove_InnerLabels_byHandle(axhdl,1); 
+    remove_inner_labels(axhdl,1); 
     subplot_expand(52, nC, 2, axhdl);
   end
   
@@ -799,7 +800,7 @@ end
 dockall
 %% Alle Bilder speichern
 if usr_BilderSpeichern
-  Bilder_Speichern(erg_pfad, {'fig', 'png'}, ...
+  save_figures(erg_pfad, {'fig', 'png'}, ...
     sprintf('HC_LuGre_example_EV%d_%s_CM%d_LGM%d_', i_EV, EVN{i_EV}, ...
     CONTACTMODEL_SWITCH, LuGre_kv_arctan));
 end

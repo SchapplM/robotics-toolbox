@@ -1762,7 +1762,7 @@ Model {
       Position		      [1480, -178, 1580, -122]
       ZOrder		      75
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/Energie_rot"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_rot"
       SourceType	      ""
       ContentPreviewEnabled   off
       I_B_C		      "I_B1_C1"
@@ -1775,7 +1775,7 @@ Model {
       Position		      [1470, -103, 1595, -47]
       ZOrder		      74
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/Energie_transl"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_transl"
       SourceType	      ""
       ContentPreviewEnabled   off
       m			      "m1"
@@ -1796,7 +1796,7 @@ Model {
       Position		      [1510, 187, 1610, 243]
       ZOrder		      308
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/Energie_rot"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_rot"
       SourceType	      ""
       ContentPreviewEnabled   off
       I_B_C		      "I_B2_C2"
@@ -1809,7 +1809,7 @@ Model {
       Position		      [1500, 262, 1625, 318]
       ZOrder		      307
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/Energie_transl"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_transl"
       SourceType	      ""
       ContentPreviewEnabled   off
       m			      "m2"
@@ -1835,7 +1835,7 @@ Model {
       Position		      [615, -178, 700, -117]
       ZOrder		      64
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/fdyn_ges_rotmat"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_ges_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       I			      "I_B1_C1"
@@ -1879,7 +1879,7 @@ Model {
       Position		      [595, 202, 680, 263]
       ZOrder		      73
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/fdyn_ges_rotmat"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_ges_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       I			      "I_B2_C2"
@@ -2068,7 +2068,7 @@ Model {
       ZOrder		      47
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
       Port {
@@ -2088,7 +2088,7 @@ Model {
       ZOrder		      67
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }
@@ -2101,7 +2101,7 @@ Model {
       ZOrder		      340
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }
@@ -2114,7 +2114,7 @@ Model {
       ZOrder		      347
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }
@@ -2126,7 +2126,7 @@ Model {
       Position		      [1185, -158, 1280, -107]
       ZOrder		      303
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B1_B1_C1"
@@ -2142,7 +2142,7 @@ Model {
       Position		      [1195, 194, 1295, 256]
       ZOrder		      314
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B2_B2_C2"
@@ -2158,7 +2158,7 @@ Model {
       Position		      [-475, -188, -380, -137]
       ZOrder		      336
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B1_B1_F1"
@@ -2174,7 +2174,7 @@ Model {
       Position		      [-475, 92, -380, 143]
       ZOrder		      344
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B2_B2_F2"
@@ -2190,7 +2190,7 @@ Model {
       Position		      [1185, -241, 1295, -189]
       ZOrder		      306
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B1_B1_C1"
@@ -2206,7 +2206,7 @@ Model {
       Position		      [1185, 109, 1315, 161]
       ZOrder		      315
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B2_B2_C2"
@@ -2222,7 +2222,7 @@ Model {
       Position		      [-480, -101, -370, -49]
       ZOrder		      338
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B1_B1_F1"
@@ -2238,7 +2238,7 @@ Model {
       Position		      [-480, 179, -370, 231]
       ZOrder		      345
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B2_B2_F2"

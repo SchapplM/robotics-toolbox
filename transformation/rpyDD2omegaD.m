@@ -116,4 +116,4 @@ t36 = -t107 * t59 + t68 * t61;
 omegaD_tilde = [t67 * t58 + (-t95 + (t52 * t59 - t53 * t61) * betaD_s) * t63 + (t89 + (-t52 * gammaD_s + t47) * t61 + (-t53 * gammaD_s - t46) * t59) * t64 0.2e1 * t60 * t86 + t52 * t44 + t53 * t45 + t46 * t54 + t47 * t55 + (-t60 * betaDD_s - t62 * t84) * t58 -0.2e1 * t62 * t86 + t52 * t42 + t53 * t43 + t46 * t56 + t47 * t57 + (-t60 * t84 + t62 * betaDD_s) * t58; (t49 + (t44 * t59 - t45 * t61) * betaD_s) * t63 + (betaD_s * t51 + (-t44 * gammaD_s + t39) * t61 + (-t45 * gammaD_s - t38) * t59) * t64 t38 * t54 + t39 * t55 + t44 ^ 2 + t45 ^ 2 - t49 * t99 + t51 ^ 2 t38 * t56 + t39 * t57 + t49 * t96 + t105; (t48 + (t42 * t59 - t43 * t61) * betaD_s) * t63 + (betaD_s * t50 + (-t42 * gammaD_s + t37) * t61 + (-t43 * gammaD_s - t36) * t59) * t64 t36 * t54 + t37 * t55 - t48 * t99 + t105 t36 * t56 + t37 * t57 + t42 ^ 2 + t43 ^ 2 + t48 * t96 + t50 ^ 2;];
 
 %% Nachbearbeitung
-omegaD = [omegaD_tilde(3,2); omegaD_tilde(1,3); omegaD_tilde(2,1)]';
+omegaD = [omegaD_tilde(3,2); omegaD_tilde(1,3); omegaD_tilde(2,1)];

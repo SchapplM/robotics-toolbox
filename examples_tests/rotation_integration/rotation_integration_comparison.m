@@ -17,19 +17,15 @@ clear
 clc
 close all
 
-TB_path = fileparts(which('irt_tb_init'));
-% in Simulink-Ordner wechseln, damit mex-Datei des Modells dort liegt.
-cd(fullfile(TB_path, 'simulink'));
+TB_path = fileparts(which('robotics_toolbox_path_init.m'));
+% in Ordner der Simulink-Modelle wechseln, damit mex-Datei des Modells dort liegt.
+cd(fullfile(TB_path, 'examples_tests', 'rotation_integration'));
 
-% Testfunktion-Ordner zum Pfad hinzufügen
-addpath(fullfile(TB_path, 'testfunctions'));
-
-% Ergebnisordner erstellen
-res_path = fullfile(TB_path, 'testfunctions', 'results');
-mkdirs(res_path);
+% Ergebnisordner
+res_path = fullfile(TB_path, 'examples_tests', 'results');
 
 %% Init
-Mex_Erstellen({'r2rpy', 'rpyD2omega', 'rpyDD2omegaD'});
+mex_script_dependencies(mfilename('fullpath'), false);
 
 %% Einstellungen
 T_end = 100;
@@ -57,14 +53,14 @@ for i = 1:length(feature_vector)
 
   % Trajektorie für RPY-Winkel generieren
   % Siehe [ZupanSaj2011] Kap. 5
-  f = [10 10 10];
-  A = [0 1 -0.5];
-  rpy_offsets = [0 0 0];
-  rpy_phases = [0 0 0];
+  f = [10 10 10]';
+  A = [0 1 -0.5]';
+  rpy_offsets = [0 0 0]';
+  rpy_phases = [0 0 0]';
   
   rpy_t0=A.*sin(rpy_phases)+rpy_offsets;
   omega0_t0 = rpyD2omega(rpy_t0, 2*pi*f.*A.*cos(rpy_phases));
-  R_t0 = rpy2r(rpy_t0(1), rpy_t0(2), rpy_t0(3));
+  R_t0 = rpy2r(rpy_t0);
   [theta, k] = r2angvec(R_t0);
   rotvec_t0 = k*theta;
   quat_t0 = r2quat(R_t0);
@@ -104,8 +100,8 @@ for i = 1:length(feature_vector)
     omegaD_matrix = NaN(size(rpy_matrix));
     % Winkelgeschwindigkeit und Beschleunigung generieren
     for jj = 1:size(rpy_matrix,1)
-      omega_matrix(jj,:) = rpyD2omega(rpy_matrix(jj,:), rpyD_matrix(jj,:));
-      omegaD_matrix(jj,:) = rpyDD2omegaD(rpy_matrix(jj,:), rpyD_matrix(jj,:), rpyDD_matrix(jj,:));
+      omega_matrix(jj,:) = rpyD2omega(rpy_matrix(jj,:)', rpyD_matrix(jj,:)');
+      omegaD_matrix(jj,:) = rpyDD2omegaD(rpy_matrix(jj,:)', rpyD_matrix(jj,:)', rpyDD_matrix(jj,:)');
     end
     
     %% Eingabedaten auch speichern
@@ -115,7 +111,7 @@ for i = 1:length(feature_vector)
     sl.t_soll = t_input; % kann bei variabler Schrittweite anders sein
     sl.R_soll = NaN(3,3,size(rpy_matrix,1));
     for jj = 1:size(rpy_matrix,1)
-      sl.R_soll(:,:,jj) = rpy2r(rpy_matrix(jj,1), rpy_matrix(jj,2), rpy_matrix(jj,3));
+      sl.R_soll(:,:,jj) = rpy2r(rpy_matrix(jj,:)');
     end
     
     %% Speichern

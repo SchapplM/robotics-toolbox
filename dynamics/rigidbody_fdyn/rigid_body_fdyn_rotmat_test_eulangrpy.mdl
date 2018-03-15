@@ -985,7 +985,7 @@ Model {
       Position		      [1100, 352, 1215, 423]
       ZOrder		      42
       LibraryVersion	      "1.84"
-      SourceBlock	      "rigid_body_dynamics/Energie_rot"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_rot"
       SourceType	      ""
       ContentPreviewEnabled   off
       I_B_C		      "I_B_C"
@@ -998,7 +998,7 @@ Model {
       Position		      [1235, 245, 1350, 300]
       ZOrder		      38
       LibraryVersion	      "1.84"
-      SourceBlock	      "rigid_body_dynamics/Energie_transl"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_transl"
       SourceType	      ""
       ContentPreviewEnabled   off
       m			      "m"
@@ -1046,7 +1046,7 @@ Model {
       Position		      [865, 112, 935, 163]
       ZOrder		      382
       LibraryVersion	      "1.186"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B_B_C"
@@ -1061,7 +1061,7 @@ Model {
       Position		      [870, 227, 960, 283]
       ZOrder		      125
       LibraryVersion	      "1.186"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_position_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B_B_C"
@@ -1076,7 +1076,7 @@ Model {
       Position		      [870, 334, 970, 391]
       ZOrder		      127
       LibraryVersion	      "1.186"
-      SourceBlock	      "rigid_body_kinematics/rigidbody_velocity_time_derivative"
+      SourceBlock	      "lib_rigid_body_kinematics/rigidbody_velocity_time_derivative"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_B_B_C		      "r_B_B_C"

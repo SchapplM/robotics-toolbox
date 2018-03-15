@@ -1,5 +1,5 @@
 Library {
-  Name			  "rigid_body_dynamics"
+  Name			  "lib_rigid_body_dynamics"
   Version		  8.8
   SavedCharacterEncoding  "UTF-8"
   LogicAnalyzerGraphicalSettings ""
@@ -1008,7 +1008,7 @@ Library {
     }
   }
   System {
-    Name		    "rigid_body_dynamics"
+    Name		    "lib_rigid_body_dynamics"
     Location		    [1969, 24, 3840, 1080]
     Open		    on
     ModelBrowserVisibility  off
@@ -1139,7 +1139,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "89::74"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 3"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 3"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      16
@@ -1368,7 +1368,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "83::84"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 1"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 1"
 	      Ports		      [2, 3]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      17
@@ -1647,7 +1647,7 @@ Library {
 	  Position		  [145, 285, 210, 325]
 	  ZOrder		  303
 	  LibraryVersion	  "1.84"
-	  SourceBlock		  "rigid_body_dynamics/fdyn_rot_quat"
+	  SourceBlock		  "lib_rigid_body_dynamics/fdyn_rot_quat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  I			  "I"
@@ -1662,7 +1662,7 @@ Library {
 	  Position		  [145, 135, 210, 175]
 	  ZOrder		  285
 	  LibraryVersion	  "1.84"
-	  SourceBlock		  "rigid_body_dynamics/fdyn_transl"
+	  SourceBlock		  "lib_rigid_body_dynamics/fdyn_transl"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  m			  "m"
@@ -1683,7 +1683,7 @@ Library {
 	  Position		  [370, 62, 440, 113]
 	  ZOrder		  302
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_position"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_position"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -1705,7 +1705,7 @@ Library {
 	  Position		  [320, 157, 410, 213]
 	  ZOrder		  298
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_position_time_derivative"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -1720,7 +1720,7 @@ Library {
 	  Position		  [320, 314, 410, 371]
 	  ZOrder		  299
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_velocity_time_derivative"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_velocity_time_derivative"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -2073,7 +2073,7 @@ Library {
 	  Position		  [145, 285, 210, 325]
 	  ZOrder		  286
 	  LibraryVersion	  "1.81"
-	  SourceBlock		  "rigid_body_dynamics/fdyn_rot_rotmat"
+	  SourceBlock		  "lib_rigid_body_dynamics/fdyn_rot_rotmat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  I			  "I"
@@ -2088,7 +2088,7 @@ Library {
 	  Position		  [145, 135, 210, 175]
 	  ZOrder		  285
 	  LibraryVersion	  "1.81"
-	  SourceBlock		  "rigid_body_dynamics/fdyn_transl"
+	  SourceBlock		  "lib_rigid_body_dynamics/fdyn_transl"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  m			  "m"
@@ -2109,7 +2109,7 @@ Library {
 	  Position		  [370, 62, 440, 113]
 	  ZOrder		  302
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_position"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_position"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -2131,7 +2131,7 @@ Library {
 	  Position		  [320, 157, 410, 213]
 	  ZOrder		  298
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_position_time_derivative"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_position_time_derivative"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -2146,7 +2146,7 @@ Library {
 	  Position		  [320, 314, 410, 371]
 	  ZOrder		  299
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/rigidbody_velocity_time_derivative"
+	  SourceBlock		  "lib_rigid_body_kinematics/rigidbody_velocity_time_derivative"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r_B_B_C		  "-r_B_B_C"
@@ -2532,7 +2532,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "130::97"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 4"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 4"
 	      Ports		      [4, 2]
 	      Position		      [180, 102, 230, 203]
 	      ZOrder		      16
@@ -2624,7 +2624,7 @@ Library {
 	  Position		  [535, 220, 600, 260]
 	  ZOrder		  285
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_quat"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_quat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  quat_t0		  "r2quat(R_t0)"
@@ -2911,7 +2911,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "44::94"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 2"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 2"
 	      Ports		      [4, 2]
 	      Position		      [180, 102, 230, 203]
 	      ZOrder		      13
@@ -3003,7 +3003,7 @@ Library {
 	  Position		  [535, 220, 600, 260]
 	  ZOrder		  285
 	  LibraryVersion	  "1.195"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_quat"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_quat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  quat_t0		  "r2quat(R_0E_t0)"
@@ -3259,7 +3259,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "160::63"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 6"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 6"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      21
@@ -3449,7 +3449,7 @@ Library {
 	  Position		  [325, 115, 390, 155]
 	  ZOrder		  13
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/Doppelintegrator"
+	  SourceBlock		  "lib_rigid_body_kinematics/Doppelintegrator"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r0			  "r0"
@@ -3691,7 +3691,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "151::65"
-	      Tag		      "Stateflow S-Function rigid_body_dynamics 5"
+	      Tag		      "Stateflow S-Function lib_rigid_body_dynamics 5"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      17
@@ -3818,7 +3818,7 @@ Library {
 Stateflow {
   machine {
     id			    1
-    name		    "rigid_body_dynamics"
+    name		    "lib_rigid_body_dynamics"
     created		    "24-Aug-2015 16:54:29"
     isLibrary		    1
     sfVersion		    80000010

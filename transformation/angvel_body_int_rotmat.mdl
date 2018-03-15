@@ -850,7 +850,7 @@ Model {
       Position		      [460, 210, 540, 250]
       ZOrder		      306
       LibraryVersion	      "1.194"
-      SourceBlock	      "rigid_body_kinematics/angvel_body_int_rotmat"
+      SourceBlock	      "lib_rigid_body_kinematics/angvel_body_int_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       R_0E_t0		      "R_t0"

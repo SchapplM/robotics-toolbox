@@ -1,5 +1,5 @@
 Library {
-  Name			  "rigid_body_kinematics"
+  Name			  "lib_rigid_body_kinematics"
   Version		  8.5
   MdlSubVersion		  0
   SavedCharacterEncoding  "UTF-8"
@@ -917,7 +917,7 @@ Library {
     }
   }
   System {
-    Name		    "rigid_body_kinematics"
+    Name		    "lib_rigid_body_kinematics"
     Location		    [1959, 542, 2914, 1090]
     Open		    off
     ModelBrowserVisibility  off
@@ -1268,7 +1268,7 @@ Library {
 	  Position		  [445, 210, 510, 250]
 	  ZOrder		  282
 	  LibraryVersion	  "1.190"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_rotmat"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rotmat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  R_0E_t0		  "R_t0"
@@ -1527,7 +1527,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "45::22"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 1"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 1"
 	      Ports		      [3, 2]
 	      Position		      [180, 105, 230, 185]
 	      ZOrder		      13
@@ -1779,7 +1779,7 @@ Library {
 	  Position		  [615, 200, 680, 240]
 	  ZOrder		  287
 	  LibraryVersion	  "1.119"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_quat"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_quat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  quat_t0		  "quat_t0"
@@ -1954,7 +1954,7 @@ Library {
 	  Position		  [525, 210, 590, 250]
 	  ZOrder		  283
 	  LibraryVersion	  "1.124"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_rpy"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rpy"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  R_0E_t0		  "R_t0"
@@ -2109,7 +2109,7 @@ Library {
 	  Position		  [595, 200, 660, 240]
 	  ZOrder		  286
 	  LibraryVersion	  "1.127"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_rotvec"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rotvec"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  rotvec_t0		  "rotvec_t0"
@@ -2343,7 +2343,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "241::105"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 8"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 8"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      39
@@ -2420,7 +2420,7 @@ Library {
 	  ZOrder		  286
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.102"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -2474,7 +2474,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "243::24"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 12"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 12"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      10
@@ -2728,7 +2728,7 @@ Library {
 	  Position		  [510, 207, 580, 253]
 	  ZOrder		  803
 	  LibraryVersion	  "1.102"
-	  SourceBlock		  "transformations_lib/skew"
+	  SourceBlock		  "lib_transformations/skew"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -2943,7 +2943,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "129::66"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 7"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 7"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      36
@@ -3020,7 +3020,7 @@ Library {
 	  ZOrder		  286
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.72"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3074,7 +3074,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "218::16"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 11"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 11"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      7
@@ -3357,7 +3357,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "190::75"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 2"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 2"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      39
@@ -3434,7 +3434,7 @@ Library {
 	  ZOrder		  286
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.22"
-	  SourceBlock		  "transformations_lib/quat2r"
+	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3623,7 +3623,7 @@ Library {
 	  Position		  [510, 207, 580, 253]
 	  ZOrder		  803
 	  LibraryVersion	  "1.102"
-	  SourceBlock		  "transformations_lib/skew"
+	  SourceBlock		  "lib_transformations/skew"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3818,7 +3818,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "171::63"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 5"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 5"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      33
@@ -3894,7 +3894,7 @@ Library {
 	  Position		  [945, 227, 995, 253]
 	  ZOrder		  286
 	  LibraryVersion	  "1.18"
-	  SourceBlock		  "transformations_lib/rotvec2r"
+	  SourceBlock		  "lib_transformations/rotvec2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -4103,7 +4103,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "161::53"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 3"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 3"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      26
@@ -4221,7 +4221,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "162::24"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 9"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 9"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      10
@@ -4494,7 +4494,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "212::23"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 10"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 10"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      13
@@ -4754,7 +4754,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "196::16"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 4"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 4"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      7
@@ -5048,7 +5048,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "206::21"
-	      Tag		      "Stateflow S-Function rigid_body_kinematics 6"
+	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 6"
 	      Ports		      [4, 2]
 	      Position		      [180, 107, 230, 208]
 	      ZOrder		      11
@@ -5190,7 +5190,7 @@ Library {
 Stateflow {
   machine {
     id			    1
-    name		    "rigid_body_kinematics"
+    name		    "lib_rigid_body_kinematics"
     created		    "24-Aug-2015 16:54:29"
     isLibrary		    1
     firstTarget		    102
@@ -5240,7 +5240,7 @@ Stateflow {
       "size(T) == [1 1]), ...\n  'Abtastzeit muss [1x1] double sein.');\n\n%% Berechnung\n\n% Drehgeschwindigkeit in KÃ"
       "¶rper-KS\nomega_E = R_0E1' * omega_0;\n% Drehwinkel\ntheta = norm(omega_E) * T;\n\nif theta == 0\n  % keine Dre"
       "hung\n  R_0E2 = R_0E1;\nelse\n  % Drehachse\n  v = omega_E / norm(omega_E);\n\n  % Rotationsmatrix aus Achse-Win"
-      "kel-Darstellung\n  R_E_Ed = angvec2r(theta, v');\n  \n  % Neue Endpunkt-Rotationsmatrix\n  R_0E2 = R_0E1 * R_E_E"
+      "kel-Darstellung\n  R_E_Ed = angvec2r(theta, v);\n  \n  % Neue Endpunkt-Rotationsmatrix\n  R_0E2 = R_0E1 * R_E_E"
       "d;\nend"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }

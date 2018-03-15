@@ -903,7 +903,7 @@ Model {
       Position		      [810, 287, 925, 358]
       ZOrder		      42
       LibraryVersion	      "1.73"
-      SourceBlock	      "rigid_body_dynamics/Energie_rot"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_rot"
       SourceType	      ""
       ContentPreviewEnabled   off
       I_B_C		      "I_B_C"
@@ -916,7 +916,7 @@ Model {
       Position		      [810, 185, 925, 240]
       ZOrder		      38
       LibraryVersion	      "1.73"
-      SourceBlock	      "rigid_body_dynamics/Energie_transl"
+      SourceBlock	      "lib_rigid_body_dynamics/Energie_transl"
       SourceType	      ""
       ContentPreviewEnabled   off
       m			      "m"
@@ -955,7 +955,7 @@ Model {
       Position		      [455, 285, 520, 325]
       ZOrder		      12
       LibraryVersion	      "1.73"
-      SourceBlock	      "rigid_body_dynamics/fdyn_rot_rotmat"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_rot_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       I			      "I_B_C"
@@ -976,7 +976,7 @@ Model {
       Position		      [455, 200, 520, 240]
       ZOrder		      11
       LibraryVersion	      "1.73"
-      SourceBlock	      "rigid_body_dynamics/fdyn_transl"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_transl"
       SourceType	      ""
       ContentPreviewEnabled   off
       m			      "m"

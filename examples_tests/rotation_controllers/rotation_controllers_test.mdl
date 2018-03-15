@@ -1163,7 +1163,7 @@ Model {
       Position		      [625, 157, 710, 218]
       ZOrder		      45
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/fdyn_ges_rotmat"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_ges_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       I			      "I_B_C"
@@ -1182,7 +1182,7 @@ Model {
       Position		      [625, 382, 710, 443]
       ZOrder		      46
       LibraryVersion	      "1.95"
-      SourceBlock	      "rigid_body_dynamics/fdyn_ges_rotmat"
+      SourceBlock	      "lib_rigid_body_dynamics/fdyn_ges_rotmat"
       SourceType	      ""
       ContentPreviewEnabled   off
       I			      "I_B_C"
@@ -1202,7 +1202,7 @@ Model {
       ZOrder		      47
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }
@@ -1215,7 +1215,7 @@ Model {
       ZOrder		      49
       NamePlacement	      "alternate"
       LibraryVersion	      "1.104"
-      SourceBlock	      "transformations_lib/r2quat"
+      SourceBlock	      "lib_transformations/r2quat"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }

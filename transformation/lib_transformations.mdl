@@ -1,5 +1,5 @@
 Library {
-  Name			  "transformations_lib"
+  Name			  "lib_transformations"
   Version		  8.5
   MdlSubVersion		  0
   SavedCharacterEncoding  "UTF-8"
@@ -832,7 +832,7 @@ Library {
     }
   }
   System {
-    Name		    "transformations_lib"
+    Name		    "lib_transformations"
     Location		    [2885, 52, 3840, 1128]
     Open		    on
     ModelBrowserVisibility  off
@@ -930,7 +930,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "30::29"
-	      Tag		      "Stateflow S-Function transformations_lib 20"
+	      Tag		      "Stateflow S-Function lib_transformations 20"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      20
@@ -1119,7 +1119,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "25::22"
-	      Tag		      "Stateflow S-Function transformations_lib 5"
+	      Tag		      "Stateflow S-Function lib_transformations 5"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      13
@@ -1304,7 +1304,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "83::62"
-	      Tag		      "Stateflow S-Function transformations_lib 14"
+	      Tag		      "Stateflow S-Function lib_transformations 14"
 	      Ports		      [1, 3]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      17
@@ -1550,7 +1550,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "103::94"
-	      Tag		      "Stateflow S-Function transformations_lib 21"
+	      Tag		      "Stateflow S-Function lib_transformations 21"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      28
@@ -1803,7 +1803,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "107::97"
-	      Tag		      "Stateflow S-Function transformations_lib 22"
+	      Tag		      "Stateflow S-Function lib_transformations 22"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      31
@@ -2001,7 +2001,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "57::37"
-	      Tag		      "Stateflow S-Function transformations_lib 9"
+	      Tag		      "Stateflow S-Function lib_transformations 9"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      28
@@ -2167,7 +2167,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "98::16"
-	      Tag		      "Stateflow S-Function transformations_lib 17"
+	      Tag		      "Stateflow S-Function lib_transformations 17"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      7
@@ -2353,7 +2353,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "28::25"
-	      Tag		      "Stateflow S-Function transformations_lib 19"
+	      Tag		      "Stateflow S-Function lib_transformations 19"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      16
@@ -2576,7 +2576,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "62::40"
-	      Tag		      "Stateflow S-Function transformations_lib 10"
+	      Tag		      "Stateflow S-Function lib_transformations 10"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      19
@@ -2777,7 +2777,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "11::22"
-	      Tag		      "Stateflow S-Function transformations_lib 1"
+	      Tag		      "Stateflow S-Function lib_transformations 1"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      13
@@ -2945,7 +2945,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "73::44"
-	      Tag		      "Stateflow S-Function transformations_lib 12"
+	      Tag		      "Stateflow S-Function lib_transformations 12"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      10
@@ -3116,7 +3116,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "7::19"
-	      Tag		      "Stateflow S-Function transformations_lib 3"
+	      Tag		      "Stateflow S-Function lib_transformations 3"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      10
@@ -3333,7 +3333,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "15::32"
-	      Tag		      "Stateflow S-Function transformations_lib 4"
+	      Tag		      "Stateflow S-Function lib_transformations 4"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      18
@@ -3516,7 +3516,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "18::64"
-	      Tag		      "Stateflow S-Function transformations_lib 6"
+	      Tag		      "Stateflow S-Function lib_transformations 6"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      38
@@ -3681,7 +3681,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "47::32"
-	      Tag		      "Stateflow S-Function transformations_lib 7"
+	      Tag		      "Stateflow S-Function lib_transformations 7"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      23
@@ -3864,7 +3864,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "53::24"
-	      Tag		      "Stateflow S-Function transformations_lib 8"
+	      Tag		      "Stateflow S-Function lib_transformations 8"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      15
@@ -4081,7 +4081,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "29::21"
-	      Tag		      "Stateflow S-Function transformations_lib 18"
+	      Tag		      "Stateflow S-Function lib_transformations 18"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
 	      ZOrder		      12
@@ -4298,7 +4298,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "90::20"
-	      Tag		      "Stateflow S-Function transformations_lib 15"
+	      Tag		      "Stateflow S-Function lib_transformations 15"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      11
@@ -4501,7 +4501,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "75::16"
-	      Tag		      "Stateflow S-Function transformations_lib 13"
+	      Tag		      "Stateflow S-Function lib_transformations 13"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      7
@@ -4704,7 +4704,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "65::16"
-	      Tag		      "Stateflow S-Function transformations_lib 11"
+	      Tag		      "Stateflow S-Function lib_transformations 11"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      7
@@ -4898,7 +4898,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "92::86"
-	      Tag		      "Stateflow S-Function transformations_lib 16"
+	      Tag		      "Stateflow S-Function lib_transformations 16"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      25
@@ -5064,7 +5064,7 @@ Library {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
 	      SID		      "1::16"
-	      Tag		      "Stateflow S-Function transformations_lib 2"
+	      Tag		      "Stateflow S-Function lib_transformations 2"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
 	      ZOrder		      7
@@ -5211,7 +5211,7 @@ Library {
 Stateflow {
   machine {
     id			    1
-    name		    "transformations_lib"
+    name		    "lib_transformations"
     created		    "25-Aug-2015 14:47:45"
     isLibrary		    1
     firstTarget		    170
@@ -5253,7 +5253,7 @@ Stateflow {
     decomposition	    CLUSTER_STATE
     eml {
       isEML		      1
-      script		      "function R = quat2r(q)\n%#codegen\n\nR = quat2r(q');"
+      script		      "function R = quat2r(q)\n%#codegen\n\nR = quat2r(q);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6145,7 +6145,7 @@ Stateflow {
       "Winkel alpha, beta, gamma\n% Ausgabe:\n% omega [3x1]\n%   Drehgeschwindigkeit (omega_A_B) von KS_B ausgedrückt "
       "in KS_A\n% \n% Quelle:\n% [ZupanSaj2011] Zupan, Eva and Saje, Miran: Integrating rotation from\n% angular veloci"
       "ty \n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Univers"
-      "ität Hannover\n\n\nfunction omega = fcn(phi, phiD)\n%#codegen\nomega = rpyD2omega(phi', phiD')';\n"
+      "ität Hannover\n\n\nfunction omega = fcn(phi, phiD)\n%#codegen\nomega = rpyD2omega(phi, phiD);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6290,7 +6290,7 @@ Stateflow {
       "(2))*rotz(rpy(3));\n\n% Output:\n% T\n%   Transformationsmatrix (3x3) zwischen Winkelgeschwindigkeit im\n%   Bas"
       "iskoordinatensystem und den Zeitableitungen der\n%   Rotationsdarstellungen\n\n\n% Moritz Schappler, schappler@i"
       "rt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität Hannover\n\nfunction T_angvel = "
-      "fcn(phi)\n%#codegen\nT_angvel = angvelotrans_rpy(phi(1), phi(2), phi(3));\n"
+      "fcn(phi)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6416,8 +6416,7 @@ Stateflow {
       "% phiD [3x1]\n%   1. Zeitableitung der RPY-Winkel alpha, beta, gamma\n% omegaD [3x1]\n%   Drehbeschleunigung (om"
       "egaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Ausgabe:\n% phiDD [3x1]\n%   2. Zeitableitung der RPY-Winkel alph"
       "a, beta, gamma\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06\n% (c) Institut für Regelungstechn"
-      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = rpy2jac(phi(1), p"
-      "hi(2), phi(3));\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
+      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = rpy2jac(phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -7517,7 +7516,7 @@ Stateflow {
       "omegaD [3x1]\n%   Drehbeschleunigung (omegaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Quelle:\n% [ZupanSaj2011]"
       " Zupan, Eva and Saje, Miran: Integrating rotation from\n% angular velocity \n\n% Moritz Schappler, schappler@irt"
       ".uni-hannover.de, 2015-09\n% (c) Institut für Regelungstechnik, Universität Hannover\n\n\nfunction omegaD = fc"
-      "n(phi, phiD, phiDD)\n%#codegen\nomegaD = rpyDD2omegaD(phi', phiD', phiDD')';\n"
+      "n(phi, phiD, phiDD)\n%#codegen\nomegaD = rpyDD2omegaD(phi, phiD, phiDD);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }

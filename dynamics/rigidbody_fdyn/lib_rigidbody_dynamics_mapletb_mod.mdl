@@ -2067,7 +2067,7 @@ Library {
 	  Position		  [710, 102, 775, 133]
 	  ZOrder		  294
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/Doppelintegrator"
+	  SourceBlock		  "lib_rigid_body_kinematics/Doppelintegrator"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
 	  r0			  "r_base_t0"
@@ -2093,7 +2093,7 @@ Library {
 	  Ports			  [1, 1]
 	  Position		  [885, 295, 915, 325]
 	  ZOrder		  325
-	  InitialCondition	  "rpyD2omega(phi_base_t0', phiD_base_t0')'"
+	  InitialCondition	  "rpyD2omega(phi_base_t0, phiD_base_t0)"
 	  Port {
 	    PortNumber		    1
 	    Name		    "omega_W_0"
@@ -2150,7 +2150,7 @@ Library {
 	  Position		  [1080, 300, 1140, 340]
 	  ZOrder		  338
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "transformations_lib/R2rpy"
+	  SourceBlock		  "lib_transformations/R2rpy"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	  Port {
@@ -2200,10 +2200,10 @@ Library {
 	  Position		  [970, 300, 1035, 340]
 	  ZOrder		  342
 	  LibraryVersion	  "1.186"
-	  SourceBlock		  "rigid_body_kinematics/angvel_int_rotmat"
+	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rotmat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
-	  R_0E_t0		  "rpy2r(phi_base_t0(1), phi_base_t0(2), phi_base_t0(3) )"
+	  R_0E_t0		  "rpy2r(phi_base_t0 )"
 	  Port {
 	    PortNumber		    1
 	    Name		    "R_W_0"
@@ -2219,7 +2219,7 @@ Library {
 	  Position		  [100, 505, 160, 525]
 	  ZOrder		  345
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "transformations_lib/angvelotrans_rpy"
+	  SourceBlock		  "lib_transformations/angvelotrans_rpy"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -2368,7 +2368,7 @@ Library {
 	  BlockMirror		  on
 	  NamePlacement		  "alternate"
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "transformations_lib/omega2rpyD"
+	  SourceBlock		  "lib_transformations/omega2rpyD"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	  Port {
@@ -3396,7 +3396,7 @@ Library {
 	  Position		  [740, 287, 845, 333]
 	  ZOrder		  339
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "transformations_lib/rpyDD2omegaD"
+	  SourceBlock		  "lib_transformations/rpyDD2omegaD"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	  Port {

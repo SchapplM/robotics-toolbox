@@ -860,7 +860,7 @@ Model {
       Position		      [305, 260, 370, 300]
       ZOrder		      305
       LibraryVersion	      "1.195"
-      SourceBlock	      "rigid_body_kinematics/angvel_body_int_quat"
+      SourceBlock	      "lib_rigid_body_kinematics/angvel_body_int_quat"
       SourceType	      ""
       ContentPreviewEnabled   off
       quat_t0		      "r2quat(R_t0)'"

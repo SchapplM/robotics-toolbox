@@ -95,7 +95,7 @@ for i_Modus = 1:2
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_com';
   elseif i_Modus == 2
     NJ = 0;
-    phi_base_t0 = r2rpy(R_W_B_t0)';
+    phi_base_t0 = r2rpy(R_W_B_t0);
     T_basevel_t0 = rpy2jac(phi_base_t0(1), phi_base_t0(2), phi_base_t0(3));
     phiD_base_t0 = T_basevel_t0\omega0_t0;
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulangrpy';
@@ -322,14 +322,14 @@ tau_ext = [eye(3), zeros(3,3); zeros(3,3), T_basevel'] * y_Fext(1,1:6)';
 xDD0 = Mq \ (-tauc - taug_base + tau_ext);
 phiDD0 = xDD0(4:6);
 omegaD_t0 = rpyDD2omegaD(phi_base_t0', phiD_base_t0', phiDD0')';
-fprintf('omegaD(t=0) = [%s]\n', dispparam(omegaD_t0', '%1.3f'));
+fprintf('omegaD(t=0) = [%s]\n', disp_array(omegaD_t0', '%1.3f'));
 aB_t0 = xDD0(1:3);
-fprintf('aB(t=0) = [%s]\n', dispparam(aB_t0', '%1.3f'));
+fprintf('aB(t=0) = [%s]\n', disp_array(aB_t0', '%1.3f'));
 
 % Kartesische Beschleunigung des Schwerpunktes
 r_W_B_C = R_W_B_t0 * r_B_B_C;
 aC_t0 = aB_t0 + cross(omegaD_t0, r_W_B_C) + cross(omega0_t0, cross(omega0_t0, r_W_B_C));
-fprintf('aC(t=0) = [%s]\n', dispparam(aC_t0', '%1.3f'));
+fprintf('aC(t=0) = [%s]\n', disp_array(aC_t0', '%1.3f'));
 
 % Probe des Gravitationsmomentes der symbolischen Berechnung
 taug_base_test = -[eye(3), zeros(3,3); zeros(3,3), T_basevel']* [m*g_world; cross(r_W_B_C, m*g_world)];

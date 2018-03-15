@@ -879,7 +879,7 @@ Model {
       Position		      [160, 75, 225, 115]
       ZOrder		      110
       LibraryVersion	      "1.105"
-      SourceBlock	      "rigid_body_kinematics/Rotation_theta_continuous"
+      SourceBlock	      "lib_rigid_body_kinematics/Rotation_theta_continuous"
       SourceType	      ""
       ContentPreviewEnabled   off
       rotvec_t0		      "rotvec_t0"
