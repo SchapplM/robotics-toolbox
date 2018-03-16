@@ -41,7 +41,7 @@ function tau_c = robot_tree_coriolisvec_floatb_eulangrpy_mdh_nnew_vp1(q, qD, phi
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base(1), phi_base(2), phi_base(3));
+R_W_0 = rpy2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
@@ -60,12 +60,12 @@ wD_i_i_ges = NaN(3,nb);
 
 % Anfangswerte: Geschwindigkeit und Beschleunigung der Basis
 v_i_i_ges(:,1) = R_W_0'*xD_base(1:3);
-w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base', xD_base(4:6)')';
+w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base, xD_base(4:6));
 
 vD_i_i_ges(:,1) = zeros(3,1);
 % Auch ohne Beschleunigung der verallgemeinerten Koordinaten der
 % Basisorientierung gibt es eine Winkelgeschwindigkeit der Basis im Welt-KS
-wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base', xD_base(4:6)', zeros(1,3))';
+wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base, xD_base(4:6), zeros(3,1));
 
 for i = 2:nb
   % Nummer des Vorgänger-Segments
@@ -136,7 +136,7 @@ for i = 2:nb
 end
 
 %% Basis-Kraft
-T_basevel = rpy2jac(phi_base(1), phi_base(2), phi_base(3));
+T_basevel = angvelotrans_rpy(phi_base);
 tau_B = [R_W_0*f_i_i_ges(:,1); T_basevel' * R_W_0*n_i_i_ges(:,1)]; 
 
 %% Ausgabe

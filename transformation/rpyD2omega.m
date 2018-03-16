@@ -77,4 +77,4 @@ t1 = -t35 * t14 + t16 * t20;
 omega_tilde = [(-t14 * t7 + t16 * t8 + t27) * t19 t10 * t8 - t15 * t28 + t7 * t9 t11 * t7 + t12 * t8 + t17 * t28; t6 * t18 + (-t14 * t3 + t16 * t4) * t19 t4 * t10 + t3 * t9 - t6 * t32 t3 * t11 + t4 * t12 + t6 * t29; t5 * t18 + (-t1 * t14 + t16 * t2) * t19 t1 * t9 + t2 * t10 - t5 * t32 t1 * t11 + t2 * t12 + t5 * t29;];
 
 %% Nachbearbeitung
-omega = [omega_tilde(3,2); omega_tilde(1,3); omega_tilde(2,1)]';
+omega = [omega_tilde(3,2); omega_tilde(1,3); omega_tilde(2,1)];

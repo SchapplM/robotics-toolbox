@@ -96,7 +96,7 @@ for i_Modus = 1:2
   elseif i_Modus == 2
     NJ = 0;
     phi_base_t0 = r2rpy(R_W_B_t0);
-    T_basevel_t0 = rpy2jac(phi_base_t0(1), phi_base_t0(2), phi_base_t0(3));
+    T_basevel_t0 = rpy2jac(phi_base_t0);
     phiD_base_t0 = T_basevel_t0\omega0_t0;
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulangrpy';
   end
@@ -306,7 +306,7 @@ I_S = DynPar1.I_S;
 phi_base = phi_base_t0;
 xD_base = [rD0; phiD_base_t0];
 g_world = g_W;
-T_basevel = rpy2jac(phi_base(1), phi_base(2), phi_base(3));
+T_basevel = rpy2jac(phi_base);
 
 % Symbolisch berechnete Ausdrücke
 Mq =rigidbody_inertia_floatb_eulangrpy_slag_vp1(zeros(0,1), phi_base, ...

@@ -31,9 +31,10 @@ gamma = phi_rpy(3);
 %% Calculation
 % Definition: [1], (2.34)
 % Herleitung: [2], S.52, (4.23)
-% Identische Implementierung: [3], rpy2jac
 T = [1, 0,          sin(beta);
      0, cos(alpha), -sin(alpha)*cos(beta);
      0, sin(alpha), cos(alpha)*cos(beta)];
 
 % Implementierung für andere Euler-Winkel: [3], eul2jac
+% Die Implementierung in [3], rpy2jac wurde in einer neuen Version
+% geändert. Vorher war sie identisch mit obiger...

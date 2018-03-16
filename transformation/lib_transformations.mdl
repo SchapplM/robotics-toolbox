@@ -6416,7 +6416,7 @@ Stateflow {
       "% phiD [3x1]\n%   1. Zeitableitung der RPY-Winkel alpha, beta, gamma\n% omegaD [3x1]\n%   Drehbeschleunigung (om"
       "egaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Ausgabe:\n% phiDD [3x1]\n%   2. Zeitableitung der RPY-Winkel alph"
       "a, beta, gamma\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06\n% (c) Institut für Regelungstechn"
-      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = rpy2jac(phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
+      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = angvelotrans_rpy(phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -7682,8 +7682,7 @@ Stateflow {
       "% Eingabe:\n% phi [3x1]\n%   RPY-Winkel: Koordinatentransformation zwischen A und B\n% omega [3x1]\n%   Winkelge"
       "schwindigkeit eines Koordinatensystems A, ausgedrückt im KS B\n% \n% Ausgabe:\n% phiD\n%   Zeitableitung der RP"
       "Y-Winkel phi\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik"
-      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = rpy2jac(phi(1), phi(2), phi(3)"
-      ");\nphiD = T_angvel \\ omega;\n"
+      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\nphiD = T_angvel \\ omega;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }

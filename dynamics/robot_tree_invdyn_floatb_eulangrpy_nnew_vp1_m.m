@@ -51,7 +51,7 @@ function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulangrpy_nnew_v
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base(1), phi_base(2), phi_base(3));
+R_W_0 = rpy2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
@@ -71,10 +71,10 @@ wD_i_i_ges = NaN(3,nb);
 
 % Anfangswerte: Geschwindigkeit und Beschleunigung der Basis
 v_i_i_ges(:,1) = R_W_0'*xD_base(1:3);
-w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base', xD_base(4:6)')';
+w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base, xD_base(4:6));
 
 vD_i_i_ges(:,1) = R_W_0'*xDD_base(1:3);
-wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base', xD_base(4:6)', xDD_base(4:6)')';
+wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base, xD_base(4:6), xDD_base(4:6));
 
 % T_mdh_im1 = eye(4);
 for i = 2:nb
@@ -155,7 +155,7 @@ for i = 2:nb
 end
 
 %% Basis-Kraft
-T_basevel = rpy2jac(phi_base(1), phi_base(2), phi_base(3));
+T_basevel = angvelotrans_rpy(phi_base);
 tau_B = [R_W_0*f_i_i_ges(:,1); T_basevel' * R_W_0*n_i_i_ges(:,1)]; 
 
 %% Ausgabe

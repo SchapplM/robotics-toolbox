@@ -34,7 +34,7 @@ function tau_g = robot_tree_gravload_floatb_eulangrpy_mdh_nnew_vp1(q, phi_base, 
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base(1), phi_base(2), phi_base(3));
+R_W_0 = rpy2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
@@ -106,7 +106,7 @@ for i = 2:nb
 end
 
 %% Basis-Kraft
-T_basevel = rpy2jac(phi_base(1), phi_base(2), phi_base(3));
+T_basevel = angvelotrans_rpy(phi_base);
 tau_B = [R_W_0*f_i_i_ges(:,1); T_basevel' * R_W_0*n_i_i_ges(:,1)]; 
 
 %% Ausgabe
