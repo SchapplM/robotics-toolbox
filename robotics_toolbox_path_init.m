@@ -17,5 +17,4 @@ addpath(fullfile(this_tb_path, 'dynamics'));
 addpath(fullfile(this_tb_path, 'kinematics'));
 addpath(fullfile(this_tb_path, 'mechanics'));
 addpath(fullfile(this_tb_path, 'regressor'));
-addpath(fullfile(this_tb_path, 'simulink'));
 addpath(fullfile(this_tb_path, 'transformation'));
