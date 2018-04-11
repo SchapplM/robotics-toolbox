@@ -85,9 +85,9 @@ Library {
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "schappler"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Wed Apr 11 17:00:18 2018"
-  RTWModifiedTimeStamp	  431871118
-  ModelVersionFormat	  "1.%<AutoIncrement:78>"
+  LastModifiedDate	  "Wed Apr 11 17:03:51 2018"
+  RTWModifiedTimeStamp	  445367007
+  ModelVersionFormat	  "1.%<AutoIncrement:81>"
   SampleTimeColors	  off
   SampleTimeAnnotations	  off
   LibraryLinkDisplay	  "all"
@@ -4950,10 +4950,9 @@ Stateflow {
       "k_P_r)\n%% Init\n%#codegen\nassert(isa(q_e,'double') && isreal(q_e) && all(size(q_e) == [4 1]), ...\n  'Quaterni"
       "on q_e muss [4x1] double sein.');\nassert(isa(q_d,'double') && isreal(q_d) && all(size(q_d) == [4 1]), ...\n  'Q"
       "uaternion q_d muss [4x1] double sein.');\nassert(isa(k_P_r,'double') && isreal(k_P_r) && all(size(k_P_r) == [3 1"
-      "]), ...\n  'Rotationssteifigkeit muss [3x1] double sein.');\n\n%% Berechnung\n\n% Eingangs-Quaternionen in Quate"
-      "rnion-Klasse umwandeln für weitere\n% Operationen\nQ_d = Quaternion(q_d);\nQ_e = Quaternion(q_e);\n\n% Quaterni"
-      "on-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% [1], (2.56)\nR_e = quat2"
-      "r(q_e);\nM_P = k_P_r .* (R_e * (q_de(2:4)'));\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
+      "]), ...\n  'Rotationssteifigkeit muss [3x1] double sein.');\n\n%% Berechnung\n\n% Quaternion-Orientierungsfehler"
+      ": [1], (2.53)\nq_de = quatprod(invquat(q_e), q_d);\n\n% [1], (2.56)\nR_e = quat2r(q_e);\nM_P = k_P_r .* ( R_e * "
+      "q_de(2:4) );\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
