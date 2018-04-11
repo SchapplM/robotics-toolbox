@@ -96,7 +96,7 @@ for i_Modus = 1:2
   elseif i_Modus == 2
     NJ = 0;
     phi_base_t0 = r2rpy(R_W_B_t0);
-    T_basevel_t0 = rpy2jac(phi_base_t0);
+    T_basevel_t0 = angvelotrans_rpy(phi_base_t0);
     phiD_base_t0 = T_basevel_t0\omega0_t0;
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulangrpy';
   end
