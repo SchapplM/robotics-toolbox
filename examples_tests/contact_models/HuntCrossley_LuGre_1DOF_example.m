@@ -57,7 +57,7 @@ clear
 clc
 %% Init
 tb_path = fileparts(which('robotics_toolbox_path_init.m'));
-addpath(fullfile(tb_path, 'examples_tests', 'dynamics', 'rigidbody_fdyn'));
+addpath(fullfile(tb_path, 'dynamics', 'rigidbody_fdyn'));
 addpath(fullfile(tb_path, 'examples_tests', 'contact_models'));
 %% Benutzereingaben
 usr_BilderSpeichern = 0;
