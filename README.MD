@@ -12,7 +12,7 @@ Für die Benutzung des Repos muss die Pfadinitialisierung durchgeführt werden m
 
 ### Abhängigkeiten
 
-Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und Toolboxen.
+Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und Toolboxen. Die Pfad-Initialisierung von `matlab-ext` muss allerdings **vor** der Pfad-Initialisierung dieses Repos durchgeführt werden, da es gleichnamige Funktionen mit unterschiedlichem Inhalt gibt (z.B. `rpy2r`).
 
 ### Modultests
 
@@ -23,7 +23,7 @@ Die einzelnen Funktionen des Repos können über die Modultests aus dem Ordner `
 Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funktionsweise ist in den jeweiligen Funktionsdateien und Modultests erklärt.
 
 * Transformationen
-  * Elementar-Rotationen und -Transformationen: `rotx.m`, `roty.m`, `rotz.m`, `trotx.m`, `troty.m`, `trotz.m`, `transl.m`, `invtr.m`. Die Funktionen entsprechen der Robotics Toolbox
+  * Elementar-Rotationen und -Transformationen: `rotx.m`, `roty.m`, `rotz.m`, `trotx.m`, `troty.m`, `trotz.m`, `transl.m`, `invtr.m`. Die Funktionen entsprechen der Corke-Toolbox
   * Transformationen zur RPY-Winkelkonvention (Drehung um mitgedrehte x-, y-, z-Achse): `r2rpy.m`, `tr2rpy.m`, `angvelotrans_rpy.m`, `angvelotrans_rpyD.m`, `rpyD2omega.m`, `rpyDD2omegaD.m`. Die Konvention wurde in der Corke-Toolbox geändert und ist nicht mehr konsistent.
   * Integration von Winkelgeschwindigkeiten: `angvel_int_sl.m`, `angvel_int_rpy.mdl`, `angvel_int_rotmat.mdl`, `angvel_int_quat.mdl`, `angvel_body_int_rotmat.mdl`, `angvel_body_int_quat.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_integration`
