@@ -39,3 +39,39 @@ for i = 1:n
   end
 end
 fprintf('%d Umrechnungen mit r2quat getestet\n', n);
+
+%% Teste invquat
+for j = 1:n
+  R_j = R_ges(:,:,j);
+  R_j_inv = R_j';
+  
+  q_j = r2quat(R_j);
+  q_j_inv = invquat(q_j);
+  R_j_inv_test = quat2r(q_j_inv);
+  
+  test = R_j_inv - R_j_inv_test;
+  
+  if any( abs( test(:)) > 1e-10 )
+    error('Umrechnung invquat stimmt nicht');
+  end
+end
+fprintf('%d Umrechnungen mit invquat getestet\n', n);
+
+%% Teste quatprod
+for j = 2:n
+  R1 = R_ges(:,:,j-1);
+  R2 = R_ges(:,:,j);
+  R3 = R1*R2;
+  
+  q1 = r2quat(R1);
+  q2 = r2quat(R2);
+  q3 = quatprod(q1,q2);
+  
+  R3_test = quat2r(q3);
+  
+  test = R3_test - R3;
+  if any( abs( test(:) ) > 1e-10 )
+    error('Umrechnung quatprod stimmt nicht');
+  end
+end
+fprintf('%d Umrechnungen mit quatprod getestet\n', n);
