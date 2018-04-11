@@ -1,12 +1,14 @@
 Library {
   Name			  "lib_cartesian_controllers"
-  Version		  8.8
+  Version		  9.0
   SavedCharacterEncoding  "UTF-8"
   LogicAnalyzerGraphicalSettings ""
   LogicAnalyzerPlugin	  "on"
   LogicAnalyzerSignalOrdering ""
   DiagnosticSuppressor	  "on"
-  SuppressorTable	  "22 serialization::archive 11 0 3 0 0 0 11 0"
+  SuppressorTable	  "22 serialization::archive 11 0 6 0 0 0 11 0"
+  CustomCodeFunctionData  ""
+  SLCCPlugin		  "on"
   LibraryType		  "BlockLibrary"
   ScopeRefreshTime	  0.035000
   OverrideScopeRefreshTime on
@@ -23,7 +25,7 @@ Library {
       $ObjectID		      2
       $ClassName	      "Simulink.WindowInfo"
       IsActive		      [1]
-      Location		      [974.0, 542.0, 955.0, 548.0]
+      Location		      [1973.0, 24.0, 1867.0, 1056.0]
       Object {
 	$PropName		"ModelBrowserInfo"
 	$ObjectID		3
@@ -38,7 +40,7 @@ Library {
 	$PropName		"ExplorerBarInfo"
 	$ObjectID		4
 	$ClassName		"Simulink.ExplorerBarInfo"
-	Visible			[0]
+	Visible			[1]
       }
       Object {
 	$PropName		"EditorsInfo"
@@ -46,8 +48,8 @@ Library {
 	$ClassName		"Simulink.EditorInfo"
 	IsActive		[1]
 	ViewObjType		"SimulinkSubsys"
-	LoadSaveID		"152"
-	Extents			[901.0, 394.0]
+	LoadSaveID		"164"
+	Extents			[1829.0, 916.0]
 	ZoomFactor		[1.0]
 	Offset			[0.0, 0.0]
       }
@@ -67,31 +69,32 @@ Library {
       }
       WindowState	      "AAAA/wAAAAD9AAAAAgAAAAAAAAC9AAAB+PwCAAAAA/sAAAAWAEQAbwBjAGsAVwBpAGQAZwBlAHQAMwEAAAAxAAAB+AAAA"
       "AAAAAAA+wAAABYARABvAGMAawBXAGkAZABnAGUAdAA0AAAAAAD/////AAAAAAAAAAD7AAAAUgBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0Ac"
-      "ABvAG4AZQBuAHQALwBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0AcABvAG4AZQBuAHQAAAAAAP////8AAABeAP///wAAAAEAAAAAAAAAAPwCA"
+      "ABvAG4AZQBuAHQALwBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0AcABvAG4AZQBuAHQAAAAAAP////8AAABiAP///wAAAAEAAAAAAAAAAPwCA"
       "AAAAfsAAABUAEcATABVAEUAMgA6AFAAcgBvAHAAZQByAHQAeQBJAG4AcwBwAGUAYwB0AG8AcgAvAFAAcgBvAHAAZQByAHQAeQAgAEkAbgBzAHAAZ"
-      "QBjAHQAbwByAAAAAAD/////AAAAKAD///8AAAOnAAABpgAAAAEAAAACAAAAAQAAAAL8AAAAAQAAAAIAAAAP/////wAAAAAA/////wAAAAAAAAAA/"
+      "QBjAHQAbwByAAAAAAD/////AAAALAD///8AAAdLAAAD0gAAAAEAAAACAAAAAQAAAAL8AAAAAQAAAAIAAAAP/////wAAAAAA/////wAAAAAAAAAA/"
       "////wEAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
       "////wEAAACA/////wAAAAAAAAAA/////wEAAADo/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
       "////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wEAAAE7/////wAAAAAAAAAA/"
       "////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA"
     }
   }
+  HideAutomaticNames	  on
   Created		  "Tue Aug 25 13:58:44 2015"
   Creator		  "schappler"
   UpdateHistory		  "UpdateHistoryNever"
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "schappler"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Mon Nov 06 12:12:16 2017"
+  LastModifiedDate	  "Wed Apr 11 17:00:18 2018"
   RTWModifiedTimeStamp	  431871118
   ModelVersionFormat	  "1.%<AutoIncrement:78>"
-  ConfigurationManager	  "none"
   SampleTimeColors	  off
   SampleTimeAnnotations	  off
   LibraryLinkDisplay	  "all"
   WideLines		  off
   ShowLineDimensions	  off
   ShowPortDataTypes	  off
+  PortDataTypeDisplayFormat "AliasTypeOnly"
   ShowEditTimeErrors	  on
   ShowEditTimeWarnings	  on
   ShowEditTimeAdvisorChecks off
@@ -112,12 +115,14 @@ Library {
   BlockNameDataTip	  off
   BlockParametersDataTip  off
   BlockDescriptionStringDataTip	off
+  BlockVariantConditionDataTip off
   ToolBar		  on
   StatusBar		  on
   BrowserShowLibraryLinks on
   FunctionConnectors	  off
   BrowserLookUnderMasks	  on
   SimulationMode	  "normal"
+  VisualizeLoggedSignalsWhenLoggingToFile off
   PauseTimes		  "5"
   NumberOfSteps		  1
   SnapshotBufferSize	  10
@@ -149,12 +154,13 @@ Library {
   ExtModeAutoUpdateStatusClock on
   ShowModelReferenceBlockVersion off
   ShowModelReferenceBlockIO off
+  OrderedModelArguments	  on
   Array {
     Type		    "Handle"
     Dimension		    1
     Simulink.ConfigSet {
       $ObjectID		      7
-      Version		      "1.16.5"
+      Version		      "1.17.1"
       DisabledProps	      []
       Description	      ""
       Array {
@@ -162,7 +168,7 @@ Library {
 	Dimension		9
 	Simulink.SolverCC {
 	  $ObjectID		  8
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  ""
 	  StartTime		  "0.0"
@@ -170,7 +176,6 @@ Library {
 	  AbsTol		  "auto"
 	  FixedStep		  "auto"
 	  InitialStep		  "auto"
-	  MaxNumMinSteps	  "-1"
 	  MaxOrder		  5
 	  ZcThreshold		  "auto"
 	  ConsecutiveZCsStepRelTol "10*128*eps"
@@ -182,7 +187,6 @@ Library {
 	  MaxConsecutiveMinStep	  "1"
 	  RelTol		  "1e-3"
 	  EnableMultiTasking	  on
-	  EnableConcurrentExecution off
 	  ConcurrentTasks	  off
 	  Solver		  "ode45"
 	  SolverName		  "ode45"
@@ -199,10 +203,11 @@ Library {
 	  SampleTimeConstraint	  "Unconstrained"
 	  InsertRTBMode		  "Whenever possible"
 	  SampleTimeProperty	  []
+	  DecoupledContinuousIntegration off
 	}
 	Simulink.DataIOCC {
 	  $ObjectID		  9
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  ""
 	  Decimation		  "1"
@@ -237,12 +242,13 @@ Library {
 	  ReturnWorkspaceOutputsName "out"
 	  Refine		  "1"
 	  LoggingToFile		  off
+	  DatasetSignalFormat	  "timeseries"
 	  LoggingFileName	  "out.mat"
 	  LoggingIntervals	  "[-inf, inf]"
 	}
 	Simulink.OptimizationCC {
 	  $ObjectID		  10
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  Array {
 	    Type		    "Cell"
 	    Dimension		    8
@@ -297,10 +303,14 @@ Library {
 	  BufferReusableBoundary  on
 	  SimCompilerOptimization "off"
 	  AccelVerboseBuild	  off
+	  OptimizeBlockOrder	  "off"
+	  OptimizeDataStoreBuffers on
+	  BusAssignmentInplaceUpdate on
+	  DifferentSizesBufferReuse off
 	}
 	Simulink.DebuggingCC {
 	  $ObjectID		  11
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  Array {
 	    Type		    "Cell"
 	    Dimension		    1
@@ -339,6 +349,7 @@ Library {
 	  MultiTaskRateTransMsg	  "error"
 	  SingleTaskRateTransMsg  "none"
 	  TasksWithSamePriorityMsg "warning"
+	  ExportedTasksRateTransMsg "none"
 	  SigSpecEnsureSampleTimeMsg "warning"
 	  CheckMatrixSingularityMsg "none"
 	  IntegerOverflowMsg	  "warning"
@@ -380,6 +391,7 @@ Library {
 	  StateNameClashWarn	  "none"
 	  SimStateInterfaceChecksumMismatchMsg "warning"
 	  SimStateOlderReleaseMsg "error"
+	  ChecksumConsistencyForSSReuse	"none"
 	  InitInArrayFormatMsg	  "warning"
 	  StrictBusMsg		  "ErrorLevel1"
 	  BusNameAdapt		  "WarnAndRepair"
@@ -387,6 +399,7 @@ Library {
 	  SymbolicDimMinMaxWarning "warning"
 	  LossOfSymbolicDimsSimulationWarning "warning"
 	  LossOfSymbolicDimsCodeGenerationWarning "error"
+	  SymbolicDimsDataTypeCodeGenerationDiagnostic "error"
 	  BlockIODiagnostic	  "none"
 	  SFUnusedDataAndEventsDiag "warning"
 	  SFUnexpectedBacktrackingDiag "warning"
@@ -405,10 +418,14 @@ Library {
 	  AllowedUnitSystems	  "all"
 	  UnitsInconsistencyMsg	  "warning"
 	  AllowAutomaticUnitConversions	on
+	  RCSCRenamedMsg	  "warning"
+	  RCSCObservableMsg	  "warning"
+	  ForceCombineOutputUpdateInSim	off
+	  UnitDatabase		  ""
 	}
 	Simulink.HardwareCC {
 	  $ObjectID		  12
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  ""
 	  ProdBitPerChar	  8
@@ -456,7 +473,7 @@ Library {
 	}
 	Simulink.ModelReferenceCC {
 	  $ObjectID		  13
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  ""
 	  UpdateModelReferenceTargets "IfOutOfDateOrStructuralChange"
@@ -475,7 +492,7 @@ Library {
 	}
 	Simulink.SFSimCC {
 	  $ObjectID		  14
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  ""
 	  SimCustomSourceCode	  ""
@@ -499,11 +516,13 @@ Library {
 	  ModelFunctionsGlobalVisibility "on"
 	  CompileTimeRecursionLimit 50
 	  EnableRuntimeRecursion  on
+	  MATLABDynamicMemAlloc	  on
+	  MATLABDynamicMemAllocThreshold 65536
 	}
 	Simulink.RTWCC {
 	  $BackupClass		  "Simulink.RTWCC"
 	  $ObjectID		  15
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  Array {
 	    Type		    "Cell"
 	    Dimension		    16
@@ -554,6 +573,7 @@ Library {
 	  CustomLibrary		  ""
 	  CustomDefine		  ""
 	  CustomLAPACKCallback	  ""
+	  CustomFFTCallback	  ""
 	  CustomInitializer	  ""
 	  CustomTerminator	  ""
 	  Toolchain		  "Automatically locate an installed toolchain"
@@ -589,10 +609,10 @@ Library {
 	    Dimension		    2
 	    Simulink.CodeAppCC {
 	      $ObjectID		      16
-	      Version		      "1.16.5"
+	      Version		      "1.17.1"
 	      Array {
 		Type			"Cell"
-		Dimension		26
+		Dimension		28
 		Cell			"IgnoreCustomStorageClasses"
 		Cell			"ParameterTuningSideEffectCode"
 		Cell			"IgnoreTestpoints"
@@ -619,6 +639,8 @@ Library {
 		Cell			"ReqsInCode"
 		Cell			"CustomSymbolStrModelFcn"
 		Cell			"CustomUserTokenString"
+		Cell			"CustomSymbolStrEmxType"
+		Cell			"CustomSymbolStrEmxFcn"
 		PropName		"DisabledProps"
 	      }
 	      Description	      ""
@@ -628,18 +650,16 @@ Library {
 	      CommentStyle	      "Auto"
 	      IgnoreCustomStorageClasses on
 	      IgnoreTestpoints	      off
-	      IncHierarchyInIds	      off
 	      MaxIdLength	      31
 	      PreserveName	      off
 	      PreserveNameWithParent  off
 	      ShowEliminatedStatement off
 	      OperatorAnnotations     off
-	      IncAutoGenComments      off
 	      SimulinkDataObjDesc     off
 	      SFDataObjDesc	      off
 	      MATLABFcnDesc	      off
-	      IncDataTypeInIds	      off
 	      MangleLength	      1
+	      SharedChecksumLength    8
 	      CustomSymbolStrGlobalVar "$R$N$M"
 	      CustomSymbolStrType     "$N$R$M_T"
 	      CustomSymbolStrField    "$N$M"
@@ -650,6 +670,8 @@ Library {
 	      CustomSymbolStrTmpVar   "$N$M"
 	      CustomSymbolStrMacro    "$R$N$M"
 	      CustomSymbolStrUtil     "$N$C"
+	      CustomSymbolStrEmxType  "emxArray_$M$N"
+	      CustomSymbolStrEmxFcn   "emx$M$N"
 	      CustomUserTokenString   ""
 	      CustomCommentsFcn	      ""
 	      DefineNamingRule	      "None"
@@ -661,6 +683,7 @@ Library {
 	      InsertBlockDesc	      off
 	      InsertPolySpaceComments off
 	      SimulinkBlockComments   on
+	      StateflowObjectComments on
 	      MATLABSourceComments    off
 	      EnableCustomComments    off
 	      InternalIdentifierFile  ""
@@ -673,7 +696,7 @@ Library {
 	    Simulink.GRTTargetCC {
 	      $BackupClass	      "Simulink.TargetCC"
 	      $ObjectID		      17
-	      Version		      "1.16.5"
+	      Version		      "1.17.1"
 	      Array {
 		Type			"Cell"
 		Dimension		16
@@ -703,8 +726,7 @@ Library {
 	      TargetLangStandard      "C89/C90 (ANSI)"
 	      CodeReplacementLibrary  "None"
 	      UtilityFuncGeneration   "Auto"
-	      ERTMultiwordTypeDef     "System defined"
-	      ERTMultiwordLength      256
+	      MultiwordTypeDef	      "System defined"
 	      MultiwordLength	      2048
 	      GenerateFullHeader      on
 	      InferredTypesCompatibility off
@@ -720,7 +742,6 @@ Library {
 	      CombineOutputUpdateFcns on
 	      CombineSignalStateStructs	off
 	      SuppressErrorStatus     off
-	      ERTFirstTimeCompliant   off
 	      IncludeFileDelimiter    "Auto"
 	      ERTCustomFileBanners    off
 	      SupportAbsoluteTime     on
@@ -748,6 +769,11 @@ Library {
 	      UseToolchainInfoCompliant	on
 	      GenerateSharedConstants on
 	      CoderGroups	      []
+	      AccessMethods	      []
+	      LookupTableObjectStructAxisOrder "1,2,3,4,..."
+	      LUTObjectStructOrderExplicitValues "Size,Breakpoints,Table"
+	      LUTObjectStructOrderEvenSpacing "Size,Breakpoints,Table"
+	      ArrayLayout	      "Column-major"
 	      UseMalloc		      off
 	      ExtMode		      off
 	      ExtModeStaticAlloc      off
@@ -769,7 +795,7 @@ Library {
 	}
 	SlCovCC.ConfigComp {
 	  $ObjectID		  18
-	  Version		  "1.16.5"
+	  Version		  "1.17.1"
 	  DisabledProps		  []
 	  Description		  "Simulink Coverage Configuration Component"
 	  Name			  "Simulink Coverage"
@@ -805,13 +831,14 @@ Library {
 	  CovUseTimeInterval	  off
 	  CovStartTime		  0
 	  CovStopTime		  0
+	  CovMcdcMode		  "Masking"
 	}
 	PropName		"Components"
       }
       Name		      "Configuration"
       ExtraOptions	      ""
       CurrentDlgPage	      "Solver"
-      ConfigPrmDlgPosition     [ 420, 220, 1500, 860 ] 
+      ConfigPrmDlgPosition    [ 420, 220, 1500, 860 ]
     }
     PropName		    "ConfigurationSets"
   }
@@ -826,6 +853,7 @@ Library {
     FontWeight		    "normal"
     FontAngle		    "normal"
     ShowName		    on
+    HideAutomaticName	    on
     BlockRotation	    0
     BlockMirror		    off
   }
@@ -839,7 +867,12 @@ Library {
     FontSize		    10
     FontWeight		    "normal"
     FontAngle		    "normal"
+    MarkupType		    "model"
     UseDisplayTextAsClickCallback off
+    AnnotationType	    "note_annotation"
+    FixedHeight		    off
+    FixedWidth		    off
+    Interpreter		    "off"
   }
   LineDefaults {
     FontName		    "Helvetica"
@@ -851,7 +884,7 @@ Library {
     SelfModifiable	    "off"
     IconFrame		    "on"
     IconOpaque		    "opaque"
-    RunInitForIconRedraw    "off"
+    RunInitForIconRedraw    "analyze"
     IconRotate		    "none"
     PortRotate		    "default"
     IconUnits		    "autoscale"
@@ -961,6 +994,10 @@ Library {
       SourceOfInitialOutputValue "Dialog"
       OutputWhenDisabled      "held"
       InitialOutput	      "[]"
+      MustResolveToSignalObject	off
+      OutputWhenUnConnected   off
+      OutputWhenUnconnectedValue "0"
+      VectorParamsAs1DForOutWhenUnconnected off
     }
     Block {
       BlockType		      Product
@@ -1010,10 +1047,12 @@ Library {
       MaskHideContents	      off
       SFBlockType	      "NONE"
       GeneratePreprocessorConditionals off
+      AllowZeroVariantControls off
       PropagateVariantConditions off
       TreatAsGroupedWhenPropagatingVariantConditions on
       ContentPreviewEnabled   off
       IsWebBlock	      off
+      IsObserver	      off
     }
     Block {
       BlockType		      Sum
@@ -1037,8 +1076,9 @@ Library {
   }
   System {
     Name		    "lib_cartesian_controllers"
-    Location		    [974, 542, 1929, 1090]
+    Location		    [1973, 24, 3840, 1080]
     Open		    off
+    PortBlocksUseCompactNotation off
     ModelBrowserVisibility  off
     ModelBrowserWidth	    200
     ScreenColor		    "white"
@@ -1103,6 +1143,7 @@ Library {
 	Name			"Cart_ctrl_PD_altEulerXYZ"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1167,8 +1208,6 @@ Library {
 	  Port {
 	    PortNumber		    1
 	    Name		    "E_sum"
-	    RTWStorageClass	    "Auto"
-	    DataLoggingNameMode	    "SignalName"
 	  }
 	}
 	Block {
@@ -1185,8 +1224,6 @@ Library {
 	  Port {
 	    PortNumber		    1
 	    Name		    "m"
-	    RTWStorageClass	    "Auto"
-	    DataLoggingNameMode	    "SignalName"
 	  }
 	}
 	Block {
@@ -1283,8 +1320,6 @@ Library {
 	  Port {
 	    PortNumber		    2
 	    Name		    "E_rot"
-	    RTWStorageClass	    "Auto"
-	    DataLoggingNameMode	    "SignalName"
 	  }
 	}
 	Block {
@@ -1303,14 +1338,10 @@ Library {
 	  Port {
 	    PortNumber		    1
 	    Name		    "f"
-	    RTWStorageClass	    "Auto"
-	    DataLoggingNameMode	    "SignalName"
 	  }
 	  Port {
 	    PortNumber		    2
 	    Name		    "E_transl"
-	    RTWStorageClass	    "Auto"
-	    DataLoggingNameMode	    "SignalName"
 	  }
 	}
 	Block {
@@ -1573,6 +1604,7 @@ Library {
 	Name			"Cart_ctrl_PD_quat"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1959,6 +1991,7 @@ Library {
 	Name			"Cart_ctrl_P_altEulerXYZ"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2049,6 +2082,7 @@ Library {
 	    Name		    "Rotationsregler_R_altEulerXYZ_sub"
 	    Location		    [2205, 283, 3025, 831]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2105,6 +2139,7 @@ Library {
 		Name			"Rotationsregler_R_altEulerXYZ"
 		Location		[223, 338, 826, 833]
 		Open			off
+		PortBlocksUseCompactNotation off
 		ModelBrowserVisibility	off
 		ModelBrowserWidth	200
 		ScreenColor		"white"
@@ -2116,7 +2151,7 @@ Library {
 		TiledPageScale		1
 		ShowPageBoundaries	off
 		ZoomFactor		"100"
-		SIDHighWatermark	"36"
+		SIDHighWatermark	"39"
 		Block {
 		  BlockType		  Inport
 		  Name			  "Rd"
@@ -2146,20 +2181,20 @@ Library {
 		Block {
 		  BlockType		  Demux
 		  Name			  " Demux "
-		  SID			  "58::35"
+		  SID			  "58::38"
 		  Ports			  [1, 1]
 		  Position		  [270, 230, 320, 270]
-		  ZOrder		  19
+		  ZOrder		  22
 		  Outputs		  "1"
 		}
 		Block {
 		  BlockType		  S-Function
 		  Name			  " SFunction "
-		  SID			  "58::34"
+		  SID			  "58::37"
 		  Tag			  "Stateflow S-Function lib_cartesian_controllers 3"
 		  Ports			  [3, 2]
 		  Position		  [180, 100, 230, 180]
-		  ZOrder		  18
+		  ZOrder		  21
 		  FunctionName		  "sf_sfun"
 		  PortCounts		  "[3 2]"
 		  SFunctionDeploymentMode off
@@ -2168,16 +2203,14 @@ Library {
 		  Port {
 		    PortNumber		    2
 		    Name		    "mu_ce"
-		    RTWStorageClass	    "Auto"
-		    DataLoggingNameMode	    "SignalName"
 		  }
 		}
 		Block {
 		  BlockType		  Terminator
 		  Name			  " Terminator "
-		  SID			  "58::36"
+		  SID			  "58::39"
 		  Position		  [460, 241, 480, 259]
-		  ZOrder		  20
+		  ZOrder		  23
 		}
 		Block {
 		  BlockType		  Outport
@@ -2188,21 +2221,21 @@ Library {
 		  IconDisplay		  "Port number"
 		}
 		Line {
-		  ZOrder		  13
+		  ZOrder		  19
 		  SrcBlock		  "Rd"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  14
+		  ZOrder		  20
 		  SrcBlock		  "Rc"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
 		  DstPort		  2
 		}
 		Line {
-		  ZOrder		  15
+		  ZOrder		  21
 		  SrcBlock		  "k"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
@@ -2210,7 +2243,7 @@ Library {
 		}
 		Line {
 		  Name			  "mu_ce"
-		  ZOrder		  16
+		  ZOrder		  22
 		  Labels		  [0, 0]
 		  SrcBlock		  " SFunction "
 		  SrcPort		  2
@@ -2218,14 +2251,14 @@ Library {
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  17
+		  ZOrder		  23
 		  SrcBlock		  " Demux "
 		  SrcPort		  1
 		  DstBlock		  " Terminator "
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  18
+		  ZOrder		  24
 		  SrcBlock		  " SFunction "
 		  SrcPort		  1
 		  Points		  [20, 0]
@@ -2444,6 +2477,7 @@ Library {
 	Name			"Cart_ctrl_P_quat"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2534,6 +2568,7 @@ Library {
 	    Name		    "Rotationsregler_q_P"
 	    Location		    [2205, 255, 3025, 803]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2590,6 +2625,7 @@ Library {
 		Name			"Reglermoment_q"
 		Location		[223, 338, 826, 833]
 		Open			off
+		PortBlocksUseCompactNotation off
 		ModelBrowserVisibility	off
 		ModelBrowserWidth	200
 		ScreenColor		"white"
@@ -2601,7 +2637,7 @@ Library {
 		TiledPageScale		1
 		ShowPageBoundaries	off
 		ZoomFactor		"100"
-		SIDHighWatermark	"50"
+		SIDHighWatermark	"53"
 		Block {
 		  BlockType		  Inport
 		  Name			  "q_d"
@@ -2631,20 +2667,20 @@ Library {
 		Block {
 		  BlockType		  Demux
 		  Name			  " Demux "
-		  SID			  "11::49"
+		  SID			  "11::52"
 		  Ports			  [1, 1]
 		  Position		  [270, 230, 320, 270]
-		  ZOrder		  19
+		  ZOrder		  22
 		  Outputs		  "1"
 		}
 		Block {
 		  BlockType		  S-Function
 		  Name			  " SFunction "
-		  SID			  "11::48"
+		  SID			  "11::51"
 		  Tag			  "Stateflow S-Function lib_cartesian_controllers 1"
 		  Ports			  [3, 2]
 		  Position		  [180, 100, 230, 180]
-		  ZOrder		  18
+		  ZOrder		  21
 		  FunctionName		  "sf_sfun"
 		  PortCounts		  "[3 2]"
 		  SFunctionDeploymentMode off
@@ -2653,16 +2689,14 @@ Library {
 		  Port {
 		    PortNumber		    2
 		    Name		    "M"
-		    RTWStorageClass	    "Auto"
-		    DataLoggingNameMode	    "SignalName"
 		  }
 		}
 		Block {
 		  BlockType		  Terminator
 		  Name			  " Terminator "
-		  SID			  "11::50"
+		  SID			  "11::53"
 		  Position		  [460, 241, 480, 259]
-		  ZOrder		  20
+		  ZOrder		  23
 		}
 		Block {
 		  BlockType		  Outport
@@ -2673,21 +2707,21 @@ Library {
 		  IconDisplay		  "Port number"
 		}
 		Line {
-		  ZOrder		  7
+		  ZOrder		  13
 		  SrcBlock		  "q_d"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  8
+		  ZOrder		  14
 		  SrcBlock		  "q_e"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
 		  DstPort		  2
 		}
 		Line {
-		  ZOrder		  9
+		  ZOrder		  15
 		  SrcBlock		  "k"
 		  SrcPort		  1
 		  DstBlock		  " SFunction "
@@ -2695,7 +2729,7 @@ Library {
 		}
 		Line {
 		  Name			  "M"
-		  ZOrder		  10
+		  ZOrder		  16
 		  Labels		  [0, 0]
 		  SrcBlock		  " SFunction "
 		  SrcPort		  2
@@ -2703,14 +2737,14 @@ Library {
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  11
+		  ZOrder		  17
 		  SrcBlock		  " Demux "
 		  SrcPort		  1
 		  DstBlock		  " Terminator "
 		  DstPort		  1
 		}
 		Line {
-		  ZOrder		  12
+		  ZOrder		  18
 		  SrcBlock		  " SFunction "
 		  SrcPort		  1
 		  Points		  [20, 0]
@@ -2878,6 +2912,7 @@ Library {
 	Name			"ori_ctrl_D"
 	Location		[2894, 14, 3849, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2990,10 +3025,8 @@ Library {
 	Annotation {
 	  SID			  "185"
 	  Name			  "[Natale 2003], (2.56)"
-	  Position		  [225, 287, 317, 301]
+	  Position		  [225, 287, 317, 304]
 	  InternalMargins	  [0, 0, 0, 0]
-	  FixedHeight		  off
-	  FixedWidth		  off
 	  HorizontalAlignment	  "left"
 	  VerticalAlignment	  "top"
 	  ZOrder		  -1
@@ -3039,6 +3072,7 @@ Library {
 	Name			"ori_ctrl_PD_quat"
 	Location		[2894, 14, 3849, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3218,7 +3252,8 @@ Library {
       System {
 	Name			"ori_ctrl_P_altEulXYZ"
 	Location		[974, 542, 1929, 1090]
-	Open			on
+	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3275,6 +3310,7 @@ Library {
 	    Name		    "Rotationsregler_R_altEulerXYZ"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3286,7 +3322,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "46"
+	    SIDHighWatermark	    "49"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "Rd"
@@ -3316,20 +3352,20 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "156::44"
+	      SID		      "156::48"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      28
+	      ZOrder		      32
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "156::43"
+	      SID		      "156::47"
 	      Tag		      "Stateflow S-Function lib_cartesian_controllers 6"
 	      Ports		      [3, 3]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      27
+	      ZOrder		      31
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[3 3]"
 	      SFunctionDeploymentMode off
@@ -3338,22 +3374,18 @@ Library {
 	      Port {
 		PortNumber		2
 		Name			"mu_ce"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	      Port {
 		PortNumber		3
 		Name			"E"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "156::45"
+	      SID		      "156::49"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      29
+	      ZOrder		      33
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3373,21 +3405,21 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      19
+	      ZOrder		      26
 	      SrcBlock		      "Rd"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      20
+	      ZOrder		      27
 	      SrcBlock		      "Rc"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      2
 	    }
 	    Line {
-	      ZOrder		      21
+	      ZOrder		      28
 	      SrcBlock		      "k"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3395,7 +3427,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "mu_ce"
-	      ZOrder		      22
+	      ZOrder		      29
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3404,7 +3436,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "E"
-	      ZOrder		      23
+	      ZOrder		      30
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      3
@@ -3412,14 +3444,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      24
+	      ZOrder		      31
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      25
+	      ZOrder		      32
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3512,8 +3544,9 @@ Library {
       }
       System {
 	Name			"ori_ctrl_P_quat"
-	Location		[974, 542, 1929, 1090]
-	Open			off
+	Location		[1973, 24, 3840, 1080]
+	Open			on
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3562,6 +3595,7 @@ Library {
 	    Name		    "Reglermoment_q_P"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3573,7 +3607,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "79"
+	    SIDHighWatermark	    "82"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "q_e"
@@ -3603,20 +3637,20 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "169::78"
+	      SID		      "169::81"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      28
+	      ZOrder		      31
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "169::77"
+	      SID		      "169::80"
 	      Tag		      "Stateflow S-Function lib_cartesian_controllers 4"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      27
+	      ZOrder		      30
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[3 2]"
 	      SFunctionDeploymentMode off
@@ -3625,16 +3659,14 @@ Library {
 	      Port {
 		PortNumber		2
 		Name			"M"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "169::79"
+	      SID		      "169::82"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      29
+	      ZOrder		      32
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3645,21 +3677,21 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      40
+	      ZOrder		      46
 	      SrcBlock		      "q_e"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      41
+	      ZOrder		      47
 	      SrcBlock		      "q_d"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      2
 	    }
 	    Line {
-	      ZOrder		      42
+	      ZOrder		      48
 	      SrcBlock		      "k_P_r"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3667,7 +3699,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "M"
-	      ZOrder		      43
+	      ZOrder		      49
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3675,14 +3707,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      44
+	      ZOrder		      50
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      45
+	      ZOrder		      51
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      Points		      [20, 0]
@@ -3768,6 +3800,7 @@ Library {
 	Name			"ori_ctrl_P_quat_altEulXYZ"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3928,6 +3961,7 @@ Library {
 	Name			"transl_ctrl_P"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4074,6 +4108,7 @@ Library {
 	Name			"transl_ctrl_PD"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4437,10 +4472,8 @@ Library {
 	Annotation {
 	  SID			  "97"
 	  Name			  "Source:\n[1] Natale 2003: Interaction Control of Robot Manipulators: Six-Degrees-of-Freedom Tasks, (2.17) "
-	  Position		  [537, 83, 972, 109]
+	  Position		  [537, 83, 971, 115]
 	  InternalMargins	  [0, 0, 0, 0]
-	  FixedHeight		  off
-	  FixedWidth		  off
 	  HorizontalAlignment	  "left"
 	  VerticalAlignment	  "top"
 	  ZOrder		  -1
@@ -4455,6 +4488,7 @@ Library {
       FixedHeight	      on
       FixedWidth	      on
       ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      30
@@ -4468,6 +4502,7 @@ Library {
       FixedHeight	      on
       FixedWidth	      on
       ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      29
@@ -4481,6 +4516,7 @@ Library {
       FixedHeight	      on
       FixedWidth	      on
       ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      31
@@ -4490,7 +4526,7 @@ Library {
 }
 #Finite State Machines
 #
-#   Stateflow 80000010
+#   Stateflow 80000012
 #
 #
 Stateflow {
@@ -4499,7 +4535,7 @@ Stateflow {
     name		    "lib_cartesian_controllers"
     created		    "25-Aug-2015 13:58:46"
     isLibrary		    1
-    sfVersion		    80000010
+    sfVersion		    80000012
     firstTarget		    39
   }
   chart {
@@ -4726,8 +4762,9 @@ Stateflow {
       "ert(isa(Rc,'double') && isreal(Rc) && all(size(Rc) == [3 3]), ...\n  'Rotationsmatrix Rc muss [3x3] double sein."
       "');\nassert(isa(k,'double') && isreal(k) && all(size(k) == [3 1]), ...\n  'Rotationssteifigkeit muss [3x3] doubl"
       "e sein.');\n\n%% Berechnung\n% [1], (3,21)\nR_cd = Rc' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd "
-      "= r2rpy(R_cd);\n\nalpha = phi_cd(1);\nbeta = phi_cd(2);\ngamma = phi_cd(3);\n\nT = angvelotrans_rpy(phi_cd);\n\nmu_ce = T \\ (k .* (phi_cd'));\n\n% assert(isa(mu_ce,'double') && isreal(mu_ce) && all(size(mu_ce) ="
-      "= [3 1]), ...\n%   'Reglermoment muss [3x1] double sein.');\n"
+      "= r2rpy(R_cd);\n\nalpha = phi_cd(1);\nbeta = phi_cd(2);\ngamma = phi_cd(3);\n\nT = angvelotrans_rpy(phi_cd);\n\n"
+      "mu_ce = T \\ (k .* (phi_cd'));\n\n% assert(isa(mu_ce,'double') && isreal(mu_ce) && all(size(mu_ce) == [3 1]), .."
+      ".\n%   'Reglermoment muss [3x1] double sein.');\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -4874,7 +4911,10 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 21 0 0]
     viewObj		    20
+    visible		    1
     toolbarMode		    LIBRARY_TOOLBAR
+    subviewS {
+    }
     ssIdHighWaterMark	    10
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -4912,7 +4952,8 @@ Stateflow {
       "uaternion q_d muss [4x1] double sein.');\nassert(isa(k_P_r,'double') && isreal(k_P_r) && all(size(k_P_r) == [3 1"
       "]), ...\n  'Rotationssteifigkeit muss [3x1] double sein.');\n\n%% Berechnung\n\n% Eingangs-Quaternionen in Quate"
       "rnion-Klasse umwandeln für weitere\n% Operationen\nQ_d = Quaternion(q_d);\nQ_e = Quaternion(q_e);\n\n% Quaterni"
-      "on-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% [1], (2.56)\nR_e = quat2r(q_e);\nM_P = k_P_r .* (R_e * (q_de(2:4)'));\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
+      "on-Orientierungsfehler: [1], (2.53)\nQ_de = (Q_e.inv) * Q_d;\nq_de = double(Q_de);\n\n% [1], (2.56)\nR_e = quat2"
+      "r(q_e);\nM_P = k_P_r .* (R_e * (q_de(2:4)'));\n\n% Reglerausgang: [1], (2.56)\nM = M_P;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -5059,10 +5100,7 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 30 0 0]
     viewObj		    29
-    visible		    1
     toolbarMode		    LIBRARY_TOOLBAR
-    subviewS {
-    }
     ssIdHighWaterMark	    8
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -5098,10 +5136,11 @@ Stateflow {
       ", ...\n  'Rotationsmatrix Rd muss [3x3] double sein.');\nassert(isa(Rc,'double') && isreal(Rc) && all(size(Rc) ="
       "= [3 3]), ...\n  'Rotationsmatrix Rc muss [3x3] double sein.');\nassert(isa(k,'double') && isreal(k) && all(size"
       "(k) == [3 1]), ...\n  'Rotationssteifigkeit muss [3x3] double sein.');\n\n%% Berechnung\n% [1], (3,21)\nR_cd = R"
-      "c' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd = r2rpy(R_cd);\nphi_cd = phi_cd(:);\n\nTw = angvelotrans_rpy(phi_cd); % [1], (2.34)\n% Te = Rc*Tw; % [1], (2.31); Bereits unten eingesetzt\n"
-      "\n% Rückstellendes Moment: Federmoment in mitgedrehten Koordinaten,\n% Transformation in kartesische Koordinate"
-      "n mit Tw und Rotation vom KS c\n% ins Welt-KS mit Rc\nmu_ce = Rc * (Tw' \\ (k .* phi_cd)); % [1], (2.32); Dort T"
-      "ransponiert-Invertiert vergessen\n\n% Energie\nE = sum(0.5 * k .* phi_cd.^2);\n"
+      "c' * Rd;\n\n% ist xyz-euler-winkel aus Natale 2003.\nphi_cd = r2rpy(R_cd);\nphi_cd = phi_cd(:);\n\nTw = angvelot"
+      "rans_rpy(phi_cd); % [1], (2.34)\n% Te = Rc*Tw; % [1], (2.31); Bereits unten eingesetzt\n\n% Rückstellendes Mome"
+      "nt: Federmoment in mitgedrehten Koordinaten,\n% Transformation in kartesische Koordinaten mit Tw und Rotation vo"
+      "m KS c\n% ins Welt-KS mit Rc\nmu_ce = Rc * (Tw' \\ (k .* phi_cd)); % [1], (2.32); Dort Transponiert-Invertiert v"
+      "ergessen\n\n% Energie\nE = sum(0.5 * k .* phi_cd.^2);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
