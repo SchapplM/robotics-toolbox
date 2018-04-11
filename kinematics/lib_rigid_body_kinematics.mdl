@@ -25,7 +25,7 @@ Library {
       $ObjectID		      2
       $ClassName	      "Simulink.WindowInfo"
       IsActive		      [1]
-      Location		      [1959.0, 542.0, 955.0, 548.0]
+      Location		      [1983.0, 34.0, 914.0, 1036.0]
       Object {
 	$PropName		"ModelBrowserInfo"
 	$ObjectID		3
@@ -48,10 +48,10 @@ Library {
 	$ClassName		"Simulink.EditorInfo"
 	IsActive		[1]
 	ViewObjType		"SimulinkSubsys"
-	LoadSaveID		"238"
-	Extents			[917.0, 380.0]
+	LoadSaveID		"125"
+	Extents			[876.0, 868.0]
 	ZoomFactor		[1.0]
-	Offset			[247.64984216148491, 52.1396772585756]
+	Offset			[0.0, 0.0]
       }
       Object {
 	$PropName		"DockComponentsInfo"
@@ -71,7 +71,7 @@ Library {
       "AAAAAAA+wAAABYARABvAGMAawBXAGkAZABnAGUAdAA0AAAAAAD/////AAAAAAAAAAD7AAAAUgBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0Ac"
       "ABvAG4AZQBuAHQALwBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0AcABvAG4AZQBuAHQAAAAAAP////8AAABiAP///wAAAAEAAAAAAAAAAPwCA"
       "AAAAfsAAABUAEcATABVAEUAMgA6AFAAcgBvAHAAZQByAHQAeQBJAG4AcwBwAGUAYwB0AG8AcgAvAFAAcgBvAHAAZQByAHQAeQAgAEkAbgBzAHAAZ"
-      "QBjAHQAbwByAAAAAAD/////AAAALAD///8AAAO7AAABugAAAAEAAAACAAAAAQAAAAL8AAAAAQAAAAIAAAAP/////wAAAAAA/////wAAAAAAAAAA/"
+      "QBjAHQAbwByAAAAAAD/////AAAALAD///8AAAOSAAADogAAAAEAAAACAAAAAQAAAAL8AAAAAQAAAAIAAAAP/////wAAAAAA/////wAAAAAAAAAA/"
       "////wEAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
       "////wEAAACA/////wAAAAAAAAAA/////wEAAADo/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
       "////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wEAAAE7/////wAAAAAAAAAA/"
@@ -85,9 +85,9 @@ Library {
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "schappler"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Wed Apr 11 13:25:27 2018"
-  RTWModifiedTimeStamp	  423155951
-  ModelVersionFormat	  "1.%<AutoIncrement:195>"
+  LastModifiedDate	  "Wed Apr 11 13:21:27 2018"
+  RTWModifiedTimeStamp	  445353489
+  ModelVersionFormat	  "1.%<AutoIncrement:201>"
   SampleTimeColors	  off
   SampleTimeAnnotations	  off
   LibraryLinkDisplay	  "all"
@@ -1105,7 +1105,7 @@ Library {
   }
   System {
     Name		    "lib_rigid_body_kinematics"
-    Location		    [1959, 542, 2914, 1090]
+    Location		    [1983, 34, 2897, 1070]
     Open		    off
     PortBlocksUseCompactNotation off
     ModelBrowserVisibility  off
@@ -1120,7 +1120,7 @@ Library {
     ShowPageBoundaries	    off
     ZoomFactor		    "125"
     ReportName		    "simulink-default.rpt"
-    SIDHighWatermark	    "246"
+    SIDHighWatermark	    "247"
     Block {
       BlockType		      SubSystem
       Name		      "Doppelintegrator"
@@ -2114,7 +2114,7 @@ Library {
       }
       System {
 	Name			"Rotation_rpyD_continuous"
-	Location		[47, -14, 1930, 1090]
+	Location		[53, 24, 1920, 1200]
 	Open			off
 	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
@@ -2153,7 +2153,7 @@ Library {
 	  Ports			  [1, 1]
 	  Position		  [525, 210, 590, 250]
 	  ZOrder		  283
-	  LibraryVersion	  "1.124"
+	  LibraryVersion	  "1.199"
 	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rpy"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
@@ -2452,8 +2452,8 @@ Library {
       }
       System {
 	Name			"angvel_body_int_quat"
-	Location		[1959, 542, 2914, 1090]
-	Open			on
+	Location		[1983, 34, 2897, 1070]
+	Open			off
 	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
@@ -2622,7 +2622,7 @@ Library {
 	  Position		  [970, 229, 1010, 251]
 	  ZOrder		  286
 	  NamePlacement		  "alternate"
-	  LibraryVersion	  "1.112"
+	  LibraryVersion	  "1.114"
 	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
@@ -3058,8 +3058,8 @@ Library {
       }
       System {
 	Name			"angvel_int_quat"
-	Location		[62, 24, 1933, 1093]
-	Open			off
+	Location		[1983, 34, 2897, 1070]
+	Open			on
 	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
@@ -3228,7 +3228,7 @@ Library {
 	  Position		  [970, 229, 1010, 251]
 	  ZOrder		  286
 	  NamePlacement		  "alternate"
-	  LibraryVersion	  "1.72"
+	  LibraryVersion	  "1.114"
 	  SourceBlock		  "lib_transformations/quat2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
@@ -3432,7 +3432,7 @@ Library {
 	  "e:10px;\">Z</span><span style=\" font-family:'arial'; font-size:10px;\">upanSaj2011</span><span style=\" font-size:"
 	  "10px;\">] </span><span style=\" font-family:'arial'; font-size:10px;\">Integrating rotation from angular velocity</"
 	  "span><span style=\" font-size:10px;\"> , Kap. 3.3</span></p></body></html>"
-	  Position		  [178, 25, 180, 41]
+	  Position		  [178, 25, 506, 87]
 	  InternalMargins	  [0, 0, 0, 0]
 	  HorizontalAlignment	  "left"
 	  VerticalAlignment	  "top"
@@ -4232,7 +4232,7 @@ Library {
       }
       System {
 	Name			"angvel_int_rpy"
-	Location		[2914, 618, 3829, 1070]
+	Location		[1973, 24, 2907, 1080]
 	Open			off
 	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
@@ -4395,117 +4395,16 @@ Library {
 	  }
 	}
 	Block {
-	  BlockType		  SubSystem
+	  BlockType		  Reference
 	  Name			  "rpy2r"
-	  SID			  "162"
+	  SID			  "247"
 	  Ports			  [1, 1]
-	  Position		  [875, 227, 945, 273]
-	  ZOrder		  282
-	  LibraryVersion	  "1.32"
-	  ErrorFcn		  "Stateflow.Translate.translate"
-	  PermitHierarchicalResolution "ExplicitOnly"
-	  TreatAsAtomicUnit	  on
-	  RequestExecContextInheritance	off
-	  SFBlockType		  "MATLAB Function"
-	  Variant		  off
-	  System {
-	    Name		    "rpy2r"
-	    Location		    [223, 338, 826, 833]
-	    Open		    off
-	    PortBlocksUseCompactNotation off
-	    ModelBrowserVisibility  off
-	    ModelBrowserWidth	    200
-	    ScreenColor		    "white"
-	    PaperOrientation	    "landscape"
-	    PaperPositionMode	    "auto"
-	    PaperType		    "A4"
-	    PaperUnits		    "centimeters"
-	    TiledPaperMargins	    [1.270000, 1.270000, 1.270000, 1.270000]
-	    TiledPageScale	    1
-	    ShowPageBoundaries	    off
-	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "39"
-	    Block {
-	      BlockType		      Inport
-	      Name		      "rpy"
-	      SID		      "162::1"
-	      Position		      [20, 101, 40, 119]
-	      ZOrder		      -1
-	      IconDisplay	      "Port number"
-	    }
-	    Block {
-	      BlockType		      Demux
-	      Name		      " Demux "
-	      SID		      "162::38"
-	      Ports		      [1, 1]
-	      Position		      [270, 230, 320, 270]
-	      ZOrder		      14
-	      Outputs		      "1"
-	    }
-	    Block {
-	      BlockType		      S-Function
-	      Name		      " SFunction "
-	      SID		      "162::37"
-	      Tag		      "Stateflow S-Function lib_rigid_body_kinematics 9"
-	      Ports		      [1, 2]
-	      Position		      [180, 100, 230, 160]
-	      ZOrder		      13
-	      FunctionName	      "sf_sfun"
-	      PortCounts	      "[1 2]"
-	      SFunctionDeploymentMode off
-	      EnableBusSupport	      off
-	      SFcnIsStateOwnerBlock   off
-	      Port {
-		PortNumber		2
-		Name			"R"
-	      }
-	    }
-	    Block {
-	      BlockType		      Terminator
-	      Name		      " Terminator "
-	      SID		      "162::39"
-	      Position		      [460, 241, 480, 259]
-	      ZOrder		      15
-	    }
-	    Block {
-	      BlockType		      Outport
-	      Name		      "R"
-	      SID		      "162::5"
-	      Position		      [460, 101, 480, 119]
-	      ZOrder		      -5
-	      IconDisplay	      "Port number"
-	    }
-	    Line {
-	      ZOrder		      9
-	      SrcBlock		      "rpy"
-	      SrcPort		      1
-	      DstBlock		      " SFunction "
-	      DstPort		      1
-	    }
-	    Line {
-	      Name		      "R"
-	      ZOrder		      10
-	      Labels		      [0, 0]
-	      SrcBlock		      " SFunction "
-	      SrcPort		      2
-	      DstBlock		      "R"
-	      DstPort		      1
-	    }
-	    Line {
-	      ZOrder		      11
-	      SrcBlock		      " Demux "
-	      SrcPort		      1
-	      DstBlock		      " Terminator "
-	      DstPort		      1
-	    }
-	    Line {
-	      ZOrder		      12
-	      SrcBlock		      " SFunction "
-	      SrcPort		      1
-	      DstBlock		      " Demux "
-	      DstPort		      1
-	    }
-	  }
+	  Position		  [880, 225, 940, 275]
+	  ZOrder		  335
+	  LibraryVersion	  "1.114"
+	  SourceBlock		  "lib_transformations/rpy2r"
+	  SourceType		  "SubSystem"
+	  ContentPreviewEnabled	  off
 	}
 	Block {
 	  BlockType		  Outport
@@ -4537,7 +4436,7 @@ Library {
 	  SrcPort		  1
 	  Points		  [29, 0]
 	  Branch {
-	    ZOrder		    7
+	    ZOrder		    16
 	    DstBlock		    "rpy2r"
 	    DstPort		    1
 	  }
@@ -4549,7 +4448,7 @@ Library {
 	  }
 	}
 	Line {
-	  ZOrder		  9
+	  ZOrder		  17
 	  SrcBlock		  "rpy2r"
 	  SrcPort		  1
 	  DstBlock		  "R_0E"
@@ -5434,7 +5333,7 @@ Stateflow {
     created		    "24-Aug-2015 16:54:29"
     isLibrary		    1
     sfVersion		    80000012
-    firstTarget		    102
+    firstTarget		    95
   }
   chart {
     id			    2
@@ -6150,6 +6049,7 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 38 0 0]
     viewObj		    37
+    toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    10
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -6541,6 +6441,10 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 57 0 0]
     viewObj		    56
+    visible		    1
+    toolbarMode		    LIBRARY_TOOLBAR
+    subviewS {
+    }
     ssIdHighWaterMark	    10
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -6574,10 +6478,9 @@ Stateflow {
       "ersität Hannover\n\nfunction quatD = transform(omega_g, quat)\n%% Init\n%#codegen\nassert(isa(omega_g,'double')"
       " && isreal(omega_g) && all(size(omega_g) == [3 1]), ...\n  'Drehgeschwindigkeit muss [3x1] double sein.');\nasse"
       "rt(isa(quat,'double') && isreal(quat) && all(size(quat) == [4 1]), ...\n  'Quaternion muss [4x1] double sein.');"
-      "\n\n%% Berechnung mit Quaternionen-Klasse\nQuat = Quaternion(quat);\nQuatD = dot(Quat, omega_g);\nquatD = [QuatD"
-      ".s; QuatD.v'];\n\n%% Eigene Berechnung (nicht weiter vefolgt.)\n% [ZupanSaj2011] S. 726\n% omega_g_hat = [0; ome"
-      "ga_g];\n% Omega_g_hat = Quaternion(omega_g_hat);\n% % [ZupanSaj2011] Gl. (19)\n% quatD = 0.5 * Omega_g_hat * ..."
-      "\n\n"
+      "\n\n%% Berechnung\nquatD = quatD_angvel(quat, omega_g);\n%% Eigene Berechnung (nicht weiter vefolgt.)\n% [ZupanS"
+      "aj2011] S. 726\n% omega_g_hat = [0; omega_g];\n% Omega_g_hat = Quaternion(omega_g_hat);\n% % [ZupanSaj2011] Gl. "
+      "(19)\n% quatD = 0.5 * Omega_g_hat * ...\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6699,7 +6602,10 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 65 0 0]
     viewObj		    64
+    visible		    1
     toolbarMode		    LIBRARY_TOOLBAR
+    subviewS {
+    }
     ssIdHighWaterMark	    10
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -6733,10 +6639,7 @@ Stateflow {
       ", Universität Hannover\n\nfunction quatD = transform(omega_B, quat)\n%% Init\n%#codegen\nassert(isa(omega_B,'do"
       "uble') && isreal(omega_B) && all(size(omega_B) == [3 1]), ...\n  'Drehgeschwindigkeit muss [3x1] double sein.');"
       "\nassert(isa(quat,'double') && isreal(quat) && all(size(quat) == [4 1]), ...\n  'Quaternion muss [4x1] double se"
-      "in.');\n\n%% Berechnung mit Quaternionen-Klasse\nQuat = Quaternion(quat);\n% TODO: Bessere \"Quaternionen-Formel"
-      "\"\nR_W_B = quat2r(quat');\nQuatD = dot(Quat, R_W_B*omega_B);\nquatD = [QuatD.s; QuatD.v'];\n\n%% Eigene Berechn"
-      "ung (nicht weiter vefolgt.)\n% [ZupanSaj2011] S. 726\n% omega_g_hat = [0; omega_g];\n% Omega_g_hat = Quaternion("
-      "omega_g_hat);\n% % [ZupanSaj2011] Gl. (19)\n% quatD = 0.5 * Omega_g_hat * ...\n\n"
+      "in.');\n\n%% Berechnung\nR_W_B = quat2r(quat);\nquatD = quatD_angvel(quat, R_W_B*omega_B);\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6852,24 +6755,24 @@ Stateflow {
   chart {
     id			    72
     machine		    1
-    name		    "angvel_int_rpy/rpy2r"
+    name		    "rigidbody_position/MATLAB Function"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 73 0 0]
     viewObj		    72
     toolbarMode		    LIBRARY_TOOLBAR
-    ssIdHighWaterMark	    5
+    ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    chartFileNumber	    9
+    chartFileNumber	    10
     disableImplicitCasting  1
     eml {
-      name		      "rpy2r"
+      name		      "fcn"
     }
     firstData		    74
-    firstTransition	    77
-    firstJunction	    76
+    firstTransition	    79
+    firstJunction	    78
   }
   state {
     id			    73
@@ -6885,139 +6788,13 @@ Stateflow {
     decomposition	    CLUSTER_STATE
     eml {
       isEML		      1
-      script		      "function R = rpy2r(rpy)\n%% Init\n%#codegen\nassert(isa(rpy,'double') && isreal(rpy) && all(size("
-      "rpy) == [3 1]), ...\n  'rpy-Winkel muessen [3x1] double sein.');\n\n%% Berechnung\nR=rpy2r(rpy(1), rpy(2), rpy(3"
-      "));"
-      editorLayout	      "100 M4x1[10 5 700 500]"
-    }
-  }
-  data {
-    id			    74
-    ssIdNumber		    4
-    name		    "rpy"
-    scope		    INPUT_DATA
-    machine		    1
-    props {
-      array {
-	size			"-1"
-      }
-      type {
-	method			SF_INHERITED_TYPE
-	primitive		SF_DOUBLE_TYPE
-      }
-      complexity	      SF_COMPLEX_INHERITED
-      unit {
-	name			"inherit"
-      }
-    }
-    dataType		    "Inherit: Same as Simulink"
-    linkNode		    [72 0 75]
-  }
-  data {
-    id			    75
-    ssIdNumber		    5
-    name		    "R"
-    scope		    OUTPUT_DATA
-    machine		    1
-    props {
-      array {
-	size			"-1"
-      }
-      type {
-	method			SF_INHERITED_TYPE
-	primitive		SF_DOUBLE_TYPE
-      }
-      complexity	      SF_COMPLEX_INHERITED
-      frame		      SF_FRAME_NO
-      unit {
-	name			"inherit"
-      }
-    }
-    dataType		    "Inherit: Same as Simulink"
-    linkNode		    [72 74 0]
-  }
-  junction {
-    id			    76
-    position		    [23.5747 49.5747 7]
-    chart		    72
-    subviewer		    72
-    ssIdNumber		    3
-    type		    CONNECTIVE_JUNCTION
-    linkNode		    [72 0 0]
-  }
-  transition {
-    id			    77
-    labelString		    "{eML_blk_kernel();}"
-    labelPosition	    [28.125 13.875 102.544 14.964]
-    fontSize		    12
-    src {
-      intersection	      [0 0 1 0 23.5747 14.625 0 0]
-    }
-    dst {
-      id		      76
-      intersection	      [1 0 -1 0 23.5747 42.5747 0 0]
-    }
-    midPoint		    [23.5747 24.9468]
-    chart		    72
-    dataLimits		    [21.175 25.975 14.625 42.575]
-    subviewer		    72
-    drawStyle		    SMART
-    slide {
-      sticky		      BOTH_STICK
-    }
-    executionOrder	    1
-    ssIdNumber		    2
-    linkNode		    [72 0 0]
-  }
-  instance {
-    id			    78
-    machine		    1
-    name		    "angvel_int_rpy/rpy2r"
-    chart		    72
-  }
-  chart {
-    id			    79
-    machine		    1
-    name		    "rigidbody_position/MATLAB Function"
-    windowPosition	    [422 539.941 189 413]
-    viewLimits		    [0 156.75 0 153.75]
-    screen		    [1 1 3600 1200 1.180555555555556]
-    treeNode		    [0 80 0 0]
-    viewObj		    79
-    toolbarMode		    LIBRARY_TOOLBAR
-    ssIdHighWaterMark	    7
-    decomposition	    CLUSTER_CHART
-    type		    EML_CHART
-    chartFileNumber	    10
-    disableImplicitCasting  1
-    eml {
-      name		      "fcn"
-    }
-    firstData		    81
-    firstTransition	    86
-    firstJunction	    85
-  }
-  state {
-    id			    80
-    labelString		    "eML_blk_kernel()"
-    position		    [18 64.5 118 66]
-    fontSize		    12
-    chart		    79
-    treeNode		    [79 0 0 0]
-    superState		    SUBCHART
-    subviewer		    79
-    ssIdNumber		    1
-    type		    FUNC_STATE
-    decomposition	    CLUSTER_STATE
-    eml {
-      isEML		      1
       script		      "function r_W_W_C = fcn(r_W_W_B, R_W_B, r_B_B_C)\n%#codegen\nr_W_B_C = R_W_B * r_B_B_C;\nr_W_W_C ="
       " r_W_W_B + r_W_B_C;"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
   data {
-    id			    81
+    id			    74
     ssIdNumber		    4
     name		    "r_W_W_B"
     scope		    INPUT_DATA
@@ -7037,10 +6814,10 @@ Stateflow {
       }
     }
     dataType		    "Inherit: Same as Simulink"
-    linkNode		    [79 0 82]
+    linkNode		    [72 0 75]
   }
   data {
-    id			    82
+    id			    75
     ssIdNumber		    5
     name		    "r_W_W_C"
     scope		    OUTPUT_DATA
@@ -7060,10 +6837,10 @@ Stateflow {
       }
     }
     dataType		    "Inherit: Same as Simulink"
-    linkNode		    [79 81 83]
+    linkNode		    [72 74 76]
   }
   data {
-    id			    83
+    id			    76
     ssIdNumber		    6
     name		    "R_W_B"
     scope		    INPUT_DATA
@@ -7085,10 +6862,10 @@ Stateflow {
       }
     }
     dataType		    "Inherit: Same as Simulink"
-    linkNode		    [79 82 84]
+    linkNode		    [72 75 77]
   }
   data {
-    id			    84
+    id			    77
     ssIdNumber		    7
     name		    "r_B_B_C"
     scope		    PARAMETER_DATA
@@ -7110,16 +6887,140 @@ Stateflow {
       }
     }
     dataType		    "Inherit: Same as Simulink"
-    linkNode		    [79 83 0]
+    linkNode		    [72 76 0]
+  }
+  junction {
+    id			    78
+    position		    [23.5747 49.5747 7]
+    chart		    72
+    subviewer		    72
+    ssIdNumber		    3
+    type		    CONNECTIVE_JUNCTION
+    linkNode		    [72 0 0]
+  }
+  transition {
+    id			    79
+    labelString		    "{eML_blk_kernel();}"
+    labelPosition	    [28.125 13.875 102.544 14.964]
+    fontSize		    12
+    src {
+      intersection	      [0 0 1 0 23.5747 14.625 0 0]
+    }
+    dst {
+      id		      78
+      intersection	      [1 0 -1 0 23.5747 42.5747 0 0]
+    }
+    midPoint		    [23.5747 24.9468]
+    chart		    72
+    dataLimits		    [21.175 25.975 14.625 42.575]
+    subviewer		    72
+    drawStyle		    SMART
+    slide {
+      sticky		      BOTH_STICK
+    }
+    executionOrder	    1
+    ssIdNumber		    2
+    linkNode		    [72 0 0]
+  }
+  instance {
+    id			    80
+    machine		    1
+    name		    "rigidbody_position/MATLAB Function"
+    chart		    72
+  }
+  chart {
+    id			    81
+    machine		    1
+    name		    "angvel_int_quat/u//||u||"
+    windowPosition	    [422 539.941 189 413]
+    viewLimits		    [0 156.75 0 153.75]
+    screen		    [1 1 3600 1200 1.180555555555556]
+    treeNode		    [0 82 0 0]
+    viewObj		    81
+    toolbarMode		    LIBRARY_TOOLBAR
+    ssIdHighWaterMark	    5
+    decomposition	    CLUSTER_CHART
+    type		    EML_CHART
+    chartFileNumber	    11
+    disableImplicitCasting  1
+    eml {
+      name		      "normalize"
+    }
+    firstData		    83
+    firstTransition	    86
+    firstJunction	    85
+  }
+  state {
+    id			    82
+    labelString		    "eML_blk_kernel()"
+    position		    [18 64.5 118 66]
+    fontSize		    12
+    chart		    81
+    treeNode		    [81 0 0 0]
+    superState		    SUBCHART
+    subviewer		    81
+    ssIdNumber		    1
+    type		    FUNC_STATE
+    decomposition	    CLUSTER_STATE
+    eml {
+      isEML		      1
+      script		      "function y = normalize(u)\n%#codegen\n\ny = u./norm(u);"
+      editorLayout	      "100 M4x1[10 5 700 500]"
+    }
+  }
+  data {
+    id			    83
+    ssIdNumber		    4
+    name		    "u"
+    scope		    INPUT_DATA
+    machine		    1
+    props {
+      array {
+	size			"-1"
+      }
+      type {
+	method			SF_INHERITED_TYPE
+	primitive		SF_DOUBLE_TYPE
+      }
+      complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
+    }
+    dataType		    "Inherit: Same as Simulink"
+    linkNode		    [81 0 84]
+  }
+  data {
+    id			    84
+    ssIdNumber		    5
+    name		    "y"
+    scope		    OUTPUT_DATA
+    machine		    1
+    props {
+      array {
+	size			"-1"
+      }
+      type {
+	method			SF_INHERITED_TYPE
+	primitive		SF_DOUBLE_TYPE
+      }
+      complexity	      SF_COMPLEX_INHERITED
+      frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
+    }
+    dataType		    "Inherit: Same as Simulink"
+    linkNode		    [81 83 0]
   }
   junction {
     id			    85
     position		    [23.5747 49.5747 7]
-    chart		    79
-    subviewer		    79
+    chart		    81
+    subviewer		    81
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
-    linkNode		    [79 0 0]
+    linkNode		    [81 0 0]
   }
   transition {
     id			    86
@@ -7134,27 +7035,27 @@ Stateflow {
       intersection	      [1 0 -1 0 23.5747 42.5747 0 0]
     }
     midPoint		    [23.5747 24.9468]
-    chart		    79
+    chart		    81
     dataLimits		    [21.175 25.975 14.625 42.575]
-    subviewer		    79
+    subviewer		    81
     drawStyle		    SMART
     slide {
       sticky		      BOTH_STICK
     }
     executionOrder	    1
     ssIdNumber		    2
-    linkNode		    [79 0 0]
+    linkNode		    [81 0 0]
   }
   instance {
     id			    87
     machine		    1
-    name		    "rigidbody_position/MATLAB Function"
-    chart		    79
+    name		    "angvel_int_quat/u//||u||"
+    chart		    81
   }
   chart {
     id			    88
     machine		    1
-    name		    "angvel_int_quat/u//||u||"
+    name		    "angvel_body_int_quat/u//||u||"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -7164,7 +7065,7 @@ Stateflow {
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    chartFileNumber	    11
+    chartFileNumber	    12
     disableImplicitCasting  1
     eml {
       name		      "normalize"
@@ -7272,144 +7173,20 @@ Stateflow {
   instance {
     id			    94
     machine		    1
-    name		    "angvel_int_quat/u//||u||"
+    name		    "angvel_body_int_quat/u//||u||"
     chart		    88
   }
-  chart {
-    id			    95
-    machine		    1
-    name		    "angvel_body_int_quat/u//||u||"
-    windowPosition	    [422 539.941 189 413]
-    viewLimits		    [0 156.75 0 153.75]
-    screen		    [1 1 3600 1200 1.180555555555556]
-    treeNode		    [0 96 0 0]
-    viewObj		    95
-    toolbarMode		    LIBRARY_TOOLBAR
-    ssIdHighWaterMark	    5
-    decomposition	    CLUSTER_CHART
-    type		    EML_CHART
-    chartFileNumber	    12
-    disableImplicitCasting  1
-    eml {
-      name		      "normalize"
-    }
-    firstData		    97
-    firstTransition	    100
-    firstJunction	    99
-  }
-  state {
-    id			    96
-    labelString		    "eML_blk_kernel()"
-    position		    [18 64.5 118 66]
-    fontSize		    12
-    chart		    95
-    treeNode		    [95 0 0 0]
-    superState		    SUBCHART
-    subviewer		    95
-    ssIdNumber		    1
-    type		    FUNC_STATE
-    decomposition	    CLUSTER_STATE
-    eml {
-      isEML		      1
-      script		      "function y = normalize(u)\n%#codegen\n\ny = u./norm(u);"
-      editorLayout	      "100 M4x1[10 5 700 500]"
-    }
-  }
-  data {
-    id			    97
-    ssIdNumber		    4
-    name		    "u"
-    scope		    INPUT_DATA
-    machine		    1
-    props {
-      array {
-	size			"-1"
-      }
-      type {
-	method			SF_INHERITED_TYPE
-	primitive		SF_DOUBLE_TYPE
-      }
-      complexity	      SF_COMPLEX_INHERITED
-      unit {
-	name			"inherit"
-      }
-    }
-    dataType		    "Inherit: Same as Simulink"
-    linkNode		    [95 0 98]
-  }
-  data {
-    id			    98
-    ssIdNumber		    5
-    name		    "y"
-    scope		    OUTPUT_DATA
-    machine		    1
-    props {
-      array {
-	size			"-1"
-      }
-      type {
-	method			SF_INHERITED_TYPE
-	primitive		SF_DOUBLE_TYPE
-      }
-      complexity	      SF_COMPLEX_INHERITED
-      frame		      SF_FRAME_NO
-      unit {
-	name			"inherit"
-      }
-    }
-    dataType		    "Inherit: Same as Simulink"
-    linkNode		    [95 97 0]
-  }
-  junction {
-    id			    99
-    position		    [23.5747 49.5747 7]
-    chart		    95
-    subviewer		    95
-    ssIdNumber		    3
-    type		    CONNECTIVE_JUNCTION
-    linkNode		    [95 0 0]
-  }
-  transition {
-    id			    100
-    labelString		    "{eML_blk_kernel();}"
-    labelPosition	    [28.125 13.875 102.544 14.964]
-    fontSize		    12
-    src {
-      intersection	      [0 0 1 0 23.5747 14.625 0 0]
-    }
-    dst {
-      id		      99
-      intersection	      [1 0 -1 0 23.5747 42.5747 0 0]
-    }
-    midPoint		    [23.5747 24.9468]
-    chart		    95
-    dataLimits		    [21.175 25.975 14.625 42.575]
-    subviewer		    95
-    drawStyle		    SMART
-    slide {
-      sticky		      BOTH_STICK
-    }
-    executionOrder	    1
-    ssIdNumber		    2
-    linkNode		    [95 0 0]
-  }
-  instance {
-    id			    101
-    machine		    1
-    name		    "angvel_body_int_quat/u//||u||"
-    chart		    95
-  }
   target {
-    id			    102
+    id			    95
     machine		    1
     name		    "sfun"
     description		    "Default Simulink S-Function Target."
-    linkNode		    [1 0 103]
+    linkNode		    [1 0 96]
   }
   target {
-    id			    103
+    id			    96
     machine		    1
     name		    "rtw"
-    linkNode		    [1 102 0]
+    linkNode		    [1 95 0]
   }
 }

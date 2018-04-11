@@ -48,11 +48,11 @@ Library {
 	Object {
 	  $ObjectID		  5
 	  IsActive		  [1]
-	  ViewObjType		  "SimulinkTopLevel"
-	  LoadSaveID		  "0"
+	  ViewObjType		  "SimulinkSubsys"
+	  LoadSaveID		  "45"
 	  Extents		  [917.0, 902.0]
 	  ZoomFactor		  [1.0]
-	  Offset		  [65.178201045377136, 4.4011426356892116]
+	  Offset		  [0.0, 0.0]
 	}
 	Object {
 	  $ObjectID		  6
@@ -97,9 +97,9 @@ Library {
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "schappler"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Wed Apr 11 13:25:44 2018"
-  RTWModifiedTimeStamp	  431964701
-  ModelVersionFormat	  "1.%<AutoIncrement:112>"
+  LastModifiedDate	  "Wed Apr 11 13:10:39 2018"
+  RTWModifiedTimeStamp	  445353034
+  ModelVersionFormat	  "1.%<AutoIncrement:114>"
   SampleTimeColors	  off
   SampleTimeAnnotations	  off
   LibraryLinkDisplay	  "all"
@@ -1020,7 +1020,7 @@ Library {
   System {
     Name		    "lib_transformations"
     Location		    [2885, 52, 3840, 1128]
-    Open		    on
+    Open		    off
     PortBlocksUseCompactNotation off
     ModelBrowserVisibility  off
     ModelBrowserWidth	    200
@@ -3868,8 +3868,8 @@ Library {
       Variant		      off
       System {
 	Name			"rpy2r"
-	Location		[1959, -14, 3850, 1090]
-	Open			off
+	Location		[2885, 52, 3840, 1128]
+	Open			on
 	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
@@ -6331,7 +6331,10 @@ Stateflow {
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 47 0 0]
     viewObj		    46
+    visible		    1
     toolbarMode		    LIBRARY_TOOLBAR
+    subviewS {
+    }
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
@@ -6358,10 +6361,10 @@ Stateflow {
     decomposition	    CLUSTER_STATE
     eml {
       isEML		      1
-      script		      "% RPY-Winkelkonvention in Rotationsmatrix umwandeln\n% \n% Input:\n%  rpy-Winkel [3x1] \n%   Defi"
-      "nition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n\n% Output:\n% rpy:\n% R [3x3] :\n%   Rotationsmatrix\n\n\n"
-      "% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität H"
-      "annover\n\nfunction R = fcn(phi)\n%#codegen\nR = rpy2r(phi(1), phi(2), phi(3));\n"
+      script		      "% RPY-Winkelkonvention in Rotationsmatrix umwandeln\n% \n% Input:\n%  rpy-Winkel [3x1]\n%   Defin"
+      "ition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n% Output:\n% rpy:\n% R [3x3]\n%   Rotationsmatrix\n\n\n% Mor"
+      "itz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität Hannov"
+      "er\n\nfunction R = fcn(phi)\n%#codegen\nR = rpy2r(phi);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }

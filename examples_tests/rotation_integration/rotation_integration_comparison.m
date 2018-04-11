@@ -261,7 +261,7 @@ t_ges = (0:1e-3:20)';
 f1 = [1;3;5];
 f2 = [7;11;9];
 omega_W_ges = (sin(2*pi*f1*t_ges') .* sin(2*pi*f2*t_ges'))';
-R_t0 = rpy2r(rand(1), rand(1), rand(1));
+R_t0 = rpy2r(rand(3,1));
 Ts = 1e-3;
 R_int_erg = {};
 % Berechne Modelle mit Eingabe der Winkelgeschw. in Welt-KS
