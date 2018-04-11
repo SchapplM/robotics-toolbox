@@ -1,14 +1,21 @@
 Library {
   Name			  "lib_transformations"
-  Version		  8.5
-  MdlSubVersion		  0
+  Version		  9.0
   SavedCharacterEncoding  "UTF-8"
+  LogicAnalyzerGraphicalSettings ""
+  LogicAnalyzerPlugin	  "on"
+  LogicAnalyzerSignalOrdering ""
+  DiagnosticSuppressor	  "on"
+  SuppressorTable	  "22 serialization::archive 11 0 6 0 0 0 11 0"
+  CustomCodeFunctionData  ""
+  SLCCPlugin		  "on"
   LibraryType		  "BlockLibrary"
   ScopeRefreshTime	  0.035000
   OverrideScopeRefreshTime on
   DisableAllScopes	  on
   FPTRunName		  "Run 1"
   MaxMDLFileLineLength	  120
+  LastSavedArchitecture	  "glnxa64"
   Object {
     $PropName		    "BdWindowsInfo"
     $ObjectID		    1
@@ -43,9 +50,9 @@ Library {
 	  IsActive		  [1]
 	  ViewObjType		  "SimulinkTopLevel"
 	  LoadSaveID		  "0"
-	  Extents		  [919.0, 888.0]
+	  Extents		  [917.0, 902.0]
 	  ZoomFactor		  [1.0]
-	  Offset		  [65.178201045377108, 4.4011426356892276]
+	  Offset		  [65.178201045377136, 4.4011426356892116]
 	}
 	Object {
 	  $ObjectID		  6
@@ -58,24 +65,52 @@ Library {
 	}
 	PropName		"EditorsInfo"
       }
+      Object {
+	$PropName		"DockComponentsInfo"
+	$ObjectID		7
+	$ClassName		"Simulink.DockComponentInfo"
+	Type			"GLUE2:PropertyInspector"
+	ID			"Property Inspector"
+	Visible			[0]
+	CreateCallback		""
+	UserData		""
+	Floating		[0]
+	DockPosition		"Right"
+	Width			[640]
+	Height			[480]
+      }
+      WindowState	      "AAAA/wAAAAD9AAAAAgAAAAAAAAC9AAAB+PwCAAAAA/sAAAAWAEQAbwBjAGsAVwBpAGQAZwBlAHQAMwEAAAAxAAAB+AAAA"
+      "AAAAAAA+wAAABYARABvAGMAawBXAGkAZABnAGUAdAA0AAAAAAD/////AAAAAAAAAAD7AAAAUgBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0Ac"
+      "ABvAG4AZQBuAHQALwBHAEwAVQBFADIAIAB0AHIAZQBlACAAYwBvAG0AcABvAG4AZQBuAHQAAAAAAP////8AAABiAP///wAAAAEAAAAAAAAAAPwCA"
+      "AAAAfsAAABUAEcATABVAEUAMgA6AFAAcgBvAHAAZQByAHQAeQBJAG4AcwBwAGUAYwB0AG8AcgAvAFAAcgBvAHAAZQByAHQAeQAgAEkAbgBzAHAAZ"
+      "QBjAHQAbwByAAAAAAD/////AAAALAD///8AAAO7AAADygAAAAEAAAACAAAAAQAAAAL8AAAAAQAAAAIAAAAP/////wAAAAAA/////wAAAAAAAAAA/"
+      "////wEAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
+      "////wEAAACA/////wAAAAAAAAAA/////wEAAADo/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/"
+      "////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA/////wEAAAE7/////wAAAAAAAAAA/"
+      "////wAAAAAA/////wAAAAAAAAAA/////wAAAAAA/////wAAAAAAAAAA"
     }
   }
+  HideAutomaticNames	  on
   Created		  "Tue Aug 25 14:47:07 2015"
   Creator		  "schappler"
   UpdateHistory		  "UpdateHistoryNever"
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "schappler"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "Tue Nov 07 14:12:04 2017"
+  LastModifiedDate	  "Wed Apr 11 13:25:44 2018"
   RTWModifiedTimeStamp	  431964701
   ModelVersionFormat	  "1.%<AutoIncrement:112>"
-  ConfigurationManager	  "none"
   SampleTimeColors	  off
   SampleTimeAnnotations	  off
   LibraryLinkDisplay	  "all"
   WideLines		  off
   ShowLineDimensions	  off
   ShowPortDataTypes	  off
+  PortDataTypeDisplayFormat "AliasTypeOnly"
+  ShowEditTimeErrors	  on
+  ShowEditTimeWarnings	  on
+  ShowEditTimeAdvisorChecks off
+  ShowPortUnits		  off
   ShowDesignRanges	  off
   ShowLoopsOnError	  on
   IgnoreBidirectionalLines off
@@ -84,17 +119,22 @@ Library {
   ShowSignalResolutionIcons on
   ShowViewerIcons	  on
   SortedOrder		  off
+  VariantCondition	  off
   ExecutionContextIcon	  off
   ShowLinearizationAnnotations on
+  ShowVisualizeInsertedRTB on
   ShowMarkup		  on
   BlockNameDataTip	  off
   BlockParametersDataTip  off
   BlockDescriptionStringDataTip	off
+  BlockVariantConditionDataTip off
   ToolBar		  on
   StatusBar		  on
   BrowserShowLibraryLinks off
+  FunctionConnectors	  off
   BrowserLookUnderMasks	  off
   SimulationMode	  "normal"
+  VisualizeLoggedSignalsWhenLoggingToFile off
   PauseTimes		  "5"
   NumberOfSteps		  1
   SnapshotBufferSize	  10
@@ -103,25 +143,6 @@ Library {
   LinearizationMsg	  "none"
   Profile		  off
   ParamWorkspaceSource	  "MATLABWorkspace"
-  RecordCoverage	  off
-  CovSaveName		  "covdata"
-  CovMetricSettings	  "dw"
-  CovNameIncrementing	  off
-  CovHtmlReporting	  on
-  CovForceBlockReductionOff on
-  CovEnableCumulative	  on
-  covSaveCumulativeToWorkspaceVar on
-  CovSaveSingleToWorkspaceVar on
-  CovCumulativeReport	  off
-  CovReportOnPause	  on
-  CovModelRefEnable	  "Off"
-  CovExternalEMLEnable	  off
-  CovSFcnEnable		  on
-  CovBoundaryAbsTol	  0.000010
-  CovBoundaryRelTol	  0.010000
-  CovUseTimeInterval	  off
-  CovStartTime		  0
-  CovStopTime		  0
   ExtModeBatchMode	  off
   ExtModeEnableFloating	  on
   ExtModeTrigType	  "manual"
@@ -145,24 +166,28 @@ Library {
   ExtModeAutoUpdateStatusClock on
   ShowModelReferenceBlockVersion off
   ShowModelReferenceBlockIO off
+  OrderedModelArguments	  on
   Array {
     Type		    "Handle"
     Dimension		    1
     Simulink.ConfigSet {
-      $ObjectID		      7
-      Version		      "1.15.0"
+      $ObjectID		      8
+      Version		      "1.17.1"
+      DisabledProps	      []
+      Description	      ""
       Array {
 	Type			"Handle"
-	Dimension		8
+	Dimension		9
 	Simulink.SolverCC {
-	  $ObjectID		  8
-	  Version		  "1.15.0"
+	  $ObjectID		  9
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  ""
 	  StartTime		  "0.0"
 	  StopTime		  "10.0"
 	  AbsTol		  "auto"
 	  FixedStep		  "auto"
 	  InitialStep		  "auto"
-	  MaxNumMinSteps	  "-1"
 	  MaxOrder		  5
 	  ZcThreshold		  "auto"
 	  ConsecutiveZCsStepRelTol "10*128*eps"
@@ -173,8 +198,7 @@ Library {
 	  MinStep		  "auto"
 	  MaxConsecutiveMinStep	  "1"
 	  RelTol		  "1e-3"
-	  SolverMode		  "Auto"
-	  EnableConcurrentExecution off
+	  EnableMultiTasking	  on
 	  ConcurrentTasks	  off
 	  Solver		  "ode45"
 	  SolverName		  "ode45"
@@ -183,15 +207,21 @@ Library {
 	  ZeroCrossControl	  "UseLocalSettings"
 	  ZeroCrossAlgorithm	  "Nonadaptive"
 	  AlgebraicLoopSolver	  "TrustRegion"
+	  SolverInfoToggleStatus  off
+	  IsAutoAppliedInSIP	  off
 	  SolverResetMethod	  "Fast"
 	  PositivePriorityOrder	  off
 	  AutoInsertRateTranBlk	  off
 	  SampleTimeConstraint	  "Unconstrained"
 	  InsertRTBMode		  "Whenever possible"
+	  SampleTimeProperty	  []
+	  DecoupledContinuousIntegration off
 	}
 	Simulink.DataIOCC {
-	  $ObjectID		  9
-	  Version		  "1.15.0"
+	  $ObjectID		  10
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  ""
 	  Decimation		  "1"
 	  ExternalInput		  "[t, u]"
 	  FinalStateName	  "xFinal"
@@ -210,6 +240,8 @@ Library {
 	  DSMLogging		  on
 	  InspectSignalLogs	  off
 	  VisualizeSimOutput	  on
+	  StreamToWorkspace	  off
+	  StreamVariableName	  "streamout"
 	  SaveTime		  on
 	  ReturnWorkspaceOutputs  off
 	  StateSaveName		  "xout"
@@ -221,10 +253,14 @@ Library {
 	  OutputTimes		  "[]"
 	  ReturnWorkspaceOutputsName "out"
 	  Refine		  "1"
+	  LoggingToFile		  off
+	  DatasetSignalFormat	  "timeseries"
+	  LoggingFileName	  "out.mat"
+	  LoggingIntervals	  "[-inf, inf]"
 	}
 	Simulink.OptimizationCC {
-	  $ObjectID		  10
-	  Version		  "1.15.0"
+	  $ObjectID		  11
+	  Version		  "1.17.1"
 	  Array {
 	    Type		    "Cell"
 	    Dimension		    8
@@ -238,10 +274,11 @@ Library {
 	    Cell		    "UseSpecifiedMinMax"
 	    PropName		    "DisabledProps"
 	  }
+	  Description		  ""
 	  BlockReduction	  on
 	  BooleanDataType	  on
 	  ConditionallyExecuteInputs on
-	  InlineParams		  off
+	  DefaultParameterBehavior "Tunable"
 	  UseDivisionForNetSlopeComputation "off"
 	  UseFloatMulNetSlope	  off
 	  DefaultUnderspecifiedDataType	"double"
@@ -253,6 +290,7 @@ Library {
 	  CachingGlobalReferences off
 	  GlobalBufferReuse	  on
 	  StrengthReduction	  off
+	  AdvancedOptControl	  ""
 	  ExpressionFolding	  on
 	  BooleansAsBitfields	  off
 	  BitfieldContainerType	  "uint_T"
@@ -272,16 +310,26 @@ Library {
 	  NoFixptDivByZeroProtection off
 	  EfficientFloat2IntCast  off
 	  EfficientMapNaN2IntZero on
-	  OptimizeModelRefInitCode off
 	  LifeSpan		  "inf"
 	  MaxStackSize		  "Inherit from target"
 	  BufferReusableBoundary  on
 	  SimCompilerOptimization "off"
 	  AccelVerboseBuild	  off
+	  OptimizeBlockOrder	  "off"
+	  OptimizeDataStoreBuffers on
+	  BusAssignmentInplaceUpdate on
+	  DifferentSizesBufferReuse off
 	}
 	Simulink.DebuggingCC {
-	  $ObjectID		  11
-	  Version		  "1.15.0"
+	  $ObjectID		  12
+	  Version		  "1.17.1"
+	  Array {
+	    Type		    "Cell"
+	    Dimension		    1
+	    Cell		    "UseOnlyExistingSharedCode"
+	    PropName		    "DisabledProps"
+	  }
+	  Description		  ""
 	  RTPrefix		  "error"
 	  ConsistencyChecking	  "none"
 	  ArrayBoundsChecking	  "none"
@@ -308,12 +356,12 @@ Library {
 	  IgnoredZcDiagnostic	  "warning"
 	  SolverPrmCheckMsg	  "none"
 	  InheritedTsInSrcMsg	  "warning"
-	  DiscreteInheritContinuousMsg "warning"
 	  MultiTaskDSMMsg	  "error"
 	  MultiTaskCondExecSysMsg "error"
 	  MultiTaskRateTransMsg	  "error"
 	  SingleTaskRateTransMsg  "none"
 	  TasksWithSamePriorityMsg "warning"
+	  ExportedTasksRateTransMsg "none"
 	  SigSpecEnsureSampleTimeMsg "warning"
 	  CheckMatrixSingularityMsg "none"
 	  IntegerOverflowMsg	  "warning"
@@ -330,17 +378,20 @@ Library {
 	  UnnecessaryDatatypeConvMsg "none"
 	  VectorMatrixConversionMsg "none"
 	  InvalidFcnCallConnMsg	  "error"
-	  FcnCallInpInsideContextMsg "EnableAllAsError"
+	  FcnCallInpInsideContextMsg "error"
 	  SignalLabelMismatchMsg  "none"
 	  UnconnectedInputMsg	  "warning"
 	  UnconnectedOutputMsg	  "warning"
 	  UnconnectedLineMsg	  "warning"
+	  UseOnlyExistingSharedCode "error"
 	  SFcnCompatibilityMsg	  "none"
 	  FrameProcessingCompatibilityMsg "error"
 	  UniqueDataStoreMsg	  "none"
 	  BusObjectLabelMismatch  "warning"
 	  RootOutportRequireBusObject "warning"
 	  AssertControl		  "UseLocalSettings"
+	  AllowSymbolicDim	  on
+	  RowMajorDimensionSupport off
 	  ModelReferenceIOMsg	  "none"
 	  ModelReferenceMultiInstanceNormalModeStructChecksumCheck "error"
 	  ModelReferenceVersionMismatchMessage "none"
@@ -352,25 +403,43 @@ Library {
 	  StateNameClashWarn	  "none"
 	  SimStateInterfaceChecksumMismatchMsg "warning"
 	  SimStateOlderReleaseMsg "error"
+	  ChecksumConsistencyForSSReuse	"none"
 	  InitInArrayFormatMsg	  "warning"
 	  StrictBusMsg		  "ErrorLevel1"
 	  BusNameAdapt		  "WarnAndRepair"
 	  NonBusSignalsTreatedAsBus "none"
+	  SymbolicDimMinMaxWarning "warning"
+	  LossOfSymbolicDimsSimulationWarning "warning"
+	  LossOfSymbolicDimsCodeGenerationWarning "error"
+	  SymbolicDimsDataTypeCodeGenerationDiagnostic "error"
 	  BlockIODiagnostic	  "none"
 	  SFUnusedDataAndEventsDiag "warning"
 	  SFUnexpectedBacktrackingDiag "warning"
 	  SFInvalidInputDataAccessInChartInitDiag "warning"
 	  SFNoUnconditionalDefaultTransitionDiag "warning"
 	  SFTransitionOutsideNaturalParentDiag "warning"
-	  SFUnconditionalTransitionShadowingDiag "warning"
+	  SFUnreachableExecutionPathDiag "warning"
 	  SFUndirectedBroadcastEventsDiag "warning"
 	  SFTransitionActionBeforeConditionDiag	"warning"
 	  SFOutputUsedAsStateInMooreChartDiag "error"
+	  SFTemporalDelaySmallerThanSampleTimeDiag "warning"
+	  SFSelfTransitionDiag	  "warning"
+	  SFExecutionAtInitializationDiag "none"
+	  SFMachineParentedDataDiag "warning"
 	  IntegerSaturationMsg	  "warning"
+	  AllowedUnitSystems	  "all"
+	  UnitsInconsistencyMsg	  "warning"
+	  AllowAutomaticUnitConversions	on
+	  RCSCRenamedMsg	  "warning"
+	  RCSCObservableMsg	  "warning"
+	  ForceCombineOutputUpdateInSim	off
+	  UnitDatabase		  ""
 	}
 	Simulink.HardwareCC {
-	  $ObjectID		  12
-	  Version		  "1.15.0"
+	  $ObjectID		  13
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  ""
 	  ProdBitPerChar	  8
 	  ProdBitPerShort	  16
 	  ProdBitPerInt		  32
@@ -379,6 +448,8 @@ Library {
 	  ProdBitPerFloat	  32
 	  ProdBitPerDouble	  64
 	  ProdBitPerPointer	  32
+	  ProdBitPerSizeT	  32
+	  ProdBitPerPtrDiffT	  32
 	  ProdLargestAtomicInteger "Char"
 	  ProdLargestAtomicFloat  "None"
 	  ProdIntDivRoundTo	  "Undefined"
@@ -395,6 +466,8 @@ Library {
 	  TargetBitPerFloat	  32
 	  TargetBitPerDouble	  64
 	  TargetBitPerPointer	  32
+	  TargetBitPerSizeT	  32
+	  TargetBitPerPtrDiffT	  32
 	  TargetLargestAtomicInteger "Char"
 	  TargetLargestAtomicFloat "None"
 	  TargetShiftRightIntArith on
@@ -407,26 +480,44 @@ Library {
 	  TargetHWDeviceType	  "Specified"
 	  TargetUnknown		  off
 	  ProdEqTarget		  on
+	  UseEmbeddedCoderFeatures on
+	  UseSimulinkCoderFeatures on
 	}
 	Simulink.ModelReferenceCC {
-	  $ObjectID		  13
-	  Version		  "1.15.0"
+	  $ObjectID		  14
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  ""
 	  UpdateModelReferenceTargets "IfOutOfDateOrStructuralChange"
+	  EnableRefExpFcnMdlSchedulingChecks on
 	  CheckModelReferenceTargetMessage "error"
 	  EnableParallelModelReferenceBuilds off
 	  ParallelModelReferenceErrorOnInvalidPool on
 	  ParallelModelReferenceMATLABWorkerInit "None"
 	  ModelReferenceNumInstancesAllowed "Multi"
 	  PropagateVarSize	  "Infer from blocks in model"
+	  ModelDependencies	  ""
 	  ModelReferencePassRootInputsByReference on
 	  ModelReferenceMinAlgLoopOccurrences off
 	  PropagateSignalLabelsOutOfModel off
 	  SupportModelReferenceSimTargetCustomCode off
 	}
 	Simulink.SFSimCC {
-	  $ObjectID		  14
-	  Version		  "1.15.0"
-	  SFSimOverflowDetection  on
+	  $ObjectID		  15
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  ""
+	  SimCustomSourceCode	  ""
+	  SimCustomHeaderCode	  ""
+	  SimCustomInitializer	  ""
+	  SimCustomTerminator	  ""
+	  SimReservedNameArray	  []
+	  SimUserSources	  ""
+	  SimUserIncludeDirs	  ""
+	  SimUserLibraries	  ""
+	  SimUserDefines	  ""
+	  SimCustomCompilerFlags  ""
+	  SimCustomLinkerFlags	  ""
 	  SFSimEcho		  on
 	  SimCtrlC		  on
 	  SimIntegrity		  on
@@ -434,11 +525,16 @@ Library {
 	  SimParseCustomCode	  on
 	  SimBuildMode		  "sf_incremental_build"
 	  SimGenImportedTypeDefs  off
+	  ModelFunctionsGlobalVisibility "on"
+	  CompileTimeRecursionLimit 50
+	  EnableRuntimeRecursion  on
+	  MATLABDynamicMemAlloc	  on
+	  MATLABDynamicMemAllocThreshold 65536
 	}
 	Simulink.RTWCC {
 	  $BackupClass		  "Simulink.RTWCC"
-	  $ObjectID		  15
-	  Version		  "1.15.0"
+	  $ObjectID		  16
+	  Version		  "1.17.1"
 	  Array {
 	    Type		    "Cell"
 	    Dimension		    16
@@ -461,6 +557,7 @@ Library {
 	    PropName		    "DisabledProps"
 	  }
 	  SystemTargetFile	  "grt.tlc"
+	  HardwareBoard		  "None"
 	  TLCOptions		  ""
 	  GenCodeOnly		  off
 	  MakeCommand		  "make_rtw"
@@ -474,6 +571,7 @@ Library {
 	  SaveLog		  off
 	  RTWVerbose		  on
 	  RetainRTWFile		  off
+	  RTWBuildHooks		  []
 	  ProfileTLC		  off
 	  TLCDebug		  off
 	  TLCCoverage		  off
@@ -485,10 +583,14 @@ Library {
 	  CustomInclude		  ""
 	  CustomSource		  ""
 	  CustomLibrary		  ""
+	  CustomDefine		  ""
+	  CustomLAPACKCallback	  ""
+	  CustomFFTCallback	  ""
 	  CustomInitializer	  ""
 	  CustomTerminator	  ""
 	  Toolchain		  "Automatically locate an installed toolchain"
 	  BuildConfiguration	  "Faster Builds"
+	  CustomToolchainOptions  []
 	  IncludeHyperlinkInReport off
 	  LaunchReport		  off
 	  PortableWordSizes	  off
@@ -510,6 +612,7 @@ Library {
 	  GenerateCodeReplacementReport	off
 	  GenerateMissedCodeReplacementReport off
 	  RTWCompilerOptimization "off"
+	  ObjectivePriorities	  []
 	  RTWCustomCompilerOptimizations ""
 	  CheckMdlBeforeBuild	  "Off"
 	  SharedConstantsCachingThreshold 1024
@@ -517,11 +620,11 @@ Library {
 	    Type		    "Handle"
 	    Dimension		    2
 	    Simulink.CodeAppCC {
-	      $ObjectID		      16
-	      Version		      "1.15.0"
+	      $ObjectID		      17
+	      Version		      "1.17.1"
 	      Array {
 		Type			"Cell"
-		Dimension		24
+		Dimension		28
 		Cell			"IgnoreCustomStorageClasses"
 		Cell			"ParameterTuningSideEffectCode"
 		Cell			"IgnoreTestpoints"
@@ -546,54 +649,69 @@ Library {
 		Cell			"CustomSymbolStrMacro"
 		Cell			"CustomSymbolStrUtil"
 		Cell			"ReqsInCode"
+		Cell			"CustomSymbolStrModelFcn"
+		Cell			"CustomSymbolStrEmxType"
+		Cell			"CustomSymbolStrEmxFcn"
+		Cell			"CustomUserTokenString"
 		PropName		"DisabledProps"
 	      }
+	      Description	      ""
+	      Comment		      ""
 	      ForceParamTrailComments off
 	      GenerateComments	      on
 	      CommentStyle	      "Auto"
 	      IgnoreCustomStorageClasses on
 	      IgnoreTestpoints	      off
-	      IncHierarchyInIds	      off
 	      MaxIdLength	      31
 	      PreserveName	      off
 	      PreserveNameWithParent  off
 	      ShowEliminatedStatement off
 	      OperatorAnnotations     off
-	      IncAutoGenComments      off
 	      SimulinkDataObjDesc     off
 	      SFDataObjDesc	      off
 	      MATLABFcnDesc	      off
-	      IncDataTypeInIds	      off
 	      MangleLength	      1
+	      SharedChecksumLength    8
 	      CustomSymbolStrGlobalVar "$R$N$M"
 	      CustomSymbolStrType     "$N$R$M_T"
 	      CustomSymbolStrField    "$N$M"
 	      CustomSymbolStrFcn      "$R$N$M$F"
+	      CustomSymbolStrModelFcn "$R$N"
 	      CustomSymbolStrFcnArg   "rt$I$N$M"
 	      CustomSymbolStrBlkIO    "rtb_$N$M"
 	      CustomSymbolStrTmpVar   "$N$M"
 	      CustomSymbolStrMacro    "$R$N$M"
 	      CustomSymbolStrUtil     "$N$C"
+	      CustomSymbolStrEmxType  "emxArray_$M$N"
+	      CustomSymbolStrEmxFcn   "emx$M$N"
+	      CustomUserTokenString   ""
+	      CustomCommentsFcn	      ""
 	      DefineNamingRule	      "None"
+	      DefineNamingFcn	      ""
 	      ParamNamingRule	      "None"
+	      ParamNamingFcn	      ""
 	      SignalNamingRule	      "None"
+	      SignalNamingFcn	      ""
 	      InsertBlockDesc	      off
 	      InsertPolySpaceComments off
 	      SimulinkBlockComments   on
+	      StateflowObjectComments on
 	      MATLABSourceComments    off
 	      EnableCustomComments    off
+	      InternalIdentifierFile  ""
 	      InternalIdentifier      "Shortened"
 	      InlinedPrmAccess	      "Literals"
 	      ReqsInCode	      off
 	      UseSimReservedNames     off
+	      ReservedNameArray	      []
 	    }
 	    Simulink.GRTTargetCC {
 	      $BackupClass	      "Simulink.TargetCC"
-	      $ObjectID		      17
-	      Version		      "1.15.0"
+	      $ObjectID		      18
+	      Version		      "1.17.1"
 	      Array {
 		Type			"Cell"
-		Dimension		13
+		Dimension		16
 		Cell			"GeneratePreprocessorConditionals"
 		Cell			"IncludeMdlTerminateFcn"
 		Cell			"SuppressErrorStatus"
@@ -607,8 +725,12 @@ Library {
 		Cell			"SupportAbsoluteTime"
 		Cell			"SupportContinuousTime"
 		Cell			"SupportNonInlinedSFcns"
+		Cell			"ExistingSharedCode"
+		Cell			"RemoveDisableFunc"
+		Cell			"RemoveResetFunc"
 		PropName		"DisabledProps"
 	      }
+	      Description	      ""
 	      TargetFcnLib	      "ansi_tfl_table_tmw.mat"
 	      TargetLibSuffix	      ""
 	      TargetPreCompLibLocation ""
@@ -616,11 +738,11 @@ Library {
 	      TargetLangStandard      "C89/C90 (ANSI)"
 	      CodeReplacementLibrary  "None"
 	      UtilityFuncGeneration   "Auto"
-	      ERTMultiwordTypeDef     "System defined"
-	      ERTMultiwordLength      256
+	      MultiwordTypeDef	      "System defined"
 	      MultiwordLength	      2048
 	      GenerateFullHeader      on
 	      InferredTypesCompatibility off
+	      ExistingSharedCode      ""
 	      GenerateSampleERTMain   off
 	      GenerateTestInterfaces  off
 	      ModelReferenceCompliant on
@@ -632,7 +754,6 @@ Library {
 	      CombineOutputUpdateFcns on
 	      CombineSignalStateStructs	off
 	      SuppressErrorStatus     off
-	      ERTFirstTimeCompliant   off
 	      IncludeFileDelimiter    "Auto"
 	      ERTCustomFileBanners    off
 	      SupportAbsoluteTime     on
@@ -645,6 +766,8 @@ Library {
 	      PurelyIntegerCode	      off
 	      SupportContinuousTime   on
 	      SupportNonInlinedSFcns  on
+	      RemoveDisableFunc	      off
+	      RemoveResetFunc	      off
 	      SupportVariableSizeSignals off
 	      ParenthesesLevel	      "Nominal"
 	      CastingMode	      "Nominal"
@@ -652,9 +775,17 @@ Library {
 	      ModelStepFunctionPrototypeControlCompliant off
 	      CPPClassGenCompliant    on
 	      AutosarCompliant	      off
+	      MDXCompliant	      off
 	      GRTInterface	      off
 	      GenerateAllocFcn	      off
+	      UseToolchainInfoCompliant	on
 	      GenerateSharedConstants on
+	      CoderGroups	      []
+	      AccessMethods	      []
+	      LookupTableObjectStructAxisOrder "1,2,3,4,..."
+	      LUTObjectStructOrderExplicitValues "Size,Breakpoints,Table"
+	      LUTObjectStructOrderEvenSpacing "Size,Breakpoints,Table"
+	      ArrayLayout	      "Column-major"
 	      UseMalloc		      off
 	      ExtMode		      off
 	      ExtModeStaticAlloc      off
@@ -662,6 +793,7 @@ Library {
 	      ExtModeStaticAllocSize  1000000
 	      ExtModeTransport	      0
 	      ExtModeMexFile	      "ext_comm"
+	      ExtModeMexArgs	      ""
 	      ExtModeIntrfLevel	      "Level1"
 	      RTWCAPISignals	      off
 	      RTWCAPIParams	      off
@@ -673,11 +805,52 @@ Library {
 	    PropName		    "Components"
 	  }
 	}
+	SlCovCC.ConfigComp {
+	  $ObjectID		  19
+	  Version		  "1.17.1"
+	  DisabledProps		  []
+	  Description		  "Simulink Coverage Configuration Component"
+	  Name			  "Simulink Coverage"
+	  CovEnable		  off
+	  CovScope		  "EntireSystem"
+	  CovIncludeTopModel	  on
+	  RecordCoverage	  off
+	  CovPath		  "/"
+	  CovSaveName		  "covdata"
+	  CovCompData		  ""
+	  CovMetricSettings	  "dw"
+	  CovFilter		  ""
+	  CovHTMLOptions	  ""
+	  CovNameIncrementing	  off
+	  CovHtmlReporting	  on
+	  CovForceBlockReductionOff on
+	  CovEnableCumulative	  on
+	  CovSaveCumulativeToWorkspaceVar on
+	  CovSaveSingleToWorkspaceVar on
+	  CovCumulativeVarName	  "covCumulativeData"
+	  CovCumulativeReport	  off
+	  CovSaveOutputData	  on
+	  CovOutputDir		  "slcov_output/$ModelName$"
+	  CovDataFileName	  "$ModelName$_cvdata"
+	  CovShowResultsExplorer  on
+	  CovReportOnPause	  on
+	  CovModelRefEnable	  "off"
+	  CovModelRefExcluded	  ""
+	  CovExternalEMLEnable	  off
+	  CovSFcnEnable		  on
+	  CovBoundaryAbsTol	  1e-05
+	  CovBoundaryRelTol	  0.01
+	  CovUseTimeInterval	  off
+	  CovStartTime		  0
+	  CovStopTime		  0
+	  CovMcdcMode		  "Masking"
+	}
 	PropName		"Components"
       }
       Name		      "Configuration"
+      ExtraOptions	      ""
       CurrentDlgPage	      "Solver"
-      ConfigPrmDlgPosition     [ 420, 220, 1500, 860 ] 
+      ConfigPrmDlgPosition    [ 420, 220, 1500, 860 ]
     }
     PropName		    "ConfigurationSets"
   }
@@ -692,6 +865,7 @@ Library {
     FontWeight		    "normal"
     FontAngle		    "normal"
     ShowName		    on
+    HideAutomaticName	    on
     BlockRotation	    0
     BlockMirror		    off
   }
@@ -705,7 +879,12 @@ Library {
     FontSize		    10
     FontWeight		    "normal"
     FontAngle		    "normal"
+    MarkupType		    "model"
     UseDisplayTextAsClickCallback off
+    AnnotationType	    "note_annotation"
+    FixedHeight		    off
+    FixedWidth		    off
+    Interpreter		    "off"
   }
   LineDefaults {
     FontName		    "Helvetica"
@@ -716,8 +895,8 @@ Library {
   MaskDefaults {
     SelfModifiable	    "off"
     IconFrame		    "on"
-    IconOpaque		    "on"
-    RunInitForIconRedraw    "off"
+    IconOpaque		    "opaque"
+    RunInitForIconRedraw    "analyze"
     IconRotate		    "none"
     PortRotate		    "default"
     IconUnits		    "autoscale"
@@ -761,6 +940,7 @@ Library {
       OutDataTypeStr	      "Inherit: auto"
       LockScale		      off
       BusOutputAsStruct	      off
+      Unit		      "inherit"
       PortDimensions	      "-1"
       VarSizeSig	      "Inherit"
       SampleTime	      "-1"
@@ -778,22 +958,26 @@ Library {
       OutDataTypeStr	      "Inherit: auto"
       LockScale		      off
       BusOutputAsStruct	      off
+      Unit		      "inherit"
       PortDimensions	      "-1"
       VarSizeSig	      "Inherit"
       SampleTime	      "-1"
       SignalType	      "auto"
       SamplingMode	      "auto"
+      EnsureOutportIsVirtual  off
       SourceOfInitialOutputValue "Dialog"
       OutputWhenDisabled      "held"
       InitialOutput	      "[]"
+      MustResolveToSignalObject	off
+      OutputWhenUnConnected   off
+      OutputWhenUnconnectedValue "0"
+      VectorParamsAs1DForOutWhenUnconnected off
     }
     Block {
       BlockType		      S-Function
       FunctionName	      "system"
       SFunctionModules	      "''"
       PortCounts	      "[]"
-      SFunctionDeploymentMode off
-      EnableBusSupport	      off
     }
     Block {
       BlockType		      SubSystem
@@ -803,7 +987,6 @@ Library {
       TreatAsAtomicUnit	      off
       MinAlgLoopOccurrences   off
       PropExecContextOutsideSubsystem off
-      CheckFcnCallInpInsideContextMsg off
       SystemSampleTime	      "-1"
       RTWSystemCode	      "Auto"
       RTWFcnNameOpts	      "Auto"
@@ -822,10 +1005,13 @@ Library {
       Opaque		      off
       MaskHideContents	      off
       SFBlockType	      "NONE"
-      Variant		      off
       GeneratePreprocessorConditionals off
+      AllowZeroVariantControls off
+      PropagateVariantConditions off
+      TreatAsGroupedWhenPropagatingVariantConditions on
       ContentPreviewEnabled   off
       IsWebBlock	      off
+      IsObserver	      off
     }
     Block {
       BlockType		      Terminator
@@ -835,6 +1021,7 @@ Library {
     Name		    "lib_transformations"
     Location		    [2885, 52, 3840, 1128]
     Open		    on
+    PortBlocksUseCompactNotation off
     ModelBrowserVisibility  off
     ModelBrowserWidth	    200
     ScreenColor		    "white"
@@ -856,10 +1043,12 @@ Library {
       Position		      [710, 55, 770, 105]
       ZOrder		      333
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"R2rpy"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -892,10 +1081,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "R2rpy"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -907,7 +1098,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "66"
+	    SIDHighWatermark	    "69"
 	    SIDPrevWatermark	    "31"
 	    Block {
 	      BlockType		      Inport
@@ -920,35 +1111,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "30::30"
+	      SID		      "30::68"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      21
+	      ZOrder		      24
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "30::29"
+	      SID		      "30::67"
 	      Tag		      "Stateflow S-Function lib_transformations 20"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      20
+	      ZOrder		      23
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"phi"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "30::31"
+	      SID		      "30::69"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      22
+	      ZOrder		      25
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -959,7 +1151,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "R"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -967,7 +1159,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "phi"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -975,14 +1167,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -1024,10 +1216,12 @@ Library {
       ZOrder		      286
       NamePlacement	      "alternate"
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"Rt2T"
 	Location		[978, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1073,10 +1267,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function1"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -1088,7 +1284,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "67"
+	    SIDHighWatermark	    "70"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "R"
@@ -1109,35 +1305,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "25::23"
+	      SID		      "25::69"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      14
+	      ZOrder		      18
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "25::22"
+	      SID		      "25::68"
 	      Tag		      "Stateflow S-Function lib_transformations 5"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      13
+	      ZOrder		      17
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"T"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "25::24"
+	      SID		      "25::70"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      15
+	      ZOrder		      19
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -1148,14 +1345,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      9
+	      ZOrder		      14
 	      SrcBlock		      "R"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      10
+	      ZOrder		      15
 	      SrcBlock		      "t"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -1163,7 +1361,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "T"
-	      ZOrder		      11
+	      ZOrder		      16
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -1171,14 +1369,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      12
+	      ZOrder		      17
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      13
+	      ZOrder		      18
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -1229,10 +1427,12 @@ Library {
       ZOrder		      799
       NamePlacement	      "alternate"
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"T2Rt"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1267,10 +1467,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function1"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -1282,7 +1484,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "67"
+	    SIDHighWatermark	    "70"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "T"
@@ -1294,41 +1496,40 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "83::63"
+	      SID		      "83::69"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      18
+	      ZOrder		      24
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "83::62"
+	      SID		      "83::68"
 	      Tag		      "Stateflow S-Function lib_transformations 14"
 	      Ports		      [1, 3]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      17
+	      ZOrder		      23
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 3]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"R"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	      Port {
 		PortNumber		3
 		Name			"t"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "83::64"
+	      SID		      "83::70"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      19
+	      ZOrder		      25
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -1348,7 +1549,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      26
+	      ZOrder		      31
 	      SrcBlock		      "T"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -1356,7 +1557,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "R"
-	      ZOrder		      27
+	      ZOrder		      32
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -1365,7 +1566,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "t"
-	      ZOrder		      28
+	      ZOrder		      33
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      3
@@ -1373,14 +1574,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      29
+	      ZOrder		      34
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      30
+	      ZOrder		      35
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -1442,9 +1643,10 @@ Library {
       Position		      [420, 579, 525, 621]
       ZOrder		      942
       RequestExecContextInheritance off
+      Variant		      off
       Object {
 	$PropName		"MaskObject"
-	$ObjectID		18
+	$ObjectID		20
 	$ClassName		"Simulink.Mask"
 	Description		"Adjunkt-Matrix. Siehe Funktion adjoint_jacobian"
 	Display			"port_label('input', 1, sprintf('_{(%s)}r_{%s,%s}', KSName_W, PktName_B, PktName_C), 'texmode', 'on')\nport"
@@ -1453,21 +1655,21 @@ Library {
 	  Type			  "Simulink.MaskParameter"
 	  Dimension		  3
 	  Object {
-	    $ObjectID		    19
+	    $ObjectID		    21
 	    Type		    "edit"
 	    Name		    "KSName_W"
 	    Prompt		    "KSName_W: Name des Bezugs-Koordinatensystems W (nur für Block-Beschriftung)"
 	    Value		    "'W'"
 	  }
 	  Object {
-	    $ObjectID		    20
+	    $ObjectID		    22
 	    Type		    "edit"
 	    Name		    "PktName_B"
 	    Prompt		    "PktName_B: Name des Punktes B (nur für Block-Beschriftung)"
 	    Value		    "'B'"
 	  }
 	  Object {
-	    $ObjectID		    21
+	    $ObjectID		    23
 	    Type		    "edit"
 	    Name		    "PktName_C"
 	    Prompt		    "PktName_C: Name des Punktes C (nur für Block-Beschriftung)"
@@ -1480,6 +1682,7 @@ Library {
 	Name			"adjoint"
 	Location		[2885, 52, 3840, 1128]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1512,10 +1715,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "adjoint_fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -1527,7 +1732,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "96"
+	    SIDHighWatermark	    "99"
 	    SIDPrevWatermark	    "88"
 	    Block {
 	      BlockType		      Inport
@@ -1540,35 +1745,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "103::95"
+	      SID		      "103::98"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      29
+	      ZOrder		      32
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "103::94"
+	      SID		      "103::97"
 	      Tag		      "Stateflow S-Function lib_transformations 21"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      28
+	      ZOrder		      31
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"A_C_B"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "103::96"
+	      SID		      "103::99"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      30
+	      ZOrder		      33
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -1579,7 +1785,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "r_B_C"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -1587,7 +1793,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "A_C_B"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -1595,14 +1801,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -1643,9 +1849,10 @@ Library {
       Position		      [420, 641, 530, 694]
       ZOrder		      943
       RequestExecContextInheritance off
+      Variant		      off
       Object {
 	$PropName		"MaskObject"
-	$ObjectID		22
+	$ObjectID		24
 	$ClassName		"Simulink.Mask"
 	Description		"Zeitableitung der Adjunkt-Matrix. Siehe Funktion adjointD_jacobian"
 	Display			"port_label('input', 1, sprintf('_{(%s)}\\\\omega_{%s,%s}', KSName_W, KSName_W, KSName_i), 'texmode', 'on')"
@@ -1655,35 +1862,35 @@ Library {
 	  Type			  "Simulink.MaskParameter"
 	  Dimension		  5
 	  Object {
-	    $ObjectID		    23
+	    $ObjectID		    25
 	    Type		    "edit"
 	    Name		    "r_i_B_C"
 	    Prompt		    "r_i_B_C: Vektor vom Punkt B zum Punkt C ausgedrückt im KS i"
 	    Value		    "r_i_B_C"
 	  }
 	  Object {
-	    $ObjectID		    24
+	    $ObjectID		    26
 	    Type		    "edit"
 	    Name		    "KSName_W"
 	    Prompt		    "KSName_W: Name des Bezugs-Koordinatensystems W (nur für Block-Beschriftung)"
 	    Value		    "'W'"
 	  }
 	  Object {
-	    $ObjectID		    25
+	    $ObjectID		    27
 	    Type		    "edit"
 	    Name		    "KSName_i"
 	    Prompt		    "KSName_i: Name des Koordinatensystems i (nur für Block-Beschriftung)"
 	    Value		    "'i'"
 	  }
 	  Object {
-	    $ObjectID		    26
+	    $ObjectID		    28
 	    Type		    "edit"
 	    Name		    "PktName_B"
 	    Prompt		    "PktName_B: Name des Punktes B (nur für Block-Beschriftung)"
 	    Value		    "'B'"
 	  }
 	  Object {
-	    $ObjectID		    27
+	    $ObjectID		    29
 	    Type		    "edit"
 	    Name		    "PktName_C"
 	    Prompt		    "PktName_C: Name des Punktes C (nur für Block-Beschriftung)"
@@ -1696,6 +1903,7 @@ Library {
 	Name			"adjointD"
 	Location		[2885, 52, 3840, 1128]
 	Open			on
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1747,10 +1955,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "adjointD_fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -1762,7 +1972,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "101"
+	    SIDHighWatermark	    "104"
 	    SIDPrevWatermark	    "88"
 	    Block {
 	      BlockType		      Inport
@@ -1793,35 +2003,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "107::98"
+	      SID		      "107::103"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      32
+	      ZOrder		      37
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "107::97"
+	      SID		      "107::102"
 	      Tag		      "Stateflow S-Function lib_transformations 22"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      31
+	      ZOrder		      36
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[3 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"AD_C_B"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "107::99"
+	      SID		      "107::104"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      33
+	      ZOrder		      38
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -1832,22 +2043,21 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      14
+	      ZOrder		      20
 	      SrcBlock		      "r_i_B_C"
 	      SrcPort		      1
-	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      15
+	      ZOrder		      21
 	      SrcBlock		      "R_W_i"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      2
 	    }
 	    Line {
-	      ZOrder		      16
+	      ZOrder		      22
 	      SrcBlock		      "omega_W_i"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -1855,7 +2065,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "AD_C_B"
-	      ZOrder		      17
+	      ZOrder		      23
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -1863,16 +2073,17 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      18
+	      ZOrder		      24
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      19
+	      ZOrder		      25
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
+	      Points		      [20, 0]
 	      DstBlock		      " Demux "
 	      DstPort		      1
 	    }
@@ -1927,10 +2138,12 @@ Library {
       Position		      [860, 140, 920, 190]
       ZOrder		      336
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"angvelotrans_rpy"
 	Location		[49, 24, 1920, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -1963,10 +2176,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "angvelotrans_rpy_Fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -1978,7 +2193,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "59"
+	    SIDHighWatermark	    "62"
 	    SIDPrevWatermark	    "31"
 	    Block {
 	      BlockType		      Inport
@@ -1991,35 +2206,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "57::38"
+	      SID		      "57::61"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      29
+	      ZOrder		      32
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "57::37"
+	      SID		      "57::60"
 	      Tag		      "Stateflow S-Function lib_transformations 9"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      28
+	      ZOrder		      31
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"T_angvel"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "57::39"
+	      SID		      "57::62"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      30
+	      ZOrder		      33
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2030,7 +2246,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "phi"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2038,7 +2254,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "T_angvel"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2046,14 +2262,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -2094,10 +2310,12 @@ Library {
       Position		      [295, 392, 340, 418]
       ZOrder		      941
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"invtr"
 	Location		[216, 72, 2087, 1128]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2130,10 +2348,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "invtr"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2145,7 +2365,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "18"
+	    SIDHighWatermark	    "21"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "T"
@@ -2157,35 +2377,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "98::17"
+	      SID		      "98::20"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      8
+	      ZOrder		      11
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "98::16"
+	      SID		      "98::19"
 	      Tag		      "Stateflow S-Function lib_transformations 17"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      7
+	      ZOrder		      10
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"T_inv"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "98::18"
+	      SID		      "98::21"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      9
+	      ZOrder		      12
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2196,7 +2417,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      1
+	      ZOrder		      5
 	      SrcBlock		      "T"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2204,7 +2425,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "T_inv"
-	      ZOrder		      2
+	      ZOrder		      6
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2212,14 +2433,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      3
+	      ZOrder		      7
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      4
+	      ZOrder		      8
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -2259,10 +2480,12 @@ Library {
       Position		      [560, 50, 645, 105]
       ZOrder		      331
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"omega2rpyD"
 	Location		[1969, 24, 3840, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2306,10 +2529,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "omega2rpyD"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2321,7 +2546,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "69"
+	    SIDHighWatermark	    "72"
 	    SIDPrevWatermark	    "27"
 	    Block {
 	      BlockType		      Inport
@@ -2343,35 +2568,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "28::26"
+	      SID		      "28::71"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      17
+	      ZOrder		      20
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "28::25"
+	      SID		      "28::70"
 	      Tag		      "Stateflow S-Function lib_transformations 19"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      16
+	      ZOrder		      19
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"phiD"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "28::27"
+	      SID		      "28::72"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      18
+	      ZOrder		      21
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2382,7 +2608,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      6
+	      ZOrder		      11
 	      SrcBlock		      "phi"
 	      SrcPort		      1
 	      Points		      [120, 0]
@@ -2390,7 +2616,7 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      12
 	      SrcBlock		      "omega"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2398,7 +2624,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "phiD"
-	      ZOrder		      8
+	      ZOrder		      13
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2406,14 +2632,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      9
+	      ZOrder		      14
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      10
+	      ZOrder		      15
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -2463,10 +2689,12 @@ Library {
       Position		      [960, 57, 1045, 113]
       ZOrder		      337
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"omegaD2rpyDD"
 	Location		[974, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2520,10 +2748,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "omegaD2rpyDD"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2535,7 +2765,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "65"
+	    SIDHighWatermark	    "68"
 	    SIDPrevWatermark	    "27"
 	    Block {
 	      BlockType		      Inport
@@ -2566,35 +2796,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "62::41"
+	      SID		      "62::67"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      20
+	      ZOrder		      25
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "62::40"
+	      SID		      "62::66"
 	      Tag		      "Stateflow S-Function lib_transformations 10"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      19
+	      ZOrder		      24
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[3 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"phiDD"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "62::42"
+	      SID		      "62::68"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      21
+	      ZOrder		      26
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2605,21 +2836,21 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      21
+	      ZOrder		      27
 	      SrcBlock		      "phi"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      22
+	      ZOrder		      28
 	      SrcBlock		      "phiD"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      2
 	    }
 	    Line {
-	      ZOrder		      23
+	      ZOrder		      29
 	      SrcBlock		      "omegaD"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2627,7 +2858,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "phiDD"
-	      ZOrder		      24
+	      ZOrder		      30
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2635,14 +2866,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      25
+	      ZOrder		      31
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      26
+	      ZOrder		      32
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      Points		      [20, 0]
@@ -2702,10 +2933,12 @@ Library {
       ZOrder		      28
       NamePlacement	      "alternate"
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"quat2r"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2740,10 +2973,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function1"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2755,7 +2990,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "76"
+	    SIDHighWatermark	    "84"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "q"
@@ -2767,35 +3002,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "11::23"
+	      SID		      "11::83"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      14
+	      ZOrder		      19
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "11::22"
+	      SID		      "11::82"
 	      Tag		      "Stateflow S-Function lib_transformations 1"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      13
+	      ZOrder		      18
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"R"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "11::24"
+	      SID		      "11::84"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      15
+	      ZOrder		      20
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2806,7 +3042,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      13
+	      ZOrder		      17
 	      SrcBlock		      "q"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2814,7 +3050,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "R"
-	      ZOrder		      14
+	      ZOrder		      18
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2822,14 +3058,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      15
+	      ZOrder		      19
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      16
+	      ZOrder		      20
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -2871,10 +3107,12 @@ Library {
       Position		      [340, 90, 390, 130]
       ZOrder		      558
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"quat2tr"
 	Location		[55, 14, 1930, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -2908,10 +3146,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "quat2tr"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -2923,7 +3163,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "53"
+	    SIDHighWatermark	    "56"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "xq"
@@ -2935,35 +3175,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "73::45"
+	      SID		      "73::55"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      11
+	      ZOrder		      16
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "73::44"
+	      SID		      "73::54"
 	      Tag		      "Stateflow S-Function lib_transformations 12"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      10
+	      ZOrder		      15
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"T"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "73::46"
+	      SID		      "73::56"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      12
+	      ZOrder		      17
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -2974,7 +3215,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      13
+	      ZOrder		      17
 	      SrcBlock		      "xq"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -2982,7 +3223,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "T"
-	      ZOrder		      14
+	      ZOrder		      18
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -2990,14 +3231,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      15
+	      ZOrder		      19
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      16
+	      ZOrder		      20
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3039,10 +3280,12 @@ Library {
       ZOrder		      27
       NamePlacement	      "alternate"
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"r2quat"
 	Location		[989, 180, 1789, 680]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3079,10 +3322,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function1"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3094,7 +3339,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "21"
+	    SIDHighWatermark	    "24"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "R"
@@ -3106,35 +3351,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "7::20"
+	      SID		      "7::23"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      11
+	      ZOrder		      14
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "7::19"
+	      SID		      "7::22"
 	      Tag		      "Stateflow S-Function lib_transformations 3"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      10
+	      ZOrder		      13
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"q"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "7::21"
+	      SID		      "7::24"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      12
+	      ZOrder		      15
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3145,7 +3391,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      1
+	      ZOrder		      5
 	      SrcBlock		      "R"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3153,7 +3399,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "q"
-	      ZOrder		      2
+	      ZOrder		      6
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3161,14 +3407,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      3
+	      ZOrder		      7
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      4
+	      ZOrder		      8
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3211,9 +3457,10 @@ Library {
       ZOrder		      29
       NamePlacement	      "alternate"
       RequestExecContextInheritance off
+      Variant		      off
       Object {
 	$PropName		"MaskObject"
-	$ObjectID		28
+	$ObjectID		30
 	$ClassName		"Simulink.Mask"
 	Display			"port_label('input', 1, sprintf('_{(%s)}w', Name_A), 'texmode', 'on')\nport_label('input', 2, sprintf('^{(%"
 	"s)}R_{(%s)}', Name_B, Name_A), 'texmode', 'on')\nport_label('output', 1, sprintf('_{(%s)}w', Name_B), 'texmode', 'on'"
@@ -3222,14 +3469,14 @@ Library {
 	  Type			  "Simulink.MaskParameter"
 	  Dimension		  2
 	  Object {
-	    $ObjectID		    29
+	    $ObjectID		    31
 	    Type		    "edit"
 	    Name		    "Name_A"
 	    Prompt		    "Name KS A (nur für Beschriftung)"
 	    Value		    "'A'"
 	  }
 	  Object {
-	    $ObjectID		    30
+	    $ObjectID		    32
 	    Type		    "edit"
 	    Name		    "Name_B"
 	    Prompt		    "Name KS B (nur für Beschriftung)"
@@ -3242,6 +3489,7 @@ Library {
 	Name			"rotate_wrench"
 	Location		[49, 24, 1920, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3287,10 +3535,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function1"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3302,7 +3552,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "65"
+	    SIDHighWatermark	    "68"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "w_A"
@@ -3323,35 +3573,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "15::33"
+	      SID		      "15::67"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      19
+	      ZOrder		      23
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "15::32"
+	      SID		      "15::66"
 	      Tag		      "Stateflow S-Function lib_transformations 4"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      18
+	      ZOrder		      22
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"w_B"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "15::34"
+	      SID		      "15::68"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      20
+	      ZOrder		      24
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3362,14 +3613,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      9
+	      ZOrder		      14
 	      SrcBlock		      "w_A"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      10
+	      ZOrder		      15
 	      SrcBlock		      "R_BA"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3377,7 +3629,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "w_B"
-	      ZOrder		      11
+	      ZOrder		      16
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3385,14 +3637,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      12
+	      ZOrder		      17
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      13
+	      ZOrder		      18
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3443,10 +3695,12 @@ Library {
       Position		      [20, 357, 70, 383]
       ZOrder		      285
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rotvec2r"
 	Location		[978, 542, 1929, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3478,10 +3732,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "rotvec2r"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3493,7 +3749,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "86"
+	    SIDHighWatermark	    "94"
 	    SIDPrevWatermark	    "66"
 	    Block {
 	      BlockType		      Inport
@@ -3506,35 +3762,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "18::65"
+	      SID		      "18::93"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      39
+	      ZOrder		      42
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "18::64"
+	      SID		      "18::92"
 	      Tag		      "Stateflow S-Function lib_transformations 6"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      38
+	      ZOrder		      41
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"R"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "18::66"
+	      SID		      "18::94"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      40
+	      ZOrder		      43
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3545,7 +3802,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "rotvec"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3553,7 +3810,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "R"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3561,14 +3818,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3608,10 +3865,12 @@ Library {
       Position		      [830, 55, 890, 105]
       ZOrder		      334
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpy2r"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3643,10 +3902,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "rpy2R"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3658,7 +3919,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "36"
+	    SIDHighWatermark	    "39"
 	    SIDPrevWatermark	    "31"
 	    Block {
 	      BlockType		      Inport
@@ -3671,35 +3932,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "47::33"
+	      SID		      "47::38"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      24
+	      ZOrder		      29
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "47::32"
+	      SID		      "47::37"
 	      Tag		      "Stateflow S-Function lib_transformations 7"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      23
+	      ZOrder		      28
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"R"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "47::34"
+	      SID		      "47::39"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      25
+	      ZOrder		      30
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3710,7 +3972,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      17
+	      ZOrder		      21
 	      SrcBlock		      "phi"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3718,7 +3980,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "R"
-	      ZOrder		      18
+	      ZOrder		      22
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3726,14 +3988,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      19
+	      ZOrder		      23
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      20
+	      ZOrder		      24
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3773,10 +4035,12 @@ Library {
       Position		      [700, 135, 805, 195]
       ZOrder		      335
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpyD2omega"
 	Location		[49, 24, 1920, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -3817,10 +4081,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "rpyD2omega"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -3832,7 +4098,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "26"
+	    SIDHighWatermark	    "29"
 	    SIDPrevWatermark	    "23"
 	    Block {
 	      BlockType		      Inport
@@ -3854,35 +4120,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "53::25"
+	      SID		      "53::28"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      16
+	      ZOrder		      19
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "53::24"
+	      SID		      "53::27"
 	      Tag		      "Stateflow S-Function lib_transformations 8"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      15
+	      ZOrder		      18
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"omega"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "53::26"
+	      SID		      "53::29"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      17
+	      ZOrder		      20
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -3893,14 +4160,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      13
+	      ZOrder		      18
 	      SrcBlock		      "phi"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      14
+	      ZOrder		      19
 	      SrcBlock		      "phiD"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -3908,7 +4176,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "omega"
-	      ZOrder		      15
+	      ZOrder		      20
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -3916,14 +4184,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      16
+	      ZOrder		      21
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      17
+	      ZOrder		      22
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -3972,10 +4240,12 @@ Library {
       Position		      [550, 135, 655, 195]
       ZOrder		      332
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpyDD2omegaD"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4025,10 +4295,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "rpyDD2omegaD"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -4040,7 +4312,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "51"
+	    SIDHighWatermark	    "54"
 	    SIDPrevWatermark	    "23"
 	    Block {
 	      BlockType		      Inport
@@ -4071,35 +4343,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "29::22"
+	      SID		      "29::53"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      13
+	      ZOrder		      16
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "29::21"
+	      SID		      "29::52"
 	      Tag		      "Stateflow S-Function lib_transformations 18"
 	      Ports		      [3, 2]
 	      Position		      [180, 100, 230, 180]
-	      ZOrder		      12
+	      ZOrder		      15
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[3 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"omegaD"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "29::23"
+	      SID		      "29::54"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      14
+	      ZOrder		      17
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -4110,21 +4383,21 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      13
 	      SrcBlock		      "phi"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      14
 	      SrcBlock		      "phiD"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
 	      DstPort		      2
 	    }
 	    Line {
-	      ZOrder		      9
+	      ZOrder		      15
 	      SrcBlock		      "phiDD"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -4132,7 +4405,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "omegaD"
-	      ZOrder		      10
+	      ZOrder		      16
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -4140,14 +4413,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      11
+	      ZOrder		      17
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      12
+	      ZOrder		      18
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      Points		      [20, 0]
@@ -4205,10 +4478,12 @@ Library {
       Position		      [700, 260, 775, 320]
       ZOrder		      800
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpy_F2tau"
 	Location		[1969, 580, 2904, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4252,10 +4527,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "F2taurpy_Fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -4267,7 +4544,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "24"
+	    SIDHighWatermark	    "27"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "phi"
@@ -4288,35 +4565,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "90::21"
+	      SID		      "90::26"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      12
+	      ZOrder		      17
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "90::20"
+	      SID		      "90::25"
 	      Tag		      "Stateflow S-Function lib_transformations 15"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      11
+	      ZOrder		      16
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"tau_b"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "90::22"
+	      SID		      "90::27"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      13
+	      ZOrder		      18
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -4327,14 +4605,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      21
+	      ZOrder		      26
 	      SrcBlock		      "phi"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      22
+	      ZOrder		      27
 	      SrcBlock		      "F_W"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -4342,7 +4621,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "tau_b"
-	      ZOrder		      23
+	      ZOrder		      28
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -4350,17 +4629,16 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      24
+	      ZOrder		      29
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      25
+	      ZOrder		      30
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
-	      Points		      [0, 135]
 	      DstBlock		      " Demux "
 	      DstPort		      1
 	    }
@@ -4408,10 +4686,12 @@ Library {
       Position		      [565, 260, 640, 320]
       ZOrder		      798
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpy_tau2F"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4455,10 +4735,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "taurpy2F_Fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -4470,7 +4752,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "19"
+	    SIDHighWatermark	    "22"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "phi"
@@ -4491,36 +4773,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "75::17"
+	      SID		      "75::21"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      8
+	      ZOrder		      12
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "75::16"
+	      SID		      "75::20"
 	      Tag		      "Stateflow S-Function lib_transformations 13"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      7
+	      ZOrder		      11
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
-	      EnableBusSupport	      on
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"F_W"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "75::18"
+	      SID		      "75::22"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      9
+	      ZOrder		      13
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -4531,14 +4813,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      1
+	      ZOrder		      6
 	      SrcBlock		      "phi"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      2
+	      ZOrder		      7
 	      SrcBlock		      "tau_b"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -4546,7 +4829,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "F_W"
-	      ZOrder		      3
+	      ZOrder		      8
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -4554,14 +4837,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      4
+	      ZOrder		      9
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      10
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -4611,10 +4894,12 @@ Library {
       Position		      [970, 174, 1055, 221]
       ZOrder		      557
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"rpymoment2cartmoment"
 	Location		[39, -14, 1930, 1090]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4658,10 +4943,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "MATLAB Function"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -4673,7 +4960,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "19"
+	    SIDHighWatermark	    "22"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "T_basevel"
@@ -4694,35 +4981,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "65::17"
+	      SID		      "65::21"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      8
+	      ZOrder		      12
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "65::16"
+	      SID		      "65::20"
 	      Tag		      "Stateflow S-Function lib_transformations 11"
 	      Ports		      [2, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      7
+	      ZOrder		      11
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[2 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"mB"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "65::18"
+	      SID		      "65::22"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      9
+	      ZOrder		      13
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -4733,14 +5021,15 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      1
+	      ZOrder		      6
 	      SrcBlock		      "T_basevel"
 	      SrcPort		      1
+	      Points		      [120, 0]
 	      DstBlock		      " SFunction "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      2
+	      ZOrder		      7
 	      SrcBlock		      "tauRB"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -4748,7 +5037,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "mB"
-	      ZOrder		      3
+	      ZOrder		      8
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -4756,14 +5045,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      4
+	      ZOrder		      9
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      10
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -4807,10 +5096,8 @@ Library {
 	  SID			  "70"
 	  Name			  "Umrechnung eines Momentes entlang von RPY-Euler-Winkeln (tauRB) in ein Moment um die kartesischen Koordin"
 	  "aten (mB)"
-	  Position		  [174, 133, 727, 150]
+	  Position		  [174, 133, 725, 150]
 	  InternalMargins	  [0, 0, 0, 0]
-	  FixedHeight		  off
-	  FixedWidth		  off
 	  HorizontalAlignment	  "left"
 	  VerticalAlignment	  "top"
 	  ZOrder		  -1
@@ -4825,10 +5112,12 @@ Library {
       Position		      [435, 507, 505, 553]
       ZOrder		      802
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"skew"
 	Location		[1969, 580, 2904, 1080]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -4860,10 +5149,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "skew_fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -4875,7 +5166,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "93"
+	    SIDHighWatermark	    "101"
 	    SIDPrevWatermark	    "88"
 	    Block {
 	      BlockType		      Inport
@@ -4888,35 +5179,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "92::87"
+	      SID		      "92::100"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      26
+	      ZOrder		      29
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "92::86"
+	      SID		      "92::99"
 	      Tag		      "Stateflow S-Function lib_transformations 16"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      25
+	      ZOrder		      28
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"V"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "92::88"
+	      SID		      "92::101"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      27
+	      ZOrder		      30
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -4927,7 +5219,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "v"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -4935,7 +5227,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "V"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -4943,14 +5235,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -4990,10 +5282,12 @@ Library {
       Position		      [340, 30, 390, 70]
       ZOrder		      2
       RequestExecContextInheritance off
+      Variant		      off
       System {
 	Name			"tr2quat"
 	Location		[46, 24, 1933, 1100]
 	Open			off
+	PortBlocksUseCompactNotation off
 	ModelBrowserVisibility	off
 	ModelBrowserWidth	200
 	ScreenColor		"white"
@@ -5027,10 +5321,12 @@ Library {
 	  TreatAsAtomicUnit	  on
 	  RequestExecContextInheritance	off
 	  SFBlockType		  "MATLAB Function"
+	  Variant		  off
 	  System {
 	    Name		    "tr2quat"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
+	    PortBlocksUseCompactNotation off
 	    ModelBrowserVisibility  off
 	    ModelBrowserWidth	    200
 	    ScreenColor		    "white"
@@ -5042,7 +5338,7 @@ Library {
 	    TiledPageScale	    1
 	    ShowPageBoundaries	    off
 	    ZoomFactor		    "100"
-	    SIDHighWatermark	    "53"
+	    SIDHighWatermark	    "56"
 	    Block {
 	      BlockType		      Inport
 	      Name		      "T"
@@ -5054,35 +5350,36 @@ Library {
 	    Block {
 	      BlockType		      Demux
 	      Name		      " Demux "
-	      SID		      "1::17"
+	      SID		      "1::55"
 	      Ports		      [1, 1]
 	      Position		      [270, 230, 320, 270]
-	      ZOrder		      8
+	      ZOrder		      11
 	      Outputs		      "1"
 	    }
 	    Block {
 	      BlockType		      S-Function
 	      Name		      " SFunction "
-	      SID		      "1::16"
+	      SID		      "1::54"
 	      Tag		      "Stateflow S-Function lib_transformations 2"
 	      Ports		      [1, 2]
 	      Position		      [180, 100, 230, 160]
-	      ZOrder		      7
+	      ZOrder		      10
 	      FunctionName	      "sf_sfun"
 	      PortCounts	      "[1 2]"
+	      SFunctionDeploymentMode off
+	      EnableBusSupport	      off
+	      SFcnIsStateOwnerBlock   off
 	      Port {
 		PortNumber		2
 		Name			"xq"
-		RTWStorageClass		"Auto"
-		DataLoggingNameMode	"SignalName"
 	      }
 	    }
 	    Block {
 	      BlockType		      Terminator
 	      Name		      " Terminator "
-	      SID		      "1::18"
+	      SID		      "1::56"
 	      Position		      [460, 241, 480, 259]
-	      ZOrder		      9
+	      ZOrder		      12
 	    }
 	    Block {
 	      BlockType		      Outport
@@ -5093,7 +5390,7 @@ Library {
 	      IconDisplay	      "Port number"
 	    }
 	    Line {
-	      ZOrder		      5
+	      ZOrder		      9
 	      SrcBlock		      "T"
 	      SrcPort		      1
 	      DstBlock		      " SFunction "
@@ -5101,7 +5398,7 @@ Library {
 	    }
 	    Line {
 	      Name		      "xq"
-	      ZOrder		      6
+	      ZOrder		      10
 	      Labels		      [0, 0]
 	      SrcBlock		      " SFunction "
 	      SrcPort		      2
@@ -5109,14 +5406,14 @@ Library {
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      7
+	      ZOrder		      11
 	      SrcBlock		      " Demux "
 	      SrcPort		      1
 	      DstBlock		      " Terminator "
 	      DstPort		      1
 	    }
 	    Line {
-	      ZOrder		      8
+	      ZOrder		      12
 	      SrcBlock		      " SFunction "
 	      SrcPort		      1
 	      DstBlock		      " Demux "
@@ -5156,7 +5453,8 @@ Library {
       InternalMargins	      [0, 0, 0, 0]
       FixedHeight	      on
       FixedWidth	      on
-      ForegroundColor	      "[0.941176, 0.941176, 1.000000]"
+      ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      176
@@ -5169,7 +5467,8 @@ Library {
       InternalMargins	      [0, 0, 0, 0]
       FixedHeight	      on
       FixedWidth	      on
-      ForegroundColor	      "[0.941176, 0.941176, 1.000000]"
+      ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      175
@@ -5182,7 +5481,8 @@ Library {
       InternalMargins	      [0, 0, 0, 0]
       FixedHeight	      on
       FixedWidth	      on
-      ForegroundColor	      "[0.941176, 0.941176, 1.000000]"
+      ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      174
@@ -5195,7 +5495,8 @@ Library {
       InternalMargins	      [0, 0, 0, 0]
       FixedHeight	      on
       FixedWidth	      on
-      ForegroundColor	      "[0.941176, 0.941176, 1.000000]"
+      ForegroundColor	      "[0.901961, 0.901961, 1.000000]"
+      BackgroundColor	      "[0.901961, 0.901961, 1.000000]"
       DropShadow	      on
       AnnotationType	      "area_annotation"
       ZOrder		      173
@@ -5205,7 +5506,7 @@ Library {
 }
 #Finite State Machines
 #
-#   Stateflow 80000005
+#   Stateflow 80000012
 #
 #
 Stateflow {
@@ -5214,30 +5515,30 @@ Stateflow {
     name		    "lib_transformations"
     created		    "25-Aug-2015 14:47:45"
     isLibrary		    1
+    sfVersion		    80000012
     firstTarget		    170
-    sfVersion		    80000005
   }
   chart {
     id			    2
+    machine		    1
     name		    "quat2r/MATLAB Function1"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 3 0 0]
-    firstTransition	    7
-    firstJunction	    6
     viewObj		    2
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    4
     chartFileNumber	    1
     disableImplicitCasting  1
     eml {
       name		      "quat2r"
     }
+    firstData		    4
+    firstTransition	    7
+    firstJunction	    6
   }
   state {
     id			    3
@@ -5261,7 +5562,6 @@ Stateflow {
     id			    4
     ssIdNumber		    4
     name		    "R"
-    linkNode		    [2 0 5]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5274,14 +5574,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [2 0 5]
   }
   data {
     id			    5
     ssIdNumber		    5
     name		    "q"
-    linkNode		    [2 4 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5294,17 +5597,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [2 4 0]
   }
   junction {
     id			    6
     position		    [23.5747 49.5747 7]
     chart		    2
-    linkNode		    [2 0 0]
     subviewer		    2
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [2 0 0]
   }
   transition {
     id			    7
@@ -5320,7 +5627,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    2
-    linkNode		    [2 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    2
     drawStyle		    SMART
@@ -5329,34 +5635,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [2 0 0]
   }
   instance {
     id			    8
-    name		    "quat2r/MATLAB Function1"
     machine		    1
+    name		    "quat2r/MATLAB Function1"
     chart		    2
   }
   chart {
     id			    9
+    machine		    1
     name		    "tr2quat/tr2quat"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 10 0 0]
-    firstTransition	    14
-    firstJunction	    13
     viewObj		    9
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    11
     chartFileNumber	    2
     disableImplicitCasting  1
     eml {
       name		      "tr2quat"
     }
+    firstData		    11
+    firstTransition	    14
+    firstJunction	    13
   }
   state {
     id			    10
@@ -5380,7 +5687,6 @@ Stateflow {
     id			    11
     ssIdNumber		    4
     name		    "T"
-    linkNode		    [9 0 12]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5392,14 +5698,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [9 0 12]
   }
   data {
     id			    12
     ssIdNumber		    5
     name		    "xq"
-    linkNode		    [9 11 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5412,17 +5721,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [9 11 0]
   }
   junction {
     id			    13
     position		    [23.5747 49.5747 7]
     chart		    9
-    linkNode		    [9 0 0]
     subviewer		    9
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [9 0 0]
   }
   transition {
     id			    14
@@ -5438,7 +5751,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    9
-    linkNode		    [9 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    9
     drawStyle		    SMART
@@ -5447,33 +5759,34 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [9 0 0]
   }
   instance {
     id			    15
-    name		    "tr2quat/tr2quat"
     machine		    1
+    name		    "tr2quat/tr2quat"
     chart		    9
   }
   chart {
     id			    16
+    machine		    1
     name		    "r2quat/MATLAB Function1"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 17 0 0]
-    firstTransition	    21
-    firstJunction	    20
     viewObj		    16
-    machine		    1
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    18
     chartFileNumber	    3
     disableImplicitCasting  1
     eml {
       name		      "r2quat"
     }
+    firstData		    18
+    firstTransition	    21
+    firstJunction	    20
   }
   state {
     id			    17
@@ -5497,7 +5810,6 @@ Stateflow {
     id			    18
     ssIdNumber		    4
     name		    "R"
-    linkNode		    [16 0 19]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5509,14 +5821,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [16 0 19]
   }
   data {
     id			    19
     ssIdNumber		    5
     name		    "q"
-    linkNode		    [16 18 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5529,17 +5844,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [16 18 0]
   }
   junction {
     id			    20
     position		    [23.5747 49.5747 7]
     chart		    16
-    linkNode		    [16 0 0]
     subviewer		    16
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [16 0 0]
   }
   transition {
     id			    21
@@ -5555,7 +5874,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    16
-    linkNode		    [16 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    16
     drawStyle		    SMART
@@ -5564,34 +5882,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [16 0 0]
   }
   instance {
     id			    22
-    name		    "r2quat/MATLAB Function1"
     machine		    1
+    name		    "r2quat/MATLAB Function1"
     chart		    16
   }
   chart {
     id			    23
+    machine		    1
     name		    "rotate_wrench/MATLAB Function1"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 24 0 0]
-    firstTransition	    29
-    firstJunction	    28
     viewObj		    23
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    25
     chartFileNumber	    4
     disableImplicitCasting  1
     eml {
       name		      "rotate_wrench"
     }
+    firstData		    25
+    firstTransition	    29
+    firstJunction	    28
   }
   state {
     id			    24
@@ -5619,7 +5938,6 @@ Stateflow {
     id			    25
     ssIdNumber		    4
     name		    "w_B"
-    linkNode		    [23 0 26]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5632,14 +5950,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [23 0 26]
   }
   data {
     id			    26
     ssIdNumber		    5
     name		    "w_A"
-    linkNode		    [23 25 27]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5652,14 +5973,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [23 25 27]
   }
   data {
     id			    27
     ssIdNumber		    6
     name		    "R_BA"
-    linkNode		    [23 26 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5674,17 +5998,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [23 26 0]
   }
   junction {
     id			    28
     position		    [23.5747 49.5747 7]
     chart		    23
-    linkNode		    [23 0 0]
     subviewer		    23
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [23 0 0]
   }
   transition {
     id			    29
@@ -5700,7 +6028,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    23
-    linkNode		    [23 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    23
     drawStyle		    SMART
@@ -5709,34 +6036,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [23 0 0]
   }
   instance {
     id			    30
-    name		    "rotate_wrench/MATLAB Function1"
     machine		    1
+    name		    "rotate_wrench/MATLAB Function1"
     chart		    23
   }
   chart {
     id			    31
+    machine		    1
     name		    "Rt2T/MATLAB Function1"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 32 0 0]
-    firstTransition	    37
-    firstJunction	    36
     viewObj		    31
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    33
     chartFileNumber	    5
     disableImplicitCasting  1
     eml {
       name		      "rt2t"
     }
+    firstData		    33
+    firstTransition	    37
+    firstJunction	    36
   }
   state {
     id			    32
@@ -5761,7 +6089,6 @@ Stateflow {
     id			    33
     ssIdNumber		    4
     name		    "R"
-    linkNode		    [31 0 34]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5773,14 +6100,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [31 0 34]
   }
   data {
     id			    34
     ssIdNumber		    5
     name		    "T"
-    linkNode		    [31 33 35]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5793,14 +6123,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [31 33 35]
   }
   data {
     id			    35
     ssIdNumber		    6
     name		    "t"
-    linkNode		    [31 34 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5815,17 +6148,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [31 34 0]
   }
   junction {
     id			    36
     position		    [23.5747 49.5747 7]
     chart		    31
-    linkNode		    [31 0 0]
     subviewer		    31
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [31 0 0]
   }
   transition {
     id			    37
@@ -5841,7 +6178,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    31
-    linkNode		    [31 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    31
     drawStyle		    SMART
@@ -5850,34 +6186,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [31 0 0]
   }
   instance {
     id			    38
-    name		    "Rt2T/MATLAB Function1"
     machine		    1
+    name		    "Rt2T/MATLAB Function1"
     chart		    31
   }
   chart {
     id			    39
+    machine		    1
     name		    "rotvec2r/rotvec2r"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 40 0 0]
-    firstTransition	    44
-    firstJunction	    43
     viewObj		    39
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    9
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    41
     chartFileNumber	    6
     disableImplicitCasting  1
     eml {
       name		      "rotvec2r"
     }
+    firstData		    41
+    firstTransition	    44
+    firstJunction	    43
   }
   state {
     id			    40
@@ -5905,7 +6242,6 @@ Stateflow {
     id			    41
     ssIdNumber		    4
     name		    "rotvec"
-    linkNode		    [39 0 42]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -5917,14 +6253,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [39 0 42]
   }
   data {
     id			    42
     ssIdNumber		    5
     name		    "R"
-    linkNode		    [39 41 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -5937,17 +6276,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [39 41 0]
   }
   junction {
     id			    43
     position		    [23.5747 49.5747 7]
     chart		    39
-    linkNode		    [39 0 0]
     subviewer		    39
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [39 0 0]
   }
   transition {
     id			    44
@@ -5963,7 +6306,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    39
-    linkNode		    [39 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    39
     drawStyle		    SMART
@@ -5972,34 +6314,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [39 0 0]
   }
   instance {
     id			    45
-    name		    "rotvec2r/rotvec2r"
     machine		    1
+    name		    "rotvec2r/rotvec2r"
     chart		    39
   }
   chart {
     id			    46
+    machine		    1
     name		    "rpy2r/rpy2R"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 47 0 0]
-    firstTransition	    51
-    firstJunction	    50
     viewObj		    46
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    48
     chartFileNumber	    7
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    48
+    firstTransition	    51
+    firstJunction	    50
   }
   state {
     id			    47
@@ -6026,7 +6369,6 @@ Stateflow {
     id			    48
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [46 0 49]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6039,14 +6381,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [46 0 49]
   }
   data {
     id			    49
     ssIdNumber		    7
     name		    "R"
-    linkNode		    [46 48 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6061,17 +6406,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [46 48 0]
   }
   junction {
     id			    50
     position		    [23.5747 49.5747 7]
     chart		    46
-    linkNode		    [46 0 0]
     subviewer		    46
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [46 0 0]
   }
   transition {
     id			    51
@@ -6087,7 +6436,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    46
-    linkNode		    [46 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    46
     drawStyle		    SMART
@@ -6096,34 +6444,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [46 0 0]
   }
   instance {
     id			    52
-    name		    "rpy2r/rpy2R"
     machine		    1
+    name		    "rpy2r/rpy2R"
     chart		    46
   }
   chart {
     id			    53
+    machine		    1
     name		    "rpyD2omega/rpyD2omega"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 54 0 0]
-    firstTransition	    59
-    firstJunction	    58
     viewObj		    53
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    55
     chartFileNumber	    8
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    55
+    firstTransition	    59
+    firstJunction	    58
   }
   state {
     id			    54
@@ -6153,7 +6502,6 @@ Stateflow {
     id			    55
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [53 0 56]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6165,14 +6513,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [53 0 56]
   }
   data {
     id			    56
     ssIdNumber		    5
     name		    "omega"
-    linkNode		    [53 55 57]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6185,14 +6536,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [53 55 57]
   }
   data {
     id			    57
     ssIdNumber		    6
     name		    "phiD"
-    linkNode		    [53 56 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6207,17 +6561,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [53 56 0]
   }
   junction {
     id			    58
     position		    [23.5747 49.5747 7]
     chart		    53
-    linkNode		    [53 0 0]
     subviewer		    53
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [53 0 0]
   }
   transition {
     id			    59
@@ -6233,7 +6591,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    53
-    linkNode		    [53 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    53
     drawStyle		    SMART
@@ -6242,34 +6599,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [53 0 0]
   }
   instance {
     id			    60
-    name		    "rpyD2omega/rpyD2omega"
     machine		    1
+    name		    "rpyD2omega/rpyD2omega"
     chart		    53
   }
   chart {
     id			    61
+    machine		    1
     name		    "angvelotrans_rpy/angvelotrans_rpy_Fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 62 0 0]
-    firstTransition	    66
-    firstJunction	    65
     viewObj		    61
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    63
     chartFileNumber	    9
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    63
+    firstTransition	    66
+    firstJunction	    65
   }
   state {
     id			    62
@@ -6298,7 +6656,6 @@ Stateflow {
     id			    63
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [61 0 64]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6311,14 +6668,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [61 0 64]
   }
   data {
     id			    64
     ssIdNumber		    7
     name		    "T_angvel"
-    linkNode		    [61 63 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6333,17 +6693,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [61 63 0]
   }
   junction {
     id			    65
     position		    [23.5747 49.5747 7]
     chart		    61
-    linkNode		    [61 0 0]
     subviewer		    61
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [61 0 0]
   }
   transition {
     id			    66
@@ -6359,7 +6723,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    61
-    linkNode		    [61 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    61
     drawStyle		    SMART
@@ -6368,34 +6731,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [61 0 0]
   }
   instance {
     id			    67
-    name		    "angvelotrans_rpy/angvelotrans_rpy_Fcn"
     machine		    1
+    name		    "angvelotrans_rpy/angvelotrans_rpy_Fcn"
     chart		    61
   }
   chart {
     id			    68
+    machine		    1
     name		    "omegaD2rpyDD/omegaD2rpyDD"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 69 0 0]
-    firstTransition	    75
-    firstJunction	    74
     viewObj		    68
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    8
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    70
     chartFileNumber	    10
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    70
+    firstTransition	    75
+    firstJunction	    74
   }
   state {
     id			    69
@@ -6416,7 +6780,8 @@ Stateflow {
       "% phiD [3x1]\n%   1. Zeitableitung der RPY-Winkel alpha, beta, gamma\n% omegaD [3x1]\n%   Drehbeschleunigung (om"
       "egaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Ausgabe:\n% phiDD [3x1]\n%   2. Zeitableitung der RPY-Winkel alph"
       "a, beta, gamma\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06\n% (c) Institut für Regelungstechn"
-      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = angvelotrans_rpy(phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
+      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = angvelotrans_rpy("
+      "phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6424,7 +6789,6 @@ Stateflow {
     id			    70
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [68 0 71]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6436,14 +6800,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [68 0 71]
   }
   data {
     id			    71
     ssIdNumber		    6
     name		    "phiD"
-    linkNode		    [68 70 72]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6458,14 +6825,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [68 70 72]
   }
   data {
     id			    72
     ssIdNumber		    7
     name		    "omegaD"
-    linkNode		    [68 71 73]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6480,14 +6850,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [68 71 73]
   }
   data {
     id			    73
     ssIdNumber		    8
     name		    "phiDD"
-    linkNode		    [68 72 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6502,17 +6875,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [68 72 0]
   }
   junction {
     id			    74
     position		    [23.5747 49.5747 7]
     chart		    68
-    linkNode		    [68 0 0]
     subviewer		    68
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [68 0 0]
   }
   transition {
     id			    75
@@ -6528,7 +6905,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    68
-    linkNode		    [68 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    68
     drawStyle		    SMART
@@ -6537,34 +6913,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [68 0 0]
   }
   instance {
     id			    76
-    name		    "omegaD2rpyDD/omegaD2rpyDD"
     machine		    1
+    name		    "omegaD2rpyDD/omegaD2rpyDD"
     chart		    68
   }
   chart {
     id			    77
+    machine		    1
     name		    "rpymoment2cartmoment/MATLAB Function"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 78 0 0]
-    firstTransition	    83
-    firstJunction	    82
     viewObj		    77
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    79
     chartFileNumber	    11
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    79
+    firstTransition	    83
+    firstJunction	    82
   }
   state {
     id			    78
@@ -6588,7 +6965,6 @@ Stateflow {
     id			    79
     ssIdNumber		    4
     name		    "T_basevel"
-    linkNode		    [77 0 80]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6600,14 +6976,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [77 0 80]
   }
   data {
     id			    80
     ssIdNumber		    5
     name		    "mB"
-    linkNode		    [77 79 81]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6620,14 +6999,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [77 79 81]
   }
   data {
     id			    81
     ssIdNumber		    6
     name		    "tauRB"
-    linkNode		    [77 80 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6642,17 +7024,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [77 80 0]
   }
   junction {
     id			    82
     position		    [23.5747 49.5747 7]
     chart		    77
-    linkNode		    [77 0 0]
     subviewer		    77
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [77 0 0]
   }
   transition {
     id			    83
@@ -6668,7 +7054,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    77
-    linkNode		    [77 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    77
     drawStyle		    SMART
@@ -6677,34 +7062,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [77 0 0]
   }
   instance {
     id			    84
-    name		    "rpymoment2cartmoment/MATLAB Function"
     machine		    1
+    name		    "rpymoment2cartmoment/MATLAB Function"
     chart		    77
   }
   chart {
     id			    85
+    machine		    1
     name		    "quat2tr/quat2tr"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 86 0 0]
-    firstTransition	    90
-    firstJunction	    89
     viewObj		    85
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    87
     chartFileNumber	    12
     disableImplicitCasting  1
     eml {
       name		      "quat2tr"
     }
+    firstData		    87
+    firstTransition	    90
+    firstJunction	    89
   }
   state {
     id			    86
@@ -6728,7 +7114,6 @@ Stateflow {
     id			    87
     ssIdNumber		    4
     name		    "T"
-    linkNode		    [85 0 88]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6741,14 +7126,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [85 0 88]
   }
   data {
     id			    88
     ssIdNumber		    5
     name		    "xq"
-    linkNode		    [85 87 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6761,17 +7149,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [85 87 0]
   }
   junction {
     id			    89
     position		    [23.5747 49.5747 7]
     chart		    85
-    linkNode		    [85 0 0]
     subviewer		    85
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [85 0 0]
   }
   transition {
     id			    90
@@ -6787,7 +7179,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    85
-    linkNode		    [85 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    85
     drawStyle		    SMART
@@ -6796,34 +7187,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [85 0 0]
   }
   instance {
     id			    91
-    name		    "quat2tr/quat2tr"
     machine		    1
+    name		    "quat2tr/quat2tr"
     chart		    85
   }
   chart {
     id			    92
+    machine		    1
     name		    "rpy_tau2F/taurpy2F_Fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 93 0 0]
-    firstTransition	    98
-    firstJunction	    97
     viewObj		    92
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    94
     chartFileNumber	    13
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    94
+    firstTransition	    98
+    firstJunction	    97
   }
   state {
     id			    93
@@ -6852,7 +7244,6 @@ Stateflow {
     id			    94
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [92 0 95]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6864,14 +7255,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [92 0 95]
   }
   data {
     id			    95
     ssIdNumber		    5
     name		    "F_W"
-    linkNode		    [92 94 96]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -6884,14 +7278,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [92 94 96]
   }
   data {
     id			    96
     ssIdNumber		    6
     name		    "tau_b"
-    linkNode		    [92 95 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -6906,17 +7303,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [92 95 0]
   }
   junction {
     id			    97
     position		    [23.5747 49.5747 7]
     chart		    92
-    linkNode		    [92 0 0]
     subviewer		    92
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [92 0 0]
   }
   transition {
     id			    98
@@ -6932,7 +7333,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    92
-    linkNode		    [92 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    92
     drawStyle		    SMART
@@ -6941,34 +7341,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [92 0 0]
   }
   instance {
     id			    99
-    name		    "rpy_tau2F/taurpy2F_Fcn"
     machine		    1
+    name		    "rpy_tau2F/taurpy2F_Fcn"
     chart		    92
   }
   chart {
     id			    100
+    machine		    1
     name		    "T2Rt/MATLAB Function1"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 101 0 0]
-    firstTransition	    106
-    firstJunction	    105
     viewObj		    100
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    102
     chartFileNumber	    14
     disableImplicitCasting  1
     eml {
       name		      "t2rt"
     }
+    firstData		    102
+    firstTransition	    106
+    firstJunction	    105
   }
   state {
     id			    101
@@ -6993,7 +7394,6 @@ Stateflow {
     id			    102
     ssIdNumber		    4
     name		    "R"
-    linkNode		    [100 0 103]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7006,14 +7406,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [100 0 103]
   }
   data {
     id			    103
     ssIdNumber		    5
     name		    "T"
-    linkNode		    [100 102 104]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7026,14 +7429,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [100 102 104]
   }
   data {
     id			    104
     ssIdNumber		    6
     name		    "t"
-    linkNode		    [100 103 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7048,17 +7454,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [100 103 0]
   }
   junction {
     id			    105
     position		    [23.5747 49.5747 7]
     chart		    100
-    linkNode		    [100 0 0]
     subviewer		    100
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [100 0 0]
   }
   transition {
     id			    106
@@ -7074,7 +7484,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    100
-    linkNode		    [100 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    100
     drawStyle		    SMART
@@ -7083,34 +7492,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [100 0 0]
   }
   instance {
     id			    107
-    name		    "T2Rt/MATLAB Function1"
     machine		    1
+    name		    "T2Rt/MATLAB Function1"
     chart		    100
   }
   chart {
     id			    108
+    machine		    1
     name		    "rpy_F2tau/F2taurpy_Fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 109 0 0]
-    firstTransition	    114
-    firstJunction	    113
     viewObj		    108
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    6
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    110
     chartFileNumber	    15
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    110
+    firstTransition	    114
+    firstJunction	    113
   }
   state {
     id			    109
@@ -7139,7 +7549,6 @@ Stateflow {
     id			    110
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [108 0 111]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7151,14 +7560,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [108 0 111]
   }
   data {
     id			    111
     ssIdNumber		    5
     name		    "F_W"
-    linkNode		    [108 110 112]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7171,14 +7583,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [108 110 112]
   }
   data {
     id			    112
     ssIdNumber		    6
     name		    "tau_b"
-    linkNode		    [108 111 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7193,17 +7608,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [108 111 0]
   }
   junction {
     id			    113
     position		    [23.5747 49.5747 7]
     chart		    108
-    linkNode		    [108 0 0]
     subviewer		    108
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [108 0 0]
   }
   transition {
     id			    114
@@ -7219,7 +7638,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    108
-    linkNode		    [108 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    108
     drawStyle		    SMART
@@ -7228,34 +7646,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [108 0 0]
   }
   instance {
     id			    115
-    name		    "rpy_F2tau/F2taurpy_Fcn"
     machine		    1
+    name		    "rpy_F2tau/F2taurpy_Fcn"
     chart		    108
   }
   chart {
     id			    116
+    machine		    1
     name		    "skew/skew_fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 117 0 0]
-    firstTransition	    121
-    firstJunction	    120
     viewObj		    116
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    8
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    118
     chartFileNumber	    16
     disableImplicitCasting  1
     eml {
       name		      "skew"
     }
+    firstData		    118
+    firstTransition	    121
+    firstJunction	    120
   }
   state {
     id			    117
@@ -7281,7 +7700,6 @@ Stateflow {
     id			    118
     ssIdNumber		    4
     name		    "v"
-    linkNode		    [116 0 119]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7293,14 +7711,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [116 0 119]
   }
   data {
     id			    119
     ssIdNumber		    5
     name		    "V"
-    linkNode		    [116 118 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7313,17 +7734,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [116 118 0]
   }
   junction {
     id			    120
     position		    [23.5747 49.5747 7]
     chart		    116
-    linkNode		    [116 0 0]
     subviewer		    116
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [116 0 0]
   }
   transition {
     id			    121
@@ -7339,7 +7764,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    116
-    linkNode		    [116 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    116
     drawStyle		    SMART
@@ -7348,34 +7772,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [116 0 0]
   }
   instance {
     id			    122
-    name		    "skew/skew_fcn"
     machine		    1
+    name		    "skew/skew_fcn"
     chart		    116
   }
   chart {
     id			    123
+    machine		    1
     name		    "invtr/invtr"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 124 0 0]
-    firstTransition	    128
-    firstJunction	    127
     viewObj		    123
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    5
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    125
     chartFileNumber	    17
     disableImplicitCasting  1
     eml {
       name		      "invtr"
     }
+    firstData		    125
+    firstTransition	    128
+    firstJunction	    127
   }
   state {
     id			    124
@@ -7399,7 +7824,6 @@ Stateflow {
     id			    125
     ssIdNumber		    4
     name		    "T"
-    linkNode		    [123 0 126]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7411,14 +7835,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [123 0 126]
   }
   data {
     id			    126
     ssIdNumber		    5
     name		    "T_inv"
-    linkNode		    [123 125 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7431,17 +7858,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [123 125 0]
   }
   junction {
     id			    127
     position		    [23.5747 49.5747 7]
     chart		    123
-    linkNode		    [123 0 0]
     subviewer		    123
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [123 0 0]
   }
   transition {
     id			    128
@@ -7457,7 +7888,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    123
-    linkNode		    [123 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    123
     drawStyle		    SMART
@@ -7466,34 +7896,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [123 0 0]
   }
   instance {
     id			    129
-    name		    "invtr/invtr"
     machine		    1
+    name		    "invtr/invtr"
     chart		    123
   }
   chart {
     id			    130
+    machine		    1
     name		    "rpyDD2omegaD/rpyDD2omegaD"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 131 0 0]
-    firstTransition	    137
-    firstJunction	    136
     viewObj		    130
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    132
     chartFileNumber	    18
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    132
+    firstTransition	    137
+    firstJunction	    136
   }
   state {
     id			    131
@@ -7524,7 +7955,6 @@ Stateflow {
     id			    132
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [130 0 133]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7536,14 +7966,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [130 0 133]
   }
   data {
     id			    133
     ssIdNumber		    5
     name		    "omegaD"
-    linkNode		    [130 132 134]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7556,14 +7989,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [130 132 134]
   }
   data {
     id			    134
     ssIdNumber		    6
     name		    "phiD"
-    linkNode		    [130 133 135]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7578,14 +8014,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [130 133 135]
   }
   data {
     id			    135
     ssIdNumber		    7
     name		    "phiDD"
-    linkNode		    [130 134 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7600,17 +8039,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [130 134 0]
   }
   junction {
     id			    136
     position		    [23.5747 49.5747 7]
     chart		    130
-    linkNode		    [130 0 0]
     subviewer		    130
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [130 0 0]
   }
   transition {
     id			    137
@@ -7626,7 +8069,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    130
-    linkNode		    [130 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    130
     drawStyle		    SMART
@@ -7635,34 +8077,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [130 0 0]
   }
   instance {
     id			    138
-    name		    "rpyDD2omegaD/rpyDD2omegaD"
     machine		    1
+    name		    "rpyDD2omegaD/rpyDD2omegaD"
     chart		    130
   }
   chart {
     id			    139
+    machine		    1
     name		    "omega2rpyD/omega2rpyD"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 140 0 0]
-    firstTransition	    145
-    firstJunction	    144
     viewObj		    139
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    141
     chartFileNumber	    19
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    141
+    firstTransition	    145
+    firstJunction	    144
   }
   state {
     id			    140
@@ -7682,7 +8125,8 @@ Stateflow {
       "% Eingabe:\n% phi [3x1]\n%   RPY-Winkel: Koordinatentransformation zwischen A und B\n% omega [3x1]\n%   Winkelge"
       "schwindigkeit eines Koordinatensystems A, ausgedrückt im KS B\n% \n% Ausgabe:\n% phiD\n%   Zeitableitung der RP"
       "Y-Winkel phi\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik"
-      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\nphiD = T_angvel \\ omega;\n"
+      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\nphiD ="
+      " T_angvel \\ omega;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -7690,7 +8134,6 @@ Stateflow {
     id			    141
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [139 0 142]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7702,14 +8145,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [139 0 142]
   }
   data {
     id			    142
     ssIdNumber		    6
     name		    "phiD"
-    linkNode		    [139 141 143]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7724,14 +8170,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [139 141 143]
   }
   data {
     id			    143
     ssIdNumber		    7
     name		    "omega"
-    linkNode		    [139 142 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7746,17 +8195,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [139 142 0]
   }
   junction {
     id			    144
     position		    [23.5747 49.5747 7]
     chart		    139
-    linkNode		    [139 0 0]
     subviewer		    139
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [139 0 0]
   }
   transition {
     id			    145
@@ -7772,7 +8225,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    139
-    linkNode		    [139 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    139
     drawStyle		    SMART
@@ -7781,34 +8233,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [139 0 0]
   }
   instance {
     id			    146
-    name		    "omega2rpyD/omega2rpyD"
     machine		    1
+    name		    "omega2rpyD/omega2rpyD"
     chart		    139
   }
   chart {
     id			    147
+    machine		    1
     name		    "R2rpy/R2rpy"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 148 0 0]
-    firstTransition	    152
-    firstJunction	    151
     viewObj		    147
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
     ssIdHighWaterMark	    7
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    149
     chartFileNumber	    20
     disableImplicitCasting  1
     eml {
       name		      "fcn"
     }
+    firstData		    149
+    firstTransition	    152
+    firstJunction	    151
   }
   state {
     id			    148
@@ -7835,7 +8288,6 @@ Stateflow {
     id			    149
     ssIdNumber		    4
     name		    "phi"
-    linkNode		    [147 0 150]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7848,14 +8300,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [147 0 150]
   }
   data {
     id			    150
     ssIdNumber		    7
     name		    "R"
-    linkNode		    [147 149 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7870,17 +8325,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [147 149 0]
   }
   junction {
     id			    151
     position		    [23.5747 49.5747 7]
     chart		    147
-    linkNode		    [147 0 0]
     subviewer		    147
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [147 0 0]
   }
   transition {
     id			    152
@@ -7896,7 +8355,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    147
-    linkNode		    [147 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    147
     drawStyle		    SMART
@@ -7905,37 +8363,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [147 0 0]
   }
   instance {
     id			    153
-    name		    "R2rpy/R2rpy"
     machine		    1
+    name		    "R2rpy/R2rpy"
     chart		    147
   }
   chart {
     id			    154
+    machine		    1
     name		    "adjoint/adjoint_fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 155 0 0]
-    firstTransition	    159
-    firstJunction	    158
     viewObj		    154
-    visible		    1
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
-    subviewS {
-    }
     ssIdHighWaterMark	    8
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    156
     chartFileNumber	    21
     disableImplicitCasting  1
     eml {
       name		      "adjoint"
     }
+    firstData		    156
+    firstTransition	    159
+    firstJunction	    158
   }
   state {
     id			    155
@@ -7959,7 +8415,6 @@ Stateflow {
     id			    156
     ssIdNumber		    4
     name		    "r_B_C"
-    linkNode		    [154 0 157]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -7971,14 +8426,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [154 0 157]
   }
   data {
     id			    157
     ssIdNumber		    5
     name		    "A_C_B"
-    linkNode		    [154 156 0]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -7991,17 +8449,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [154 156 0]
   }
   junction {
     id			    158
     position		    [23.5747 49.5747 7]
     chart		    154
-    linkNode		    [154 0 0]
     subviewer		    154
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [154 0 0]
   }
   transition {
     id			    159
@@ -8017,7 +8479,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    154
-    linkNode		    [154 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    154
     drawStyle		    SMART
@@ -8026,37 +8487,35 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [154 0 0]
   }
   instance {
     id			    160
-    name		    "adjoint/adjoint_fcn"
     machine		    1
+    name		    "adjoint/adjoint_fcn"
     chart		    154
   }
   chart {
     id			    161
+    machine		    1
     name		    "adjointD/adjointD_fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
     treeNode		    [0 162 0 0]
-    firstTransition	    168
-    firstJunction	    167
     viewObj		    161
-    visible		    1
-    machine		    1
     toolbarMode		    LIBRARY_TOOLBAR
-    subviewS {
-    }
     ssIdHighWaterMark	    10
     decomposition	    CLUSTER_CHART
     type		    EML_CHART
-    firstData		    163
     chartFileNumber	    22
     disableImplicitCasting  1
     eml {
       name		      "adjointD"
     }
+    firstData		    163
+    firstTransition	    168
+    firstJunction	    167
   }
   state {
     id			    162
@@ -8081,7 +8540,6 @@ Stateflow {
     id			    163
     ssIdNumber		    4
     name		    "r_i_B_C"
-    linkNode		    [161 0 164]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -8093,14 +8551,17 @@ Stateflow {
 	primitive		SF_DOUBLE_TYPE
       }
       complexity	      SF_COMPLEX_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [161 0 164]
   }
   data {
     id			    164
     ssIdNumber		    5
     name		    "AD_C_B"
-    linkNode		    [161 163 165]
     scope		    OUTPUT_DATA
     machine		    1
     props {
@@ -8113,14 +8574,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_NO
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [161 163 165]
   }
   data {
     id			    165
     ssIdNumber		    9
     name		    "R_W_i"
-    linkNode		    [161 164 166]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -8135,14 +8599,17 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [161 164 166]
   }
   data {
     id			    166
     ssIdNumber		    10
     name		    "omega_W_i"
-    linkNode		    [161 165 0]
     scope		    INPUT_DATA
     machine		    1
     props {
@@ -8157,17 +8624,21 @@ Stateflow {
       }
       complexity	      SF_COMPLEX_INHERITED
       frame		      SF_FRAME_INHERITED
+      unit {
+	name			"inherit"
+      }
     }
     dataType		    "Inherit: Same as Simulink"
+    linkNode		    [161 165 0]
   }
   junction {
     id			    167
     position		    [23.5747 49.5747 7]
     chart		    161
-    linkNode		    [161 0 0]
     subviewer		    161
     ssIdNumber		    3
     type		    CONNECTIVE_JUNCTION
+    linkNode		    [161 0 0]
   }
   transition {
     id			    168
@@ -8183,7 +8654,6 @@ Stateflow {
     }
     midPoint		    [23.5747 24.9468]
     chart		    161
-    linkNode		    [161 0 0]
     dataLimits		    [21.175 25.975 14.625 42.575]
     subviewer		    161
     drawStyle		    SMART
@@ -8192,24 +8662,25 @@ Stateflow {
     }
     executionOrder	    1
     ssIdNumber		    2
+    linkNode		    [161 0 0]
   }
   instance {
     id			    169
-    name		    "adjointD/adjointD_fcn"
     machine		    1
+    name		    "adjointD/adjointD_fcn"
     chart		    161
   }
   target {
     id			    170
+    machine		    1
     name		    "sfun"
     description		    "Default Simulink S-Function Target."
-    machine		    1
     linkNode		    [1 0 171]
   }
   target {
     id			    171
-    name		    "rtw"
     machine		    1
+    name		    "rtw"
     linkNode		    [1 170 0]
   }
 }
