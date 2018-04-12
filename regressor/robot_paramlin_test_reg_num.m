@@ -21,11 +21,11 @@
 % Parameters of Serial Robots 
 % 
 % Diese Funktion wird für generierten Code aus der Maple-Toolbox benötigt,
-% liegt aber in der Matlab-Toolbox, damit die Maple-Toolbox nicht im Pfad
+% liegt aber in der Robotik-Toolbox, damit die Maple-Toolbox nicht im Pfad
 % sein muss, um die Testfunktionen auszuführen.
 
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2017-02
-% (c) Institut für Regelungstechnik, Universität Hannover
+% (C) Institut für Regelungstechnik, Universität Hannover
 
 function robot_paramlin_test_reg_num(plin_num_test_struct)
 
@@ -101,6 +101,16 @@ Ibnum=any(P1'==1);
 Idsym=any(P2sym'==1);
 Idnum=any(P2'==1);
 if ~all(Ibsym==Ibnum) || ~all(Idsym==Idnum)
+  IIbsym_diff = find((Ibsym~=Ibnum).*Ibsym);
+  IIbnum_diff = find((Ibsym~=Ibnum).*Ibnum);
+  if any(IIbsym_diff)
+    fprintf('Dynamikparameter, die unabhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), sum(Ibsym))
+    disp(PV2_Names(IIbsym_diff)');
+  end
+  if any(IIbnum_diff)
+    fprintf('Dynamikparameter, die unabhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
+    disp(PV2_Names(IIbnum_diff)');
+  end
   error('Die Aufteilung der Inertialparameter in linear abhängige und unabhängige ist zwischen num. und sym. Berechnung unterschiedlich');
 end
 
@@ -173,6 +183,7 @@ end
 
 % Minimalparametern nach Gautier1990
 % [Gautier1990], Ende Kap 3-5
+
 XB1 = X1 + R1 \ R2 * X2;
 
 % Teste, ob Minimalparameterform nach [Gautier1990] funktioniert
@@ -207,4 +218,35 @@ end
 test = K_g - Ksym;
 if any(abs(test(:)) > 1e-10)
   error('Transformation der Inertialparameter stimmt nicht überein zwischen sym. und num.');
+end
+
+return
+%% Debug-Ausgaben
+% Falls oben Fehler auftreten (wenn der symbolische MPV nicht mit dem
+% numerischen übereinstimmt), können diese Ausgaben zur Fehlersuche benutzt
+% werden.
+
+II2 = P_g1'*(1:c)'; % Indizes für die nach abhängig/unabhängig permutierte Parameter (numerisch bestimmt)
+X1_Names = PV2_Names(II2(1:b));  % Namen der unabhängigen Parameter (numerisch bestimmt)
+X2_Names = PV2_Names(II2(b+1:c));% ... abhängigen Parameter ...
+
+tmp = R1 \ R2; % Matrix zur Auswahl der abhängigen Parameter in den numerischen MPV
+fprintf('Inhalte des numerisch bestimmten MPV:\n');
+for i = 1:b
+  fprintf('%02d: ', i);
+  fprintf('indep: ');
+  fprintf( X1_Names{i}); % Unabhängiger Parameter dieses Eintrags
+  fprintf(', ');
+  fprintf('dep: ');
+  % Gehe durch die abhängigen Parameter und prüfe, ob sie jeweils im MPV
+  % vorkommen
+  for j = 1:size(tmp,2)
+    if any(abs(tmp(i,j))>1e-10)
+      fprintf( X2_Names{j});
+      if i ~= size(P1,2)
+        fprintf(', ');
+      end
+     end
+  end
+  fprintf('\n');
 end
