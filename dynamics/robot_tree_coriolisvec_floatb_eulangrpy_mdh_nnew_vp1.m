@@ -13,8 +13,9 @@
 %   time derivative of 
 %   r_base (3x1 Base position in world frame) and 
 %   phi_base (3x1)
-% alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh [NJx1]
+% alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma [NJx1]
 %   kinematic parameters according to [2]
+%   sigma: type of joints (0=rotational, 1=prismatic)
 % m_num_mdh [(NJ+1)x1], rSges_num_mdh [(NB+1)x3], Icges_num_mdh [(NB+1)x6]
 %   dynamic parameters (parameter set 1: center of mass in link frame and 
 %   inertia about center of mass. Order: xx, yy, zz, xy, xz, yz)
@@ -26,7 +27,11 @@
 % 
 % Sources:
 % [1] Featherstone: Rigid Body Dynamics Algorithms, S.98
-% [2] Khalil, W. and Kleinfinger, J.-F.: A new geometric notation for open and closed-loop robots (1986)
+% [2] Khalil, W. and Kleinfinger, J.-F.: A new geometric notation for open
+%     and closed-loop robots (1986) 
+% [3] W. Khalil and E. Dombre: Modeling, Identification and Control of
+%     Robots (2002)
+% [4] T. Ortmaier: Skript Robotik 1 (WS 2014/15), S. 115f
 % 
 % Siehe robot_tree_invdyn_floatb_eulangrpy_nnew_vp1.m
 
@@ -34,7 +39,7 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function tau_c = robot_tree_coriolisvec_floatb_eulangrpy_mdh_nnew_vp1(q, qD, phi_base, xD_base, ...
-  alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, m_num, rSges_num_mdh, Icges_num_mdh)
+  alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma, m_num, rSges_num_mdh, Icges_num_mdh)
 
 
 %% Init
@@ -47,10 +52,17 @@ R_W_0 = rpy2r(phi_base);
 % Positionen
 T_mdh = NaN(4,4,nq); % Alle Gelenk-Transformationsmatrizen
 for i = 1:nq
+  if sigma(i) == 0 % Rotationsgelenk
+    d_i = d_mdh(i);
+    theta_i = q(i)+q_offset_mdh(i);
+  else % Schubgelenk
+    d_i = q(i)+q_offset_mdh(i);
+    theta_i = theta_mdh(i);
+  end
   T_mdh(:,:,i) = trotz(beta_mdh(i)) * ... 
                      transl([0;0;b_mdh(i)]) * trotx(alpha_mdh(i)) * ...
-                     transl([a_mdh(i);0;0]) * trotz(q(i)+q_offset_mdh(i)) ...
-                     * transl([0;0;d_mdh(i)]);
+                     transl([a_mdh(i);0;0]) * trotz(theta_i) ...
+                     * transl([0;0;d_i]);
 end
 
 v_i_i_ges = NaN(3,nb);
@@ -80,11 +92,24 @@ for i = 2:nb
   r_j_j_i = T_mdh(1:3,4,i-1);
   
   % Berechnung
-  w_i_i = R_j_i'*w_j_j + [0;0;1]*qD(i-1);
+  % [3], Gl. 9.17
+  w_i_i = R_j_i'*w_j_j;
+  if sigma(i-1) == 0
+    w_i_i = w_i_i + [0;0;1]*qD(i-1);
+  end
+  % [3], Gl. 9.18
   v_i_i = R_j_i'*( v_j_j + cross(w_j_j, r_j_j_i) );
-  
-  wD_i_i = R_j_i'*wD_j_j + cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
+  if sigma(i-1) == 1
+    v_i_i = v_i_i + [0;0;1]*qD(i-1);
+  end
+  wD_i_i = R_j_i'*wD_j_j;
+  if sigma(i-1) == 0
+    wD_i_i = wD_i_i + cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
+  end
   vD_i_i = R_j_i'*( vD_j_j + cross(wD_j_j, r_j_j_i) +cross(w_j_j, cross(w_j_j, r_j_j_i)) );
+  if sigma(i-1) == 1
+    vD_i_i = vD_i_i + 2*cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
+  end
   
   % Ausgabeausdrücke belegen
   v_i_i_ges(:,i) = v_i_i;
@@ -132,7 +157,11 @@ end
 
 %% Projektion auf die Gelenke
 for i = 2:nb
-  tau_J(i-1) = [0 0 1] * n_i_i_ges(:,i);
+  if sigma(i-1) == 0 % Drehgelenk
+    tau_J(i-1) = [0 0 1] * n_i_i_ges(:,i);
+  else % Schubgelenk
+    tau_J(i-1) = [0 0 1] * f_i_i_ges(:,i);
+  end
 end
 
 %% Basis-Kraft

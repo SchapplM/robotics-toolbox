@@ -7,8 +7,9 @@
 %   Joint Angles [rad]
 % phi_base [3x1]
 %   Base orientation in world frame. Expressed with RPY Euler angles (xyz)
-% alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh [NJx1]
+% alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma [NJx1]
 %   kinematic parameters according to [2]
+%   sigma: type of joints (0=rotational, 1=prismatic)
 % m_num_mdh [(NJ+1)x1], rSges_num_mdh [(NB+1)x3]
 %   dynamic parameters (parameter set 1: center of mass in link frame)
 % 
@@ -27,7 +28,7 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function tau_g = robot_tree_gravload_floatb_eulangrpy_mdh_nnew_vp1(q, phi_base, g_world, ...
-  alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, m_num, rSges_num_mdh)
+  alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma, m_num, rSges_num_mdh)
 
 
 %% Init
@@ -40,10 +41,17 @@ R_W_0 = rpy2r(phi_base);
 % Positionen
 T_mdh = NaN(4,4,nq); % Alle Gelenk-Transformationsmatrizen
 for i = 1:nq
+  if sigma(i) == 0 % Rotationsgelenk
+    d_i = d_mdh(i);
+    theta_i = q(i)+q_offset_mdh(i);
+  else % Schubgelenk
+    d_i = q(i)+q_offset_mdh(i);
+    theta_i = theta_mdh(i);
+  end
   T_mdh(:,:,i) = trotz(beta_mdh(i)) * ... 
                      transl([0;0;b_mdh(i)]) * trotx(alpha_mdh(i)) * ...
-                     transl([a_mdh(i);0;0]) * trotz(q(i)+q_offset_mdh(i)) ...
-                     * transl([0;0;d_mdh(i)]);
+                     transl([a_mdh(i);0;0]) * trotz(theta_i) ...
+                     * transl([0;0;d_i]);
 end
 
 vD_i_i_ges = NaN(3,nb);
@@ -102,7 +110,11 @@ end
 
 %% Projektion auf die Gelenke
 for i = 2:nb
-  tau_J(i-1) = [0 0 1] * n_i_i_ges(:,i);
+  if sigma(i-1) == 0 % Drehgelenk
+    tau_J(i-1) = [0 0 1] * n_i_i_ges(:,i);
+  else % Schubgelenk
+    tau_J(i-1) = [0 0 1] * f_i_i_ges(:,i);
+  end
 end
 
 %% Basis-Kraft

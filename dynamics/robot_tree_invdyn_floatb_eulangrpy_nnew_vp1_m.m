@@ -44,7 +44,7 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulangrpy_nnew_vp1_m(q, qD, qDD, phi_base, xD_base, xDD_base, ...
-  T_stack, RotAx_i, v, m_num, rSges_num_mdh, Icges_num_mdh)
+  T_stack, RotAx_i, v, sigma, m_num, rSges_num_mdh, Icges_num_mdh)
 
 
 %% Init
@@ -93,12 +93,23 @@ for i = 2:nb
   r_j_j_i = T_mdh(1:3,4,i-1);
   
   % Berechnung
-  w_i_i = R_j_i'*w_j_j + RotAx_i(i-1,:)'*qD(i-1);
+  w_i_i = R_j_i'*w_j_j;
+  if sigma(i-1) == 0
+    w_i_i = w_i_i + RotAx_i(i-1,:)'*qD(i-1);
+  end
   v_i_i = R_j_i'*( v_j_j + cross(w_j_j, r_j_j_i) );
+  if sigma(i-1) == 1
+    v_i_i = v_i_i + RotAx_i(i-1,:)'*qD(i-1);
+  end
   
-  wD_i_i = R_j_i'*wD_j_j + RotAx_i(i-1,:)'*qDD(i-1) + cross(R_j_i'*w_j_j, RotAx_i(i-1,:)'*qD(i-1));
+  wD_i_i = R_j_i'*wD_j_j;
+  if sigma(i-1) == 0
+    wD_i_i = wD_i_i + RotAx_i(i-1,:)'*qDD(i-1) + cross(R_j_i'*w_j_j, RotAx_i(i-1,:)'*qD(i-1));
+  end
   vD_i_i = R_j_i'*( vD_j_j + cross(wD_j_j, r_j_j_i) +cross(w_j_j, cross(w_j_j, r_j_j_i)) );
-  
+  if sigma(i-1) == 1
+    vD_i_i = vD_i_i + RotAx_i(i-1,:)'*qDD(i-1) + 2*cross(R_j_i'*w_j_j, RotAx_i(i-1,:)'*qD(i-1));
+  end
   % Ausgabeausdrücke belegen
   v_i_i_ges(:,i) = v_i_i;
   w_i_i_ges(:,i) = w_i_i;
@@ -151,7 +162,11 @@ end
 
 %% Projektion auf die Gelenke
 for i = 2:nb
-  tau_J(i-1) = RotAx_i(i-1,:) * n_i_i_ges(:,i);
+  if sigma(i-1) == 0 % Drehgelenk
+    tau_J(i-1) = RotAx_i(i-1,:) * n_i_i_ges(:,i);
+  else % Schubgelenk
+    tau_J(i-1) = RotAx_i(i-1,:) * f_i_i_ges(:,i);
+  end
 end
 
 %% Basis-Kraft
