@@ -25,8 +25,9 @@ function q = r2quat(R)
 
 %% Init
 %#codegen
-assert(isa(R,'double') && isreal(R) && all(size(R) == [3 3]), ...
-  'r2quat: R = [3x3] double');
+%#cgargs {zeros(3,3)}
+assert(isreal(R) && all(size(R) == [3 3]), ...
+  'r2quat: R = [3x3] (double)');
 
 %% Calculation
 tr = R(1,1) + R(2,2) + R(3,3);

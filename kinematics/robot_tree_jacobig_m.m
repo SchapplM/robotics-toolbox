@@ -30,7 +30,6 @@
 function Jg_C = robot_tree_jacobig_m(Tc_stack, ax_i, v, link_index, r_i_i_C)
 
 %% Init
-%#codegen
 assert(isa(link_index,'uint8') && all(size(link_index) == [1 1]), ...
   'robot_tree_jacobig_m: link_index has to be [1x1] uint8');
 

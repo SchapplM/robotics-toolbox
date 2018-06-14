@@ -16,10 +16,11 @@
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
 function q3 = quatprod(q1, q2)
-
-assert(isa(q1,'double') && isreal(q1) && all(size(q1) == [4 1]), ...
+%#codegen
+%#cgargs {zeros(4,1),zeros(4,1)}
+assert(isreal(q1) && all(size(q1) == [4 1]), ...
   'quatprod: Einagbe-Quaternion q1 muss [4x1] double sein');
-assert(isa(q2,'double') && isreal(q2) && all(size(q2) == [4 1]), ...
+assert(isreal(q2) && all(size(q2) == [4 1]), ...
   'quatprod: Einagbe-Quaternion q2 muss [4x1] double sein');
 
 % [1], Gl. (2.47)

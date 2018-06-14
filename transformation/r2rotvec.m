@@ -17,8 +17,9 @@
 function rotvec = r2rotvec(R)
 
 %#codegen
-assert(isa(R,'double') && isreal(R) && all(size(R) == [3 3]), ...
-	'r2rotvec: R = [3x3] double');   
+%#cgargs {zeros(3,3)}
+assert(isreal(R) && all(size(R) == [3 3]), ...
+	'r2rotvec: R = [3x3] (double)');   
 
 [theta, n] = r2angvec(R); % Drehwinkel und Drehachse (Einheitsvektor)
 if theta == 0

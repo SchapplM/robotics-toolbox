@@ -18,8 +18,10 @@
 
 function R = quat2r(quat)
 %% Init
-assert(isa(quat,'double') && isreal(quat) && all(size(quat) == [4 1]), ...
-  'quat2r: Input Quaternion has to be [4x1] double');
+%#codegen
+%#cgargs {zeros(4,1)}
+assert(isreal(quat) && all(size(quat) == [4 1]), ...
+  'quat2r: Input Quaternion has to be [4x1] (double)');
 
 %% Calculation
 a = quat(1); % Angle (Real Part)

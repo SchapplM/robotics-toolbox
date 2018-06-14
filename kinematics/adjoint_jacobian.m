@@ -31,8 +31,9 @@
 
 function A_C_B = adjoint_jacobian(r_B_C)
 %#codegen
-assert(isa(r_B_C,'double') && isreal(r_B_C) && all(size(r_B_C) == [3 1]), ...
-  'adjoint_jacobian: r_B_C has to be [3x1] double');
+%#cgargs {zeros(3,1)}
+assert(isreal(r_B_C) && all(size(r_B_C) == [3 1]), ...
+  'adjoint_jacobian: r_B_C has to be [3x1] (double)');
 
 % [VorndammeSchHad2017], Gl. (24)
 A_C_B = [eye(3), -skew(r_B_C); zeros(3,3), eye(3)];

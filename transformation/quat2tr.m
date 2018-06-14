@@ -17,8 +17,9 @@ function T = quat2tr(x_quat)
 
 %% Init
 %#codegen
-assert(isa(x_quat,'double') && isreal(x_quat) && all(size(x_quat) == [7 1]), ...
-      'quat2tr: x = [7x1] double');   
+%#cgargs {zeros(7,1)}
+assert(isreal(x_quat) && all(size(x_quat) == [7 1]), ...
+      'quat2tr: x = [7x1] (double)');   
 
 %% Calculation
 % get displacement
@@ -30,5 +31,5 @@ s = x_quat(4);
 v = x_quat(5:7);
 
 % calculate transformation matrix
-T = [quat2r([s,v]), xyz'; ...
+T = [quat2r([s;v]), xyz; ...
         0 0 0          1];

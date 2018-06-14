@@ -25,12 +25,13 @@
 
 function AD_C_B = adjointD_jacobian(r_i_B_C, R_W_i, omega_W_i)
 %#codegen
-assert(isa(r_i_B_C,'double') && isreal(r_i_B_C) && all(size(r_i_B_C) == [3 1]), ...
-  'adjointD_jacobian: r_i_B_C has to be [3x1] double');
-assert(isa(R_W_i,'double') && isreal(R_W_i) && all(size(R_W_i) == [3 3]), ...
-  'adjointD_jacobian: R_W_i has to be [3x3] double');
-assert(isa(omega_W_i,'double') && isreal(omega_W_i) && all(size(omega_W_i) == [3 1]), ...
-  'adjointD_jacobian: omega_W_i has to be [3x1] double');
+%#cgargs {zeros(3,1),zeros(3,3),zeros(3,1)}
+assert(isreal(r_i_B_C) && all(size(r_i_B_C) == [3 1]), ...
+  'adjointD_jacobian: r_i_B_C has to be [3x1] (double)');
+assert(isreal(R_W_i) && all(size(R_W_i) == [3 3]), ...
+  'adjointD_jacobian: R_W_i has to be [3x3] (double)');
+assert(isreal(omega_W_i) && all(size(omega_W_i) == [3 1]), ...
+  'adjointD_jacobian: omega_W_i has to be [3x1] (double)');
 
 % Siehe auch: adjoint_jacobian.m
 r_W_B_C = R_W_i * r_i_B_C;

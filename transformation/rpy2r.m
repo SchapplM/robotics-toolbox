@@ -4,9 +4,10 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function R = rpy2r(phi)
-
-assert(isa(phi,'double') && all(size(phi) == [3 1]) && isreal(phi), ...
-  'RPY angles have to be [3x1] double'); 
+%#codegen
+%#cgargs {zeros(3,1)}
+assert(all(size(phi) == [3 1]) && isreal(phi), ...
+  'RPY angles have to be [3x1] (double)'); 
 
 %% Berechnung
 % Quelle:

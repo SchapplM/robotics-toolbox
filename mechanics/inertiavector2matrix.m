@@ -13,7 +13,8 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function I_mat = inertiavector2matrix(I_vec)
-
+%#codegen
+%#cgargs {zeros(1,6)}
 assert(all(size(I_vec) == [1 6]), ...
   'The stored Inertia Vector has to be [1x6]');
 

@@ -23,8 +23,9 @@
 function T = angvelotrans_rpy(phi_rpy)
 %% Init
 %#codegen
-assert(isa(phi_rpy,'double') && isreal(phi_rpy) && all(size(phi_rpy) == [3 1]), ...
-      'angvelotrans_rpy: phi_rpy = [3x1] double');  
+%#cgargs {zeros(3,1)}
+assert(isreal(phi_rpy) && all(size(phi_rpy) == [3 1]), ...
+      'angvelotrans_rpy: phi_rpy = [3x1] (double)');  
 alpha = phi_rpy(1);
 beta = phi_rpy(2);
 gamma = phi_rpy(3);

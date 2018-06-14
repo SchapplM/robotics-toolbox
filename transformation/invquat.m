@@ -15,9 +15,10 @@
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
 function qi = invquat(q)
-
-assert(isa(q,'double') && isreal(q) && all(size(q) == [4 1]), ...
-  'invquat: Einagbe-Quaternion muss [4x1] double sein');
+%#codegen
+%#cgargs {zeros(4,1)}
+assert(isreal(q) && all(size(q) == [4 1]), ...
+  'invquat: Einagbe-Quaternion muss [4x1] (double) sein');
 
 s = q(1);
 v = q(2:4);

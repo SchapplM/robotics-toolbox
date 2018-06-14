@@ -29,10 +29,11 @@ function R = angvec2r(theta, k)
 
 %% Init
 %#codegen
-assert(isa(theta,'double') && isreal(theta) && all(size(theta) == [1 1]), ...
-      'angvec2r: alpha = [1x1] double');   
-assert(isa(k,'double') && isreal(k) && all(size(k) == [3 1]), ...
-      'angvec2r: k = [3x1] double');  
+%#cgargs {zeros(1,1),zeros(3,1)}
+assert(isreal(theta) && all(size(theta) == [1 1]), ...
+      'angvec2r: alpha = [1x1] (double)');   
+assert(isreal(k) && all(size(k) == [3 1]), ...
+      'angvec2r: k = [3x1] (double)');  
 
 %% Calculation
 	cth = cos(theta);

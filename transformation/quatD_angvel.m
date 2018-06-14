@@ -18,11 +18,12 @@
 % [ZupanSaj2011] Integrating rotation from angular velocity (2011)
 
 function qd = quatD_angvel(q, omega)
-
-assert(isa(q,'double') && isreal(q) && all(size(q) == [4 1]), ...
-	'quatD: q = [4x1] double');   
-assert(isa(omega,'double') && isreal(omega) && all(size(omega) == [3 1]), ...
-	'quatD: omega = [3x1] double');
+%#codegen
+%#cgargs {zeros(4,1),zeros(3,1)}
+assert(isreal(q) && all(size(q) == [4 1]), ...
+	'quatD: q = [4x1] (double)');   
+assert(isreal(omega) && all(size(omega) == [3 1]), ...
+	'quatD: omega = [3x1] (double)');
 
 s = q(1);   % Realteil
 v = q(2:4); % Imaginärteil

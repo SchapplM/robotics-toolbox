@@ -8,9 +8,10 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 function R = rotvec2r(rotvec)
-
-assert(isa(rotvec,'double') && isreal(rotvec) && all(size(rotvec) == [3 1]), ...
-      'rotvec2r: rotvec = [3x1] double');  
+%#codegen
+%#cgargs {zeros(3,1)}
+assert(isreal(rotvec) && all(size(rotvec) == [3 1]), ...
+      'rotvec2r: rotvec = [3x1] (double)');  
     
 theta = norm(rotvec);
 if theta == 0

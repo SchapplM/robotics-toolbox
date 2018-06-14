@@ -22,11 +22,12 @@
 function omega = rpyD2omega(rpy, rpyD)
 
 %% Init
-
-assert(isa(rpy,'double') && all(size(rpy) == [3 1]) && isreal(rpy), ...
-  'rpyD2omega: rpy angles have to be [3x1] double'); 
-assert(isa(rpyD,'double') && all(size(rpyD) == [3 1]) && isreal(rpyD), ...
-  'rpyD2omega: rpy angles time derivatives have to be [3x1] double'); 
+%#codegen
+%#cgargs {zeros(3,1),zeros(3,1)}
+assert(all(size(rpy) == [3 1]) && isreal(rpy), ...
+  'rpyD2omega: rpy angles have to be [3x1] (double)'); 
+assert(all(size(rpyD) == [3 1]) && isreal(rpyD), ...
+  'rpyD2omega: rpy angles time derivatives have to be [3x1] (double)'); 
 
 alpha_s = rpy(1);
 beta_s = rpy(2);

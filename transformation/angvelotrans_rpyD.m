@@ -25,10 +25,11 @@
 function TD = angvelotrans_rpyD(phi, phiD)
 %% Init
 %#codegen
-assert( isa(phi,'double') &&  isreal(phi) &&  all(size(phi) == [3 1]) , ...
-  'angvelotrans_rpyD:phi has to be 3x1 double');  
-assert( isa(phiD,'double') && isreal(phiD) && all(size(phiD) == [3 1]), ...
-  'angvelotrans_rpyD:phiD has to be 3x1 double');  
+%#cgargs {zeros(3,1),zeros(3,1)}
+assert( isreal(phi) &&  all(size(phi) == [3 1]) , ...
+  'angvelotrans_rpyD:phi has to be 3x1 (double)');  
+assert( isreal(phiD) && all(size(phiD) == [3 1]), ...
+  'angvelotrans_rpyD:phiD has to be 3x1 (double)');  
 
 alpha = phi(1);
 beta = phi(2);

@@ -6,7 +6,7 @@
 % 
 % Output:
 % rpy:
-%   [1x3] rpy-Winkel
+%   [3x1] rpy-Winkel
 %   Definition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));
 
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2015-08
@@ -15,8 +15,9 @@
 function rpy = r2rpy(R)
 %% Init
 %#codegen
-assert(isa(R,'double') && isreal(R) && all(size(R) == [3 3]), ...
-  'r2rpy: R has to be [3x3] double');  
+%#cgargs {zeros(3,3)}
+assert(isreal(R) && all(size(R) == [3 3]), ...
+  'r2rpy: R has to be [3x3] (double)');  
 
 %% Calculation
 rpy = tr2rpy(R);

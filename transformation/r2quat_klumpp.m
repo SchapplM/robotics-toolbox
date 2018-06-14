@@ -21,7 +21,8 @@ function q = r2quat_klumpp(R)
 
 %% Init
 %#codegen
-assert(isa(R,'double') && isreal(R) && all(size(R) == [3 3]));  
+%#cgargs {zeros(3,3)}
+assert(isreal(R) && all(size(R) == [3 3]));  
 
 %% Calculation
 % [2], p.13

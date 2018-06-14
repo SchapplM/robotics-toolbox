@@ -8,10 +8,11 @@
 
 function invTrM = invtr(TrM)
 %% Init
-%#codegen
 % Coder Information
-assert(isa(TrM,'double') && isreal(TrM) && all(size(TrM) == [4 4]), ...
-  'invtr: Transformationsmatrix muss [4x4] double sein');   
+%#codegen
+%#cgargs {zeros(4,4)}
+assert(isreal(TrM) && all(size(TrM) == [4 4]), ...
+  'invtr: Transformationsmatrix muss [4x4] (double) sein');   
 
 %% Berechnung
 R = TrM(1:3,1:3);
