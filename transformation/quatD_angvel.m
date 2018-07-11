@@ -19,7 +19,7 @@
 
 function qd = quatD_angvel(q, omega)
 %#codegen
-%#cgargs {zeros(4,1),zeros(3,1)}
+%$cgargs {zeros(4,1),zeros(3,1)}
 assert(isreal(q) && all(size(q) == [4 1]), ...
 	'quatD: q = [4x1] (double)');   
 assert(isreal(omega) && all(size(omega) == [3 1]), ...

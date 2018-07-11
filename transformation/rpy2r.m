@@ -5,7 +5,7 @@
 
 function R = rpy2r(phi)
 %#codegen
-%#cgargs {zeros(3,1)}
+%$cgargs {zeros(3,1)}
 assert(all(size(phi) == [3 1]) && isreal(phi), ...
   'RPY angles have to be [3x1] (double)'); 
 

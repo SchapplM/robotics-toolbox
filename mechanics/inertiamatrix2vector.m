@@ -14,7 +14,7 @@
 
 function I_vec = inertiamatrix2vector(I_mat)
 %#codegen
-%#cgargs {zeros(3,3)}
+%$cgargs {zeros(3,3)}
 assert(all(size(I_mat) == [3 3]), ...
   'The Inertia Tensor has to be [3x3]');
 

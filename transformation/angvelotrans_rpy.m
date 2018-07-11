@@ -23,7 +23,7 @@
 function T = angvelotrans_rpy(phi_rpy)
 %% Init
 %#codegen
-%#cgargs {zeros(3,1)}
+%$cgargs {zeros(3,1)}
 assert(isreal(phi_rpy) && all(size(phi_rpy) == [3 1]), ...
       'angvelotrans_rpy: phi_rpy = [3x1] (double)');  
 alpha = phi_rpy(1);

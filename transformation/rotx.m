@@ -26,7 +26,7 @@
 
 function r = rotx(t)
 %#codegen
-%#cgargs {zeros(1,1)}
+%$cgargs {zeros(1,1)}
 assert(isreal(t) && all(size(t) == [1 1]), ...
   'Rotation angles t has to be [1x1] (double)');
 

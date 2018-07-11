@@ -17,7 +17,7 @@ function quat = angvec2quat(theta_, n_)
 
 %% Init
 %#codegen
-%#cgargs {zeros(1,1),zeros(3,1)}
+%$cgargs {zeros(1,1),zeros(3,1)}
 assert(isreal(theta_) && all(size(theta_) == [1 1]), ...
       'angvec2quat: theta_ = [1x1] (double)');   
 assert(isreal(n_) && all(size(n_) == [3 1]), ...

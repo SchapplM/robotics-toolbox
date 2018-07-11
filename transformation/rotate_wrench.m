@@ -16,7 +16,7 @@
 
 function w_B = rotate_wrench(w_A, R_BA)
 %#codegen
-%#cgargs {zeros(6,1),zeros(3,3)}
+%$cgargs {zeros(6,1),zeros(3,3)}
 assert(isreal(w_A) && all(size(w_A) == [6 1]), ...
   'w_B has to be [6x1] (double)');
 assert(isreal(R_BA) && all(size(R_BA) == [3 3]), ...

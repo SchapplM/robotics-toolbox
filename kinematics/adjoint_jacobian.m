@@ -31,7 +31,7 @@
 
 function A_C_B = adjoint_jacobian(r_B_C)
 %#codegen
-%#cgargs {zeros(3,1)}
+%$cgargs {zeros(3,1)}
 assert(isreal(r_B_C) && all(size(r_B_C) == [3 1]), ...
   'adjoint_jacobian: r_B_C has to be [3x1] (double)');
 

@@ -17,7 +17,7 @@ function T = quat2tr(x_quat)
 
 %% Init
 %#codegen
-%#cgargs {zeros(7,1)}
+%$cgargs {zeros(7,1)}
 assert(isreal(x_quat) && all(size(x_quat) == [7 1]), ...
       'quat2tr: x = [7x1] (double)');   
 

@@ -19,7 +19,7 @@ function x_quat = tr2quat(T)
 
 %% Init
 %#codegen
-%#cgargs {zeros(4,4)}
+%$cgargs {zeros(4,4)}
 assert(isreal(T) && all(size(T) == [4 4]), ...
   'tr2quat: T = [4x4] (double)');   
 

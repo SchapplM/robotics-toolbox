@@ -17,7 +17,7 @@
 function rotvec = r2rotvec(R)
 
 %#codegen
-%#cgargs {zeros(3,3)}
+%$cgargs {zeros(3,3)}
 assert(isreal(R) && all(size(R) == [3 3]), ...
 	'r2rotvec: R = [3x3] (double)');   
 

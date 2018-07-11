@@ -15,7 +15,7 @@
 function rpy = r2rpy(R)
 %% Init
 %#codegen
-%#cgargs {zeros(3,3)}
+%$cgargs {zeros(3,3)}
 assert(isreal(R) && all(size(R) == [3 3]), ...
   'r2rpy: R has to be [3x3] (double)');  
 

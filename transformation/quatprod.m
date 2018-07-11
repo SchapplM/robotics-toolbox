@@ -17,7 +17,7 @@
 
 function q3 = quatprod(q1, q2)
 %#codegen
-%#cgargs {zeros(4,1),zeros(4,1)}
+%$cgargs {zeros(4,1),zeros(4,1)}
 assert(isreal(q1) && all(size(q1) == [4 1]), ...
   'quatprod: Einagbe-Quaternion q1 muss [4x1] double sein');
 assert(isreal(q2) && all(size(q2) == [4 1]), ...

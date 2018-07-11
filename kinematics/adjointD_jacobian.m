@@ -25,7 +25,7 @@
 
 function AD_C_B = adjointD_jacobian(r_i_B_C, R_W_i, omega_W_i)
 %#codegen
-%#cgargs {zeros(3,1),zeros(3,3),zeros(3,1)}
+%$cgargs {zeros(3,1),zeros(3,3),zeros(3,1)}
 assert(isreal(r_i_B_C) && all(size(r_i_B_C) == [3 1]), ...
   'adjointD_jacobian: r_i_B_C has to be [3x1] (double)');
 assert(isreal(R_W_i) && all(size(R_W_i) == [3 3]), ...

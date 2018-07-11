@@ -25,7 +25,7 @@
 function TD = angvelotrans_rpyD(phi, phiD)
 %% Init
 %#codegen
-%#cgargs {zeros(3,1),zeros(3,1)}
+%$cgargs {zeros(3,1),zeros(3,1)}
 assert( isreal(phi) &&  all(size(phi) == [3 1]) , ...
   'angvelotrans_rpyD:phi has to be 3x1 (double)');  
 assert( isreal(phiD) && all(size(phiD) == [3 1]), ...

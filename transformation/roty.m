@@ -25,7 +25,7 @@
 % along with RTB.  If not, see <http://www.gnu.org/licenses/>.
 
 function r = roty(t)
-%#cgargs {zeros(1,1)}
+%$cgargs {zeros(1,1)}
 assert(isreal(t) && all(size(t) == [1 1]), ...
   'Rotation angles t has to be [1x1] (double)');
 

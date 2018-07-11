@@ -14,7 +14,7 @@
 
 function [theta, n] = r2angvec(R)
 %#codegen
-%#cgargs {zeros(3,3)}
+%$cgargs {zeros(3,3)}
 assert(isreal(R) && all(size(R) == [3 3]), ...
   'r2angvec: R = [3x3] (double)');   
 

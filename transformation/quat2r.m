@@ -19,7 +19,7 @@
 function R = quat2r(quat)
 %% Init
 %#codegen
-%#cgargs {zeros(4,1)}
+%$cgargs {zeros(4,1)}
 assert(isreal(quat) && all(size(quat) == [4 1]), ...
   'quat2r: Input Quaternion has to be [4x1] (double)');
 

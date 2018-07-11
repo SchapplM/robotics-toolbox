@@ -33,7 +33,7 @@ function T = angvec2tr(theta, k)
 
 %% Init
 %#codegen
-%#cgargs {zeros(1,1),zeros(3,1)}
+%$cgargs {zeros(1,1),zeros(3,1)}
 assert(isreal(theta) && all(size(theta) == [1 1]));   
 assert(isreal(k) && all(size(k) == [3 1]));  
 

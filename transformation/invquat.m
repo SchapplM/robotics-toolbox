@@ -16,7 +16,7 @@
 
 function qi = invquat(q)
 %#codegen
-%#cgargs {zeros(4,1)}
+%$cgargs {zeros(4,1)}
 assert(isreal(q) && all(size(q) == [4 1]), ...
   'invquat: Einagbe-Quaternion muss [4x1] (double) sein');
 

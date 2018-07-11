@@ -10,7 +10,7 @@ function invTrM = invtr(TrM)
 %% Init
 % Coder Information
 %#codegen
-%#cgargs {zeros(4,4)}
+%$cgargs {zeros(4,4)}
 assert(isreal(TrM) && all(size(TrM) == [4 4]), ...
   'invtr: Transformationsmatrix muss [4x4] (double) sein');   
 

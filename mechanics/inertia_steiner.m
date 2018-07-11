@@ -20,7 +20,7 @@
 
 function J_P = inertia_steiner(J_C, a, m)
 %#codegen
-%#cgargs {zeros(3,3),zeros(3,1),zeros(1,1)}
+%$cgargs {zeros(3,3),zeros(3,1),zeros(1,1)}
 assert(all(size(J_C) == [3, 3]), ...
       'inertia_steiner: J_C = [3x3] (double)');
 assert(all(size(a) == [3, 1]), ...

@@ -23,7 +23,7 @@ function omega = rpyD2omega(rpy, rpyD)
 
 %% Init
 %#codegen
-%#cgargs {zeros(3,1),zeros(3,1)}
+%$cgargs {zeros(3,1),zeros(3,1)}
 assert(all(size(rpy) == [3 1]) && isreal(rpy), ...
   'rpyD2omega: rpy angles have to be [3x1] (double)'); 
 assert(all(size(rpyD) == [3 1]) && isreal(rpyD), ...
