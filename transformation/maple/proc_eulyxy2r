@@ -1,0 +1,11 @@
+eulyxy2r := proc (phi1, phi2, phi3)
+#Berechnung der Rotationsmatrix aus (intrinsischen) yxy-Euler-Winkeln
+local RM:
+# RM := roty(phi1) . rotx(phi2) . roty(phi3):
+RM := Matrix(3, 3, [[cos(phi1)*cos(phi3)-sin(phi1)*cos(phi2)*sin(phi3),sin(
+phi1)*sin(phi2),cos(phi1)*sin(phi3)+sin(phi1)*cos(phi2)*cos(phi3)],[sin(phi2)*
+sin(phi3),cos(phi2),-sin(phi2)*cos(phi3)],[-sin(phi1)*cos(phi3)-cos(phi1)*cos(
+phi2)*sin(phi3),cos(phi1)*sin(phi2),-sin(phi1)*sin(phi3)+cos(phi1)*cos(phi2)*
+cos(phi3)]]);
+return RM:
+end proc:
