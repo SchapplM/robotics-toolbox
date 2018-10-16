@@ -71,4 +71,20 @@ for i_conv = 1:N
     end
   end
   fprintf('%d Umrechnungen mit r2eul%s getestet\n', n, eulstr);
+  
+  %% Aufruf der Gradientenmatrizen
+  for i = 1:n
+    R_i = R_ges(:,:,i);
+    phi_i = r2eul(R_i, i_conv);
+    % Beide Gradienten berechnen
+    dphi_dr = eul_diff_rotmat(R_i, i_conv);
+    dr_dphi = rotmat_diff_eul(phi_i, i_conv);
+    % Die Multiplikation der Gradienten muss eins ergeben
+    % (Differentiale kürzen sich weg)
+    test = dphi_dr*dr_dphi - eye(3);
+    if any(abs(test(:))>1e-10)
+      error('Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s stimmen nicht überein', eulstr, eulstr);
+    end    
+  end
+  fprintf('%d Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s getestet\n', n, eulstr, eulstr);
 end
