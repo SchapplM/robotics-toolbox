@@ -1,0 +1,5 @@
+trotz := proc (gamma) 
+  local T; 
+  T := Matrix(4,4,`<,>`(`<|>`(rotz(gamma),`<,>`(0,0,0)),`<|>`(0,0,0,1))); 
+  return T 
+end proc;

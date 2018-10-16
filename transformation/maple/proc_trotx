@@ -1,0 +1,5 @@
+trotx := proc (alpha) 
+  local T; 
+  T := Matrix(4,4,`<,>`(`<|>`(rotx(alpha),`<,>`(0,0,0)),`<|>`(0,0,0,1))); 
+  return T 
+end proc;
