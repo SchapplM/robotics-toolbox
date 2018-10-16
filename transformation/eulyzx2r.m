@@ -1,4 +1,5 @@
 % yzx-Euler-Winkel in eine Rotationsmatrix konvertieren
+% Konvention: R = roty(phi1) * rotz(phi2) * rotx(phi3). (mitgedrehte Euler-Winkel; intrinsisch)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
@@ -11,7 +12,7 @@ assert(isreal(phi) && all(size(phi) == [3 1]), 'eulyzx2r: phi has to be [3x1] (d
 phi1=phi(1); phi2=phi(2); phi3=phi(3);
 %% Berechnung
 % R = roty(phi1) * rotz(phi2) * rotx(phi3):
-% aus codeexport/eulyzx2r_matlab.m
+% aus codeexport/eulyzx2r_matlab.m (euler_angle_calculations.mw)
 t58 = sin(phi3);
 t60 = sin(phi1);
 t67 = t60 * t58;

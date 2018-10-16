@@ -1,6 +1,7 @@
-eulzxz2r := proc (phi1, phi2, phi3)
+eulzxz2r := proc (phi)
 #Berechnung der Rotationsmatrix aus (intrinsischen) zxz-Euler-Winkeln
-local RM:
+local RM, phi1, phi2, phi3:
+phi1:=phi(1): phi2:=phi(2): phi3:=phi(3):
 # RM := rotz(phi1) . rotx(phi2) . rotz(phi3):
 RM := Matrix(3, 3, [[cos(phi1)*cos(phi3)-sin(phi1)*cos(phi2)*sin(phi3),-cos(
 phi1)*sin(phi3)-sin(phi1)*cos(phi2)*cos(phi3),sin(phi1)*sin(phi2)],[sin(phi1)*
