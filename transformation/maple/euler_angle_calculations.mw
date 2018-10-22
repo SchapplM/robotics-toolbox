@@ -339,4 +339,57 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block>
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>
+<Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">euljac: Transformation zwischen Winkelgeschwindigkeiten und Zeitableitung der Euler-Winkel</Text-field></Title><Presentation-Block>
+<Group view="presentation" inline-output="false" labelreference="L7" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Diese Jacobi-Matrix stellt den linearen Zusammenhang w=J phiD dar.</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L2018" drawlabel="true">
+<Input><Text-field style="Text" layout="Normal">Definitionen</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" inline-output="false" labelreference="L2026" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion6" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">phi_t:=Matrix(3,1,&lt;phi1(t),phi2(t),phi3(t)&gt;):
+phiD_t:=diff~(phi_t,t):
+phi_s:=Matrix(3,1,&lt;phi1_s,phi2_s,phi3_s&gt;):
+phiD_s:=Matrix(3,1,&lt;phi1D_s,phi2D_s,phi3D_s&gt;):
+</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L2015" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Berechnung f\303\274r alle Euler-Winkel-Konventionen</Font></Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" inline-output="false" labelreference="L2017" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion5" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">for iconv from 1 to 12 do
+  eulstr := eulstrings[iconv]:
+  read(sprintf(&quot;proc_eul%s2r&quot;, eulstr)): # Prozedur aus Datei einlesen
+  eul2r := parse(sprintf(&quot;eul%s2r&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
+  # Rotationsmatrix nach Euler-Konvention
+  R_t:=eul2r(phi_t):
+  # Winkelgeschwindigkeit aus der Zeitableitung der Rotationsmatrix
+  omegatilde_t:=diff~(R_t,t).Transpose(R_t):
+  omega_t := Matrix(3,1,&lt;omegatilde_t(3,2), omegatilde_t(1,3), omegatilde_t(2,1)&gt;):
+
+  #Ausdr\303\274cke substituieren (f\303\274r Matlab-Export ohne Zeitabh\303\244ngigkeit)
+  R_s := R_t:
+  omega_s := omega_t:
+  omegatilde_s:=omegatilde_t:
+  for i from 1 to 3 do
+    omega_s:= subs({phiD_t[i,1] = phiD_s[i,1]},omega_s):
+    omegatilde_s:= subs({phiD_t[i,1] = phiD_s[i,1]},omegatilde_s):
+    R_s:= subs({phi_t[i,1] = phi_s[i,1]},R_s):
+    omega_s:= subs({phi_t[i,1] = phi_s[i,1]},omega_s):
+    omegatilde_s:= subs({phi_t[i,1] = phi_s[i,1]},omegatilde_s):
+  end do:
+
+  #Euler-Jacobi durch Ableitung bestimmen, da der lineare Zusammenhang
+  #zwischen Winkelgeschwindigkeit und Euler-Winkel-Zeitableitung bekannt ist.
+  J := Matrix(3,3):
+  for i from 1 to 3 do:
+    for j from 1 to 3 do:
+      J(i,j) := simplify(diff(omega_s(i,1), phiD_s(j,1))):
+    end do:
+  end do:
+  MatlabExport(J, sprintf(&quot;codeexport/eul%sjac_matlab.m&quot;, eulstr), 2):
+end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block>
+</Section><Presentation-Block>
+<Group view="code" labelreference="L2022" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block>
 </Worksheet>

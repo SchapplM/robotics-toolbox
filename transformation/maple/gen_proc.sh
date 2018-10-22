@@ -147,3 +147,40 @@ for f in `find codeexport/rotmat_diff_eul*_matlab.m`; do
   echo "GradMat = $varname_tmp;" >> $zd
 done
 
+# euljac: Matlab-Funktionen generieren
+# Die Funktionen sollten aus dem Maple-Code generiert werden, damit dieser direkt geprüft werden kann
+for f in `find codeexport/eul*jac_matlab.m`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Matlab euljac für $eulstr"
+  # Matlab-Funktion erstellen
+  zd="../eul${eulstr}jac.m"
+  echo "% Jacobi-Matrix für ${eulstr}-Euler-Winkel" > $zd
+  echo "% Zur Umrechnung zwischen Euler-Winkel-Ableitung und Winkelgeschwindigkeit" >> $zd
+  echo "% Konvention: R = rot${eulstr:0:1}(phi1) * rot${eulstr:1:1}(phi2) * rot${eulstr:2:1}(phi3)." >> $zd
+  echo "% (mitgedrehte Euler-Winkel; intrinsisch)" >> $zd
+  echo "%"  >> $zd
+  echo "% Eingabe:"  >> $zd
+  echo "% phi [3x1]:"  >> $zd
+  echo "%   ${eulstr}-Euler-Winkel"  >> $zd
+  echo "%"  >> $zd
+  echo "% Ausgabe:"  >> $zd
+  echo "% J [3x3]:"  >> $zd
+  echo "%   Euler-Jacobimatrix: Linearer Zusammenhang zwischen"  >> $zd
+  echo "%   Winkelgeschwindigkeit und Euler-Winkel-Zeitableitung"  >> $zd
+  echo "%   w = J * phiD"  >> $zd
+  echo "%"  >> $zd
+  echo "% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10" >> $zd
+  echo "% (C) Institut für mechatronische Systeme, Leibniz Universität Hannover" >> $zd
+  echo "%"  >> $zd
+  echo "function J = eul${eulstr}jac(phi)" >> $zd
+  echo "%% Init" >> $zd
+  echo "%#codegen" >> $zd
+  echo "%\$cgargs {zeros(3,1)}" >> $zd
+  echo "assert(isreal(phi) && all(size(phi) == [3 1]), 'eul${eulstr}jac: phi has to be [3x1] (double)');" >> $zd
+  echo "phi1_s=phi(1); phi2_s=phi(2); phi3_s=phi(3);" >> $zd
+  echo "%% Berechnung" >> $zd
+  echo "% aus $f (euler_angle_calculations.mw)" >> $zd
+  cat $f >> $zd
+  varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
+  echo "J = $varname_tmp;" >> $zd
+done
