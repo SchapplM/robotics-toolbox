@@ -54,4 +54,6 @@ switch conv
     GradMat = rotmat_diff_eulzyx(phi);
   case 12 % zyz
     GradMat = rotmat_diff_eulzyz(phi);
+  otherwise
+    error('rotmat_diff_eul: conv has to be 1 to 12');
 end

@@ -52,4 +52,6 @@ switch conv
     R = eulzyx2r(phi);
   case 12 % zyz
     R = eulzyz2r(phi);
+  otherwise
+    error('eul2r: conv has to be 1 to 12');
 end

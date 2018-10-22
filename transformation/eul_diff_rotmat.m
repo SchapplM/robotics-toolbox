@@ -54,4 +54,6 @@ switch conv
     R = eulzyx_diff_rotmat(R);
   case 12 % zyz
     R = eulzyz_diff_rotmat(R);
+  otherwise
+    error('eul_diff_rotmat: conv has to be 1 to 12');
 end
