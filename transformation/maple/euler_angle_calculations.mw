@@ -385,10 +385,24 @@ phiD_s:=Matrix(3,1,&lt;phi1D_s,phi2D_s,phi3D_s&gt;):
       J(i,j) := simplify(diff(omega_s(i,1), phiD_s(j,1))):
     end do:
   end do:
+  save J, sprintf(&quot;codeexport/eul%sjac_maple&quot;, eulstr):
   MatlabExport(J, sprintf(&quot;codeexport/eul%sjac_matlab.m&quot;, eulstr), 2):
-end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block>
+end do:</EC-CodeEditor></CodeEditor-ExecGroup>
+<Group view="code" labelreference="L2031" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Test der generierten Maple-Prozedur</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L2032" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"><Font encoding="UTF-8">read(sprintf(&quot;proc_eul%sjac&quot;, eulstr)): # Prozedur aus Datei einlesen
+euljac := parse(sprintf(&quot;eul%sjac&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`</Font></Text-field>
+</Input>
+</Group>
+<Group view="code" hide-input="false" labelreference="L2033" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">euljac(phi_s) - J;</Text-field>
+</Input>
+</Group></Presentation-Block>
 </Section><Presentation-Block>
-<Group view="code" labelreference="L2022" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Group view="code" labelreference="L2030" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>

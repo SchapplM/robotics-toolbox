@@ -147,6 +147,22 @@ for f in `find codeexport/rotmat_diff_eul*_matlab.m`; do
   echo "GradMat = $varname_tmp;" >> $zd
 done
 
+
+# euljac: Maple-Prozedur generieren
+for f in `find codeexport/eul*jac_maple`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Maple euljac für $eulstr"
+  # Prozedur erstellen
+  zd="proc_eul${eulstr}jac"
+  echo "eul${eulstr}jac := proc (phi)" > $zd
+  echo "# Jacobi-Matrix für ${eulstr}-Euler-Winkel" >> $zd
+  echo "local J, phi1_s, phi2_s, phi3_s:" >> $zd
+  echo "phi1_s:=phi(1): phi2_s:=phi(2): phi3_s:=phi(3):" >> $zd
+  cat $f >> $zd
+  echo "return J:" >> $zd
+  echo "end proc:" >> $zd
+done
+
 # euljac: Matlab-Funktionen generieren
 # Die Funktionen sollten aus dem Maple-Code generiert werden, damit dieser direkt geprüft werden kann
 for f in `find codeexport/eul*jac_matlab.m`; do
