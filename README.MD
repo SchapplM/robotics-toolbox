@@ -24,7 +24,7 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
 
 * Transformationen
   * Elementar-Rotationen und -Transformationen: `rotx.m`, `roty.m`, `rotz.m`, `trotx.m`, `troty.m`, `trotz.m`, `transl.m`, `invtr.m`. Die Funktionen entsprechen der Corke-Toolbox
-  * Transformationen zur RPY-Winkelkonvention (Drehung um mitgedrehte x-, y-, z-Achse): `r2rpy.m`, `tr2rpy.m`, `angvelotrans_rpy.m`, `angvelotrans_rpyD.m`, `rpyD2omega.m`, `rpyDD2omegaD.m`. Die Konvention wurde in der Corke-Toolbox geändert und ist nicht mehr konsistent.
+  * Transformationen zur Euler-XYZ-Winkelkonvention (Drehung um mitgedrehte x-, y-, z-Achse): `r2eulxyz.m`, `eulxyzjac.m`, `eulxyzjacD.m`, `eulxyzD2omega.m`, `eulxyzDD2omegaD.m`. Die Konvention wurde in der Corke-Toolbox geändert und ist nicht mehr konsistent. Daher sind die Funktionen mit eulxyz statt mit rpy benannt.
   * Integration von Winkelgeschwindigkeiten: `angvel_int_sl.m`, `angvel_int_rpy.mdl`, `angvel_int_rotmat.mdl`, `angvel_int_quat.mdl`, `angvel_body_int_rotmat.mdl`, `angvel_body_int_quat.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_integration`
   * Quaternionen: `r2quat.m`, `r2quat_klumpp.m`, `quat2r.m`
@@ -35,7 +35,7 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
   * Adjunkt-Matrix zur Umrechnung von Jacobi-Matrizen auf andere Punkte auf dem selben Segment: `adjoint_jacobian.m`, `adjointD_jacobian.m`
   * Simulink-Bibliothek: `lib_rigid_body_kinematics.mdl`
 * Dynamik
-  * Dynamikfunktionen für allgemeine (serielle) Roboter mit und ohne bewegte Basis: `robot_tree_invdyn_floatb_eulangrpy_nnew_vp1_m.m`, `robot_tree_invdyn_floatb_eulangrpy_mdh_nnew_vp1.m`
+  * Dynamikfunktionen für allgemeine (serielle) Roboter mit und ohne bewegte Basis: `robot_tree_invdyn_floatb_eulxyz_nnew_vp1_m.m`, `robot_tree_invdyn_floatb_eulxyz_mdh_nnew_vp1.m`
   * Massenmatrix nach dem Composite Rigid Body Algorithm von Featherstone: `inertia_nCRB_vp1_m.m`
   * Berechnungen zur Faktorisierung der Massenmatrix: `fdyn_solve_inertia_LTL.m`, `inertia_factorization_LTL.m`
   * Simulink-Bibliothek zu Starrkörperdynamik: `lib_rigid_body_dynamics.mdl`
