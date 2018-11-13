@@ -141,7 +141,7 @@ for i = 1:nt
   if CARTCTRL == 1 % Euler-RPY
     R_B1_B2 = R_W_B1_i' * R_W_B2_i;
     phi_B1_B2 = r2eulxyz(R_B1_B2);
-    T = angvelotrans_rpy(phi_B1_B2); % [Natale2003], (2.34)
+    T = eulxyzjac(phi_B1_B2); % [Natale2003], (2.34)
     Te = R_W_B1_i*T; % [Natale2003], (2.31)
     mu_ce = (Te') \ (k_P_r .* (phi_B1_B2)); % [Natale2003], (2.32)
     E_F_rot(i) = sum(0.5 * k_P_r .* phi_B1_B2.^2);

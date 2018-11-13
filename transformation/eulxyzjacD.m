@@ -22,14 +22,14 @@
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2015-08
 % (c) Institut für Regelungstechnik, Universität Hannover
 
-function TD = angvelotrans_rpyD(phi, phiD)
+function TD = eulxyzjacD(phi, phiD)
 %% Init
 %#codegen
 %$cgargs {zeros(3,1),zeros(3,1)}
 assert( isreal(phi) &&  all(size(phi) == [3 1]) , ...
-  'angvelotrans_rpyD:phi has to be 3x1 (double)');  
+  'eulxyzjacD:phi has to be 3x1 (double)');  
 assert( isreal(phiD) && all(size(phiD) == [3 1]), ...
-  'angvelotrans_rpyD:phiD has to be 3x1 (double)');  
+  'eulxyzjacD:phiD has to be 3x1 (double)');  
 
 alpha = phi(1);
 beta = phi(2);
@@ -38,7 +38,7 @@ alphaD = phiD(1);
 betaD = phiD(2);
 
 %% Calculation
-% Zeitableitung des Terms in angvelotrans_rpy
+% Zeitableitung des Terms in eulxyzjac
 % Siehe maple_codegen/rotation_rpy_omega.mw
 TD = [0, 0,          cos(beta)*betaD;
      0, -sin(alpha)*alphaD, (-cos(alpha)*cos(beta))*alphaD+(-sin(alpha)*(-sin(beta)))*betaD;

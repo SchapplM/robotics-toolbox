@@ -2213,13 +2213,13 @@ Library {
 	}
 	Block {
 	  BlockType		  Reference
-	  Name			  "angvelotrans_rpy"
+	  Name			  "eulxyzjac"
 	  SID			  "20"
 	  Ports			  [1, 1]
 	  Position		  [100, 505, 160, 525]
 	  ZOrder		  345
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "lib_transformations/angvelotrans_rpy"
+	  SourceBlock		  "lib_transformations/eulxyzjac"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -3786,12 +3786,12 @@ Library {
 	  Labels		  [0, 0]
 	  SrcBlock		  "Bus\nSelector3"
 	  SrcPort		  1
-	  DstBlock		  "angvelotrans_rpy"
+	  DstBlock		  "eulxyzjac"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  56
-	  SrcBlock		  "angvelotrans_rpy"
+	  SrcBlock		  "eulxyzjac"
 	  SrcPort		  1
 	  DstBlock		  "Transpose"
 	  DstPort		  1

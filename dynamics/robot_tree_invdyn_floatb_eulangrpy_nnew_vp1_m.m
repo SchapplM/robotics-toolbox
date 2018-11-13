@@ -170,7 +170,7 @@ for i = 2:nb
 end
 
 %% Basis-Kraft
-T_basevel = angvelotrans_rpy(phi_base);
+T_basevel = eulxyzjac(phi_base);
 tau_B = [R_W_0*f_i_i_ges(:,1); T_basevel' * R_W_0*n_i_i_ges(:,1)]; 
 
 %% Ausgabe
