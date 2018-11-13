@@ -95,7 +95,7 @@ for i_Modus = 1:2
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_com';
   elseif i_Modus == 2
     NJ = 0;
-    phi_base_t0 = r2rpy(R_W_B_t0);
+    phi_base_t0 = r2eulxyz(R_W_B_t0);
     T_basevel_t0 = angvelotrans_rpy(phi_base_t0);
     phiD_base_t0 = T_basevel_t0\omega0_t0;
     sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulangrpy';
@@ -337,7 +337,7 @@ fprintf('Fehler Gravitationsmoment: %e\n', max(taug_base-taug_base_test));
 %% Probe
 % Probe der Massenmatrix (selbst berechnet)
 
-R_W_B = rpy2r(phi_base(1), phi_base(2), phi_base(3));
+R_W_B = eulxyz2r(phi_base(1), phi_base(2), phi_base(3));
 Mq_test_tt = m * eye(3);
 Mq_test_tr = (-m*skew(r_S)*T_basevel)
 Mq_test_rr = NaN(3,3);

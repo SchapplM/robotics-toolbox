@@ -51,7 +51,7 @@ function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulangrpy_nnew_v
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base);
+R_W_0 = eulxyz2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen

@@ -35,7 +35,7 @@ function tau_g = robot_tree_gravload_floatb_eulangrpy_mdh_nnew_vp1(q, phi_base, 
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base);
+R_W_0 = eulxyz2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen

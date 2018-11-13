@@ -2203,7 +2203,7 @@ Library {
 	  SourceBlock		  "lib_rigid_body_kinematics/angvel_int_rotmat"
 	  SourceType		  ""
 	  ContentPreviewEnabled	  off
-	  R_0E_t0		  "rpy2r(phi_base_t0 )"
+	  R_0E_t0		  "eulxyz2r(phi_base_t0 )"
 	  Port {
 	    PortNumber		    1
 	    Name		    "R_W_0"

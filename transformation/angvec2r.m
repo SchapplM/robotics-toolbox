@@ -3,7 +3,7 @@
 % R = ANGVEC2R(THETA, V) is an orthonormal rotation matrix, R, 
 % equivalent to a rotation of THETA about the vector V.
 %
-% See also eul2r, rpy2r.
+% See also eul2r, eulxyz2r.
 
 
 

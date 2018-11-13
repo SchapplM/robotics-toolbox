@@ -3859,7 +3859,7 @@ Library {
     }
     Block {
       BlockType		      SubSystem
-      Name		      "rpy2r"
+      Name		      "eulxyz2r"
       SID		      "45"
       Ports		      [1, 1]
       Position		      [830, 55, 890, 105]
@@ -3867,7 +3867,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"rpy2r"
+	Name			"eulxyz2r"
 	Location		[2885, 52, 3840, 1128]
 	Open			on
 	PortBlocksUseCompactNotation off
@@ -6325,7 +6325,7 @@ Stateflow {
   chart {
     id			    46
     machine		    1
-    name		    "rpy2r/rpy2R"
+    name		    "eulxyz2r/rpy2R"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -6364,7 +6364,7 @@ Stateflow {
       script		      "% RPY-Winkelkonvention in Rotationsmatrix umwandeln\n% \n% Input:\n%  rpy-Winkel [3x1]\n%   Defin"
       "ition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n% Output:\n% rpy:\n% R [3x3]\n%   Rotationsmatrix\n\n\n% Mor"
       "itz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität Hannov"
-      "er\n\nfunction R = fcn(phi)\n%#codegen\nR = rpy2r(phi);\n"
+      "er\n\nfunction R = fcn(phi)\n%#codegen\nR = eulxyz2r(phi);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6452,7 +6452,7 @@ Stateflow {
   instance {
     id			    52
     machine		    1
-    name		    "rpy2r/rpy2R"
+    name		    "eulxyz2r/rpy2R"
     chart		    46
   }
   chart {
@@ -8283,7 +8283,7 @@ Stateflow {
       script		      "% Rotationsmatrix in RPY-Winkelkonvention umwandeln\n% \n% Input:\n% R:\n%   [3x3] Rotationsmatri"
       "x\n% \n% Output:\n% rpy:\n%   [3x1] rpy-Winkel\n%   Definition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n\n%"
       " Moritz Schappler, schappler@irt.uni-hannover.de, 2015-08\n% (c) Institut für Regelungstechnik, Universität Ha"
-      "nnover\n\nfunction phi = fcn(R)\n%#codegen\nphi = r2rpy(R)';\n"
+      "nnover\n\nfunction phi = fcn(R)\n%#codegen\nphi = r2eulxyz(R)';\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }

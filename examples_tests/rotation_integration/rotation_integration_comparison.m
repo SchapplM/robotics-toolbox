@@ -3,7 +3,7 @@
 % 
 % * kontinuierliche Integration
 % * Integration von Quaternionen
-% * Integration mit RPY-Winkeln
+% * Integration mit RPY-Winkeln (XYZ-Euler-Winkel)
 % * zeitdiskrete Integration mit Achse/Winkel-Umrechnung der Winkelgeschw.
 % * Winkelgeschwindigkeit im Welt- oder mitgedrehtem Körper-Koordinatensystem
 % 
@@ -60,7 +60,7 @@ for i = 1:length(feature_vector)
   
   rpy_t0=A.*sin(rpy_phases)+rpy_offsets;
   omega0_t0 = rpyD2omega(rpy_t0, 2*pi*f.*A.*cos(rpy_phases));
-  R_t0 = rpy2r(rpy_t0);
+  R_t0 = eulxyz2r(rpy_t0);
   [theta, k] = r2angvec(R_t0);
   rotvec_t0 = k*theta;
   quat_t0 = r2quat(R_t0);
@@ -87,7 +87,7 @@ for i = 1:length(feature_vector)
     %% Nachbearbeitung
     sl.rpy_int = NaN(length(sl.t), 3);
     for jj = 1:length(sl.t)
-      sl.rpy_int(jj,:) = r2rpy_mex(sl.R_int(:,:,jj));
+      sl.rpy_int(jj,:) = r2eulxyz_mex(sl.R_int(:,:,jj));
     end
     
     t_input = sl.t;
@@ -111,7 +111,7 @@ for i = 1:length(feature_vector)
     sl.t_soll = t_input; % kann bei variabler Schrittweite anders sein
     sl.R_soll = NaN(3,3,size(rpy_matrix,1));
     for jj = 1:size(rpy_matrix,1)
-      sl.R_soll(:,:,jj) = rpy2r(rpy_matrix(jj,:)');
+      sl.R_soll(:,:,jj) = eulxyz2r(rpy_matrix(jj,:)');
     end
     
     %% Speichern
@@ -261,7 +261,7 @@ t_ges = (0:1e-3:20)';
 f1 = [1;3;5];
 f2 = [7;11;9];
 omega_W_ges = (sin(2*pi*f1*t_ges') .* sin(2*pi*f2*t_ges'))';
-R_t0 = rpy2r(rand(3,1));
+R_t0 = eulxyz2r(rand(3,1));
 Ts = 1e-3;
 R_int_erg = {};
 % Berechne Modelle mit Eingabe der Winkelgeschw. in Welt-KS

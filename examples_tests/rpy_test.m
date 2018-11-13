@@ -1,4 +1,4 @@
-% Teste unterschiedliche Transformationsfunktionen für RPY-Winkel
+% Teste unterschiedliche Transformationsfunktionen für XYZ-Euler-Winkel
 
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05
 % (c) Institut für Regelungstechnik, Universität Hannover
@@ -16,26 +16,26 @@ for i = 1:n
   R_ges(:,:,i) = rotx(rpy(i,1))*roty(rpy(i,2))*rotz(rpy(i,3));
 end
 
-%% Teste r2rpy
+%% Teste r2eulxyz
 for i = 1:n
   R_i = R_ges(:,:,i);
-  rpy_i = r2rpy(R_i);
-  R_i_test = rpy2r(rpy_i);
+  rpy_i = r2eulxyz(R_i);
+  R_i_test = eulxyz2r(rpy_i);
   
   if any( abs( R_i(:)-R_i_test(:) ) > 1e-10 )
-    error('Umrechnung r2rpy stimmt nicht');
+    error('Umrechnung r2eulxyz stimmt nicht');
   end
 end
-fprintf('%d Umrechnungen mit r2rpy getestet\n', n);
+fprintf('%d Umrechnungen mit r2eulxyz getestet\n', n);
 
-%% Teste r2rpy
+%% Teste r2eulxyz
 for i = 1:n
   R_i = R_ges(:,:,i);
-  rpy_i = r2rpy(R_i);
-  R_i_test = rpy2r(rpy_i);
+  rpy_i = r2eulxyz(R_i);
+  R_i_test = eulxyz2r(rpy_i);
   
   if any( abs( R_i(:)-R_i_test(:) ) > 1e-10 )
-    error('Umrechnung r2rpy stimmt nicht');
+    error('Umrechnung r2eulxyz stimmt nicht');
   end
 end
-fprintf('%d Umrechnungen mit r2rpy getestet\n', n);
+fprintf('%d Umrechnungen mit r2eulxyz getestet\n', n);

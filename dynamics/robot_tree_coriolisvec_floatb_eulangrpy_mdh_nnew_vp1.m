@@ -46,7 +46,7 @@ function tau_c = robot_tree_coriolisvec_floatb_eulangrpy_mdh_nnew_vp1(q, qD, phi
 nq = length(q);
 nb = nq+1;
 tau_J = NaN(nq,1);
-R_W_0 = rpy2r(phi_base);
+R_W_0 = eulxyz2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
