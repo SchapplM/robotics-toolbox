@@ -1,6 +1,6 @@
 % https://github.com/RobotLocomotion/drake/blob/master/util/quat2rpy.m
 
-function rpy = quat2rpy(q)
+function rpy = quat2eulxyz(q)
 % convert quaternion to ROS rpy
 % from http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 
