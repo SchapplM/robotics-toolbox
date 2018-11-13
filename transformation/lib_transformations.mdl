@@ -7543,8 +7543,7 @@ Stateflow {
       "naten um\n% \n% Eingabe:\n% phi\n%   Orientierung des Körpers (RPY-Winkel)\n% tau_b\n%   Kraft und Moment in ve"
       "rallgemeinerten Koordinaten, die an dem Körper\n%   angreifen\n% \n% Ausgabe:\n% F_W [6x]\n%   Kraft und Moment"
       " (wrench)\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2017-03\n% (c) Institut für Regelungstechnik, U"
-      "niversität Hannover\n\nfunction tau_b = fcn(phi, F_W)\n%#codegen\ntau_b = NaN(6,1);\nT_angvel = angvelotrans_rp"
-      "y(phi(1), phi(2), phi(3));\n% Kraft\ntau_b(1:3) = F_W(1:3);\n% Moment\ntau_b(4:6) = (T_angvel') * F_W(4:6);"
+      "niversität Hannover\n\nfunction tau_b = fcn(phi, F_W)\n%#codegen\ntau_b = NaN(6,1);\nT_angvel = eulxyzjac([phi(1);phi(2);phi(3)]);\n% Kraft\ntau_b(1:3) = F_W(1:3);\n% Moment\ntau_b(4:6) = (T_angvel') * F_W(4:6);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
