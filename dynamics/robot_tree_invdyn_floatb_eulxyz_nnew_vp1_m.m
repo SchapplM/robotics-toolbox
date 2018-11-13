@@ -43,7 +43,7 @@
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06
 % (c) Institut für Regelungstechnik, Universität Hannover
 
-function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulangrpy_nnew_vp1_m(q, qD, qDD, phi_base, xD_base, xDD_base, ...
+function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulxyz_nnew_vp1_m(q, qD, qDD, phi_base, xD_base, xDD_base, ...
   T_stack, RotAx_i, v, sigma, m_num, rSges_num_mdh, Icges_num_mdh)
 
 

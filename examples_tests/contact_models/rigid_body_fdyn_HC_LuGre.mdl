@@ -138,7 +138,7 @@ Model {
     }
     TestPointedSignal {
       SignalName	      "tau_acc"
-      FullBlockPath	      "rigid_body_fdyn_HC_LuGre/rigidbody_fordyn_floatb_eulangrpy_vp1/Sum3"
+      FullBlockPath	      "rigid_body_fdyn_HC_LuGre/rigidbody_fordyn_floatb_eulxyz_vp1/Sum3"
       LogSignal		      1
       MaxPoints		      5000
       Decimation	      2
@@ -2802,13 +2802,13 @@ Model {
     }
     Block {
       BlockType		      Reference
-      Name		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_energy_floatb_eulxyz_vp1"
       SID		      "288"
       Ports		      [3, 2]
       Position		      [805, 19, 885, 91]
       ZOrder		      388
       LibraryVersion	      "1.2"
-      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_energy_floatb_eulangrpy_vp1"
+      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_energy_floatb_eulxyz_vp1"
       SourceType	      ""
       ContentPreviewEnabled   off
       KinPar_mdh	      "KinPar_mdh"
@@ -2817,13 +2817,13 @@ Model {
     }
     Block {
       BlockType		      Reference
-      Name		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       SID		      "263"
       Ports		      [1, 1]
       Position		      [290, 277, 440, 343]
       ZOrder		      386
       LibraryVersion	      "1.2"
-      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_fordyn_floatb_eulangrpy_vp1"
+      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_fordyn_floatb_eulxyz_vp1"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_base_t0		      "r_t0"
@@ -2957,7 +2957,7 @@ Model {
     }
     Line {
       ZOrder		      435
-      SrcBlock		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       SrcPort		      1
       Points		      [47, 0]
       Branch {
@@ -3038,14 +3038,14 @@ Model {
     }
     Line {
       ZOrder		      446
-      SrcBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       SrcPort		      1
       DstBlock		      "E_kin_sym"
       DstPort		      1
     }
     Line {
       ZOrder		      442
-      SrcBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       SrcPort		      2
       DstBlock		      "E_pot_sym"
       DstPort		      1
@@ -3056,7 +3056,7 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      3
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      3
     }
     Line {
@@ -3065,7 +3065,7 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      1
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      1
     }
     Line {
@@ -3074,7 +3074,7 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      2
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      2
     }
     Line {
@@ -3098,7 +3098,7 @@ Model {
       ZOrder		      436
       SrcBlock		      "Add"
       SrcPort		      1
-      DstBlock		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       DstPort		      1
     }
     Line {

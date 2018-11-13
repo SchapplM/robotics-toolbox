@@ -22,12 +22,12 @@
 % [1] Featherstone: Rigid Body Dynamics Algorithms, S.98
 % [2] Khalil, W. and Kleinfinger, J.-F.: A new geometric notation for open and closed-loop robots (1986)
 % 
-% Siehe robot_tree_invdyn_floatb_eulangrpy_nnew_vp1.m
+% Siehe robot_tree_invdyn_floatb_eulxyz_nnew_vp1.m
 
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06
 % (c) Institut für Regelungstechnik, Universität Hannover
 
-function tau_g = robot_tree_gravload_floatb_eulangrpy_mdh_nnew_vp1(q, phi_base, g_world, ...
+function tau_g = robot_tree_gravload_floatb_eulxyz_mdh_nnew_vp1(q, phi_base, g_world, ...
   alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma, m_num, rSges_num_mdh)
 
 

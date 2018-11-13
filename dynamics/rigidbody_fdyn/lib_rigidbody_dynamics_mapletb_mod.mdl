@@ -923,7 +923,7 @@ Library {
     SIDHighWatermark	    "78"
     Block {
       BlockType		      SubSystem
-      Name		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_energy_floatb_eulxyz_vp1"
       SID		      "53"
       Ports		      [3, 2]
       Position		      [190, 227, 290, 313]
@@ -961,7 +961,7 @@ Library {
 	}
       }
       System {
-	Name			"rigidbody_energy_floatb_eulangrpy_vp1"
+	Name			"rigidbody_energy_floatb_eulxyz_vp1"
 	Location		[1969, 62, 2904, 562]
 	Open			off
 	ModelBrowserVisibility	off
@@ -1011,7 +1011,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rigidbody_energykin_floatb_eulangrpy_vp1"
+	  Name			  "rigidbody_energykin_floatb_eulxyz_vp1"
 	  SID			  "58"
 	  Ports			  [2, 1]
 	  Position		  [200, 45, 310, 140]
@@ -1045,7 +1045,7 @@ Library {
 	    }
 	  }
 	  System {
-	    Name		    "rigidbody_energykin_floatb_eulangrpy_vp1"
+	    Name		    "rigidbody_energykin_floatb_eulxyz_vp1"
 	    Location		    [1969, 62, 2904, 562]
 	    Open		    off
 	    ModelBrowserVisibility  off
@@ -1368,7 +1368,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rigidbody_energypot_floatb_eulangrpy_vp1"
+	  Name			  "rigidbody_energypot_floatb_eulxyz_vp1"
 	  SID			  "68"
 	  Ports			  [3, 1]
 	  Position		  [205, 169, 305, 291]
@@ -1402,7 +1402,7 @@ Library {
 	    }
 	  }
 	  System {
-	    Name		    "rigidbody_energypot_floatb_eulangrpy_vp1"
+	    Name		    "rigidbody_energypot_floatb_eulxyz_vp1"
 	    Location		    [1979, 62, 3830, 1070]
 	    Open		    off
 	    ModelBrowserVisibility  off
@@ -1729,19 +1729,19 @@ Library {
 	  SrcBlock		  "Constant"
 	  SrcPort		  1
 	  Points		  [9, 0; 0, -50]
-	  DstBlock		  "rigidbody_energypot_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_energypot_floatb_eulxyz_vp1"
 	  DstPort		  3
 	}
 	Line {
 	  ZOrder		  2
-	  SrcBlock		  "rigidbody_energypot_floatb_eulangrpy_vp1"
+	  SrcBlock		  "rigidbody_energypot_floatb_eulxyz_vp1"
 	  SrcPort		  1
 	  DstBlock		  "U"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  3
-	  SrcBlock		  "rigidbody_energykin_floatb_eulangrpy_vp1"
+	  SrcBlock		  "rigidbody_energykin_floatb_eulxyz_vp1"
 	  SrcPort		  1
 	  Points		  [0, -5]
 	  DstBlock		  "T"
@@ -1755,13 +1755,13 @@ Library {
 	  Branch {
 	    ZOrder		    5
 	    Points		    [0, -10; 2, 0; 0, -37; 100, 0]
-	    DstBlock		    "rigidbody_energykin_floatb_eulangrpy_vp1"
+	    DstBlock		    "rigidbody_energykin_floatb_eulxyz_vp1"
 	    DstPort		    1
 	  }
 	  Branch {
 	    ZOrder		    6
 	    Points		    [0, 80]
-	    DstBlock		    "rigidbody_energypot_floatb_eulangrpy_vp1"
+	    DstBlock		    "rigidbody_energypot_floatb_eulxyz_vp1"
 	    DstPort		    2
 	  }
 	}
@@ -1770,7 +1770,7 @@ Library {
 	  SrcBlock		  "r_base"
 	  SrcPort		  1
 	  Points		  [40, 0; 0, 75]
-	  DstBlock		  "rigidbody_energypot_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_energypot_floatb_eulxyz_vp1"
 	  DstPort		  1
 	}
 	Line {
@@ -1778,14 +1778,14 @@ Library {
 	  SrcBlock		  "xD_base"
 	  SrcPort		  1
 	  Points		  [33, 0; 0, -63; 55, 0; 0, -12]
-	  DstBlock		  "rigidbody_energykin_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_energykin_floatb_eulxyz_vp1"
 	  DstPort		  2
 	}
       }
     }
     Block {
       BlockType		      SubSystem
-      Name		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       SID		      "1"
       Ports		      [1, 1]
       Position		      [155, 82, 325, 158]
@@ -1907,7 +1907,7 @@ Library {
 	}
       }
       System {
-	Name			"rigidbody_fordyn_floatb_eulangrpy_vp1"
+	Name			"rigidbody_fordyn_floatb_eulxyz_vp1"
 	Location		[90, 90, 910, 638]
 	Open			off
 	ModelBrowserVisibility	off
@@ -2381,7 +2381,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rigidbody_coriolisvec_floatb_eulangrpy_vp1"
+	  Name			  "rigidbody_coriolisvec_floatb_eulxyz_vp1"
 	  SID			  "23"
 	  Ports			  [2, 1]
 	  Position		  [650, 427, 715, 503]
@@ -2424,7 +2424,7 @@ Library {
 	    DataLoggingNameMode	    "SignalName"
 	  }
 	  System {
-	    Name		    "rigidbody_coriolisvec_floatb_eulangrpy_vp1"
+	    Name		    "rigidbody_coriolisvec_floatb_eulxyz_vp1"
 	    Location		    [1959, 542, 2914, 1090]
 	    Open		    off
 	    ModelBrowserVisibility  off
@@ -2747,7 +2747,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rigidbody_gravload_floatb_eulangrpy_vp1"
+	  Name			  "rigidbody_gravload_floatb_eulxyz_vp1"
 	  SID			  "33"
 	  Ports			  [2, 1]
 	  Position		  [600, 535, 675, 595]
@@ -2789,7 +2789,7 @@ Library {
 	    DataLoggingNameMode	    "SignalName"
 	  }
 	  System {
-	    Name		    "rigidbody_gravload_floatb_eulangrpy_vp1"
+	    Name		    "rigidbody_gravload_floatb_eulxyz_vp1"
 	    Location		    [1959, 542, 2914, 1090]
 	    Open		    off
 	    ModelBrowserVisibility  off
@@ -3065,7 +3065,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rigidbody_inertia_floatb_eulangrpy_vp1"
+	  Name			  "rigidbody_inertia_floatb_eulxyz_vp1"
 	  SID			  "41"
 	  Ports			  [1, 1]
 	  Position		  [370, 282, 445, 338]
@@ -3099,7 +3099,7 @@ Library {
 	    }
 	  }
 	  System {
-	    Name		    "rigidbody_inertia_floatb_eulangrpy_vp1"
+	    Name		    "rigidbody_inertia_floatb_eulxyz_vp1"
 	    Location		    [1979, 62, 3830, 1070]
 	    Open		    off
 	    ModelBrowserVisibility  off
@@ -3421,7 +3421,7 @@ Library {
 	  Labels		  [0, 0]
 	  SrcBlock		  "Bus\nSelector2"
 	  SrcPort		  1
-	  DstBlock		  "rigidbody_inertia_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_inertia_floatb_eulxyz_vp1"
 	  DstPort		  1
 	}
 	Line {
@@ -3431,7 +3431,7 @@ Library {
 	  SrcBlock		  "Bus\nSelector1"
 	  SrcPort		  1
 	  Points		  [-2, 0; 0, 5]
-	  DstBlock		  "rigidbody_gravload_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_gravload_floatb_eulxyz_vp1"
 	  DstPort		  1
 	}
 	Line {
@@ -3441,7 +3441,7 @@ Library {
 	  SrcBlock		  "Bus\nSelector"
 	  SrcPort		  1
 	  Points		  [-47, 0; 0, -5]
-	  DstBlock		  "rigidbody_coriolisvec_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_coriolisvec_floatb_eulxyz_vp1"
 	  DstPort		  1
 	}
 	Line {
@@ -3450,7 +3450,7 @@ Library {
 	  Labels		  [0, 0]
 	  SrcBlock		  "Bus\nSelector"
 	  SrcPort		  2
-	  DstBlock		  "rigidbody_coriolisvec_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_coriolisvec_floatb_eulxyz_vp1"
 	  DstPort		  2
 	}
 	Line {
@@ -3709,7 +3709,7 @@ Library {
 	  Name			  "tau_g"
 	  ZOrder		  46
 	  Labels		  [0, 0]
-	  SrcBlock		  "rigidbody_gravload_floatb_eulangrpy_vp1"
+	  SrcBlock		  "rigidbody_gravload_floatb_eulxyz_vp1"
 	  SrcPort		  1
 	  Points		  [-110, 0]
 	  DstBlock		  "Sum3"
@@ -3729,7 +3729,7 @@ Library {
 	  Name			  "tau_c"
 	  ZOrder		  48
 	  Labels		  [-1, 0]
-	  SrcBlock		  "rigidbody_coriolisvec_floatb_eulangrpy_vp1"
+	  SrcBlock		  "rigidbody_coriolisvec_floatb_eulxyz_vp1"
 	  SrcPort		  1
 	  DstBlock		  "Sum3"
 	  DstPort		  3
@@ -3752,7 +3752,7 @@ Library {
 	}
 	Line {
 	  ZOrder		  51
-	  SrcBlock		  "rigidbody_inertia_floatb_eulangrpy_vp1"
+	  SrcBlock		  "rigidbody_inertia_floatb_eulxyz_vp1"
 	  SrcPort		  1
 	  DstBlock		  "mFcn_Minv"
 	  DstPort		  1
@@ -3762,7 +3762,7 @@ Library {
 	  SrcBlock		  "Constant"
 	  SrcPort		  1
 	  Points		  [-285, 0]
-	  DstBlock		  "rigidbody_gravload_floatb_eulangrpy_vp1"
+	  DstBlock		  "rigidbody_gravload_floatb_eulxyz_vp1"
 	  DstPort		  2
 	}
 	Line {
@@ -3850,7 +3850,7 @@ Stateflow {
   }
   chart {
     id			    2
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_gravload_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_gravload_floatb_eulxyz_vp1/MATLAB Function"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -3885,7 +3885,7 @@ Stateflow {
       isEML		      1
       script		      "function taug = gravload(ob, g_world, ...\n  m, r_S)\n%#codegen\nq = zeros(0,1);\nalpha_mdh = zer"
       "os(0,1);\na_mdh = zeros(0,1);\nd_mdh = zeros(0,1);\nq_offset_mdh = zeros(0,1);\nb_mdh = zeros(0,1);\nbeta_mdh = "
-      "zeros(0,1);\ntaug_base = rigidbody_gravload_base_floatb_eulangrpy_slag_vp1(q, ob, g_world, ...\n  alpha_mdh, a_m"
+      "zeros(0,1);\ntaug_base = rigidbody_gravload_base_floatb_eulxyz_slag_vp1(q, ob, g_world, ...\n  alpha_mdh, a_m"
       "dh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S);\ntaug = [taug_base];\n\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4033,13 +4033,13 @@ Stateflow {
   }
   instance {
     id			    11
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_gravload_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_gravload_floatb_eulxyz_vp1/MATLAB Function"
     machine		    1
     chart		    2
   }
   chart {
     id			    12
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_coriolisvec_floatb_eulangrpy_vp1/coriolisvec_fcn"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_coriolisvec_floatb_eulxyz_vp1/coriolisvec_fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -4074,7 +4074,7 @@ Stateflow {
       isEML		      1
       script		      "function tauc = coriolis(phi_base, xD_base, ...\n   m, r_S, I_S)\n%#codegen\nq = zeros(0,1);\nqD "
       "= zeros(0,1);\nalpha_mdh = zeros(0,1);\na_mdh = zeros(0,1);\nd_mdh = zeros(0,1);\nq_offset_mdh = zeros(0,1);\nb_"
-      "mdh = zeros(0,1);\nbeta_mdh = zeros(0,1);\ntauc = rigidbody_coriolisvec_floatb_eulangrpy_slag_vp1(q, qD, phi_bas"
+      "mdh = zeros(0,1);\nbeta_mdh = zeros(0,1);\ntauc = rigidbody_coriolisvec_floatb_eulxyz_slag_vp1(q, qD, phi_bas"
       "e, xD_base, ...\n  alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S, I_S);\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4244,13 +4244,13 @@ Stateflow {
   }
   instance {
     id			    22
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_coriolisvec_floatb_eulangrpy_vp1/coriolisvec_fcn"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_coriolisvec_floatb_eulxyz_vp1/coriolisvec_fcn"
     machine		    1
     chart		    12
   }
   chart {
     id			    23
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_inertia_floatb_eulangrpy_vp1/inertiajoint_fcn"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_inertia_floatb_eulxyz_vp1/inertiajoint_fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -4285,7 +4285,7 @@ Stateflow {
       isEML		      1
       script		      "function Mq = inertia(phi_base, ...\n  m, r_S, I_S)\n%#codegen\nq = zeros(0,1);\n\nalpha_mdh = ze"
       "ros(0,1);\na_mdh = zeros(0,1);\nd_mdh = zeros(0,1);\nq_offset_mdh = zeros(0,1);\nb_mdh = zeros(0,1);\nbeta_mdh ="
-      " zeros(0,1);\nMq = rigidbody_inertia_floatb_eulangrpy_slag_vp1(q, phi_base, ...\n  alpha_mdh, a_mdh, d_mdh, q_of"
+      " zeros(0,1);\nMq = rigidbody_inertia_floatb_eulxyz_slag_vp1(q, phi_base, ...\n  alpha_mdh, a_mdh, d_mdh, q_of"
       "fset_mdh, b_mdh, beta_mdh, m, r_S, I_S);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4433,13 +4433,13 @@ Stateflow {
   }
   instance {
     id			    32
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/rigidbody_inertia_floatb_eulangrpy_vp1/inertiajoint_fcn"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/rigidbody_inertia_floatb_eulxyz_vp1/inertiajoint_fcn"
     machine		    1
     chart		    23
   }
   chart {
     id			    33
-    name		    "rigidbody_energy_floatb_eulangrpy_vp1/rigidbody_energypot_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_energy_floatb_eulxyz_vp1/rigidbody_energypot_floatb_eulxyz_vp1/MATLAB Function"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -4476,7 +4476,7 @@ Stateflow {
       isEML		      1
       script		      "function U = energypot(r_base, phi_base, g_world, ...\n  m, r_S)\n\nq = zeros(0,1);\nalpha_mdh = "
       "zeros(0,1);\na_mdh = zeros(0,1);\nd_mdh = zeros(0,1);\nq_offset_mdh = zeros(0,1);\nb_mdh = zeros(0,1);\nbeta_mdh"
-      " = zeros(0,1);\n\n%#codegen\nU = rigidbody_energypot_floatb_eulangrpy_slag_vp1(q, r_base, phi_base, g_world, ..."
+      " = zeros(0,1);\n\n%#codegen\nU = rigidbody_energypot_floatb_eulxyz_slag_vp1(q, r_base, phi_base, g_world, ..."
       "\n  alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S);\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4646,13 +4646,13 @@ Stateflow {
   }
   instance {
     id			    43
-    name		    "rigidbody_energy_floatb_eulangrpy_vp1/rigidbody_energypot_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_energy_floatb_eulxyz_vp1/rigidbody_energypot_floatb_eulxyz_vp1/MATLAB Function"
     machine		    1
     chart		    33
   }
   chart {
     id			    44
-    name		    "rigidbody_energy_floatb_eulangrpy_vp1/rigidbody_energykin_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_energy_floatb_eulxyz_vp1/rigidbody_energykin_floatb_eulxyz_vp1/MATLAB Function"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -4689,7 +4689,7 @@ Stateflow {
       isEML		      1
       script		      "function T = energykin(phi_base, xD_base,  ...\n  m, r_S, I_S)\n\nq = zeros(0,1);\nqD = zeros(0,1"
       ");\nalpha_mdh = zeros(0,1);\na_mdh = zeros(0,1);\nd_mdh = zeros(0,1);\nq_offset_mdh = zeros(0,1);\nb_mdh = zeros"
-      "(0,1);\nbeta_mdh = zeros(0,1);\n\n%#codegen\nT = rigidbody_energykin_floatb_eulangrpy_slag_vp1(q, qD, phi_base, "
+      "(0,1);\nbeta_mdh = zeros(0,1);\n\n%#codegen\nT = rigidbody_energykin_floatb_eulxyz_slag_vp1(q, qD, phi_base, "
       "xD_base, ...\n  alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S, I_S);\n\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -4859,13 +4859,13 @@ Stateflow {
   }
   instance {
     id			    54
-    name		    "rigidbody_energy_floatb_eulangrpy_vp1/rigidbody_energykin_floatb_eulangrpy_vp1/MATLAB Function"
+    name		    "rigidbody_energy_floatb_eulxyz_vp1/rigidbody_energykin_floatb_eulxyz_vp1/MATLAB Function"
     machine		    1
     chart		    44
   }
   chart {
     id			    55
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/mFcn_Minv"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/mFcn_Minv"
     windowPosition	    [357.331 483.407 167 391]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 1280 1024 1.041050272174191]
@@ -4998,7 +4998,7 @@ Stateflow {
   }
   instance {
     id			    62
-    name		    "rigidbody_fordyn_floatb_eulangrpy_vp1/mFcn_Minv"
+    name		    "rigidbody_fordyn_floatb_eulxyz_vp1/mFcn_Minv"
     machine		    1
     chart		    55
   }

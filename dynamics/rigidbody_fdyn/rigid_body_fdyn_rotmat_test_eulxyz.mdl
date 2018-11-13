@@ -1,5 +1,5 @@
 Model {
-  Name			  "rigid_body_fdyn_rotmat_test_eulangrpy"
+  Name			  "rigid_body_fdyn_rotmat_test_eulxyz"
   Version		  8.5
   MdlSubVersion		  0
   SavedCharacterEncoding  "UTF-8"
@@ -88,7 +88,7 @@ Model {
     NumTestPointedSignals   1
     TestPointedSignal {
       SignalName	      "tau_acc"
-      FullBlockPath	      "rigid_body_fdyn_rotmat_test_eulangrpy/rigidbody_fordyn_floatb_eulangrpy_vp1/Sum3"
+      FullBlockPath	      "rigid_body_fdyn_rotmat_test_eulxyz/rigidbody_fordyn_floatb_eulxyz_vp1/Sum3"
       LogSignal		      1
       MaxPoints		      5000
       Decimation	      2
@@ -887,7 +887,7 @@ Model {
     }
   }
   System {
-    Name		    "rigid_body_fdyn_rotmat_test_eulangrpy"
+    Name		    "rigid_body_fdyn_rotmat_test_eulxyz"
     Location		    [1959, 14, 3850, 1090]
     Open		    on
     ModelBrowserVisibility  off
@@ -1006,13 +1006,13 @@ Model {
     }
     Block {
       BlockType		      Reference
-      Name		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_energy_floatb_eulxyz_vp1"
       SID		      "249"
       Ports		      [3, 2]
       Position		      [645, 14, 735, 96]
       ZOrder		      385
       LibraryVersion	      "1.1"
-      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_energy_floatb_eulangrpy_vp1"
+      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_energy_floatb_eulxyz_vp1"
       SourceType	      ""
       ContentPreviewEnabled   off
       KinPar_mdh	      "KinPar_mdh"
@@ -1021,13 +1021,13 @@ Model {
     }
     Block {
       BlockType		      Reference
-      Name		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      Name		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       SID		      "248"
       Ports		      [1, 1]
       Position		      [210, 272, 380, 348]
       ZOrder		      384
       LibraryVersion	      "1.1"
-      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_fordyn_floatb_eulangrpy_vp1"
+      SourceBlock	      "lib_rigidbody_dynamics_mapletb_mod/rigidbody_fordyn_floatb_eulxyz_vp1"
       SourceType	      ""
       ContentPreviewEnabled   off
       r_base_t0		      "r0"
@@ -1289,7 +1289,7 @@ Model {
     }
     Line {
       ZOrder		      428
-      SrcBlock		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       SrcPort		      1
       Points		      [26, 0]
       Branch {
@@ -1472,14 +1472,14 @@ Model {
     }
     Line {
       ZOrder		      468
-      SrcBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       SrcPort		      1
       DstBlock		      "E_kin_sym"
       DstPort		      1
     }
     Line {
       ZOrder		      469
-      SrcBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      SrcBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       SrcPort		      2
       DstBlock		      "E_pot_sym"
       DstPort		      1
@@ -1490,7 +1490,7 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      3
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      3
     }
     Line {
@@ -1499,7 +1499,7 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      1
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      1
     }
     Line {
@@ -1508,14 +1508,14 @@ Model {
       Labels		      [0, 0]
       SrcBlock		      "Bus\nSelector1"
       SrcPort		      2
-      DstBlock		      "rigidbody_energy_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_energy_floatb_eulxyz_vp1"
       DstPort		      2
     }
     Line {
       ZOrder		      429
       SrcBlock		      "simin_F_ext"
       SrcPort		      1
-      DstBlock		      "rigidbody_fordyn_floatb_eulangrpy_vp1"
+      DstBlock		      "rigidbody_fordyn_floatb_eulxyz_vp1"
       DstPort		      1
     }
   }
@@ -1528,7 +1528,7 @@ Model {
 Stateflow {
   machine {
     id			    1
-    name		    "rigid_body_fdyn_rotmat_test_eulangrpy"
+    name		    "rigid_body_fdyn_rotmat_test_eulxyz"
     created		    "10-Mar-2016 09:55:39"
     isLibrary		    0
     firstTarget		    2

@@ -1,4 +1,4 @@
-% Calculate vector of Coriolis base and joint forces/torques for a
+% Calculate vector of inverse dynamics base and joint forces/torques for a
 % general floating base robot
 % Use numerical implementation of recursive Newton-Euler Algorithm
 % 
@@ -7,12 +7,16 @@
 %   Joint Angles [rad]
 % qD [NJx1]
 %   Joint Velocities [rad/s]
+% qDD [NJx1]
+%   Joint Accelerations [rad/s^2]
 % phi_base [3x1]
 %   Base orientation in world frame. Expressed with RPY Euler angles (xyz)
 % xD_base [6x1]
 %   time derivative of 
 %   r_base (3x1 Base position in world frame) and 
 %   phi_base (3x1)
+% xDD_base [6x1]
+%   second time derivative of r_base (3x1) and phi_base (3x1)
 % alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma [NJx1]
 %   kinematic parameters according to [2]
 %   sigma: type of joints (0=rotational, 1=prismatic)
@@ -21,9 +25,13 @@
 %   inertia about center of mass. Order: xx, yy, zz, xy, xz, yz)
 % 
 % Output:
-% tau_c [(6+NJ)x1]
-%   base forces and joint torques required to compensate centrifugal and
-%   coriolis forces. Base moments expressed in generalized coordinates (Euler-RPY)
+% tau [(6+NJ)x1]
+%   base forces and joint torques required to compensate inverse dynamics
+%   base moments in generalized coordinates (euler-RPY)
+% v_i_i_ges [3xNB]
+%   translational velocity of each body frame expressed in the body frame
+% w_i_i_ges [3xNB]
+%   angular velocity of each body frame expressed in the body frame
 % 
 % Sources:
 % [1] Featherstone: Rigid Body Dynamics Algorithms, S.98
@@ -32,13 +40,11 @@
 % [3] W. Khalil and E. Dombre: Modeling, Identification and Control of
 %     Robots (2002)
 % [4] T. Ortmaier: Skript Robotik 1 (WS 2014/15), S. 115f
-% 
-% Siehe robot_tree_invdyn_floatb_eulangrpy_nnew_vp1.m
 
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06
 % (c) Institut für Regelungstechnik, Universität Hannover
 
-function tau_c = robot_tree_coriolisvec_floatb_eulangrpy_mdh_nnew_vp1(q, qD, phi_base, xD_base, ...
+function [tau, v_i_i_ges, w_i_i_ges] = robot_tree_invdyn_floatb_eulxyz_mdh_nnew_vp1(q, qD, qDD, phi_base, xD_base, xDD_base, ...
   alpha_mdh, a_mdh, d_mdh, theta_mdh, q_offset_mdh, b_mdh, beta_mdh, v_mdh, sigma, m_num, rSges_num_mdh, Icges_num_mdh)
 
 
@@ -74,10 +80,8 @@ wD_i_i_ges = NaN(3,nb);
 v_i_i_ges(:,1) = R_W_0'*xD_base(1:3);
 w_i_i_ges(:,1) = R_W_0'*eulxyzD2omega(phi_base, xD_base(4:6));
 
-vD_i_i_ges(:,1) = zeros(3,1);
-% Auch ohne Beschleunigung der verallgemeinerten Koordinaten der
-% Basisorientierung gibt es eine Winkelgeschwindigkeit der Basis im Welt-KS
-wD_i_i_ges(:,1) = R_W_0'*eulxyzDD2omegaD(phi_base, xD_base(4:6), zeros(3,1));
+vD_i_i_ges(:,1) = R_W_0'*xDD_base(1:3);
+wD_i_i_ges(:,1) = R_W_0'*eulxyzDD2omegaD(phi_base, xD_base(4:6), xDD_base(4:6));
 
 for i = 2:nb
   % Nummer des Vorgänger-Segments
@@ -104,11 +108,12 @@ for i = 2:nb
   end
   wD_i_i = R_j_i'*wD_j_j;
   if sigma(i-1) == 0
-    wD_i_i = wD_i_i + cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
+    wD_i_i = wD_i_i + [0;0;1]*qDD(i-1) + cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
   end
   vD_i_i = R_j_i'*( vD_j_j + cross(wD_j_j, r_j_j_i) +cross(w_j_j, cross(w_j_j, r_j_j_i)) );
   if sigma(i-1) == 1
-    vD_i_i = vD_i_i + 2*cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
+    % [4], Gl. 7.16
+    vD_i_i = vD_i_i + [0;0;1]*qDD(i-1) + 2*cross(R_j_i'*w_j_j, [0;0;1]*qD(i-1));
   end
   
   % Ausgabeausdrücke belegen
@@ -140,16 +145,22 @@ for i = nb:-1:1
   
   % Suche alle Nachfolger und addiere das Schnittmoment
   I_nf = find( (v_mdh == (i-1)) )' + 1;
-  for j = I_nf % Index des Nachfolgers
-    R_i_j = T_mdh(1:3,1:3,j-1);
-    f_j_j = f_i_i_ges(:,j);
-    n_j_j = n_i_i_ges(:,j);
-    r_i_i_j = T_mdh(1:3,4,j-1);
-     
-    f_i_i = f_i_i + R_i_j*f_j_j;
-    n_i_i = n_i_i + R_i_j*n_j_j + cross(r_i_i_j, R_i_j*f_j_j);
+  % Wähle diese Konstruktion um Schleifen mit variabler Länge zu vermeiden (Kompilierbarkeit)
+  if ~isempty(I_nf)
+    for tmp = 1:length(v_mdh) % Index des Nachfolgers
+      j = I_nf(tmp);
+      R_i_j = T_mdh(1:3,1:3,j-1);
+      f_j_j = f_i_i_ges(:,j);
+      n_j_j = n_i_i_ges(:,j);
+      r_i_i_j = T_mdh(1:3,4,j-1);
+
+      f_i_i = f_i_i + R_i_j*f_j_j;
+      n_i_i = n_i_i + R_i_j*n_j_j + cross(r_i_i_j, R_i_j*f_j_j);
+      if tmp == length(I_nf)
+        break; % Abbruch. Alle Nachfolger untersucht.
+      end
+    end
   end
-  
   % Ausgabeausdrücke belegen
   f_i_i_ges(:,i) = f_i_i;
   n_i_i_ges(:,i) = n_i_i;
@@ -169,4 +180,4 @@ T_basevel = eulxyzjac(phi_base);
 tau_B = [R_W_0*f_i_i_ges(:,1); T_basevel' * R_W_0*n_i_i_ges(:,1)]; 
 
 %% Ausgabe
-tau_c = [tau_B; tau_J];
+tau = [tau_B; tau_J];

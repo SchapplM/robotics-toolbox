@@ -10,7 +10,7 @@
 % * rigid_body_fdyn_rotmat_test_com
 %     Die gleiche Vorwärtsdynamik, es wird nur außerdem die Bewegung des
 %     Körper-KS berechnet (und wieder herausgerechnet).
-% * rigid_body_fdyn_rotmat_test_eulangrpy
+% * rigid_body_fdyn_rotmat_test_eulxyz
 %     Die Vorwärtsdynamik wurde mit Lagrange aufgestellt (aus der
 %     Maple-Toolbox). Für die Basis-Orientierung wurden XYZ-Eulerwinkel
 %     verwendet.
@@ -98,7 +98,7 @@ for i_Modus = 1:2
     phi_base_t0 = r2eulxyz(R_W_B_t0);
     T_basevel_t0 = eulxyzjac(phi_base_t0);
     phiD_base_t0 = T_basevel_t0\omega0_t0;
-    sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulangrpy';
+    sl_Modellname = 'rigid_body_fdyn_rotmat_test_eulxyz';
   end
   load_system(sl_Modellname)
   configSet = getActiveConfigSet(sl_Modellname);
@@ -309,11 +309,11 @@ g_world = g_W;
 T_basevel = rpy2jac(phi_base);
 
 % Symbolisch berechnete Ausdrücke
-Mq =rigidbody_inertia_floatb_eulangrpy_slag_vp1(zeros(0,1), phi_base, ...
+Mq =rigidbody_inertia_floatb_eulxyz_slag_vp1(zeros(0,1), phi_base, ...
   alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S, I_S);
-tauc = rigidbody_coriolisvec_floatb_eulangrpy_slag_vp1(zeros(0,1), zeros(0,1), phi_base, xD_base, ...
+tauc = rigidbody_coriolisvec_floatb_eulxyz_slag_vp1(zeros(0,1), zeros(0,1), phi_base, xD_base, ...
   alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S, I_S);
-taug_base = rigidbody_gravload_base_floatb_eulangrpy_slag_vp1(zeros(0,1), phi_base, g_world, ...
+taug_base = rigidbody_gravload_base_floatb_eulxyz_slag_vp1(zeros(0,1), phi_base, g_world, ...
   alpha_mdh, a_mdh, d_mdh, q_offset_mdh, b_mdh, beta_mdh, m, r_S);
 tau_ext = [eye(3), zeros(3,3); zeros(3,3), T_basevel'] * y_Fext(1,1:6)';
 
