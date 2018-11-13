@@ -2144,13 +2144,13 @@ Library {
 	}
 	Block {
 	  BlockType		  Reference
-	  Name			  "R2rpy"
+	  Name			  "r2eulxyz"
 	  SID			  "16"
 	  Ports			  [1, 1]
 	  Position		  [1080, 300, 1140, 340]
 	  ZOrder		  338
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "lib_transformations/R2rpy"
+	  SourceBlock		  "lib_transformations/r2eulxyz"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	  Port {
@@ -3572,7 +3572,7 @@ Library {
 	Line {
 	  Name			  "phi_base"
 	  ZOrder		  24
-	  SrcBlock		  "R2rpy"
+	  SrcBlock		  "r2eulxyz"
 	  SrcPort		  1
 	  Points		  [24, 0; 0, -85; -76, 0]
 	  Branch {
@@ -3614,7 +3614,7 @@ Library {
 	  }
 	  Branch {
 	    ZOrder		    31
-	    DstBlock		    "R2rpy"
+	    DstBlock		    "r2eulxyz"
 	    DstPort		    1
 	  }
 	}

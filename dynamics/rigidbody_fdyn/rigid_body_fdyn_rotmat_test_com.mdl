@@ -1206,13 +1206,13 @@ Model {
     }
     Block {
       BlockType		      Reference
-      Name		      "R2rpy"
+      Name		      "r2eulxyz"
       SID		      "105"
       Ports		      [1, 1]
       Position		      [705, 665, 765, 685]
       ZOrder		      382
       LibraryVersion	      "1.54"
-      SourceBlock	      "lib_transformations/R2rpy"
+      SourceBlock	      "lib_transformations/r2eulxyz"
       SourceType	      "SubSystem"
       ContentPreviewEnabled   off
     }
@@ -2366,7 +2366,7 @@ Model {
 	      Branch {
 		ZOrder			237
 		Points			[0, 230]
-		DstBlock		"R2rpy"
+		DstBlock		"r2eulxyz"
 		DstPort			1
 	      }
 	      Branch {
@@ -2628,7 +2628,7 @@ Model {
     }
     Line {
       ZOrder		      238
-      SrcBlock		      "R2rpy"
+      SrcBlock		      "r2eulxyz"
       SrcPort		      1
       Points		      [6, 0]
       Branch {

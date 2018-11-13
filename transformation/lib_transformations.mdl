@@ -1037,7 +1037,7 @@ Library {
     SIDHighWatermark	    "111"
     Block {
       BlockType		      SubSystem
-      Name		      "R2rpy"
+      Name		      "r2eulxyz"
       SID		      "41"
       Ports		      [1, 1]
       Position		      [710, 55, 770, 105]
@@ -1045,7 +1045,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"R2rpy"
+	Name			"r2eulxyz"
 	Location		[974, 542, 1929, 1090]
 	Open			off
 	PortBlocksUseCompactNotation off
@@ -1071,7 +1071,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "R2rpy"
+	  Name			  "r2eulxyz"
 	  SID			  "30"
 	  Ports			  [1, 1]
 	  Position		  [70, 20, 160, 60]
@@ -1083,7 +1083,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "R2rpy"
+	    Name		    "r2eulxyz"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -1195,12 +1195,12 @@ Library {
 	  ZOrder		  10
 	  SrcBlock		  "R"
 	  SrcPort		  1
-	  DstBlock		  "R2rpy"
+	  DstBlock		  "r2eulxyz"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  11
-	  SrcBlock		  "R2rpy"
+	  SrcBlock		  "r2eulxyz"
 	  SrcPort		  1
 	  DstBlock		  "phi"
 	  DstPort		  1
@@ -3892,7 +3892,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rpy2R"
+	  Name			  "eulxyz2r"
 	  SID			  "47"
 	  Ports			  [1, 1]
 	  Position		  [70, 20, 160, 60]
@@ -3904,7 +3904,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "rpy2R"
+	    Name		    "eulxyz2r"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -4015,12 +4015,12 @@ Library {
 	  ZOrder		  3
 	  SrcBlock		  "phi"
 	  SrcPort		  1
-	  DstBlock		  "rpy2R"
+	  DstBlock		  "eulxyz2r"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  4
-	  SrcBlock		  "rpy2R"
+	  SrcBlock		  "eulxyz2r"
 	  SrcPort		  1
 	  DstBlock		  "R"
 	  DstPort		  1
@@ -6325,7 +6325,7 @@ Stateflow {
   chart {
     id			    46
     machine		    1
-    name		    "eulxyz2r/rpy2R"
+    name		    "eulxyz2r/eulxyz2r"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -6452,7 +6452,7 @@ Stateflow {
   instance {
     id			    52
     machine		    1
-    name		    "eulxyz2r/rpy2R"
+    name		    "eulxyz2r/eulxyz2r"
     chart		    46
   }
   chart {
@@ -8247,7 +8247,7 @@ Stateflow {
   chart {
     id			    147
     machine		    1
-    name		    "R2rpy/R2rpy"
+    name		    "r2eulxyz/r2eulxyz"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -8371,7 +8371,7 @@ Stateflow {
   instance {
     id			    153
     machine		    1
-    name		    "R2rpy/R2rpy"
+    name		    "r2eulxyz/r2eulxyz"
     chart		    147
   }
   chart {
