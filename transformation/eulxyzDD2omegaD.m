@@ -22,17 +22,17 @@
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2015-09
 % (c) Institut für Regelungstechnik, Universität Hannover
 
-function omegaD = rpyDD2omegaD(rpy, rpyD, rpyDD)
+function omegaD = eulxyzDD2omegaD(rpy, rpyD, rpyDD)
 
 %% Init
 %#codegen
 %$cgargs {zeros(3,1),zeros(3,3),zeros(3,1)}
 assert(all(size(rpy) == [3 1]) && isreal(rpy), ...
-  'rpyDD2omegaD: rpy angles have to be [3x1] (double)'); 
+  'eulxyzDD2omegaD: rpy angles have to be [3x1] (double)'); 
 assert(all(size(rpyD) == [3 1]) && isreal(rpyD), ...
-  'rpyDD2omegaD: rpy angles time derivatives have to be [3x1] (double)'); 
+  'eulxyzDD2omegaD: rpy angles time derivatives have to be [3x1] (double)'); 
 assert(all(size(rpyDD) == [3 1]) && isreal(rpyDD), ...
-  'rpyDD2omegaD: rpy angles second order time derivatives have to be [3x1] (double)'); 
+  'eulxyzDD2omegaD: rpy angles second order time derivatives have to be [3x1] (double)'); 
 
 alpha_s = rpy(1);
 beta_s = rpy(2);

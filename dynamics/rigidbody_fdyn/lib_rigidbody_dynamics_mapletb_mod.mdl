@@ -2093,7 +2093,7 @@ Library {
 	  Ports			  [1, 1]
 	  Position		  [885, 295, 915, 325]
 	  ZOrder		  325
-	  InitialCondition	  "rpyD2omega(phi_base_t0, phiD_base_t0)"
+	  InitialCondition	  "eulxyzD2omega(phi_base_t0, phiD_base_t0)"
 	  Port {
 	    PortNumber		    1
 	    Name		    "omega_W_0"
@@ -3390,13 +3390,13 @@ Library {
 	}
 	Block {
 	  BlockType		  Reference
-	  Name			  "rpyDD2omegaD"
+	  Name			  "eulxyzDD2omegaD"
 	  SID			  "50"
 	  Ports			  [3, 1]
 	  Position		  [740, 287, 845, 333]
 	  ZOrder		  339
 	  LibraryVersion	  "1.79"
-	  SourceBlock		  "lib_transformations/rpyDD2omegaD"
+	  SourceBlock		  "lib_transformations/eulxyzDD2omegaD"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	  Port {
@@ -3565,7 +3565,7 @@ Library {
 	  Branch {
 	    ZOrder		    23
 	    Points		    [-66, 0; 0, 65]
-	    DstBlock		    "rpyDD2omegaD"
+	    DstBlock		    "eulxyzDD2omegaD"
 	    DstPort		    2
 	  }
 	}
@@ -3587,7 +3587,7 @@ Library {
 	    Branch {
 	      ZOrder		      27
 	      Points		      [0, -26; -187, 0; 0, 86]
-	      DstBlock		      "rpyDD2omegaD"
+	      DstBlock		      "eulxyzDD2omegaD"
 	      DstPort		      1
 	    }
 	  }
@@ -3633,7 +3633,7 @@ Library {
 	  }
 	  Branch {
 	    ZOrder		    34
-	    DstBlock		    "rpyDD2omegaD"
+	    DstBlock		    "eulxyzDD2omegaD"
 	    DstPort		    3
 	  }
 	}
@@ -3669,7 +3669,7 @@ Library {
 	Line {
 	  Name			  "omegaD_W_0"
 	  ZOrder		  40
-	  SrcBlock		  "rpyDD2omegaD"
+	  SrcBlock		  "eulxyzDD2omegaD"
 	  SrcPort		  1
 	  Points		  [3, 0]
 	  Branch {

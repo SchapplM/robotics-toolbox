@@ -59,7 +59,7 @@ for i = 1:length(feature_vector)
   rpy_phases = [0 0 0]';
   
   rpy_t0=A.*sin(rpy_phases)+rpy_offsets;
-  omega0_t0 = rpyD2omega(rpy_t0, 2*pi*f.*A.*cos(rpy_phases));
+  omega0_t0 = eulxyzD2omega(rpy_t0, 2*pi*f.*A.*cos(rpy_phases));
   R_t0 = eulxyz2r(rpy_t0);
   [theta, k] = r2angvec(R_t0);
   rotvec_t0 = k*theta;
@@ -100,8 +100,8 @@ for i = 1:length(feature_vector)
     omegaD_matrix = NaN(size(rpy_matrix));
     % Winkelgeschwindigkeit und Beschleunigung generieren
     for jj = 1:size(rpy_matrix,1)
-      omega_matrix(jj,:) = rpyD2omega(rpy_matrix(jj,:)', rpyD_matrix(jj,:)');
-      omegaD_matrix(jj,:) = rpyDD2omegaD(rpy_matrix(jj,:)', rpyD_matrix(jj,:)', rpyDD_matrix(jj,:)');
+      omega_matrix(jj,:) = eulxyzD2omega(rpy_matrix(jj,:)', rpyD_matrix(jj,:)');
+      omegaD_matrix(jj,:) = eulxyzDD2omegaD(rpy_matrix(jj,:)', rpyD_matrix(jj,:)', rpyDD_matrix(jj,:)');
     end
     
     %% Eingabedaten auch speichern

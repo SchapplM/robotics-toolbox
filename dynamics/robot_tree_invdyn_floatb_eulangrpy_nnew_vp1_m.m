@@ -71,10 +71,10 @@ wD_i_i_ges = NaN(3,nb);
 
 % Anfangswerte: Geschwindigkeit und Beschleunigung der Basis
 v_i_i_ges(:,1) = R_W_0'*xD_base(1:3);
-w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base, xD_base(4:6));
+w_i_i_ges(:,1) = R_W_0'*eulxyzD2omega(phi_base, xD_base(4:6));
 
 vD_i_i_ges(:,1) = R_W_0'*xDD_base(1:3);
-wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base, xD_base(4:6), xDD_base(4:6));
+wD_i_i_ges(:,1) = R_W_0'*eulxyzDD2omegaD(phi_base, xD_base(4:6), xDD_base(4:6));
 
 % T_mdh_im1 = eye(4);
 for i = 2:nb

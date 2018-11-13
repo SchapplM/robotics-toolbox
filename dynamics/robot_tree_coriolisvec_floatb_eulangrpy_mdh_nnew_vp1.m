@@ -72,12 +72,12 @@ wD_i_i_ges = NaN(3,nb);
 
 % Anfangswerte: Geschwindigkeit und Beschleunigung der Basis
 v_i_i_ges(:,1) = R_W_0'*xD_base(1:3);
-w_i_i_ges(:,1) = R_W_0'*rpyD2omega(phi_base, xD_base(4:6));
+w_i_i_ges(:,1) = R_W_0'*eulxyzD2omega(phi_base, xD_base(4:6));
 
 vD_i_i_ges(:,1) = zeros(3,1);
 % Auch ohne Beschleunigung der verallgemeinerten Koordinaten der
 % Basisorientierung gibt es eine Winkelgeschwindigkeit der Basis im Welt-KS
-wD_i_i_ges(:,1) = R_W_0'*rpyDD2omegaD(phi_base, xD_base(4:6), zeros(3,1));
+wD_i_i_ges(:,1) = R_W_0'*eulxyzDD2omegaD(phi_base, xD_base(4:6), zeros(3,1));
 
 for i = 2:nb
   % Nummer des Vorgänger-Segments

@@ -321,7 +321,7 @@ tau_ext = [eye(3), zeros(3,3); zeros(3,3), T_basevel'] * y_Fext(1,1:6)';
 % den Plots möglich
 xDD0 = Mq \ (-tauc - taug_base + tau_ext);
 phiDD0 = xDD0(4:6);
-omegaD_t0 = rpyDD2omegaD(phi_base_t0', phiD_base_t0', phiDD0')';
+omegaD_t0 = eulxyzDD2omegaD(phi_base_t0', phiD_base_t0', phiDD0')';
 fprintf('omegaD(t=0) = [%s]\n', disp_array(omegaD_t0', '%1.3f'));
 aB_t0 = xDD0(1:3);
 fprintf('aB(t=0) = [%s]\n', disp_array(aB_t0', '%1.3f'));
