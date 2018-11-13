@@ -15,7 +15,7 @@ addpath(fullfile(this_repo_path, 'examples_tests', 'contact_models'));
 %% Transformationen
 angvec_test
 quaternion_test
-rpy_test
+euler_test
 rotvec_test
 
 %% Integration von Rotationsdarstellungen
