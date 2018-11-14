@@ -12,6 +12,7 @@ addpath(fullfile(this_repo_path, 'examples_tests'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_controllers'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_integration'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'contact_models'));
+
 %% Transformationen
 angvec_test
 quaternion_test
@@ -27,9 +28,13 @@ rigid_body_dynamics_test
 %% Orientierungsregler
 rotation_controllers_energy_test_start
 rotation_controllers_test_start
+
 %% Kontaktmodelle
 HuntCrossley_LuGre_1DOF_example
 sim('example_hunt_crossley_bouncing_ball', 'StopTime', '10', 'SimulationMode', 'normal');
+
+%% Alle Funktionen kompilieren
+robotics_toolbox_compile_test;
 
 %% Ende
 clc
