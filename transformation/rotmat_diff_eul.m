@@ -1,4 +1,4 @@
-% Ableitung der Rotationsmatrix nach den sie erzeugenden xyx-Euler-Winkel
+% Ableitung der Rotationsmatrix nach den sie erzeugenden Euler-Winkeln
 % 
 % Eingabe:
 % phi [3x1]
@@ -26,8 +26,15 @@
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
 
 function GradMat = rotmat_diff_eul(phi, conv)
+%% Init
+%#codegen
+%$cgargs {zeros(3,1), uint8(0)}
+assert(isreal(phi) && all(size(phi) == [3 1]), ...
+  'rotmat_diff_eul: phi has to be [3x1] (double)');
+assert(isa(conv,'uint8') && isscalar(conv), ...
+  'rotmat_diff_eul: Number of Euler convention has to be [1x1] uint8');
 
-assert(isreal(phi) && all(size(phi) == [3 1]), 'rotmat_diff_eul: phi has to be [3x1] (double)');
+%% Berechnung der Ausgabe, Fallunterscheidung der Euler-Konvention
 
 switch conv
   case 1 % xyx

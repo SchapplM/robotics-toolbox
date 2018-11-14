@@ -29,7 +29,15 @@
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
 
 function J = euljac(phi, conv)
+%% Init
+%#codegen
+%$cgargs {zeros(3,1), uint8(0)}
+assert(isreal(phi) && all(size(phi) == [3 1]), ...
+  'euljac: phi has to be [3x1] (double)');
+assert(isa(conv,'uint8') && isscalar(conv), ...
+  'euljac: Number of Euler convention has to be [1x1] uint8');
 
+%% Berechnung der Ausgabe, Fallunterscheidung der Euler-Konvention
 switch conv
   case 1 % xyx
     J = eulxyxjac(phi);
@@ -56,5 +64,5 @@ switch conv
   case 12 % zyz
     J = eulzyzjac(phi);
   otherwise
-    error('eul2r: conv has to be 1 to 12');
+    error('euljac: conv has to be 1 to 12');
 end

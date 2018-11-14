@@ -26,7 +26,15 @@
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
 
 function R = eul2r(phi, conv)
+%% Init
+%#codegen
+%$cgargs {zeros(3,1), uint8(0)}
+assert(isreal(phi) && all(size(phi) == [3 1]), ...
+  'eul2r: phi has to be [3x1] (double)');
+assert(isa(conv,'uint8') && isscalar(conv), ...
+  'eul2r: Number of Euler convention has to be [1x1] uint8');
 
+%% Berechnung der Ausgabe, Fallunterscheidung der Euler-Konvention
 switch conv
   case 1 % xyx
     R = eulxyx2r(phi);
