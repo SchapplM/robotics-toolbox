@@ -24,7 +24,9 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
 
 * Transformationen
   * Elementar-Rotationen und -Transformationen: `rotx.m`, `roty.m`, `rotz.m`, `trotx.m`, `troty.m`, `trotz.m`, `transl.m`, `invtr.m`. Die Funktionen entsprechen der Corke-Toolbox
-  * Transformationen zur Euler-XYZ-Winkelkonvention (Drehung um mitgedrehte x-, y-, z-Achse): `r2eulxyz.m`, `eulxyzjac.m`, `eulxyzjacD.m`, `eulxyzD2omega.m`, `eulxyzDD2omegaD.m`. Die Konvention wurde in der Corke-Toolbox geändert und ist nicht mehr konsistent. Daher sind die Funktionen mit eulxyz statt mit rpy benannt.
+  * Transformationen zur Euler-XYZ-Winkelkonvention (Drehung um mitgedrehte x-, y-, z-Achse): Hin- und Rücktransformation `r2eulxyz.m`, `eulxyz2r.m`, Differentieller Zusammenhang der Zeitableitung `eulxyzjac.m`, `eulxyzjacD.m`, `eulxyzD2omega.m`, `eulxyzDD2omegaD.m`, Differentieller Zusammenhang zwischen Rotationsmatrix und Euler-Winkeln `eulxyz_diff_rotmat`, `rotmat_diff_eulxyz`. Die RPY-Konvention wurde in der Corke-Toolbox geändert und ist nicht mehr konsistent. Daher sind die Funktionen mit eulxyz statt mit rpy benannt.
+  * Transformationen zu allen Euler-Winkel-Konventionen (XYZ, ZXZ, ZYX, ...): `eul2r`, `r2eul`, `euljac` (entsprechend den Funktionen zu eulxyz).
+    * Testskript: Ordner `examples_tests/euler_test.m`
   * Integration von Winkelgeschwindigkeiten: `angvel_int_sl.m`, `angvel_int_rpy.mdl`, `angvel_int_rotmat.mdl`, `angvel_int_quat.mdl`, `angvel_body_int_rotmat.mdl`, `angvel_body_int_quat.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_integration`
   * Quaternionen: `r2quat.m`, `r2quat_klumpp.m`, `quat2r.m`
@@ -44,7 +46,7 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
   * Umrechnung des Massenträgheitstensors mit dem Steinerschen Verschiebungssatz: `inertia_steiner.m`
   * Umrechnung der Dynamikparameter auf ein anderes Koordinatensystem: `inertial_parameters_convert_par1_par2.m`
 * Symbolische Herleitungen zu einigen Funktionen: Ordner `maple_codegen`
-* Kontakt-Modelle
+* Kontakt-Modelle (Berechnung von Kräften aus der Durchdringung von geometrischen Körpern)
   * Hunt-Crossley-Modell (z.B. zur Modellierung von mechanischen Gelenkwinkel-Anschlägen): `joint_limit_torques_Hunt_Crossley.m`, `Hunt_Crossley_contact_model_func.m`
   * LuGre-Modell für tangentiale Reibung: `LuGre_tangential_friction_model_func.m`
   * Simulink-Bibliothek: `lib_contact_model.mdl`
