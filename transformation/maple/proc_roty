@@ -1,0 +1,5 @@
+roty := proc (beta) 
+  local R; 
+  R := Matrix(3,3,[[cos(beta), 0, sin(beta)], [0, 1, 0], [-sin(beta), 0, cos(beta)]]); 
+  return R 
+end proc;

@@ -1,0 +1,10 @@
+r2eulyzx := proc (R) 
+  local phi1, phi2, phi3, phi;  
+  
+  phi3 := arctan( -R(2,3), R(2,2) );
+  phi2 := arctan( R(2,1), sqrt( R(2,2)^2 + R(2,3)^2 )  );
+  phi1 := arctan( -R(3,1), R(1,1) );
+
+  phi := <phi1; phi2; phi3>:
+  return phi:
+end proc;

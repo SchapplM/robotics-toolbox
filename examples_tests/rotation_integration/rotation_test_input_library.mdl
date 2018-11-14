@@ -1551,7 +1551,7 @@ Stateflow {
     eml {
       isEML		      1
       script		      "function omegaD = omegaFromRPY(alpha, alphaD, alphaDD, beta, betaD, betaDD, gamma, gammaD, gammaD"
-      "D)\n%#codegen\n\nomegaD = rpyDD2omegaD([alpha, beta, gamma]', [alphaD, betaD, gammaD]', [alphaDD, betaDD, gammaDD]');"
+      "D)\n%#codegen\n\nomegaD = eulxyzDD2omegaD([alpha, beta, gamma]', [alphaD, betaD, gammaD]', [alphaDD, betaDD, gammaDD]');"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }

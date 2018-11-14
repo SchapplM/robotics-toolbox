@@ -9,3 +9,4 @@ slprj
 *.mdl.r*
 *.orig
 codegen
+matlab_tools_path

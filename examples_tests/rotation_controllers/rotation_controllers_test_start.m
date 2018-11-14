@@ -176,8 +176,8 @@ sl.rpy_ctrlquat = NaN(length(sl.t), 3);
 sl.R_ctrlEul = NaN(3,3,length(sl.t));
 sl.R_ctrlquat = NaN(3,3,length(sl.t));
 for i = 1:length(sl.t)
-  sl.rpy_ctrlEul(i,:) = r2rpy( quat2r(sl.xq_ctrlEul(i,4:7)') );
-  sl.rpy_ctrlquat(i,:) = r2rpy( quat2r(sl.xq_ctrlquat(i,4:7)') );
+  sl.rpy_ctrlEul(i,:) = r2eulxyz( quat2r(sl.xq_ctrlEul(i,4:7)') );
+  sl.rpy_ctrlquat(i,:) = r2eulxyz( quat2r(sl.xq_ctrlquat(i,4:7)') );
   
   sl.R_ctrlEul(:,:,i) = quat2r_mex(sl.xq_ctrlEul(i,4:7)');
   sl.R_ctrlquat(:,:,i) = quat2r_mex(sl.xq_ctrlquat(i,4:7)');
@@ -186,7 +186,7 @@ end
 R_soll = NaN(3,3,nt);
 RPY_soll = NaN(nt,3);
 for i = 1:nt
-  RPY_soll(i,:) = r2rpy( quat2r( XQ_soll(i,4:7)' ) );
+  RPY_soll(i,:) = r2eulxyz( quat2r( XQ_soll(i,4:7)' ) );
   R_soll(:,:,i) = quat2r_mex(XQ_soll(i,4:7)');
 end
 %% Auswerten

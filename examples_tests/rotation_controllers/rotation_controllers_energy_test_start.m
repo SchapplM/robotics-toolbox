@@ -126,7 +126,7 @@ for i = 1:nt
   r_W_W_F2_i = r_W_W_B2_i + R_W_B2_i*r_B2_B2_F2;
   
   R_B1_B2_ges(:,:,i) = R_W_B1_i' * R_W_B2_i;
-  rpy_B1_B2_ges(i,:) = r2rpy_mex(R_B1_B2_ges(:,:,i)');
+  rpy_B1_B2_ges(i,:) = r2eulxyz_mex(R_B1_B2_ges(:,:,i)');
   quat_B1_B2_ges(i,:) = r2quat_mex(R_B1_B2_ges(:,:,i)');
   try %#ok<TRYNC>
     % `try` notwendig, da nicht immer die Umwandlung funktioniert (Eigenwerte
@@ -140,8 +140,8 @@ for i = 1:nt
   % Federenergie. Siehe Implementierung in MatlabFcn
   if CARTCTRL == 1 % Euler-RPY
     R_B1_B2 = R_W_B1_i' * R_W_B2_i;
-    phi_B1_B2 = r2rpy(R_B1_B2);
-    T = angvelotrans_rpy(phi_B1_B2); % [Natale2003], (2.34)
+    phi_B1_B2 = r2eulxyz(R_B1_B2);
+    T = eulxyzjac(phi_B1_B2); % [Natale2003], (2.34)
     Te = R_W_B1_i*T; % [Natale2003], (2.31)
     mu_ce = (Te') \ (k_P_r .* (phi_B1_B2)); % [Natale2003], (2.32)
     E_F_rot(i) = sum(0.5 * k_P_r .* phi_B1_B2.^2);
@@ -164,8 +164,8 @@ sl.rpy_Masse2 = NaN(length(sl.t), 3);
 sl.R_Masse1 = NaN(3,3,length(sl.t));
 sl.R_Masse2 = NaN(3,3,length(sl.t));
 for i = 1:length(sl.t)
-  sl.rpy_Masse1(i,:) = r2rpy( quat2r(sl.xq_Masse1(i,4:7)') );
-  sl.rpy_Masse2(i,:) = r2rpy( quat2r(sl.xq_Masse2(i,4:7)') );
+  sl.rpy_Masse1(i,:) = r2eulxyz( quat2r(sl.xq_Masse1(i,4:7)') );
+  sl.rpy_Masse2(i,:) = r2eulxyz( quat2r(sl.xq_Masse2(i,4:7)') );
   
   sl.R_Masse1(:,:,i) = quat2r_mex(sl.xq_Masse1(i,4:7)');
   sl.R_Masse2(:,:,i) = quat2r_mex(sl.xq_Masse2(i,4:7)');

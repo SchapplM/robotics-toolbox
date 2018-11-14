@@ -1037,7 +1037,7 @@ Library {
     SIDHighWatermark	    "111"
     Block {
       BlockType		      SubSystem
-      Name		      "R2rpy"
+      Name		      "r2eulxyz"
       SID		      "41"
       Ports		      [1, 1]
       Position		      [710, 55, 770, 105]
@@ -1045,7 +1045,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"R2rpy"
+	Name			"r2eulxyz"
 	Location		[974, 542, 1929, 1090]
 	Open			off
 	PortBlocksUseCompactNotation off
@@ -1071,7 +1071,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "R2rpy"
+	  Name			  "r2eulxyz"
 	  SID			  "30"
 	  Ports			  [1, 1]
 	  Position		  [70, 20, 160, 60]
@@ -1083,7 +1083,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "R2rpy"
+	    Name		    "r2eulxyz"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -1195,12 +1195,12 @@ Library {
 	  ZOrder		  10
 	  SrcBlock		  "R"
 	  SrcPort		  1
-	  DstBlock		  "R2rpy"
+	  DstBlock		  "r2eulxyz"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  11
-	  SrcBlock		  "R2rpy"
+	  SrcBlock		  "r2eulxyz"
 	  SrcPort		  1
 	  DstBlock		  "phi"
 	  DstPort		  1
@@ -2132,7 +2132,7 @@ Library {
     }
     Block {
       BlockType		      SubSystem
-      Name		      "angvelotrans_rpy"
+      Name		      "eulxyzjac"
       SID		      "55"
       Ports		      [1, 1]
       Position		      [860, 140, 920, 190]
@@ -2140,7 +2140,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"angvelotrans_rpy"
+	Name			"eulxyzjac"
 	Location		[49, 24, 1920, 1080]
 	Open			off
 	PortBlocksUseCompactNotation off
@@ -2166,7 +2166,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "angvelotrans_rpy_Fcn"
+	  Name			  "eulxyzjac_Fcn"
 	  SID			  "57"
 	  Ports			  [1, 1]
 	  Position		  [70, 20, 160, 60]
@@ -2178,7 +2178,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "angvelotrans_rpy_Fcn"
+	    Name		    "eulxyzjac_Fcn"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -2290,12 +2290,12 @@ Library {
 	  ZOrder		  1
 	  SrcBlock		  "phi"
 	  SrcPort		  1
-	  DstBlock		  "angvelotrans_rpy_Fcn"
+	  DstBlock		  "eulxyzjac_Fcn"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  2
-	  SrcBlock		  "angvelotrans_rpy_Fcn"
+	  SrcBlock		  "eulxyzjac_Fcn"
 	  SrcPort		  1
 	  DstBlock		  "T_angvel"
 	  DstPort		  1
@@ -3859,7 +3859,7 @@ Library {
     }
     Block {
       BlockType		      SubSystem
-      Name		      "rpy2r"
+      Name		      "eulxyz2r"
       SID		      "45"
       Ports		      [1, 1]
       Position		      [830, 55, 890, 105]
@@ -3867,7 +3867,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"rpy2r"
+	Name			"eulxyz2r"
 	Location		[2885, 52, 3840, 1128]
 	Open			on
 	PortBlocksUseCompactNotation off
@@ -3892,7 +3892,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rpy2R"
+	  Name			  "eulxyz2r"
 	  SID			  "47"
 	  Ports			  [1, 1]
 	  Position		  [70, 20, 160, 60]
@@ -3904,7 +3904,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "rpy2R"
+	    Name		    "eulxyz2r"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -4015,12 +4015,12 @@ Library {
 	  ZOrder		  3
 	  SrcBlock		  "phi"
 	  SrcPort		  1
-	  DstBlock		  "rpy2R"
+	  DstBlock		  "eulxyz2r"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  4
-	  SrcBlock		  "rpy2R"
+	  SrcBlock		  "eulxyz2r"
 	  SrcPort		  1
 	  DstBlock		  "R"
 	  DstPort		  1
@@ -4029,7 +4029,7 @@ Library {
     }
     Block {
       BlockType		      SubSystem
-      Name		      "rpyD2omega"
+      Name		      "eulxyzD2omega"
       SID		      "49"
       Ports		      [2, 1]
       Position		      [700, 135, 805, 195]
@@ -4037,7 +4037,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"rpyD2omega"
+	Name			"eulxyzD2omega"
 	Location		[49, 24, 1920, 1080]
 	Open			off
 	PortBlocksUseCompactNotation off
@@ -4071,7 +4071,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rpyD2omega"
+	  Name			  "eulxyzD2omega"
 	  SID			  "53"
 	  Ports			  [2, 1]
 	  Position		  [90, 58, 215, 102]
@@ -4083,7 +4083,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "rpyD2omega"
+	    Name		    "eulxyzD2omega"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -4213,19 +4213,19 @@ Library {
 	  SrcBlock		  "phi"
 	  SrcPort		  1
 	  Points		  [9, 0; 0, 45]
-	  DstBlock		  "rpyD2omega"
+	  DstBlock		  "eulxyzD2omega"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  2
 	  SrcBlock		  "phiD"
 	  SrcPort		  1
-	  DstBlock		  "rpyD2omega"
+	  DstBlock		  "eulxyzD2omega"
 	  DstPort		  2
 	}
 	Line {
 	  ZOrder		  3
-	  SrcBlock		  "rpyD2omega"
+	  SrcBlock		  "eulxyzD2omega"
 	  SrcPort		  1
 	  DstBlock		  "omega"
 	  DstPort		  1
@@ -4234,7 +4234,7 @@ Library {
     }
     Block {
       BlockType		      SubSystem
-      Name		      "rpyDD2omegaD"
+      Name		      "eulxyzDD2omegaD"
       SID		      "36"
       Ports		      [3, 1]
       Position		      [550, 135, 655, 195]
@@ -4242,7 +4242,7 @@ Library {
       RequestExecContextInheritance off
       Variant		      off
       System {
-	Name			"rpyDD2omegaD"
+	Name			"eulxyzDD2omegaD"
 	Location		[1959, -14, 3850, 1090]
 	Open			off
 	PortBlocksUseCompactNotation off
@@ -4285,7 +4285,7 @@ Library {
 	}
 	Block {
 	  BlockType		  SubSystem
-	  Name			  "rpyDD2omegaD"
+	  Name			  "eulxyzDD2omegaD"
 	  SID			  "29"
 	  Ports			  [3, 1]
 	  Position		  [90, 58, 215, 102]
@@ -4297,7 +4297,7 @@ Library {
 	  SFBlockType		  "MATLAB Function"
 	  Variant		  off
 	  System {
-	    Name		    "rpyDD2omegaD"
+	    Name		    "eulxyzDD2omegaD"
 	    Location		    [223, 338, 826, 833]
 	    Open		    off
 	    PortBlocksUseCompactNotation off
@@ -4443,19 +4443,19 @@ Library {
 	  SrcBlock		  "phi"
 	  SrcPort		  1
 	  Points		  [9, 0; 0, 40]
-	  DstBlock		  "rpyDD2omegaD"
+	  DstBlock		  "eulxyzDD2omegaD"
 	  DstPort		  1
 	}
 	Line {
 	  ZOrder		  9
 	  SrcBlock		  "phiD"
 	  SrcPort		  1
-	  DstBlock		  "rpyDD2omegaD"
+	  DstBlock		  "eulxyzDD2omegaD"
 	  DstPort		  2
 	}
 	Line {
 	  ZOrder		  11
-	  SrcBlock		  "rpyDD2omegaD"
+	  SrcBlock		  "eulxyzDD2omegaD"
 	  SrcPort		  1
 	  DstBlock		  "omegaD"
 	  DstPort		  1
@@ -4465,7 +4465,7 @@ Library {
 	  SrcBlock		  "phiDD"
 	  SrcPort		  1
 	  Points		  [9, 0; 0, -30]
-	  DstBlock		  "rpyDD2omegaD"
+	  DstBlock		  "eulxyzDD2omegaD"
 	  DstPort		  3
 	}
       }
@@ -6325,7 +6325,7 @@ Stateflow {
   chart {
     id			    46
     machine		    1
-    name		    "rpy2r/rpy2R"
+    name		    "eulxyz2r/eulxyz2r"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -6364,7 +6364,7 @@ Stateflow {
       script		      "% RPY-Winkelkonvention in Rotationsmatrix umwandeln\n% \n% Input:\n%  rpy-Winkel [3x1]\n%   Defin"
       "ition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n% Output:\n% rpy:\n% R [3x3]\n%   Rotationsmatrix\n\n\n% Mor"
       "itz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität Hannov"
-      "er\n\nfunction R = fcn(phi)\n%#codegen\nR = rpy2r(phi);\n"
+      "er\n\nfunction R = fcn(phi)\n%#codegen\nR = eulxyz2r(phi);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6452,13 +6452,13 @@ Stateflow {
   instance {
     id			    52
     machine		    1
-    name		    "rpy2r/rpy2R"
+    name		    "eulxyz2r/eulxyz2r"
     chart		    46
   }
   chart {
     id			    53
     machine		    1
-    name		    "rpyD2omega/rpyD2omega"
+    name		    "eulxyzD2omega/eulxyzD2omega"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -6497,7 +6497,7 @@ Stateflow {
       "Winkel alpha, beta, gamma\n% Ausgabe:\n% omega [3x1]\n%   Drehgeschwindigkeit (omega_A_B) von KS_B ausgedrückt "
       "in KS_A\n% \n% Quelle:\n% [ZupanSaj2011] Zupan, Eva and Saje, Miran: Integrating rotation from\n% angular veloci"
       "ty \n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Univers"
-      "ität Hannover\n\n\nfunction omega = fcn(phi, phiD)\n%#codegen\nomega = rpyD2omega(phi, phiD);\n"
+      "ität Hannover\n\n\nfunction omega = fcn(phi, phiD)\n%#codegen\nomega = eulxyzD2omega(phi, phiD);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6607,13 +6607,13 @@ Stateflow {
   instance {
     id			    60
     machine		    1
-    name		    "rpyD2omega/rpyD2omega"
+    name		    "eulxyzD2omega/eulxyzD2omega"
     chart		    53
   }
   chart {
     id			    61
     machine		    1
-    name		    "angvelotrans_rpy/angvelotrans_rpy_Fcn"
+    name		    "eulxyzjac/eulxyzjac_Fcn"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -6651,7 +6651,7 @@ Stateflow {
       "(2))*rotz(rpy(3));\n\n% Output:\n% T\n%   Transformationsmatrix (3x3) zwischen Winkelgeschwindigkeit im\n%   Bas"
       "iskoordinatensystem und den Zeitableitungen der\n%   Rotationsdarstellungen\n\n\n% Moritz Schappler, schappler@i"
       "rt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik, Universität Hannover\n\nfunction T_angvel = "
-      "fcn(phi)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\n"
+      "fcn(phi)\n%#codegen\nT_angvel = eulxyzjac(phi);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -6739,7 +6739,7 @@ Stateflow {
   instance {
     id			    67
     machine		    1
-    name		    "angvelotrans_rpy/angvelotrans_rpy_Fcn"
+    name		    "eulxyzjac/eulxyzjac_Fcn"
     chart		    61
   }
   chart {
@@ -6783,8 +6783,8 @@ Stateflow {
       "% phiD [3x1]\n%   1. Zeitableitung der RPY-Winkel alpha, beta, gamma\n% omegaD [3x1]\n%   Drehbeschleunigung (om"
       "egaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Ausgabe:\n% phiDD [3x1]\n%   2. Zeitableitung der RPY-Winkel alph"
       "a, beta, gamma\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-06\n% (c) Institut für Regelungstechn"
-      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = angvelotrans_rpy("
-      "phi);\nTD_basevel = angvelotrans_rpyD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
+      "ik, Universität Hannover\n\nfunction phiDD = fcn(phi, phiD, omegaD)\n%#codegen\n\nT_basevel = eulxyzjac("
+      "phi);\nTD_basevel = eulxyzjacD(phi, phiD);\nphiDD = T_basevel \\ ( omegaD - TD_basevel*phiD);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -7238,7 +7238,7 @@ Stateflow {
       "% Eingabe:\n% phi\n%   Orientierung des Körpers (RPY-Winkel)\n% tau_b\n%   Kraft und Moment in verallgemeinerte"
       "n Koordinaten, die an dem Körper\n%   angreifen\n% \n% Ausgabe:\n% F_W [6x]\n%   Kraft und Moment (wrench)\n\n%"
       " Moritz Schappler, schappler@irt.uni-hannover.de, 2016-11\n% (c) Institut für Regelungstechnik, Universität Ha"
-      "nnover\n\nfunction F_W = fcn(phi, tau_b)\n%#codegen\nT_angvel = angvelotrans_rpy(phi(1), phi(2), phi(3));\n% Kra"
+      "nnover\n\nfunction F_W = fcn(phi, tau_b)\n%#codegen\nT_angvel = eulxyzjac(phi(1), phi(2), phi(3));\n% Kra"
       "ft\nf_W = tau_b(1:3);\n% Moment\nm_W = (T_angvel')\\tau_b(4:6);\n\nF_W = [f_W; m_W];"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -7543,8 +7543,7 @@ Stateflow {
       "naten um\n% \n% Eingabe:\n% phi\n%   Orientierung des Körpers (RPY-Winkel)\n% tau_b\n%   Kraft und Moment in ve"
       "rallgemeinerten Koordinaten, die an dem Körper\n%   angreifen\n% \n% Ausgabe:\n% F_W [6x]\n%   Kraft und Moment"
       " (wrench)\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2017-03\n% (c) Institut für Regelungstechnik, U"
-      "niversität Hannover\n\nfunction tau_b = fcn(phi, F_W)\n%#codegen\ntau_b = NaN(6,1);\nT_angvel = angvelotrans_rp"
-      "y(phi(1), phi(2), phi(3));\n% Kraft\ntau_b(1:3) = F_W(1:3);\n% Moment\ntau_b(4:6) = (T_angvel') * F_W(4:6);"
+      "niversität Hannover\n\nfunction tau_b = fcn(phi, F_W)\n%#codegen\ntau_b = NaN(6,1);\nT_angvel = eulxyzjac([phi(1);phi(2);phi(3)]);\n% Kraft\ntau_b(1:3) = F_W(1:3);\n% Moment\ntau_b(4:6) = (T_angvel') * F_W(4:6);"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -7910,7 +7909,7 @@ Stateflow {
   chart {
     id			    130
     machine		    1
-    name		    "rpyDD2omegaD/rpyDD2omegaD"
+    name		    "eulxyzDD2omegaD/eulxyzDD2omegaD"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -7950,7 +7949,7 @@ Stateflow {
       "omegaD [3x1]\n%   Drehbeschleunigung (omegaD_A_B) von KS_B ausgedrückt in KS_A\n% \n% Quelle:\n% [ZupanSaj2011]"
       " Zupan, Eva and Saje, Miran: Integrating rotation from\n% angular velocity \n\n% Moritz Schappler, schappler@irt"
       ".uni-hannover.de, 2015-09\n% (c) Institut für Regelungstechnik, Universität Hannover\n\n\nfunction omegaD = fc"
-      "n(phi, phiD, phiDD)\n%#codegen\nomegaD = rpyDD2omegaD(phi, phiD, phiDD);\n"
+      "n(phi, phiD, phiDD)\n%#codegen\nomegaD = eulxyzDD2omegaD(phi, phiD, phiDD);\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -8085,7 +8084,7 @@ Stateflow {
   instance {
     id			    138
     machine		    1
-    name		    "rpyDD2omegaD/rpyDD2omegaD"
+    name		    "eulxyzDD2omegaD/eulxyzDD2omegaD"
     chart		    130
   }
   chart {
@@ -8128,7 +8127,7 @@ Stateflow {
       "% Eingabe:\n% phi [3x1]\n%   RPY-Winkel: Koordinatentransformation zwischen A und B\n% omega [3x1]\n%   Winkelge"
       "schwindigkeit eines Koordinatensystems A, ausgedrückt im KS B\n% \n% Ausgabe:\n% phiD\n%   Zeitableitung der RP"
       "Y-Winkel phi\n\n% Moritz Schappler, schappler@irt.uni-hannover.de, 2016-05\n% (c) Institut für Regelungstechnik"
-      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = angvelotrans_rpy(phi);\nphiD ="
+      ", Universität Hannover\n\nfunction phiD = fcn(phi, omega)\n%#codegen\nT_angvel = eulxyzjac(phi);\nphiD ="
       " T_angvel \\ omega;\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
@@ -8247,7 +8246,7 @@ Stateflow {
   chart {
     id			    147
     machine		    1
-    name		    "R2rpy/R2rpy"
+    name		    "r2eulxyz/r2eulxyz"
     windowPosition	    [422 539.941 189 413]
     viewLimits		    [0 156.75 0 153.75]
     screen		    [1 1 3600 1200 1.180555555555556]
@@ -8283,7 +8282,7 @@ Stateflow {
       script		      "% Rotationsmatrix in RPY-Winkelkonvention umwandeln\n% \n% Input:\n% R:\n%   [3x3] Rotationsmatri"
       "x\n% \n% Output:\n% rpy:\n%   [3x1] rpy-Winkel\n%   Definition: R = rotx(rpy(1))*roty(rpy(2))*rotz(rpy(3));\n\n%"
       " Moritz Schappler, schappler@irt.uni-hannover.de, 2015-08\n% (c) Institut für Regelungstechnik, Universität Ha"
-      "nnover\n\nfunction phi = fcn(R)\n%#codegen\nphi = r2rpy(R)';\n"
+      "nnover\n\nfunction phi = fcn(R)\n%#codegen\nphi = r2eulxyz(R)';\n"
       editorLayout	      "100 M4x1[10 5 700 500]"
     }
   }
@@ -8371,7 +8370,7 @@ Stateflow {
   instance {
     id			    153
     machine		    1
-    name		    "R2rpy/R2rpy"
+    name		    "r2eulxyz/r2eulxyz"
     chart		    147
   }
   chart {

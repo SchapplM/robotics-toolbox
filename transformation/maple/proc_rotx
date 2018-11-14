@@ -1,0 +1,5 @@
+rotx := proc (alpha) 
+  local R; 
+  R := Matrix(3,3,[[1, 0, 0], [0, cos(alpha), -sin(alpha)], [0, sin(alpha), cos(alpha)]]); 
+  return R 
+end proc;

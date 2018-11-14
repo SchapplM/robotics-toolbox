@@ -1,0 +1,8 @@
+eulzxzjac := proc (phi)
+# Jacobi-Matrix für zxz-Euler-Winkel
+local J, phi1_s, phi2_s, phi3_s:
+phi1_s:=phi(1): phi2_s:=phi(2): phi3_s:=phi(3):
+J := Matrix(3, 3, [[0,cos(phi1_s),sin(phi1_s)*sin(phi2_s)],[0,sin(phi1_s),-cos
+(phi1_s)*sin(phi2_s)],[1,0,cos(phi2_s)]]);
+return J:
+end proc:

@@ -2091,7 +2091,7 @@ Library {
 	$PropName		"MaskObject"
 	$ObjectID		37
 	$ClassName		"Simulink.Mask"
-	Initialization		"% Anfangswert für RPY-Winkel\nrpy_t0 = r2rpy(R_0E_t0);"
+	Initialization		"% Anfangswert für RPY-Winkel\nrpy_t0 = r2eulxyz(R_0E_t0);"
 	Array {
 	  Type			  "Simulink.MaskParameter"
 	  Dimension		  2
@@ -4219,7 +4219,7 @@ Library {
 	$PropName		"MaskObject"
 	$ObjectID		64
 	$ClassName		"Simulink.Mask"
-	Initialization		"% Anfangswert für RPY-Winkel\nrpy_t0 = r2rpy(R_0E_t0);"
+	Initialization		"% Anfangswert für RPY-Winkel\nrpy_t0 = r2eulxyz(R_0E_t0);"
 	Object {
 	  $PropName		  "Parameters"
 	  $ObjectID		  65
@@ -4396,13 +4396,13 @@ Library {
 	}
 	Block {
 	  BlockType		  Reference
-	  Name			  "rpy2r"
+	  Name			  "eulxyz2r"
 	  SID			  "247"
 	  Ports			  [1, 1]
 	  Position		  [880, 225, 940, 275]
 	  ZOrder		  335
 	  LibraryVersion	  "1.114"
-	  SourceBlock		  "lib_transformations/rpy2r"
+	  SourceBlock		  "lib_transformations/eulxyz2r"
 	  SourceType		  "SubSystem"
 	  ContentPreviewEnabled	  off
 	}
@@ -4437,7 +4437,7 @@ Library {
 	  Points		  [29, 0]
 	  Branch {
 	    ZOrder		    16
-	    DstBlock		    "rpy2r"
+	    DstBlock		    "eulxyz2r"
 	    DstPort		    1
 	  }
 	  Branch {
@@ -4449,7 +4449,7 @@ Library {
 	}
 	Line {
 	  ZOrder		  17
-	  SrcBlock		  "rpy2r"
+	  SrcBlock		  "eulxyz2r"
 	  SrcPort		  1
 	  DstBlock		  "R_0E"
 	  DstPort		  1
