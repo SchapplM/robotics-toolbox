@@ -12,7 +12,9 @@ Für die Benutzung des Repos muss die Pfadinitialisierung durchgeführt werden m
 
 ### Abhängigkeiten
 
-Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und Toolboxen. Die Pfad-Initialisierung von `matlab-ext` muss allerdings **vor** der Pfad-Initialisierung dieses Repos durchgeführt werden, da es gleichnamige Funktionen mit unterschiedlichem Inhalt gibt (z.B. `rpy2r`).
+Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und Toolboxen. Die Pfad-Initialisierung von `matlab-ext` muss allerdings **vor** der Pfad-Initialisierung dieses Repos durchgeführt werden, da es gleichnamige Funktionen mit unterschiedlichem Inhalt gibt (z.B. `eul2r`).
+
+Für die Matlab-Klasse muss die Sammlung externer Robotermodelle `serrob_mdlbib` initialisiert sein.
 
 ### Modultests
 
@@ -55,6 +57,9 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
   * Gelenk-Impedanzregler für serielle Roboter (PID-ähnlicher Regler mit im Gelenkraum konstanten Eigenschaften): `lib_joint_impctrl.mdl`
   * Kartesische Regler für Position und Orientierung im Arbeitsraum: `lib_cartesian_controllers.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_controllers`
+* Matlab-Klasse SerRob
+  * Klasse mit Funktionen für serielle und hybride Roboter. Nach der Definition eines Roboters können Kinematik und Dynamik berechnet werden. Die Klasse greift auf symbolisch generierten Code zu. Dadurch sind alle Funktionen kompilierbar und damit schneller ausführbar und für den Einsatz in Echtzeitrechnern (SPS, EtherLab/Simulink) geeignet.
+  * Beispiel für seriellen Roboter: `SerRob_class_example_SCARA.m`
 
 ## Erweiterung
 
