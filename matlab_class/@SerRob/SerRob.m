@@ -55,6 +55,7 @@ classdef SerRob < matlab.mixin.Copyable
     I_EE % Indizes der genutzten EE-FG. TODO: Funktionen darauf umstellen. Achtung bei Euler-Winkeln
     I_EElink % Index des Segmentes, an dem der Endeffektor befestigt ist.
     mdlname % Name des Robotermodells, das in den Matlab-Funktionen benutzt wird.
+    CADstruct % Struktur mit Daten zu CAD-Modellen
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -144,6 +145,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.qunit_sci = qunit_sci;
       R.qunitmult_eng_sci = qunitmult_eng_sci;
       R.tauunit_sci = tauunit_sci;
+      R.CADstruct = struct('filepath', {}, 'link', [], 'T_body_visual', NaN(4,4,0), 'color', {});
     end
     function mex_dep(R)
       fcnhdl_str = cell(length(R.all_fcn_hdl),1);
@@ -436,6 +438,9 @@ classdef SerRob < matlab.mixin.Copyable
       if nargin < 4 || isempty(Icges)
         Icges = R.DynPar.Icges;
       end
+      if isempty(which(sprintf('%s_convert_par2_MPV_fixb', R.mdlname)))
+        return
+      end
       dynpar2mpv_hdl = eval(sprintf('@%s_convert_par2_MPV_fixb', R.mdlname));
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
       mpv = dynpar2mpv_hdl(R.pkin, mges, mrSges, Ifges);
@@ -455,6 +460,37 @@ classdef SerRob < matlab.mixin.Copyable
       % 
       % Ausgabe: Vektor aus Position und Euler-Winkeln
       x_W_E = [T_W_E(1:3,4); r2eul(T_W_E(1:3,1:3), R.phiconv_W_E)];
+    end
+    
+    function CAD_add(R, filepath, link, T_body_CAD, color)
+      % Füge die CAD-Datei für einen Körper des Roboters hinzu
+      % filepath: Absoluter Pfad zur STL-Datei
+      % link: Nummer des Robotersegments (0=Basis)
+      % T_body_CAD: Koordinatentransformation zum Ursprung der CAD-Datei
+      % color (optional): Farbe für hinzuzufügendes CAD-Modell
+      colors_default = {'k', 'r', 'g', 'b', 'c', 'm', 'y'};
+      if isempty(R.CADstruct)
+        R.CADstruct = struct( ...
+          'filepath', cell(1,1), ...
+          'link', link, ...
+          'T_body_visual', T_body_CAD, ...
+          'color', cell(1,1));
+        R.CADstruct.filepath{1} = filepath;
+        if nargin < 5
+          color = colors_default{1};
+        end
+        R.CADstruct.color{1} = color;
+      else
+        i = length(R.CADstruct.link)+1;
+        R.CADstruct.filepath = {R.CADstruct.filepath{:}, filepath}; %#ok<CCAT>
+        R.CADstruct.link = [R.CADstruct.link; link];
+        R.CADstruct.T_body_visual(:,:,i) = T_body_CAD;
+        if nargin < 5
+          ci = mod(i-1, 7)+1; % Wähle der Reihe nach die Standardfarben (mit Wiederholung)
+          color = colors_default{ci};
+        end
+        R.CADstruct.color = {R.CADstruct.color{:}, color}; %#ok<CCAT>
+      end
     end
   end
 end

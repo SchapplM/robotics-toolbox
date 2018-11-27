@@ -19,6 +19,10 @@
 
 function anim(Rob, Q, s_anim, s_plot)
 
+if isempty(Q)
+  error('SerRob/anim: Trajektorie Q ist leer');
+end
+
 %% Initialisierung
 s_std = struct('gif_name', []);
 
@@ -62,6 +66,9 @@ yw = abs(yminmax(2)-yminmax(1));
 yminmax(1) = yminmax(1)-0.05*yw;
 yminmax(2) = yminmax(2)+0.05*yw;
 zw = abs(zminmax(2)-zminmax(1));
+if all(zminmax == 0)
+  zminmax = [-0.1, 0.1];
+end
 zminmax(1) = zminmax(1)-0.05*zw;
 zminmax(2) = zminmax(2)+0.05*zw;
 
