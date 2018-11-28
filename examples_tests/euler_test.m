@@ -1,5 +1,8 @@
 % Teste unterschiedliche Transformationsfunktionen für Euler-Winkel
 % Nutze alle möglichen Kombinationen für Euler-Winkel
+%
+% Literatur
+% [Rob1] Skript Robotik 1
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
@@ -27,7 +30,7 @@ for i = 1:3
   end
 end
 
-for i_conv = 1:N
+for i_conv = uint8(1:N)
   eulstr = eulstrings{i_conv};
   
   %% zufällige Rotationsmatrizen generieren (mit passender Konvention)
@@ -72,7 +75,7 @@ for i_conv = 1:N
   end
   fprintf('%d Umrechnungen mit r2eul%s getestet\n', n, eulstr);
   
-  %% Aufruf der Gradientenmatrizen
+  %% Aufruf der Gradientenmatrizen zwischen Rotationsmatrizen und Euler-Winkeln
   for i = 1:n
     R_i = R_ges(:,:,i);
     phi_i = r2eul(R_i, i_conv);
@@ -87,4 +90,55 @@ for i_conv = 1:N
     end    
   end
   fprintf('%d Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s getestet\n', n, eulstr, eulstr);
+  
+  %% Testen der Transformationsmatrizen euljac und euljacD bzgl der Zeitableitungen
+  % Test: euljac, euljacD
+  for i = 1:n
+    % erste Orientierung zufällig vorgeben
+    R_1 = R_ges(:,:,i);
+    phi_1 = r2eul(R_1, i_conv); % Euler-Winkel-Darstellung der 1. Orientierung
+    
+    % Zufällige infinitesimale Änderung der Orientierung führt zur 2.
+    % Orientierung
+    delta_phi = rand(3,1)*1e-8;
+    phi_2 = phi_1 + delta_phi;
+    R_2 = eul2r(phi_2, i_conv); % Darstellung der 2. Orientierung als Rotationsmatrix
+    % Orientierungsänderung als Geschwindigkeit darstellen
+    delta_t = 1e-8;
+    phiD = delta_phi / delta_t;
+    % Zeitableitung der Rotationsmatrix aus Differenzenquotienten
+    delta_R = R_2 - R_1;
+    RD = delta_R / delta_t;
+    % Winkelgeschwindigkeit aus Euler-Winkel-Zeitableitung
+    omega_tilde = RD * R_1'; % [Rob1], Gl. 7.4 (Eulersche Differentiationsregel)
+    omega = vex(omega_tilde);
+    
+    % Berechnung der Winkelgeschwindigkeit auf zweitem Weg über die
+    % Transformationsmatrix der Euler-Winkel
+    J = euljac(phi_1, i_conv);
+    omega_test = J * phiD;
+    
+    % Vergleiche, ob Winkelgeschwindigkeit auf beiden Wegen gleich ist
+    test = omega_test -omega;
+    if any(abs(test(:))>1e-7)
+      error('Transformationsmatrix eul%sjac stimmt nicht mit r2eul/eul2r überein', eulstr);
+    end    
+    
+    % Bestimme die Euler-Transformationsmatrix für die beiden infinitesimal
+    % voneinander entfernten Orientierungen von vorher
+    J1 = euljac(phi_1, i_conv);
+    J2 = euljac(phi_2, i_conv);
+    % Bestimme die Zeitableitung der Transformationsmatrix aus der
+    % Geschwindigkeit von oben
+    JD = euljacD(phi_1, phiD, i_conv);
+    % Alternative Berechnung der Zeitableitung aus Differenzenquotienten
+    JD_test = (J2-J1) / delta_t;
+    % Vergleich ob beide Lösungen übereinstimmen und damit  ob die
+    % symbolische  Herleitung in euljacD stimmt
+    test = JD_test -JD;
+    if any(abs(test(:))>1e-7)
+      error('Transformationsmatrix eul%sjacD stimmt nicht mit euljac überein', eulstr);
+    end 
+  end
+  fprintf('%d Transformationsmatrizen eul%sjac und eul%sjacD getestet\n', n, eulstr, eulstr);
 end

@@ -1,4 +1,4 @@
-% Jacobi-Matrix für xyx-Euler-Winkel
+% Jacobi-Matrix für Euler-Winkel
 % Zur Umrechnung zwischen Euler-Winkel-Ableitung und Winkelgeschwindigkeit
 % 
 % Eingabe:

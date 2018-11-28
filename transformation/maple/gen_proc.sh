@@ -200,3 +200,62 @@ for f in `find codeexport/eul*jac_matlab.m`; do
   varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
   echo "J = $varname_tmp;" >> $zd
 done
+
+
+# euljacD: Maple-Prozedur generieren
+for f in `find codeexport/eul*jacD_maple`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Maple euljacD für $eulstr"
+  # Prozedur erstellen
+  zd="proc_eul${eulstr}jacD"
+  echo "eul${eulstr}jacD := proc (phi, phiD)" > $zd
+  echo "# Zeitableitung der Jacobi-Matrix für ${eulstr}-Euler-Winkel" >> $zd
+  echo "local JD, phi1_s, phi2_s, phi3_s, phi1D_s, phi2D_s, phi3D_s:" >> $zd
+  echo "phi1_s:=phi(1): phi2_s:=phi(2): phi3_s:=phi(3):" >> $zd
+  echo "phi1D_s:=phiD(1): phi2D_s:=phiD(2): phi3D_s:=phiD(3):" >> $zd
+  cat $f >> $zd
+  echo "return JD:" >> $zd
+  echo "end proc:" >> $zd
+done
+
+# euljacD: Matlab-Funktionen generieren
+# Die Funktionen sollten aus dem Maple-Code generiert werden, damit dieser direkt geprüft werden kann
+for f in `find codeexport/eul*jacD_matlab.m`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Matlab euljacD für $eulstr"
+  # Matlab-Funktion erstellen
+  zd="../eul${eulstr}jacD.m"
+  echo "% Zeitableitung der Jacobi-Matrix für ${eulstr}-Euler-Winkel" > $zd
+  echo "% Zur Umrechnung zwischen zweiter Euler-Winkel-Zeitableitung und Winkelbeschleunigung" >> $zd
+  echo "% Konvention: R = rot${eulstr:0:1}(phi1) * rot${eulstr:1:1}(phi2) * rot${eulstr:2:1}(phi3)." >> $zd
+  echo "% (mitgedrehte Euler-Winkel; intrinsisch)" >> $zd
+  echo "%"  >> $zd
+  echo "% Eingabe:"  >> $zd
+  echo "% phi [3x1]:"  >> $zd
+  echo "%   ${eulstr}-Euler-Winkel"  >> $zd
+  echo "% phiD [3x1]:"  >> $zd
+  echo "%   Zeitableitung der ${eulstr}-Euler-Winkel"  >> $zd
+  echo "%"  >> $zd
+  echo "% Ausgabe:"  >> $zd
+  echo "% JD [3x3]:"  >> $zd
+  echo "%   Zeitableitung der Euler-Jacobimatrix: Zusammenhang zwischen"  >> $zd
+  echo "%   Winkelbeschleunigung und zweiter Euler-Winkel-Zeitableitung"  >> $zd
+  echo "%   wD = J * phiDD + JD * phiD"  >> $zd
+  echo "%"  >> $zd
+  echo "% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-11" >> $zd
+  echo "% (C) Institut für mechatronische Systeme, Leibniz Universität Hannover" >> $zd
+  echo "%"  >> $zd
+  echo "function JD = eul${eulstr}jacD(phi, phiD)" >> $zd
+  echo "%% Init" >> $zd
+  echo "%#codegen" >> $zd
+  echo "%\$cgargs {zeros(3,1),zeros(3,1)}" >> $zd
+  echo "assert(isreal(phi) && all(size(phi) == [3 1]), 'eul${eulstr}jacD: phi has to be [3x1] (double)');" >> $zd
+  echo "assert(isreal(phiD) && all(size(phiD) == [3 1]), 'eul${eulstr}jacD: phiD has to be [3x1] (double)');" >> $zd
+  echo "phi1_s=phi(1); phi2_s=phi(2); phi3_s=phi(3);" >> $zd
+  echo "phi1D_s=phiD(1); phi2D_s=phiD(2); phi3D_s=phiD(3);" >> $zd
+  echo "%% Berechnung" >> $zd
+  echo "% aus $f (euler_angle_calculations.mw)" >> $zd
+  cat $f >> $zd
+  varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
+  echo "JD = $varname_tmp;" >> $zd
+done
