@@ -509,11 +509,11 @@ classdef SerRob < matlab.mixin.Copyable
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
       % Berechne MDH-Parameter aus pkin-Vektor
-      [beta,b,alpha,a,theta,d] = pkin2mdh_hdl(pkin_neu);
+      [beta,b,alpha,a,theta,d,qoffset] = pkin2mdh_hdl(pkin_neu);
       % Teste die Rück-Transformation zu pkin (funktioniert nur für
       % serielle Roboter; bei hybriden stehen nicht alle Par. in MDH
       if R.Type == 0
-        pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
+        pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, qoffset);
         if any(abs(pkin_neu-pkin_test) > 1e-10)
           error('Parameteraktualisierung pkin->mdh hat nicht funktioniert');
         end
@@ -522,6 +522,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.MDH.beta=beta; R.MDH.b=b;
       R.MDH.alpha=alpha; R.MDH.a=a;
       R.MDH.theta=theta; R.MDH.d=d;
+      R.MDH.offset = qoffset;
       R.pkin = pkin_neu;
     end
     function update_dynpar1(R, mges, rSges, Icges)
