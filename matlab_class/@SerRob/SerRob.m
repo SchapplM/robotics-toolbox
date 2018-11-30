@@ -15,7 +15,8 @@
 %   * N: Körper-KS des Roboters, an dem der Endeffektor befestigt ist. Bei
 %   seriellen Robotern das letzte Körper-KS der seriellen Kette.
 
-%
+% TODO: Zeitableitung der Jacobi-Matrix-Funktionen mit "JDx" statt "JxD"
+
 %   Quellen
 %   [Rob1] Robotik 1 Skript
 
@@ -69,6 +70,7 @@ classdef SerRob < matlab.mixin.Copyable
     invdynfcnhdl % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
     jacobiRfcnhdl % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
     jacobigfcnhdl % Funktions-Handle für geometrische Jacobi-Matrix
+    jacobigDfcnhdl % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
     jointvarfcnhdl % Funktions-Handle für Werte Gelenkvariablen (bei hybriden Robotern)
     all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters
   end
@@ -116,6 +118,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'jtraffcnhdl', 'joint_trafo_rotmat_mdh_sym_varpar'}, ...
       {'jacobiRfcnhdl', 'jacobiR_rot_sym_varpar'}, ...
       {'jacobigfcnhdl', 'jacobig_floatb_twist_sym_varpar'}, ...
+      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar'}, ...
       {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
       {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
@@ -241,7 +244,7 @@ classdef SerRob < matlab.mixin.Copyable
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % JR: Jacobi-Matrix
+      % Jg: Jacobi-Matrix
       Jg = R.jacobigfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin);
     end
     function JT = jacobiT(R, q)
@@ -262,9 +265,79 @@ classdef SerRob < matlab.mixin.Copyable
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % JT: Jacobi-Matrix
+      % JW: Jacobi-Matrix
       Jg = jacobig(R, q);
       JW = Jg(4:6,:); % TODO: Eigene Funktion
+    end
+    function JTD = jacobiTD(R, q, qD)
+      % Zeitableitung des Translatorischen Teils der geometrischen Jacobi-Matrix (Zusammenhang
+      % zwischen translatorischer Geschwindigkeit des EE und Gelenkgeschwindigkeit)
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      %
+      % Ausgabe:
+      % JTD: Jacobi-Matrix-Zeitableitung
+      JgD = jacobigD(R, q, qD);
+      JTD = JgD(1:3,:); % TODO: Eigene Funktion
+    end
+    function JgD = jacobigD(R, q, qD)
+      % Zeitableitung der Geometrischen Jacobi-Matrix (bzgl Winkelbeschleunigung)
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      %
+      % Ausgabe:
+      % JgD: Jacobi-Matrix-Zeitableitung
+      JgD = R.jacobigDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin);
+    end
+    function JWD = jacobiWD(R, q, qD)
+      % Zeitableitung des rotatorischer Teils der geometrischen Jacobi-Matrix
+      % (Zusammenhang zwischen Winkelgeschwindigkeit des EE und Gelenkgeschwindigkeit)
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      %
+      % Ausgabe:
+      % JDW: Jacobi-Matrix-Zeitableitung
+      JgD = jacobigD(R, q, qD);
+      JWD = JgD(4:6,:); % TODO: Eigene Funktion
+    end
+    function JaD = jacobiaD(R, q, qD)
+      % Zeitableitung der analytischen Jacobi-Matrix des Roboters (End-Effektor)
+      % Bezogen auf die gewählte Euler-Winkel-Konvention
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      %
+      % Ausgabe:
+      % JDa: Zeitableitung der Jacobi-Matrix
+      
+      % Siehe auch: Aufzeichnungen vom 28.11.2018
+      
+      % Zeitableitung translatorische Teil-Matrix
+      JTD = R.jacobiTD(q, qD);
+      % Rotatorische Teilmatrix (geometrisch)
+      Jw = R.jacobiW(q);
+      % Zeitableitund der rotatorischen Teilmatrix
+      JwD = R.jacobiWD(q, qD);
+      % Endeffektor-Orientierung mit Euler-Winkeln
+      T_E = R.fkineEE(q);
+      phi = r2eul(T_E(1:3,1:3), R.phiconv_W_E);
+      % Euler-Transformationsmatrix
+      Tw = euljac(phi, R.phiconv_W_E);
+      % Rotatorischer Teil der analytischen Jacobi (e="Euler")
+      Je = Tw \ Jw;
+      % Zeitableitung der Euler-Winkel
+      phiD = Je*qD;
+      % Zeitableitung der Euler-Transformationsmatrix
+      TDw = euljacD(phi, phiD, R.phiconv_W_E);
+      % Zeitableitung der inversen Euler-Transformationsmatrix
+      TwD_inv = -Tw\TDw/Tw;
+      % Zeitableitung der analytischen Jacobi (Rotationsteil)
+      JeD = Tw\JwD + TwD_inv *Jw;
+      % Gesamtmatrix
+      JaD = [JTD; JeD];
     end
     function T = ekin(R, q, qD)
       % Kinetische Energie

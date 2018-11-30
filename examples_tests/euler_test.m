@@ -30,7 +30,7 @@ for i = 1:3
   end
 end
 
-for i_conv = uint8(1:N)
+for i_conv = uint8(2)
   eulstr = eulstrings{i_conv};
   
   %% zufällige Rotationsmatrizen generieren (mit passender Konvention)
