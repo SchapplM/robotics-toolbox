@@ -72,7 +72,7 @@ classdef SerRob < matlab.mixin.Copyable
     jacobigfcnhdl % Funktions-Handle für geometrische Jacobi-Matrix
     jacobigDfcnhdl % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
     jointvarfcnhdl % Funktions-Handle für Werte Gelenkvariablen (bei hybriden Robotern)
-    all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters
+    all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
 
   methods
@@ -86,6 +86,13 @@ classdef SerRob < matlab.mixin.Copyable
       R.NL = Par_struct.NL;
       R.NJ = Par_struct.NJ;
       R.NQJ = Par_struct.NQJ;
+
+      if R.NJ == R.NQJ
+        R.Type = 0; % serielle Struktur
+      else
+        R.Type = 1; % hybride Struktur
+      end
+
       R.MDH = Par_struct; % TODO: Nur gewünschte Felder
       R.pkin = Par_struct.pkin;
       if isempty(R.pkin)
@@ -94,11 +101,6 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar = struct('mges', NaN(R.NL,1), 'rSges', NaN(R.NL,3), 'Icges', NaN(R.NL,6));
       R.update_dynpar1();
 
-      if R.NJ == R.NQJ
-        R.Type = 0; % serielle Struktur
-      else
-        R.Type = 1; % hybride Struktur
-      end
       R.qref = zeros(R.NQJ,1);
 
       R.r_N_E = zeros(3,1);
@@ -117,8 +119,8 @@ classdef SerRob < matlab.mixin.Copyable
       {'fkinfcnhdl', 'fkine_fixb_rotmat_mdh_sym_varpar'}, ...
       {'jtraffcnhdl', 'joint_trafo_rotmat_mdh_sym_varpar'}, ...
       {'jacobiRfcnhdl', 'jacobiR_rot_sym_varpar'}, ...
-      {'jacobigfcnhdl', 'jacobig_floatb_twist_sym_varpar'}, ...
-      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar'}, ...
+      {'jacobigfcnhdl', 'jacobig_floatb_twist_sym_varpar', 'jacobig_mdh_num'}, ...
+      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar', 'palh1m1TE_jacobigD_mdh_num'}, ...
       {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
       {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
@@ -126,7 +128,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecfcnhdl', 'coriolisvecJ_fixb_slag_vp2'}, ...
       {'cormatfcnhdl', 'coriolismatJ_fixb_slag_vp2'}, ...
       {'invdynfcnhdl', 'invdynJ_fixb_slag_vp2'}, ...
-      {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar'}};
+      {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
       qunit_eng = cell(R.NJ,1);
       qunit_sci = cell(R.NJ,1);
       tauunit_sci = cell(R.NJ,1);
@@ -461,12 +463,35 @@ classdef SerRob < matlab.mixin.Copyable
     end
     function pkin = update_pkin(R)
       % Aktualisiere die Variable pkin aus den gespeicherten MDH-Parametern
+      % Ausgabe:
+      % pkin: Vektor der Kinematikparameter; aus MDH-Parametern generiert
+      
+      % Prüfe, ob Kinematikparameter leer sind. Dann erstelle
+      % Platzhalter-Vektor, damit die folgenden Funktionen funktionieren
+      % Das ist insbesondere für hybride Systeme wichtig, bei denen die
+      % MDH-Parameter nicht alle Kinematikparameter enthalten
+      if isempty(R.pkin)
+        structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
+        [~,~,~,~,NKP] = structkinpar_hdl();
+        R.pkin = NaN(NKP,1);
+      end
+      
+      if R.Type == 1
+        % Die Umwandlung funktioniert nicht für hybride Roboter, bei denen
+        % zusätzliche Kinematikparameter in den kinematischen
+        % Zwangsbedingungen definiert sind. Deshalb hier Abbruch.
+        pkin = R.pkin;
+        return
+      end
+      
+      % Die Umwandlung MDH->pkin wird nur für echt serielle Roboter gemacht
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
       pkin = mdh2pkin_hdl(R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
         R.MDH.theta, R.MDH.d, zeros(R.NJ,1));
       R.pkin = pkin;
       [beta,b,alpha,a,theta,d] = pkin2mdh_hdl(pkin);
+      % Teste Rück-Transformation der Kinematik-Parameter
       pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
       if any(abs(pkin-pkin_test) > 1e-10)
         error('Parameteraktualisierung von pkin hat nicht funktioniert');
@@ -483,11 +508,17 @@ classdef SerRob < matlab.mixin.Copyable
       
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
+      % Berechne MDH-Parameter aus pkin-Vektor
       [beta,b,alpha,a,theta,d] = pkin2mdh_hdl(pkin_neu);
-      pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
-      if any(abs(pkin_neu-pkin_test) > 1e-10)
-        error('Parameteraktualisierung pkin->mdh hat nicht funktioniert');
+      % Teste die Rück-Transformation zu pkin (funktioniert nur für
+      % serielle Roboter; bei hybriden stehen nicht alle Par. in MDH
+      if R.Type == 0
+        pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
+        if any(abs(pkin_neu-pkin_test) > 1e-10)
+          error('Parameteraktualisierung pkin->mdh hat nicht funktioniert');
+        end
       end
+      % Parameter in Roboterklasse belegen
       R.MDH.beta=beta; R.MDH.b=b;
       R.MDH.alpha=alpha; R.MDH.a=a;
       R.MDH.theta=theta; R.MDH.d=d;
@@ -500,8 +531,7 @@ classdef SerRob < matlab.mixin.Copyable
       % mges: Massen aller Robotersegmente (inkl Basis)
       % rSges: Schwerpunktskoordinaten aller Robotersegmente (bezogen auf
       % jeweiliges Körper-KS)
-      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf
-      % Schwerpunkt)
+      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
       if nargin < 2 || isempty(mges)
         mges = R.DynPar.mges;
       end
@@ -511,13 +541,19 @@ classdef SerRob < matlab.mixin.Copyable
       if nargin < 4 || isempty(Icges)
         Icges = R.DynPar.Icges;
       end
-      if isempty(which(sprintf('%s_convert_par2_MPV_fixb', R.mdlname)))
-        return
-      end
-      dynpar2mpv_hdl = eval(sprintf('@%s_convert_par2_MPV_fixb', R.mdlname));
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
-      mpv = dynpar2mpv_hdl(R.pkin, mges, mrSges, Ifges);
-        
+      
+      % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
+      % Moment) in Minimalparameter-Vektor
+      if isempty(which(sprintf('%s_convert_par2_MPV_fixb', R.mdlname)))
+        % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
+        mpv = [];
+      else
+        dynpar2mpv_hdl = eval(sprintf('@%s_convert_par2_MPV_fixb', R.mdlname));
+        mpv = dynpar2mpv_hdl(R.pkin, mges, mrSges, Ifges);
+      end
+
+      % Parameter in Roboterklasse belegen
       R.DynPar.mges   = mges;
       R.DynPar.rSges  = rSges;
       R.DynPar.Icges  = Icges;
