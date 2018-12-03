@@ -44,14 +44,13 @@ if nargin < 4
   s = s_std;
 end
 
-% Prüfe Felder der Einstellungs-Struktur
-if ~isfield(s, 'K'),s.K = s_std.K; end
-if ~isfield(s, 'Kn'),s.Kn = s_std.Kn; end
-if ~isfield(s, 'task_red'),s.task_red = s_std.task_red; end
-if ~isfield(s, 'n_min'),s.n_min = s_std.n_min; end
-if ~isfield(s, 'n_max'),s.n_max = s_std.n_max; end
-if ~isfield(s, 'wn'),s.wn = s_std.wn; end
-if ~isfield(s, 'constr_m'),s.constr_m = s_std.constr_m; end
+% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
+% Eingabe nicht gesetzt
+for f = fields(s_std)'
+  if ~isfield(s, f{1})
+    s.(f{1}) = s_std.(f{1});
+  end
+end
 
 % Variablen zum Speichern der Zwischenergebnisse
 q1 = q0;
