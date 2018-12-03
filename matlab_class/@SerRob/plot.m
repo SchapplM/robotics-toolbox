@@ -149,7 +149,14 @@ if s.mode == 2 && ~isempty(Rob.CADstruct)
     
     % STL Operation: read STL
     [v, f, n, c, ~] = stlread(STLfilepath, 0);
-
+    
+    % Umrechnen der STL von Millimeter nach Meter
+    if Rob.CADstruct.unit(j) ~= 1
+      u = Rob.CADstruct.unit(j);
+      for i = 1:size(v,1)
+        v(i,:) = u*v(i,:);
+      end
+    end
     % Move and rotate to link reference frame 
     for i = 1:size(n,1)
         n(i,:) = (T_W_bmdh(1:3,1:3)*n(i,:)')';

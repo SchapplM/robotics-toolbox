@@ -572,13 +572,17 @@ classdef SerRob < matlab.mixin.Copyable
       x_W_E = [T_W_E(1:3,4); r2eul(T_W_E(1:3,1:3), R.phiconv_W_E)];
     end
     
-    function CAD_add(R, filepath, link, T_body_CAD, color)
+    function CAD_add(R, filepath, link, T_body_CAD, unit, color)
       % Füge die CAD-Datei für einen Körper des Roboters hinzu
       % filepath: Absoluter Pfad zur STL-Datei
       % link: Nummer des Robotersegments (0=Basis)
       % T_body_CAD: Koordinatentransformation zum Ursprung der CAD-Datei
+      % unit: Einheit des STL-Modells (1e-3 für STL in Millimeter)
       % color (optional): Farbe für hinzuzufügendes CAD-Modell
       colors_default = {'k', 'r', 'g', 'b', 'c', 'm', 'y'};
+      if nargin < 5
+        unit = 1;
+      end
       if isempty(R.CADstruct)
         R.CADstruct = struct( ...
           'filepath', cell(1,1), ...
@@ -586,20 +590,23 @@ classdef SerRob < matlab.mixin.Copyable
           'T_body_visual', T_body_CAD, ...
           'color', cell(1,1));
         R.CADstruct.filepath{1} = filepath;
-        if nargin < 5
+
+        if nargin < 6
           color = colors_default{1};
         end
         R.CADstruct.color{1} = color;
+        R.CADstruct.unit = unit;
       else
         i = length(R.CADstruct.link)+1;
         R.CADstruct.filepath = {R.CADstruct.filepath{:}, filepath}; %#ok<CCAT>
         R.CADstruct.link = [R.CADstruct.link; link];
         R.CADstruct.T_body_visual(:,:,i) = T_body_CAD;
-        if nargin < 5
+        if nargin < 6
           ci = mod(i-1, 7)+1; % Wähle der Reihe nach die Standardfarben (mit Wiederholung)
           color = colors_default{ci};
         end
         R.CADstruct.color = {R.CADstruct.color{:}, color}; %#ok<CCAT>
+        R.CADstruct.unit = [R.CADstruct.unit; unit];
       end
     end
   end
