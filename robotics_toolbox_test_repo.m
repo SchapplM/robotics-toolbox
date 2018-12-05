@@ -12,6 +12,7 @@ addpath(fullfile(this_repo_path, 'examples_tests'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_controllers'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_integration'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'contact_models'));
+addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 
 %% Transformationen
 angvec_test
@@ -32,6 +33,9 @@ rotation_controllers_test_start
 %% Kontaktmodelle
 HuntCrossley_LuGre_1DOF_example
 sim('example_hunt_crossley_bouncing_ball', 'StopTime', '10', 'SimulationMode', 'normal');
+
+%% Matlab-Klasse
+robot_class_test
 
 %% Alle Funktionen kompilieren
 robotics_toolbox_compile_test;
