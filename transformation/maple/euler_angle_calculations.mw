@@ -4,7 +4,7 @@
 <Label-Scheme value="2" prefix=""/>
 <View-Properties presentation="true" autoexpanding_sections="true" UserProfileName="Maple Default Profile" NumericFormat-ApplyInteger="true" NumericFormat-ApplyRational="true" NumericFormat-ApplyExponent="false" editable="true">
 </View-Properties>
-<MapleNet-Properties prettyprint="3" warnlevel="3" preplot="" helpbrowser="standard" displayprecision="-1" echo="1" unitattributes="&quot;fontweight&quot; = &quot;bold&quot;" imaginaryunit="I" longdelim="true" elisiontermsthreshold="10000" elisiondigitsafter="100" elisiondigitsbefore="100" plotdevice="inline" errorbreak="1" plotoptions="" plotdriver="opengl" quiet="false" elisiontermsbefore="100" elisiontermsafter="100" screenwidth="79" indentamount="4" plotoutput="terminal" screenpixelheight="1200" rtablesize="20" useclientjvm="true" labelwidth="20" postplot="" typesetting="extended" ansi="false" elisiondigitsthreshold="10000" showassumed="1" errorcursor="false" labelling="true" screenheight="25" prompt="&gt; " verboseproc="1" latexwidth="8.0" ShowLabels="true"/>
+<MapleNet-Properties prettyprint="3" warnlevel="3" preplot="" helpbrowser="standard" displayprecision="-1" echo="1" unitattributes="&quot;fontweight&quot; = &quot;bold&quot;" imaginaryunit="I" longdelim="true" elisiontermsthreshold="10000" elisiondigitsafter="100" elisiondigitsbefore="100" plotdevice="inline" errorbreak="1" plotoptions="" plotdriver="opengl" quiet="false" elisiontermsbefore="100" elisiontermsafter="100" screenwidth="79" indentamount="4" plotoutput="terminal" screenpixelheight="1200" rtablesize="10" useclientjvm="true" labelwidth="20" postplot="" typesetting="extended" ansi="false" elisiondigitsthreshold="10000" showassumed="1" errorcursor="false" labelling="true" screenheight="25" prompt="&gt; " verboseproc="1" latexwidth="8.0" ShowLabels="true"/>
 <Styles>
 <Font name="Heading 1" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="18" subscript="false" superscript="false" underline="false" placeholder="false"/>
 <Font name="Warning" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
@@ -274,6 +274,31 @@ end do:</Text-field>
   r2eul := parse(sprintf(&quot;r2eul%s&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
   phi_i := r2eul(RR):
   MatlabExport(phi_i, sprintf(&quot;codeexport/r2eul%s_matlab.m&quot;, eulstr), 2):
+end do:</EC-CodeEditor></CodeEditor-ExecGroup>
+<Group view="code" labelreference="L2055" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Teste Hin- und R\303\274cktransformation.
+</Font>--&gt;Muss hier nicht getestet werden: Exportierter Code wurde numerisch in Matlab getestet.</Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L2054" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal"></Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L2049" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Normale und Inert-Funktion testen. Die Inert-Form ist geeignet, wenn der Term nur in arctan eingesetzt werden soll, dieser aber nicht ausgewertet werden soll.
+Das ist sinnvoll, wenn der Code exportiert wird und die Auswertung keinen Mehrwert bringt, oder wenn die Auswertung zu lange dauert.</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" hide-input="false" inline-output="false" labelreference="L2052" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion9" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">printf(&quot;Fehler bei Inert-Funktion r2eul:&quot;):
+for i from 1 to 12 do
+  eulstr := eulstrings[i]:
+  read(sprintf(&quot;proc_r2eul%s&quot;, eulstr)): # Prozedur aus Datei einlesen
+  r2eul := parse(sprintf(&quot;r2eul%s&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
+  read(sprintf(&quot;proc_r2eul%s_inert&quot;, eulstr)): # Prozedur aus Datei einlesen
+  r2eul_inert := parse(sprintf(&quot;r2eul%s_inert&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
+  phi_1 := r2eul(RR):
+  phi_2 := r2eul_inert(RR):
+  phi_diff := phi_1-value(phi_2):
+  print(Transpose(phi_diff)):
 end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block>
 </Section>
 <Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">eul_diff_rotmat: Ableitung der Euler-Winkel nach der Rotationsmatrix</Text-field></Title><Presentation-Block>
@@ -463,8 +488,8 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup>
 </Input>
 </Group></Presentation-Block>
 </Section><Presentation-Block>
-<Group view="presentation" inline-output="false" labelreference="L2048" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field style="Text" layout="Normal"><Equation executable="true" style="2D Math" input-equation="" display="LUklbXJvd0c2Iy9JK21vZHVsZW5hbWVHNiJJLFR5cGVzZXR0aW5nR0koX3N5c2xpYkdGJzYlLUkjbWlHRiQ2I1EhRicvJStleGVjdXRhYmxlR1EmZmFsc2VGJy8lLG1hdGh2YXJpYW50R1Enbm9ybWFsRic=">JSFH</Equation></Text-field>
+<Group view="code" labelreference="L2057" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>
 </Worksheet>

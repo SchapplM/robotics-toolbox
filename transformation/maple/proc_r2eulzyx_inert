@@ -1,0 +1,16 @@
+# Berechnung der (intrinsischen) zyx-Euler-Winkel aus der Rotationsmatrix
+# Nutze Inert-Form, damit die Arctan-Ausdrücke nicht sofort ausgewertet werden.
+# Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
+# (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+r2eulzyx_inert := proc (R) 
+  # Siehe proc_r2eulxyz
+  # Hier Transponiert, negierte Winkel und vertauschte Komponenten für ZYX
+  local alpha, beta, gama, zyx, sr, cr;  
+  alpha := %arctan(-R(3,2), R(3,3));
+  sr := sin(alpha);
+  cr := cos(alpha);
+  beta := %arctan(R(3,1), cr * R(3,3) - sr * R(3,2));
+  gama := %arctan(-R(2,1), R(1,1));
+  zyx := <-gama; -beta; -alpha>:
+  return zyx:
+end proc;

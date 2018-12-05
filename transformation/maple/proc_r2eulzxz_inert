@@ -1,0 +1,15 @@
+# Berechnung der (intrinsischen) zxz-Euler-Winkel aus der Rotationsmatrix
+# Nutze Inert-Form, damit die Arctan-Ausdrücke nicht sofort ausgewertet werden.
+# Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
+# (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+r2eulzxz_inert := proc (R) 
+  local phi1, phi2, phi3, phi;  
+  
+  phi3 := %arctan( R(3,1), R(3,2) );
+  # phi2 = acos(R(3,3));
+  phi2 := %arctan( sqrt( R(3,1)^2 + R(3,2)^2 ) , R(3,3) );
+  phi1 := %arctan( R(1,3), -R(2,3) );
+
+  phi := <phi1; phi2; phi3>:
+  return phi:
+end proc;

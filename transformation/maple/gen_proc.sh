@@ -4,7 +4,7 @@
 # Dieses Skript im Ordner ausführen, in dem es im Repo liegt
 
 # Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-# (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
+# (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 # eul2r: Maple-Prozedur generieren
 for f in `find codeexport/eul*2r`; do
@@ -47,6 +47,25 @@ for f in `find codeexport/eul*2r_matlab.m`; do
   varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
   echo "R = $varname_tmp;" >> $zd
 done
+
+
+# r2eul: Inert-Maple-Prozedur generieren
+# Aus Vorlage der normalen Prozeduren (von Hand erstellt)
+for f in `find codeexport/eul*2r_matlab.m`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Inert-Maple r2eul für $eulstr"
+  # Prozedur erstellen
+  qd="proc_r2eul${eulstr}"
+  zd="proc_r2eul${eulstr}_inert"
+  echo "# Berechnung der (intrinsischen) $eulstr-Euler-Winkel aus der Rotationsmatrix" > $zd
+  echo "# Nutze Inert-Form, damit die Arctan-Ausdrücke nicht sofort ausgewertet werden." >> $zd
+  echo "# Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12" >> $zd
+  echo "# (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover" >> $zd
+  cat $qd >> $zd
+  sed -i "s/arctan/%arctan/g" $zd
+  sed -i "s/r2eul${eulstr}/r2eul${eulstr}_inert/g" $zd
+done
+
 
 # r2eul: Matlab-Funktionen generieren
 # Die Funktionen sollten aus dem Maple-Code generiert werden, damit dieser direkt geprüft werden kann
