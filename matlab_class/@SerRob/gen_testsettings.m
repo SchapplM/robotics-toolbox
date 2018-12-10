@@ -66,6 +66,9 @@ QD(1:NQJ,:)=eye(NQJ);
 % Zufällige Beschleunigungen
 QDD = (0.5-rand(n, NQJ))*pi;
 
+%% Zufällige Gravitationsrichtungen
+G = 7*2*(0.5-rand(n,3));
+
 %% Struktur mit zufälligen Gelenkwinkelkonfigurationen
 TSS = struct('type', 'Test Settings Structure');
 % Zufällige Konfigurationen für Modultests
@@ -73,6 +76,7 @@ TSS.n = n;
 TSS.Q = Q;
 TSS.QD = QD;
 TSS.QDD = QDD;
+TSS.G = G;
 
 %% Eigenschaften des Roboters auf Zufallswerte setzen
 % Setze Kinematikparameter neu, falls gewünscht
