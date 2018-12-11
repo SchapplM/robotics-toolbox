@@ -44,10 +44,10 @@ pause(1);
 %% Beginne Animation
 % Prüfe Bereich des Plots
 for i=1:size(Q,1)
-  Tc = Rob.fkine(Q(i,:)');
-  xminmax_i = minmax(squeeze(Tc(1,4,:))');
-  yminmax_i = minmax(squeeze(Tc(2,4,:))');
-  zminmax_i = minmax(squeeze(Tc(3,4,:))');
+  [~,Tc_W] = Rob.fkine(Q(i,:)');
+  xminmax_i = minmax(squeeze(Tc_W(1,4,:))');
+  yminmax_i = minmax(squeeze(Tc_W(2,4,:))');
+  zminmax_i = minmax(squeeze(Tc_W(3,4,:))');
   if i == 1
     xminmax = xminmax_i;
     yminmax = yminmax_i;

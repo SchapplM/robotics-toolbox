@@ -106,6 +106,8 @@ classdef SerRob < matlab.mixin.Copyable
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
       R.T_N_E = eye(4);
+      R.r_W_0 = zeros(3,1);
+      R.phi_W_0 = zeros(3,1);
       R.T_W_0 = eye(4);
       R.phiconv_N_E = uint8(2); % Euler-XYZ
       R.phiconv_W_E = uint8(2); % Euler-XYZ

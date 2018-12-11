@@ -28,7 +28,7 @@ RName='S4RRPR1_KUKA1';
 RS = serroblib_create_robot_class(SName, RName);
 % Test-Einstellungen generieren
 TSS = RS.gen_testsettings(true, false);
-
+RS.update_base([0.5; 0.5; 0]); % Basis-Transformation (zur freien Positionierung des Roboters)
 RS.I_EE = [1 1 1 0 0 1]; % nur 4FG in InvKin betrachten
 %% Alle Funktionen einmal aufrufen
 q0 = RS.qref;
@@ -107,7 +107,7 @@ zlabel('z [m]');
 view(3);
 RS.plot( RS.qref, s_plot );
 title(sprintf('Grundstellung: %s', RS.descr));
-plot3(X(:,1), X(:,2), X(:,3));
+plot3(X(:,1)+RS.r_W_0(1), X(:,2)+RS.r_W_0(2), X(:,3)+RS.r_W_0(3));
 
 %% Trajektorie aus Gelenkraum visualisieren
 
@@ -221,7 +221,7 @@ zlabel('z [m]');
 view(3);
 RS.plot( q0, s_plot );
 title(sprintf('Grundstellung: %s', RS.descr));
-plot3(X(:,1), X(:,2), X(:,3));
+plot3(X(:,1)+RS.r_W_0(1), X(:,2)+RS.r_W_0(2), X(:,3)+RS.r_W_0(3));
 
 %% Trajektorie aus Gelenkraum visualisieren
 
@@ -278,7 +278,7 @@ end
 s_anim = struct( 'gif_name', '');
 figure(9);clf;
 hold on;
-plot3(X(:,1), X(:,2), X(:,3));
+plot3(X(:,1)+RS.r_W_0(1), X(:,2)+RS.r_W_0(2), X(:,3)+RS.r_W_0(3));
 grid on;
 xlabel('x [m]');
 ylabel('y [m]');
