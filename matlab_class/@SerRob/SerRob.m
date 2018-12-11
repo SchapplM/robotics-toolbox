@@ -120,7 +120,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'jtraffcnhdl', 'joint_trafo_rotmat_mdh_sym_varpar'}, ...
       {'jacobiRfcnhdl', 'jacobiR_rot_sym_varpar'}, ...
       {'jacobigfcnhdl', 'jacobig_floatb_twist_sym_varpar', 'jacobig_mdh_num'}, ...
-      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar', 'palh1m1TE_jacobigD_mdh_num'}, ...
+      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar', 'jacobigD_mdh_num'}, ...
       {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
       {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
@@ -152,15 +152,40 @@ classdef SerRob < matlab.mixin.Copyable
       R.tauunit_sci = tauunit_sci;
       R.CADstruct = struct('filepath', {}, 'link', [], 'T_body_visual', NaN(4,4,0), 'color', {});
     end
-    function mex_dep(R)
-      fcnhdl_str = cell(length(R.all_fcn_hdl),1);
+    
+    function mex_dep(R, force)
+      % Kompiliere alle abhängigen Funktionen dieses Roboters
+      % Eingabe:
+      % force (optional):
+      % Erzwinge die Prüfung der Kompilierung aller Funktionen.
+      fcnhdl_str = cell(3*length(R.all_fcn_hdl),1); % Liste zu kompilierender Funktionen (zu großinitialisieren)
+      k=0; % laufende Nummer der zu kompilierenden Funktionen
       for i = 1:length(R.all_fcn_hdl)
         ca = R.all_fcn_hdl{i};
-        fcnname = ca{2};
-        fcnhdl_str{i} = sprintf('%s_%s', R.mdlname, fcnname);
+        % Alle Optionen für dieses Funktions-Handle durchgehen
+        for j = 2:length(ca)
+          fcnname = ca{j};
+          if isempty(which(sprintf('%s_%s', R.mdlname, fcnname)))
+            % Funktionsdatei gibt es nicht. Daher auch keine Kompilierung möglich
+            continue
+          end
+          if nargin == 1 || ~force
+            % nur Funktionen hinzufügen, deren mex-Dateien fehlen. Nichts neu kompilieren
+            if ~isempty(which(sprintf('%s_%s_mex', R.mdlname, fcnname)))
+              continue % diese Funktion nicht zur mex-Liste hinzufügen
+            end
+          end
+          k=k+1;
+          fcnhdl_str{k} = sprintf('%s_%s', R.mdlname, fcnname);
+        end
       end
-      matlabfcn2mex(fcnhdl_str);
+      if k == 0
+        % keine noch zu kompilierenden Funktionen fehlen
+        return
+      end
+      matlabfcn2mex(fcnhdl_str(1:k));
     end
+    
     function T = jtraf(R, q)
       % Homogene Transformationsmatrizen der einzelnen Gelenk-Transformationen
       % Eingabe:

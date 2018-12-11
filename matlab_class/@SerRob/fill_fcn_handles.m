@@ -24,6 +24,31 @@ for i = 1:length(R.all_fcn_hdl)
     else
       robfcnname = sprintf('%s_%s_mex', mdlname, fcnname_tmp);
     end
+    % Sonderfälle abarbeiten: 
+    % Prüfe, ob die einzelnen
+    % Jacobi-Matrix-Funktionen vorhanden sind (analytisch hergeleitet).
+    % Diese Funktionen werden in der HybrDyn-Toolbox nicht generiert, wohl
+    % aber die aufrufenden Funktionen. Daher wird geprüft, ob die
+    % abhängigen Funktionen auch da sind und nur in diesem Fall
+    % weitergemacht
+    if strcmp(fcnname_tmp, 'jacobig_floatb_twist_sym_varpar')
+      abort = false;
+      for kk = 1:R.NL
+        Jkk_name = sprintf('S6RRPRRR14_jacobia_transl_%d_floatb_twist_sym_varpar', kk);
+        if isempty(which(Jkk_name))
+          abort = true;
+        end
+      end
+      if abort
+        continue
+      end
+    end
+    % Funktion für die Bestimmung der Gelenkvariablen von hybriden Robotern
+    if strcmp(hdlname, 'jointvarfcnhdl') && R.Type == 0
+      % hat bei seriellen Robotern keine Bedeutung und wird nicht benutzt
+      continue
+    end
+    
     if ~isempty(which(robfcnname)) || j == length(ca)
       % Speichere das Funktions-Handle in der Roboterklasse
       % Falls keine Datei gefunden wurde, nehme das Handle für die letzte
