@@ -14,13 +14,13 @@ Für die Benutzung des Repos muss die Pfadinitialisierung durchgeführt werden m
 
 Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und Toolboxen. Die Pfad-Initialisierung von `matlab-ext` muss allerdings **vor** der Pfad-Initialisierung dieses Repos durchgeführt werden, da es gleichnamige Funktionen mit unterschiedlichem Inhalt gibt (z.B. `eul2r`).
 
-Für die Matlab-Klasse muss die Sammlung externer Robotermodelle `serrob_mdlbib` initialisiert sein.
+Für die Matlab-Klasse SerRob muss die Sammlung externer Robotermodelle `serrob_mdlbib` (für serielle Roboter) und ggf. `serhybrob-mdl` (für hybride Roboter) initialisiert sein.
 
 ### Modultests
 
 Die einzelnen Funktionen des Repos können über die Modultests aus dem Ordner `examples_tests` gestartet werden. Die Funktionsfähigkeit des Gesamt-Repos kann mit dem Gesamt-Testskript `robotics_toolbox_test_repo.m` aus dem Hauptordner geprüft werden.
 
-## Inhalt
+## Inhalt (Kurzzusammenfassung)
 
 Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funktionsweise ist in den jeweiligen Funktionsdateien und Modultests erklärt.
 
@@ -57,9 +57,13 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
   * Gelenk-Impedanzregler für serielle Roboter (PID-ähnlicher Regler mit im Gelenkraum konstanten Eigenschaften): `lib_joint_impctrl.mdl`
   * Kartesische Regler für Position und Orientierung im Arbeitsraum: `lib_cartesian_controllers.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_controllers`
-* Matlab-Klasse SerRob
+* Matlab-Klasse `SerRob`
   * Klasse mit Funktionen für serielle und hybride Roboter. Nach der Definition eines Roboters können Kinematik und Dynamik berechnet werden. Die Klasse greift auf symbolisch generierten Code zu. Dadurch sind alle Funktionen kompilierbar und damit schneller ausführbar und für den Einsatz in Echtzeitrechnern (SPS, EtherLab/Simulink) geeignet.
-  * Beispiel für seriellen Roboter: `SerRob_class_example_SCARA.m`
+  * Beispiele für serielle Roboter im Ordner `robotics/examples_tests/SerRob`: `SerRob_class_example_SCARA.m`, `SerRob_class_example_Palettierer.m`, `SerRob_class_example_LBR.m`
+* Matlab-Klasse `ParRob`
+  * Klasse mit Funktionen für parallele Roboter. Aktuell sind die inverse und differentielle Kinematik für allgemeine PKM implementiert.
+  * Beispiele für parallele Roboter im Ordner `robotics/examples_tests/ParRob`: `ParRob_class_example_3RPR.m`, `ParRob_class_example_3RRR.m`, `ParRob_class_example_6UPS.m`
+
 
 ## Erweiterung
 
