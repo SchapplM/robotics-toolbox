@@ -20,3 +20,4 @@ SerRob_class_example_LBR
 ParRob_class_example_3RPR
 ParRob_class_example_3RRR
 ParRob_class_example_6UPS
+ParRob_constraints_test
