@@ -58,11 +58,11 @@ RS.constr1(q0, xE);
 RS.constr1grad(q0, xE);
 RS.constr2(q0, xE);
 RS.constr2grad(q0, xE);
-RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
+RS.invkin(xE, q0+0.1*ones(RS.NJ,1), struct('constr_m', 1)); % IK mit Methode 1 testen, sonst Warnung
 
 % Funktionen kompilieren
-% RS.fill_fcn_handles(true);
-% RS.mex_dep();
+RS.fill_fcn_handles(true);
+RS.mex_dep();
 %% Gelenkwinkel-Trajektorie berechnen
 % Für jedes Gelenk 
 k=1; QE = RS.qref';
@@ -144,7 +144,7 @@ linkxaxes
 s_anim = struct( 'gif_name', '');
 figure(4);clf;
 hold on;
-plot3(X(:,1), X(:,2), X(:,3));
+plot3(X(:,1)+RS.r_W_0(1), X(:,2)+RS.r_W_0(2), X(:,3)+RS.r_W_0(3));
 grid on;
 xlabel('x [m]');
 ylabel('y [m]');
