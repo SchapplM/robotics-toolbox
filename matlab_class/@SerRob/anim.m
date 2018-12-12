@@ -66,18 +66,33 @@ yw = abs(yminmax(2)-yminmax(1));
 yminmax(1) = yminmax(1)-0.05*yw;
 yminmax(2) = yminmax(2)+0.05*yw;
 zw = abs(zminmax(2)-zminmax(1));
+% Grenzen größer Null setzen (gleich Null bei planaren Systemen)
+if all(xminmax == 0)
+  xminmax = [-0.1, 0.1];
+end
+if all(yminmax == 0)
+  yminmax = [-0.1, 0.1];
+end
 if all(zminmax == 0)
   zminmax = [-0.1, 0.1];
 end
+% Achsgrenzen setzen
+xminmax(1) = xminmax(1)-0.05*xw;
+xminmax(2) = xminmax(2)+0.05*xw;
+yminmax(1) = yminmax(1)-0.05*yw;
+yminmax(2) = yminmax(2)+0.05*yw;
 zminmax(1) = zminmax(1)-0.05*zw;
 zminmax(2) = zminmax(2)+0.05*zw;
-
 xlim(xminmax);ylim(yminmax);zlim(zminmax);
+% Kind-Objekte des Figures merken, die bis jetzt vorliegen (z.B.
+% eingezeichnete Trajektorien). Diese sollen bei der Animation erhalten
+% bleiben.
 children_keeplist = get(gca, 'children');
+%% Trajektorie durchgehen und Roboter für jeden Zeitpunkt neu zeichnen
 for i=1:size(Q,1)
-
+  % Plot-Elemente des vorherigen Zeitpunktes entfernen, nur zu behaltende
+  % Elemente nicht löschen.
   if i > 1
-%     clf;
     for c = get(gca, 'children')'
       inkeeplist = false;
       for ckl = children_keeplist'
@@ -91,9 +106,6 @@ for i=1:size(Q,1)
     end
     hold on;
 
-%     xlim(xlim_save);
-%     ylim(ylim_save);
-%     zlim(zlim_save);
     xlim(xminmax);ylim(yminmax);zlim(zminmax);
     view(view1_save,view2_save);
   end
@@ -119,9 +131,6 @@ for i=1:size(Q,1)
     end
   end
   if i == 1
-%     xlim_save = xlim();
-%     ylim_save = ylim();
-%     zlim_save = zlim();
     [view1_save,view2_save] = view();
   end
 end
