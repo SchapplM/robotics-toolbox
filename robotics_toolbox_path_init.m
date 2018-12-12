@@ -1,4 +1,4 @@
-% Pfad-Initialisierung für die Matlab-Geometrie-Toolbox
+% Pfad-Initialisierung für die Matlab-Robotik-Toolbox
 % 
 % Diese Pfad-Initialisierung muss zeitlich nach der Pfad-Initialisierung
 % der Robotics-Toolbox von Peter Corke ausgeführt werden, damit
