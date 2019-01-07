@@ -55,6 +55,7 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
   * Testmodelle: Im Ordner `examples_tests/contact_models`
 * Regler
   * Gelenk-Impedanzregler für serielle Roboter (PID-ähnlicher Regler mit im Gelenkraum konstanten Eigenschaften): `lib_joint_impctrl.mdl`
+    * Testmodell mit Vollständigem Beispiel (Simulation eines Roboters mit Regler) in `examples_tests/impedance_controller`
   * Kartesische Regler für Position und Orientierung im Arbeitsraum: `lib_cartesian_controllers.mdl`
     * Testmodelle: Im Ordner `examples_tests/rotation_controllers`
 * Matlab-Klasse SerRob
