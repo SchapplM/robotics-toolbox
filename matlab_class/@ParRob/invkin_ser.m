@@ -1,5 +1,5 @@
-% Inverse Kinematik für allgemeinen Parallele Roboter
-% Aufruf der Funktion für serielle Roboter. Dadurch der Berechnung der IK
+% Inverse Kinematik für allgemeinen parallelen Roboter
+% Aufruf der Funktion für serielle Roboter. Dadurch Berechnung der IK
 % für alle Beine unabhängig und nicht gleichzeitig.
 % 
 % Eingabe:
@@ -14,8 +14,15 @@
 % Ausgabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM als Lösung der IK
+% Phi
+%   Erfüllung der kinematischen Zwangsbedingungen in der
+%   Gelenkkonfiguration q. Ist bei Erfolg ein Null-Vektor
 % 
 % Siehe auch: SerRob/invkin.m
+% 
+% TODO: Wenn die IK für die Beinkette funktioniert, aber dies keiner
+% gültigen IK für die PKM entspricht, wird ein Fehler aufgeworfen.
+% Das müsste noch systematischer abgefangen werden.
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -42,22 +49,26 @@ for f = fields(s_std)'
 end
 
 %% Start
+Phi_ser = NaN(Rob.NJ,1);
 q = q0;
 Tc_Pges = fkine_platform(Rob, xE_soll);
 % IK für alle Beine einzeln berechnen
-for i = 1:Rob.NLEG
-  % Einstellungen 
-  
+for i = 1:Rob.NLEG 
   q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  % Soll-Lage des Plattform-Koppelpunktes bestimmen.
+  % Soll-Lage des KS des Plattform-Koppelpunktes bestimmen.
   % Entspricht dem virtuellen Endeffektor der Beinkette
   T_0_0i = Rob.Leg(i).T_W_0;
-
   T_0_Bi = Tc_Pges(:,:,i);
   T_0i_Bi = invtr(T_0_0i) * T_0_Bi;
-  
+  % "End-Effektor-Pose" der Beinkette erzeugen. Das ist die Lage des
+  % Plattform-Koppel-Koordinatensystems auf Bein-Seite
   xE_soll_i = [T_0i_Bi(1:3,4); r2eul(t2r(T_0i_Bi), Rob.Leg(i).phiconv_W_E)];
+  % Inverse Kinematik für die serielle Beinkette berechnen
   [q_i, Phi_i] = Rob.Leg(i).invkin(xE_soll_i, q0_i, s);
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
+  Phi_ser(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Phi_i;
 end
 Phi = Rob.constr1(q, xE_soll);
+if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)
+  error('Fehler: ZB stimmen nicht überein. Wahrscheinlichste Ursache: EE-KS der Beinkette ist falsch gedreht.');
+end

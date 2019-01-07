@@ -22,7 +22,7 @@ function [Tc_Pges, Tc_Pges_W] = fkine_platform(Rob, xE)
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/fkine_platform: xE muss 6x1 sein');
 %% Initialisierung
-if isa(xE, 'double')
+if ~Rob.issym
   Tc_Pges = NaN(4,4,Rob.NLEG+2);
 else
   Tc_Pges = sym('xx', [4,4,Rob.NLEG+2]);

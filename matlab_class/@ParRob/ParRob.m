@@ -28,7 +28,7 @@
 
 classdef ParRob < matlab.mixin.Copyable
 
-  properties
+  properties (Access = public)
       NLEG % Anzahl der Beinketten
       NJ % Anzahl der Gelenkkoordinaten des Roboters (Gelenkkoordinaten aller Beinketten)
       I1J_LEG % Start-Indizes der Gelenkwinkel der einzelnen Beine in allen Gelenkwinkeln
@@ -50,17 +50,20 @@ classdef ParRob < matlab.mixin.Copyable
       T_P_E % Homogene Transformationsmatrix zwischen Endeffektor-KS und Plattform-KS
       r_P_E % Position des Endeffektors im Plattform-KS
       phi_P_E % Orientierung des EE-KS im Plattform-KS (ausgedrückt in Euler-Winkeln)
-      pkin % Vektor der Kinematikparameter (der PKM): Koppelpunkte, Beinketten
       Type % Typ des Roboters (2=parallel; zur Abgrenzung von SerRob)
-      Name
-      Leg % Matlab-Klasse SerRob für jede Beinketet
+      mdlname % Name des PKM-Robotermodells, das in den Matlab-Funktionen benutzt wird.
+      Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
+      NQJ_LEG_bc % Anzahl relevanter Beingelenke vor Schnittgelenk (von Basis an gezählt) ("bc"="before cut")
   end
-
+  properties (Access = private)
+      jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
+      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
+  end
   methods
     % Konstruktor
-    function R=ParRob(Name)
-      R.Name = Name;
+    function R=ParRob(mdlname)
+      R.mdlname = mdlname;
       R.Type = 2; % Parallel
       R.Leg = [];
       R.MDH = struct('sigma', []);
@@ -72,6 +75,10 @@ classdef ParRob < matlab.mixin.Copyable
       R.phi_P_E = zeros(3,1);
       R.T_P_E = eye(4);
       R.T_W_0 = eye(4);
+      % Liste der Funktionshandle-Variablen mit zugehörigen
+      % Funktionsdateien (aus Maple-Toolbox)
+      R.all_fcn_hdl = { ...
+        {'jacobi_qa_x_fcnhdl', 'Jinv'}};
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
@@ -126,6 +133,49 @@ classdef ParRob < matlab.mixin.Copyable
         R.phiconv_P_E = phiconv_W_0;
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
+    end
+    function Jinv = jacobi_qa_x(R, q, x)
+      % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % x: EE-Koordinaten
+      %
+      % Ausgabe:
+      % Jinv: Inverse Jacobi-Matrix
+      assert(all(size(q) == [R.NJ 1]), 'jacobi_qa_x: q muss %dx1 sein', R.NJ);
+      assert(all(size(x) == [6 1]), 'jacobi_qa_x: x muss 6x1 sein');
+      xred = x(R.I_EE);
+      pkin = R.Leg(1).pkin;
+      NLEGJ_NC = R.NQJ_LEG_bc;
+      if ~R.issym
+        qJ = NaN(NLEGJ_NC, R.NLEG);
+      else
+        qJ = sym('xx', [NLEGJ_NC R.NLEG]);
+        qJ(:)=0;
+      end
+      for i = 1:R.NLEG
+        qJ(:,i) = q(R.I1J_LEG(i):(R.I1J_LEG(i)+NLEGJ_NC-1));
+      end
+      koppelP = R.r_P_B_all';
+      if ~R.issym
+        legFrame = NaN(R.NLEG, 3);
+      else
+        legFrame = sym('xx', [R.NLEG, 3]);
+        legFrame(:)=0;
+      end
+      for i = 1:3
+        legFrame(i,:) = R.Leg(i).phi_W_0;
+      end
+      Jinv = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
+    end
+    function update_mdh_legs(R, pkin)
+      % Aktualisiere die Kinematik-Parameter aller Beinketten
+      % Nehme eine symmetrische PKM an
+      % Eingabe:
+      % pkin (Kinematikparameter der Beine)
+      for i = 1:R.NLEG
+        R.Leg(i).update_mdh(pkin);
+      end
     end
   end
 end

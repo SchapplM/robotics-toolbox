@@ -58,8 +58,8 @@ plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 %% Gelenke zeichnen
 if s.mode == 1
   % Gelenke als Objekte. TODO: An Größe des Roboters anpassen
-  d = 0.04; % Durchmesser der Zylinder und Quader
-  h = 0.15; % Höhe
+  gd = 0.04; % Durchmesser der Zylinder und Quader
+  gh = 0.15; % Höhe
   % Anmerkungen:
   % * Gelenk i bewegt Körper i
   % * Gelenkachse i ist z-Achse des Körper-KS i (MDH-Notation)
@@ -70,17 +70,31 @@ if s.mode == 1
 
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
     r_W_Oi = T_c_W(1:3,4,i+1);
+    % Gelenk so verschieben, dass es bei d-Verschiebung (z-Achse) in der
+    % Mitte zwischen den benachbarten KS liegt (damit die Gelenke weniger
+    % direkt ineinander liegen)
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
-      r_W_P1 = r_W_Oi + R_W_i*[0;0;-h/2];
-      r_W_P2 = r_W_Oi + R_W_i*[0;0; h/2];
-      drawCylinder([r_W_P1', r_W_P2', d/2], 'EdgeColor', cc, ...
+      d = Rob.MDH.d(i);
+    elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
+      d = qJ(i) + Rob.MDH.offset(i);
+    else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
+      d = Rob.MDH.d(i);
+    end
+    r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
+    % T_c_W(1:3,4,Rob.MDH.v(i)+1);
+    r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
+    
+    if Rob.MDH.sigma(i) == 0 % Drehgelenk
+      r_W_P1 = r_W_Gi + R_W_i*[0;0;-gh/2];
+      r_W_P2 = r_W_Gi + R_W_i*[0;0; gh/2];
+      drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
         'FaceAlpha', 0.3, 'FaceColor', 'w')
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
       % Eckpunkte des Quaders definieren
-      r_W_Q1 = r_W_Oi + R_W_i*[-d/2; -d/2; -h/2];
-      r_W_Q1Q2 = R_W_i*[d;0;0];
-      r_W_Q1Q3 = R_W_i*[0;d;0];
-      r_W_Q1Q4 = R_W_i*[0;0;h];
+      r_W_Q1 = r_W_Gi + R_W_i*[-gd/2; -gd/2; -gh/2];
+      r_W_Q1Q2 = R_W_i*[gd;0;0];
+      r_W_Q1Q3 = R_W_i*[0;gd;0];
+      r_W_Q1Q4 = R_W_i*[0;0;gh];
       plot_cube2(r_W_Q1, r_W_Q1Q2, r_W_Q1Q3, r_W_Q1Q4, cc);
     else
       continue % kein Gelenk

@@ -18,6 +18,7 @@ warning on;
 %% Init
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
+  return
 end
 
 % Typ des seriellen Roboters auswählen (Drei Drehgelenke)
@@ -41,11 +42,11 @@ RS.update_mdh(pkin);
 % basierend auf der IK der Einzelketten nicht mehr.
 RS.update_EE([], [pi;0;0]);
 %% Klasse für PKM erstellen
+RS.I_EE = logical([1 1 0 0 0 1]);%logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
 RP = ParRob('P3RPR1');
 RP = RP.create_symmetric_robot(3, RS, 1, 0.3);
 RP = RP.initialize();
 RP.I_EE = logical([1 1 0 0 0 1]); % Für IK der PKM
-RS.I_EE = logical([1 1 0 0 0 1]);%logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
 % Schubgelenke sind aktuiert
 I_qa = false(RP.NJ,1);
 I_qa(2:3:RP.NJ) = true;
@@ -91,11 +92,11 @@ G_dx = [G_d, G_x];
 Gv_dx = [Gv_d, Gv_x];
 
 fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik: %d/%d\n', ...
-  RP.Name, rank(G_q), RP.NJ);
+  RP.mdlname, rank(G_q), RP.NJ);
 fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ...
-  RP.Name, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
+  RP.mdlname, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
 fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
-  RP.Name, rank(G_a), sum(RP.I_EE));
+  RP.mdlname, rank(G_a), sum(RP.I_EE));
 
 %% Beispieltrajektorie definieren
 
@@ -144,7 +145,7 @@ for i = 1:length(t)
   if any(abs(Phi_num1) > 2e-4)
     % Trajektorie wahrscheinlich außerhalb des Arbeitsraums
     if any(abs(Phi_num1) > 2e-4)
-      warning('i=%d: IK konvergiert nicht', i);
+      error('i=%d: IK konvergiert nicht', i);
       return
     end
   end

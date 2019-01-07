@@ -35,8 +35,7 @@ NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
-issym=checksym(q);
-if ~issym
+if ~Rob.issym
   Phi_q_legs = NaN(3*NLEG,NJ);
   Phi_q_legs_red = NaN(sum(Rob.I_EE(1:3))*NLEG,NJ);
 else
@@ -59,7 +58,7 @@ for i = 1:NLEG
   J0i_i_trans = Rob.Leg(i).jacobiT(qs);
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
-  if ~issym
+  if ~Rob.issym
     dPhidqJi = zeros(3*NLEG,Rob.Leg(i).NQJ);
     dPhidqJi_red = zeros(sum(Rob.I_EE(1:3))*NLEG,Rob.Leg(i).NQJ);
   else

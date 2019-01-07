@@ -43,6 +43,15 @@ if method == 1
     else
       phi_0_Ai_ges(:,i) = [0*pi/180;0*pi/180;pi/2+beta_i];
     end
+    
+    if Rob.issym
+      % TODO: Bessere Methode zur Unterdrückung der Warnung (tritt auf,
+      % wenn 0 oder Pi mit Annahmen belegt werden soll
+      warning('off', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+      assume(r_0_0_Ai_ges(:,i), 'real');
+      assume(phi_0_Ai_ges(:,i), 'real');
+      warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+    end
     Rob.Leg(i).r_W_0 = r_0_0_Ai_ges(:,i);
     Rob.Leg(i).phi_W_0 = phi_0_Ai_ges(:,i); % Standard-Konvention XYZ lassen
 
@@ -50,4 +59,5 @@ if method == 1
     Rob.Leg(i).update_base();
   end  
 end
+
 Rob.r_0_A_all = r_0_0_Ai_ges;

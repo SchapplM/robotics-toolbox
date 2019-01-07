@@ -47,8 +47,7 @@ nPhi = nPhit + nPhir;
 dim_Pq_red=[size(Phi_tq_red,1) + size(Phi_rq_red ,1), size(Phi_rq_red,2)];
 dim_Pq =   [size(Phi_tq,1)     + size(Phi_rq,1),      size(Phi_rq,    2)];
 
-issym=checksym(q, xE);
-if ~issym
+if ~Rob.issym
   Phi_q_red = NaN(dim_Pq_red);
   Phi_q =     NaN(dim_Pq);
 else

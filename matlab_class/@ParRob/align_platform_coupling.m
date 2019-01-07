@@ -38,7 +38,14 @@ if method == 1
     end
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[d_PB;0;0];
 
-    % Rob.Leg(i).update_EE(); % TODO: Noch nicht implementiert. Noch unklar wie das genau aussieht
+    Rob.Leg(i).update_EE();
+  end
+  if Rob.issym
+    % Annahme über symbolische Variablen, damit die späteren assert-Befehle
+    % keinen Fehler aufwerfen
+    warning('off', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+    assume(r_P_P_Bi_ges, 'real');
+    warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
   end
   Rob.r_P_B_all = r_P_P_Bi_ges;
 end

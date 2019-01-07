@@ -21,7 +21,12 @@
 
 function [Tc_Lges, Tc_Lges_W] = fkine_legs(Rob, q)
 
-Tc_Lges = initialize_var([4,4,Rob.NJ+Rob.NLEG], ~isa([q], 'double'));
+if ~Rob.issym
+  Tc_Lges = sym('xx', [4,4,Rob.NJ+Rob.NLEG]);
+else
+  Tc_Lges = NaN(4,4,Rob.NJ+Rob.NLEG);
+end
+
 J1 = 0;
 J2 = 0;
 for iLeg = 1:Rob.NLEG

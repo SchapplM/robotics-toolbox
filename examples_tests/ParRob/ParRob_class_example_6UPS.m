@@ -17,6 +17,7 @@ respath = fullfile(rob_path, 'examples_tests', 'results');
 %% Init
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
+  return
 end
 
 % Typ des seriellen Roboters auswählen (RRPRRR = UPS)
@@ -113,11 +114,11 @@ G_dx = [G_d, G_x];
 Gv_dx = [Gv_d, Gv_x];
 
 fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik: %d/%d\n', ...
-  RP.Name, rank(G_q), RP.NJ);
+  RP.mdlname, rank(G_q), RP.NJ);
 fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ...
-  RP.Name, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
+  RP.mdlname, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
 fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
-  RP.Name, rank(G_a), sum(RP.I_EE));
+  RP.mdlname, rank(G_a), sum(RP.I_EE));
 
 % return
 %% Beispieltrajektorie berechnen und zeichnen

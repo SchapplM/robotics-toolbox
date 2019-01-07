@@ -27,10 +27,9 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
-issym=checksym(xE);
 dim_P_tr = [3*NLEG,3];
 dim_P_tr_red = [sum(Rob.I_EE(1:3))*NLEG, sum(Rob.I_EE(4:6))];
-if ~issym
+if ~Rob.issym
   Phix_phi = zeros(dim_P_tr);
   Phix_phi_red = zeros(dim_P_tr_red);
 else

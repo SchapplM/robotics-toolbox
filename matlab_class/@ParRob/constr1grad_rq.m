@@ -42,8 +42,8 @@ NJ = Rob.NJ;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis, siehe Gl. (B.30)
-issym=checksym(q, xE);
-if ~issym
+
+if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
   Phipq_red = zeros(sum(Rob.I_EE(4:6))*NLEG,NJ);
 else

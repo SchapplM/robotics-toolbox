@@ -61,3 +61,18 @@ R.update_actuation(mu_PKM)
 
 % Marker für gewählte EE-FG
 R.I_EE = true(1,6); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
+
+% Robotereigenschaften auslesen und in Klasse abspeichern
+structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
+
+% Anzahl der relevanten Beingelenke in den (symmetrischen) Beinketten
+% Diese Variable wird von PKM-Funktionen aus der HybrDyn-Toolbox benötigt
+if ~isempty( which(sprintf('%s_structural_kinematic_parameters.m', R.mdlname)) )
+  R.NQJ_LEG_bc = structkinpar_hdl();
+else
+  % Die PKM-Funktion ...structural_kinematic_parameters existiert nicht.
+  % Daher wird die Variable sowieso nicht benötigt.
+  % Setze auf beliebigen Wert (die meisten PKM haben 3 Gelenke, die die
+  % Position der Koppelpunkte beeinflussen)
+  R.NQJ_LEG_bc = 3;
+end

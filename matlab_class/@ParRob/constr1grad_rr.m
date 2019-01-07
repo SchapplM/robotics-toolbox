@@ -39,8 +39,8 @@ NLEG = Rob.NLEG;
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: Gl. (C.35)
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
-issym=checksym(q, xE);
-if ~issym
+
+if ~Rob.issym
   Phipphi = zeros(3*NLEG,3);
   Phipphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
 else

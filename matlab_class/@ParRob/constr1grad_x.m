@@ -48,8 +48,7 @@ nPhi = nPhit + nPhir;
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
 dim_Px_red=[size(Phi_tt_red,1)+size(Phi_rt_red,1), size(Phi_tt_red,2)+size(Phi_tr_red,2)];
-issym=checksym(q, xE);
-if ~issym
+if ~Rob.issym
   Phi_x_red = NaN(dim_Px_red);
   Phi_x =     NaN(dim_Px);
 else
