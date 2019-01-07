@@ -531,7 +531,7 @@ classdef SerRob < matlab.mixin.Copyable
       %   Neuer Wert für den Vektor der Kinematikparameter
       %   Der Vektor ist für jeden Roboter spezifisch. Die Reihenfolge der
       %   Parameter wird bei der Code-Generierung festgelegt.
-      assert(all(size(pkin_neu) == size( R.pkin )), 'Eingabe muss Dimension von pkin haben')
+      assert(all(size(pkin_neu) == size( R.pkin )), 'Eingabe muss Dimension von pkin haben (%dx1)', length(R.pkin))
       
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
