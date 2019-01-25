@@ -45,17 +45,17 @@ pause(1);
 % Prüfe Bereich des Plots
 for i=1:size(Q,1)
   [~,Tc_W] = Rob.fkine(Q(i,:)');
-  xminmax_i = minmax(squeeze(Tc_W(1,4,:))');
-  yminmax_i = minmax(squeeze(Tc_W(2,4,:))');
-  zminmax_i = minmax(squeeze(Tc_W(3,4,:))');
+  xminmax_i = minmax2(squeeze(Tc_W(1,4,:))');
+  yminmax_i = minmax2(squeeze(Tc_W(2,4,:))');
+  zminmax_i = minmax2(squeeze(Tc_W(3,4,:))');
   if i == 1
     xminmax = xminmax_i;
     yminmax = yminmax_i;
     zminmax = zminmax_i;
   else
-    xminmax = minmax([xminmax_i, xminmax]);
-    yminmax = minmax([yminmax_i, yminmax]);
-    zminmax = minmax([zminmax_i, zminmax]);
+    xminmax = minmax2([xminmax_i, xminmax]);
+    yminmax = minmax2([yminmax_i, yminmax]);
+    zminmax = minmax2([zminmax_i, zminmax]);
   end
 end
 % Grenzen um 10% der Spannweite aufweiten

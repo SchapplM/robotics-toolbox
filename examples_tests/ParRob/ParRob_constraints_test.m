@@ -229,7 +229,7 @@ for NNN = RobotNames
       for kk = 1:10
         % Wähle beliebiges delta_x für die Berechnung von delta_q. Die
         % Größenordnung muss gleich sein.
-        delta_q_rand = Jinv_voll * diff(minmax(delta_x_red'))*2*(0.5-rand(sum(RP.I_EE),1));
+        delta_q_rand = Jinv_voll * diff(minmax2(delta_x_red'))*2*(0.5-rand(sum(RP.I_EE),1));
         q1_rand = q1+delta_q_rand;
         % Berechne damit die Zwangsbedingungen neu und bestimme den Fehler
         Phi1_1_rand = RP.constr1(q1_rand, x1);
