@@ -27,7 +27,7 @@
 function Phi_phi_i_Gradq = constr1grad_rq(Rob, q, xE)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr_trans: q muss %dx1 sein', Rob.NJ);
+  'SerRob/constr1grad_rq: q muss %dx1 sein', Rob.NJ);
 
 % Endergebnis, siehe Gl. (B.30)
 
