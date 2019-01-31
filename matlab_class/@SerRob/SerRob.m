@@ -14,6 +14,14 @@
 %   bezieht sich die Bahnplanung und Kinematik
 %   * N: Körper-KS des Roboters, an dem der Endeffektor befestigt ist. Bei
 %   seriellen Robotern das letzte Körper-KS der seriellen Kette.
+% 
+%   Definition der Dynamik-Parameter:
+%   DynPar.mode: Umschalten zwischen verschiedenen Dynamik-Parametern als
+%   Eingang der Dynamik-Funktionen
+%   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
+%      (noch nicht implementiert)
+%   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,rS,Ic (inertial)
+%   4: Dynamik-Minimalparametervektor
 
 %   Quellen
 %   [Rob1] Robotik 1 Skript
@@ -59,24 +67,39 @@ classdef SerRob < matlab.mixin.Copyable
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
     fkinfcnhdl % Funktions-Handle für direkte Kinematik
-    ekinfcnhdl % Funktions-Handle für kinetische Energie
-    epotfcnhdl % Funktions-Handle für potentielle Energie
-    gravlfcnhdl % Funktions-Handle für Gelenkkräfte durch Gravitation
-    inertiafcnhdl % Funktions-Handle für Massenmatrix
-    corvecfcnhdl % Funktions-Handle für Gelenkkräfte durch Coriolis- und Fliehkräfte
-    cormatfcnhdl % Funktions-Handle für Coriolis-Matrix
-    invdynfcnhdl % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
-    jacobiRfcnhdl % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
-    jacobigfcnhdl % Funktions-Handle für geometrische Jacobi-Matrix
-    jacobigDfcnhdl % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
-    jacobitfcnhdl % Funktions-Handle für Translationskomponente der Jacobi-Matrix
-    jacobitDfcnhdl % Funktions-Handle für Zeitableitung der Translationskomponente
-    jacobiwfcnhdl % Funktions-Handle für Rotationskomponente der geometrischen Jacobi-Matrix
-    jacobiwDfcnhdl % Funktions-Handle für Zeitableitung der Rotationskomponente der geometrischen Jacobi-Matrix
-    invkinfcnhdl % Funktions-Handle für inverse Kinematik
-    invkintrajfcnhdl % Funktions-Handle für inverse Kinematik einer Trajektorie
-    jointvarfcnhdl % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
-    all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
+    ekinfcnhdl2     % Funktions-Handle für kinetische Energie
+    ekinfcnhdl4     % ... mit anderen Parametern
+    epotfcnhdl2     % Funktions-Handle für potentielle Energie
+    epotfcnhdl4     % ... mit anderen Parametern
+    gravlfcnhdl2    % Funktions-Handle für Gelenkkräfte durch Gravitation
+    gravlfcnhdl4    % ... mit anderen Parametern
+    inertiafcnhdl2  % Funktions-Handle für Massenmatrix
+    inertiafcnhdl4  % ... mit anderen Parametern
+    corvecfcnhdl2   % Funktions-Handle für Gelenkkräfte durch Coriolis- und Fliehkräfte
+    corvecfcnhdl4   % ... mit anderen Parametern
+    cormatfcnhdl2   % Funktions-Handle für Coriolis-Matrix
+    cormatfcnhdl4   % ... mit anderen Parametern
+    invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
+    invdynfcnhdl4   % ... mit anderen Parametern   
+    ekinregfcnhdl   % Funktions-Handle für Regressor-Matrix der kinetischen Energie
+    epotregfcnhdl   % Funktions-Handle für Regressor-Matrix der potentielle Energie
+    gravlregfcnhdl  % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Gravitation
+    inertiaregfcnhdl% Funktions-Handle für Regressor-Matrix der Massenmatrix
+    corvecregfcnhdl % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Coriolis- und Fliehkräfte
+    cormatregfcnhdl % Funktions-Handle für Regressor-Matrix der Coriolis-Matrix
+    invdynregfcnhdl % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch inverse Dynamik
+    jacobiRfcnhdl   % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
+    jacobigfcnhdl   % Funktions-Handle für geometrische Jacobi-Matrix
+    jacobigDfcnhdl  % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
+    jacobitfcnhdl   % Funktions-Handle für Translationskomponente der Jacobi-Matrix
+    jacobitDfcnhdl  % Funktions-Handle für Zeitableitung der Translationskomponente
+    jacobiwfcnhdl   % Funktions-Handle für Rotationskomponente der geometrischen Jacobi-Matrix
+    jacobiwDfcnhdl  % Funktions-Handle für Zeitableitung der Rotationskomponente der geometrischen Jacobi-Matrix
+    invkinfcnhdl    % Funktions-Handle für inverse Kinematik
+    invkintrajfcnhdl% Funktions-Handle für inverse Kinematik einer Trajektorie
+    jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
+    dynparconvfcnhdl% Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+    all_fcn_hdl     % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
 
   methods
@@ -102,7 +125,11 @@ classdef SerRob < matlab.mixin.Copyable
       if isempty(R.pkin)
         R.update_pkin();
       end
-      R.DynPar = struct('mges', NaN(R.NL,1), 'rSges', NaN(R.NL,3), 'Icges', NaN(R.NL,6));
+      R.DynPar = struct('mges',   NaN(R.NL,1), ...
+                        'rSges',  NaN(R.NL,3), 'Icges', NaN(R.NL,6), ...
+                        'mrSges', NaN(R.NL,3), 'Ifges', NaN(R.NL,6), ...
+                        'mpv', [], ...
+                        'mode', 2);
       R.update_dynpar1();
 
       R.qref = zeros(R.NQJ,1);
@@ -133,13 +160,28 @@ classdef SerRob < matlab.mixin.Copyable
       {'jacobiwDfcnhdl', 'jacobigD_rot_sym_varpar'}, ...
       {'invkinfcnhdl', 'invkin_eulangresidual'}, ...
       {'invkintrajfcnhdl', 'invkin_traj'}, ...
-      {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
-      {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
-      {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
-      {'inertiafcnhdl', 'inertiaJ_slag_vp2'}, ...
-      {'corvecfcnhdl', 'coriolisvecJ_fixb_slag_vp2'}, ...
-      {'cormatfcnhdl', 'coriolismatJ_fixb_slag_vp2'}, ...
-      {'invdynfcnhdl', 'invdynJ_fixb_slag_vp2'}, ...
+      {'ekinfcnhdl2', 'energykin_fixb_slag_vp2'}, ...
+      {'epotfcnhdl2', 'energypot_fixb_slag_vp2'}, ...
+      {'gravlfcnhdl2', 'gravloadJ_floatb_twist_slag_vp2'}, ...
+      {'inertiafcnhdl2', 'inertiaJ_slag_vp2'}, ...
+      {'corvecfcnhdl2', 'coriolisvecJ_fixb_slag_vp2'}, ...
+      {'cormatfcnhdl2', 'coriolismatJ_fixb_slag_vp2'}, ...
+      {'invdynfcnhdl2', 'invdynJ_fixb_slag_vp2'}, ...
+      {'ekinfcnhdl4', 'energykin_fixb_mdp_slag_vp'}, ...
+      {'epotfcnhdl4', 'energypot_fixb_mdp_slag_vp'}, ...
+      {'gravlfcnhdl4', 'gravloadJ_floatb_twist_mdp_slag_vp'}, ...
+      {'inertiafcnhdl4', 'inertiaJ_mdp_slag_vp'}, ...
+      {'corvecfcnhdl4', 'coriolisvecJ_fixb_mdp_slag_vp'}, ...
+      {'cormatfcnhdl4', 'coriolismatJ_fixb_mdp_slag_vp'}, ...
+      {'invdynfcnhdl4', 'invdynJ_fixb_mdp_slag_vp'}, ...
+      {'ekinregfcnhdl', 'energykin_fixb_regmin_slag_vp'}, ...
+      {'epotregfcnhdl', 'energypot_fixb_regmin_slag_vp'}, ...
+      {'gravlregfcnhdl', 'gravloadJ_regmin_slag_vp'}, ...
+      {'inertiaregfcnhdl', 'inertiaJ_regmin_slag_vp'}, ...
+      {'corvecregfcnhdl', 'coriolisvecJ_fixb_regmin_slag_vp'}, ...
+      {'cormatregfcnhdl', 'coriolismatJ_fixb_regmin_slag_vp'}, ...
+      {'invdynregfcnhdl', 'invdynJ_fixb_regmin_slag_vp'}, ...
+      {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
       qunit_eng = cell(R.NJ,1);
       qunit_sci = cell(R.NJ,1);
@@ -494,7 +536,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Funktionsaufruf
       [Q,QD,QDD] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
-    function T = ekin(R, q, qD)
+    function [T, Treg] = ekin(R, q, qD)
       % Kinetische Energie
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -502,36 +544,76 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % T: Kinetische Energie
-      T = R.ekinfcnhdl(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % Treg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        T = R.ekinfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        % TODO: Funktion existiert noch nicht
+        % T = R.ekinfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
+        Treg = R.ekinregfcnhdl(q, qD, R.pkin);
+        T = Treg * R.DynPar.mpv;
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function U = epot(R, q)
+    function [U, Ureg] = epot(R, q)
       % Potentielle Energie
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % T: Potentielle Energie
-      U = R.epotfcnhdl(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+      % U: Potentielle Energie
+      % Ureg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        U = R.epotfcnhdl2(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+      elseif R.DynPar.mode == 4
+        % TODO: Funktion existiert noch nicht
+        % U = R.epotfcnhdl4(q, R.gravity, R.pkin, R.mpv);
+        Ureg = R.epotregfcnhdl(q, R.gravity, R.pkin);
+        U = Ureg*R.DynPar.mpv;
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function gq = gravload(R, q)
+    function [gq, gqreg] = gravload(R, q)
       % Potentielle Energie
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % T: Potentielle Energie
-      gq = R.gravlfcnhdl(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+      % gq: Gravitations-Gelenkmoment
+      % gqreg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        gq = R.gravlfcnhdl2(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+      elseif R.DynPar.mode == 4
+        gq = R.gravlfcnhdl4(q, R.gravity, R.pkin, R.DynPar.mpv);
+        if nargout == 2
+          gqreg = R.gravlregfcnhdl(q, R.gravity, R.pkin);
+        end
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function Mq = inertia(R, q)
+    function [Mq, Mqreg] = inertia(R, q)
       % Massenmatrix (in Gelenkkoordinaten)
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
       % Mq: Massenmatrix
-      Mq = R.inertiafcnhdl(q, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % Mqreg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        Mq = R.inertiafcnhdl2(q, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        Mq = R.inertiafcnhdl4(q, R.pkin, R.DynPar.mpv);
+        if nargout == 2
+          Mqreg = R.inertiaregfcnhdl(q, R.pkin);
+        end
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function cq = corvec(R, q, qD)
+    function [cq, cqreg] = corvec(R, q, qD)
       % Gelenkvektor der Flieh- und Corioliskräfte
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -539,9 +621,19 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % cq: Gelenkkräfte für Flieh- und Corioliskräfte
-      cq = R.corvecfcnhdl(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % cqreg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        cq = R.corvecfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        cq = R.corvecfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
+        if nargout == 2
+          cqreg = R.corvecregfcnhdl(q, qD, R.pkin);
+        end
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function Cq = cormat(R, q, qD)
+    function [Cq, Cqreg] = cormat(R, q, qD)
       % Matrix der Flieh- und Corioliskräfte
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -549,9 +641,19 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Cq: Coriolis-Matrix
-      Cq = R.cormatfcnhdl(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % Cqreg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        Cq = R.cormatfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        % TODO: Funktion existiert noch nicht
+        % Cq = R.cormatfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
+        Cqreg = R.cormatregfcnhdl(q, qD, R.pkin);
+        Cq = reshape(Cqreg*R.DynPar.mpv, R.NQJ, R.NQJ)';
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
-    function tauq = invdyn(R, q, qD, qDD)
+    function [tauq, tauqreg] = invdyn(R, q, qD, qDD)
       % Gelenkvektor der inversen Dynamik
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -560,7 +662,17 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % tauq: Inverse Dynamik
-      tauq = R.invdynfcnhdl(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % tauqreg: Regressor-Matrix
+      if R.DynPar.mode == 2
+        tauq = R.invdynfcnhdl2(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        tauq = R.invdynfcnhdl4(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mpv);
+        if nargout == 2
+          tauqreg = R.invdynregfcnhdl(q, qD, qDD, R.gravity, R.pkin);
+        end
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
     function TAUq = invdyn_traj(R, Q, QD, QDD)
       % Gelenkvektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
@@ -713,13 +825,7 @@ classdef SerRob < matlab.mixin.Copyable
       
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
-      if isempty(which(sprintf('%s_convert_par2_MPV_fixb', R.mdlname)))
-        % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
-        mpv = [];
-      else
-        dynpar2mpv_hdl = eval(sprintf('@%s_convert_par2_MPV_fixb', R.mdlname));
-        mpv = dynpar2mpv_hdl(R.pkin, mges, mrSges, Ifges);
-      end
+      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
 
       % Parameter in Roboterklasse belegen
       R.DynPar.mges   = mges;
@@ -729,7 +835,38 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv    = mpv;
     end
-    
+    function update_dynpar_mpv(R, mpv)
+      % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
+      % gegebenem Minimalparameter-Vektor
+      % Eingabe:
+      % mpv: Minimalparameter-Vektor
+
+      % Parameter in Roboterklasse belegen
+      % Die vollständigen Dynamikparameter werden zu NaN gesetzt, da bei
+      % Vorgabe des MPV diese nicht mehr bestimmt werden können (durch die
+      % Minimalform gehen Informationen verloren)
+      R.DynPar.mges   = NaN*R.DynPar.mges;
+      R.DynPar.rSges  = NaN*R.DynPar.rSges;
+      R.DynPar.Icges  = NaN*R.DynPar.Icges;
+      R.DynPar.mrSges = NaN*R.DynPar.mrSges;
+      R.DynPar.Ifges  = NaN*R.DynPar.Ifges;
+      R.DynPar.mpv    = mpv;
+    end
+    function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Basis)
+      % rSges: Schwerpunktskoordinaten aller Robotersegmente (bezogen auf
+      % jeweiliges Körper-KS)
+      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
+      % Ausgabe:
+      % mpv: Dynamik-Minimalparametervektor
+      if isempty(R.dynparconvfcnhdl)
+        % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
+        mpv = [];
+      else
+        mpv = R.dynparconvfcnhdl(R.pkin, mges, mrSges, Ifges);
+      end
+    end
     function x_W_E = t2x(R, T_W_E)
       % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten
       % Eingabe:
