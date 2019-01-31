@@ -3,6 +3,7 @@
 % * Absolute Rotation ausgedrückt z.B. in XYZ-Euler-Winkeln
 % * Rotationsfehler genauso ausgedrückt z.B. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
+%   Rotationsfehler wird als R_0_E * R_0_D angenommen (also 0(q)->0(x))
 % 
 % Eingabe:
 % qJ
@@ -21,7 +22,7 @@
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function Phi = constr1_rot(Rob, qJ, xE)
 

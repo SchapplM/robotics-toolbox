@@ -2,14 +2,18 @@
 % nach der EE-Orientierung
 % Variante 2:
 % * Absolute Rotation ausgedrückt z.B. in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt z.B. in dazu reziproken ZYX-Euler-Winkeln
-% (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
+% * Rotationsfehler ausgedrückt in Euler-Winkeln (um raumfeste Achsen), je
+%   nach Eingabeargument `reci` (entspricht teilweise PKM-Variante 2)
 % 
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
 % xE
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% reci (Optional)
+%   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
+%   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
+%   false: Gleiche Euler-Winkel für Fehler und Absolut [Standard]
 % 
 % Ausgabe:
 % Phi_rr [3x3]
@@ -26,15 +30,22 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-01
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_rr = constr2grad_rr(Rob, q, xE)
+function Phi_rr = constr2grad_rr(Rob, q, xE, reci)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'SerRob/constr2grad_rr: q muss %dx1 sein', Rob.NJ);
-
+if nargin < 4
+  reci = false;
+end
 % Endergebnis, siehe Gl. (B.30)
 
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
-[~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
+if reci
+  [~,phiconv_delta] = euler_angle_properties(Rob.phiconv_W_E);
+else
+  phiconv_delta = Rob.phiconv_W_E;
+end
+
 
 % Kinematik, Definitionen
 T_0_E = Rob.fkineEE(q);
@@ -67,7 +78,7 @@ P_T = [1 0 0 0 0 0 0 0 0; 0 0 0 1 0 0 0 0 0; 0 0 0 0 0 0 1 0 0; 0 1 0 0 0 0 0 0 
 % Rotationsmatrix
 % Aus P_3RRR/phixyz_diff_rmatvec_matlab.m
 % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
-dphidRb = eul_diff_rotmat(R_Ex_Eq, phiconv_W_E_reci);
+dphidRb = eul_diff_rotmat(R_Ex_Eq, phiconv_delta);
 
 % Gl. (C.35)
 Phi_rr = dphidRb * P_T*dPidR1b * dR0Ebdphi;

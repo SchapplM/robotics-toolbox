@@ -104,7 +104,7 @@ for jj = 2:n_max
   if constr_m == 1
     dpq=Rob.constr1grad_rq(q1, xE_soll);
   else
-    dpq=Rob.constr2grad_rq(q1, xE_soll);
+    dpq=Rob.constr2grad_rq(q1, xE_soll, true);
   end
   Jdk_voll = [dxq; dpq];
   Jdk = Jdk_voll(:,:);
@@ -112,7 +112,7 @@ for jj = 2:n_max
   if constr_m == 1
     Phi = Rob.constr1(q1, xE_soll);
   else
-    Phi = Rob.constr2(q1, xE_soll);
+    Phi = Rob.constr2(q1, xE_soll, true);
   end
   
   %% Aufgabenredundanz

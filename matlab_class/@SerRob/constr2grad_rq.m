@@ -1,14 +1,18 @@
 % Ableitung der Rotationskomponente der ZB nach den Gelenkwinkeln
 % Variante 2:
 % * Absolute Rotation ausgedrückt z.B. in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt z.B. in dazu reziproken ZYX-Euler-Winkeln
-%   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
+% * Rotationsfehler ausgedrückt in Euler-Winkeln (um raumfeste Achsen), je
+%   nach Eingabeargument `reci` (entspricht teilweise PKM-Variante 2)
 % 
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
 % xE
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% reci (Optional)
+%   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
+%   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
+%   false: Gleiche Euler-Winkel für Fehler und Absolut [Standard]
 % 
 % Ausgabe:
 % Phi_phi_i_Gradq [3xN]
@@ -22,17 +26,23 @@
 % [D] Aufzeichnungen Schappler vom 21.08.2018
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_phi_i_Gradq = constr2grad_rq(Rob, q, xE)
+function Phi_phi_i_Gradq = constr2grad_rq(Rob, q, xE, reci)
 
 assert(isreal(q) && all(size(q) == [Rob.NQJ 1]), ...
   'SerRob/constr2grad_rq: q muss %dx1 sein', Rob.NQJ);
-
+if nargin < 4
+  reci = false;
+end
 % Endergebnis, siehe Gl. (B.30)
 
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
-[~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
+if reci
+  [~,phiconv_delta] = euler_angle_properties(Rob.phiconv_W_E);
+else
+  phiconv_delta = Rob.phiconv_W_E;
+end
 
 % Kinematik, Definitionen
 T_0_E = Rob.fkineEE(q);
@@ -61,7 +71,7 @@ dPidRb2 = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0
 % Term I aus Gl. (C.49): Ableitung der Euler-Winkel nach der Rot.-matrix
 % (ZYX-Euler-Winkel des Orientierungsfehlers)
 % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
-ddeltaRdRb = eul_diff_rotmat(R_Ex_Eq,phiconv_W_E_reci);
+ddeltaRdRb = eul_diff_rotmat(R_Ex_Eq,phiconv_delta);
 
 % Gl. (C.49) (dort Vertauschung der Reihenfolge)
 Phi_phi_i_Gradq = ddeltaRdRb * dPidRb2 * dRb_0E_dq;
