@@ -203,14 +203,6 @@ configSet = getActiveConfigSet(sl_Modellname);
 set_param(configSet, 'Solver', 'ode4');
 set_param(configSet, 'FixedStep', '1e-4');
 
-%% Define Inputs
-simin_tau_ext = struct('time', 0, ...
-    'signals', struct('values', zeros(1,NJ), 'dimensions', NJ), ...
-    'name', 'tau_ext');
-simin_tau_m = struct('time', 0, ...
-    'signals', struct('values', zeros(1,NJ), 'dimensions', NJ), ...
-    'name', 'tau_m');
-
 %% Start Simulation
 t1 = tic;
 simOut = sim(sl_Modellname, 'StopTime', sprintf('%1.1f', t_Fext(end)+1.1));
