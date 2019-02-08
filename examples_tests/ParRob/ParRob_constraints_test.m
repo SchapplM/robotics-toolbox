@@ -77,11 +77,11 @@ for NNN = RobotNames
   
   % EE-FG eintragen. TODO: FG allgemein festlegen
   if RP.NLEG == 3
-    RP.I_EE = logical([1 1 0 0 0 1]);
+    RP.update_EE_FG(logical([1 1 0 0 0 1]));
   elseif RP.NLEG == 4
-    RP.I_EE = logical([1 1 1 0 0 1]);
+    RP.update_EE_FG(logical([1 1 1 0 0 1]));
   else
-    RP.I_EE = logical([1 1 1 1 1 1]);
+    RP.update_EE_FG(logical([1 1 1 1 1 1]));
   end
   %% Initialisierung der Test-Variablen
   q0 = rand(RP.NJ,1);

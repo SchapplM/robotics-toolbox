@@ -60,7 +60,7 @@ end
 R.update_actuation(mu_PKM)
 
 % Marker für gewählte EE-FG
-R.I_EE = true(1,6); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
+R.update_EE_FG(true(1,6)); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
 
 % Robotereigenschaften auslesen und in Klasse abspeichern
 structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));

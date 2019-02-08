@@ -78,7 +78,6 @@ q=qs;
 if any(abs(Phis) > 1e-6)
   error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
 end
-q(I_qa)
 
 %% Zwangsbedingungen in Startpose testen
 Phi1=RP.constr1(q, X);
@@ -142,8 +141,9 @@ Q_t = NaN(length(t), 36);
 q0 = q; % Lösung der IK von oben als Startwert
 t0 = tic();t1=t0;
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
-s = struct('constr_m', 1, 'Phit_tol', 1e-6, 'Phir_tol', 1e-4);
+s = struct('Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
 
+fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 % Start der Berechnung
 for i = 1:length(t)
   xE_soll = X_t(i,:)';
@@ -154,11 +154,12 @@ for i = 1:length(t)
     delta_x = XD_t(i,:)'*(t(i)-t(i-1));
     delta_q = -Phi_q \ Phi_x * delta_x;
     q0k = q0+delta_q;
+  else
+    q0k = q0;
   end
-
   % IK berechnen
-  [q1, Phi_num1] = RP.invkin_ser(xE_soll, q0, s);
-  if any(abs(Phi_num1) > 2e-4)
+  [q1, Phi_num1] = RP.invkin1(xE_soll, q0k, s);
+  if any(abs(Phi_num1) > 1e-2)
     warning('IK konvergiert nicht');
   end
 
@@ -173,6 +174,7 @@ for i = 1:length(t)
       toc(t0), 100*i/length(t), i, length(t), tr_est/60);
     t1 = tic(); % Zeit seit letzter Meldung zurücksetzen
   end
+  q0 = q1;
 end
 
 save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));
@@ -197,17 +199,21 @@ subplot(3,2,sprc2no(3,2,1,2));
 plot(t, Q_t);
 grid on;
 ylabel('Q');
-subplot(3,2,sprc2no(3,2,2,2));
-plot(t, Phi_t(:,1:18));
+subplot(3,2,sprc2no(3,2,2,2)); hold on;
+plot(t, Phi_t(:,sort([1:6:36, 2:6:36, 3:6:36])));
+plot(t([1 end]), s.Phit_tol*[1;1], 'r--');
+plot(t([1 end]),-s.Phit_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{trans}');
-subplot(3,2,sprc2no(3,2,3,2));
-plot(t, Phi_t(:,19:36));
+subplot(3,2,sprc2no(3,2,3,2)); hold on;
+plot(t, Phi_t(:,sort([4:6:36, 5:6:36, 6:6:36])));
+plot(t([1 end]), s.Phir_tol*[1;1], 'r--');
+plot(t([1 end]),-s.Phir_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{rot}');
 
 %% Animation des bewegten Roboters
-s_anim = struct( 'gif_name', fullfile(respath, '6UPS.gif'));
+s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 figure(5);clf;hold all;
 view(3);
@@ -215,3 +221,5 @@ axis auto
 hold on;grid on;
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
+fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
+fprintf('Test für 6UPS beendet\n');

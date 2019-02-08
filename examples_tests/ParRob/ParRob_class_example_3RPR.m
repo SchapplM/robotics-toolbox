@@ -37,16 +37,13 @@ a_mdh(2) = 0;
 a_mdh(3) = 0;
 pkin = S3RPR1_mdhparam2pkin(beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh);
 RS.update_mdh(pkin);
-% Ende der seriellen Kette drehen. Ansonsten zeigt die z-Achse des Beins
-% nach unten und das Koppelpunkt-KS zeigt mit z nach oben. Dann geht die IK
-% basierend auf der IK der Einzelketten nicht mehr.
-RS.update_EE([], [pi;0;0]);
+
 %% Klasse für PKM erstellen
 RS.I_EE = logical([1 1 0 0 0 1]);%logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
 RP = ParRob('P3RPR1');
 RP = RP.create_symmetric_robot(3, RS, 1, 0.3);
 RP = RP.initialize();
-RP.I_EE = logical([1 1 0 0 0 1]); % Für IK der PKM
+RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM
 % Schubgelenke sind aktuiert
 I_qa = false(RP.NJ,1);
 I_qa(2:3:RP.NJ) = true;
@@ -57,7 +54,7 @@ X = [ [0.2;0.1;0.0]; [0;0;-20]*pi/180 ];
 
 % Inverse Kinematik berechnen
 [q, Phi] = RP.invkin1(X, rand(RP.NJ,1));
-if any(abs(Phi) > 1e-10)
+if any(abs(Phi) > 1e-7)
   error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
 end
 
@@ -116,9 +113,9 @@ view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X, s_plot );
 plot3(X_t(:,1), X_t(:,2), X_t(:,3), 'r--');
-% return
-%% Beispieltrajektorie berechnen (inverse Kinematik)
 
+%% Beispieltrajektorie berechnen (inverse Kinematik)
+fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 % Inverse Kinematik berechnen
 Phi_t = NaN(length(t), RP.NJ);
 Q_t = NaN(length(t), RP.NJ);
@@ -126,7 +123,7 @@ q0 = q; % Lösung der IK von oben als Startwert
 
 t0 = tic();t1=t0;
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
-s = struct('constr_m', 1, 'Phit_tol', 1e-6, 'Phir_tol', 1e-4);
+s = struct('constr_m', 1, 'Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
 
 % Start der Berechnung
 for i = 1:length(t)
@@ -138,16 +135,15 @@ for i = 1:length(t)
     delta_x = XD_t(i,:)'*(t(i)-t(i-1));
     delta_q = -Phi_q \ Phi_x * delta_x(RP.I_EE);
     q0k = q0+delta_q;
+  else
+    q0k = q0;
   end
 
   % IK berechnen
-  [q1, Phi_num1] = RP.invkin_ser(xE_soll, q0);
-  if any(abs(Phi_num1) > 2e-4)
+  [q1, Phi_num1] = RP.invkin_ser(xE_soll, q0k, s);
+  if any(abs(Phi_num1) > 1e-2)
     % Trajektorie wahrscheinlich außerhalb des Arbeitsraums
-    if any(abs(Phi_num1) > 2e-4)
-      error('i=%d: IK konvergiert nicht', i);
-      return
-    end
+    error('i=%d: IK konvergiert nicht', i);
   end
 
   % Ergebnisse speichern
@@ -161,6 +157,7 @@ for i = 1:length(t)
       toc(t0), 100*i/length(t), i, length(t), tr_est/60);
     t1 = tic(); % Zeit seit letzter Meldung zurücksetzen
   end
+  q0 = q1;
 end
 
 save(fullfile(respath, 'ParRob_class_example_3RPR_traj.mat'));
@@ -185,15 +182,18 @@ subplot(3,2,sprc2no(3,2,1,2));
 plot(t, Q_t);
 grid on;
 ylabel('Q');
-subplot(3,2,sprc2no(3,2,2,2));
-plot(t, Phi_t(:,1:6));
+subplot(3,2,sprc2no(3,2,2,2)); hold on;
+plot(t, Phi_t(:,[1,2,4,5,7,8]));
+plot(t([1 end]), s.Phit_tol*[1;1], 'r--');
+plot(t([1 end]),-s.Phit_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{trans}');
-subplot(3,2,sprc2no(3,2,3,2));
-plot(t, Phi_t(:,7:9));
+subplot(3,2,sprc2no(3,2,3,2)); hold on;
+plot(t, Phi_t(:,[3,6,9]));
+plot(t([1 end]), s.Phir_tol*[1;1], 'r--');
+plot(t([1 end]),-s.Phir_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{rot}');
-
 
 %% Animation des bewegten Roboters
 s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_3RPR.gif'));
@@ -205,3 +205,5 @@ hold on;grid on;
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 plot3(X_t(:,1), X_t(:,2), X_t(:,3), 'r--');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
+fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_3RPR.gif'));
+fprintf('Test für 3RPR beendet\n');

@@ -43,6 +43,7 @@ nPhir = size(Phir_red,1)/R.NLEG;
 nPhi = nPhit + nPhir;
 
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
+% Indizierung auch mit Klassenvariablen I_constr_t, I_constr_r, ...
 Phi_red = NaN(size(Phit_red,1)+size(Phir_red,1), 1);
 Phi =     NaN(size(Phit,1)    +size(Phir ,1),    1);
 for i = 1:R.NLEG

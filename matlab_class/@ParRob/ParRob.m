@@ -55,6 +55,10 @@ classdef ParRob < matlab.mixin.Copyable
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
       NQJ_LEG_bc % Anzahl relevanter Beingelenke vor Schnittgelenk (von Basis an gezählt) ("bc"="before cut")
+      I_constr_t % Indizes der translatorischen Zwangsbedingungen in allen ZB
+      I_constr_r % Indizes der rotatorischen ZB in allen ZB
+      I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
+      I_constr_r_red % ...                       (rotatorisch)
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
@@ -175,6 +179,32 @@ classdef ParRob < matlab.mixin.Copyable
       % pkin (Kinematikparameter der Beine)
       for i = 1:R.NLEG
         R.Leg(i).update_mdh(pkin);
+      end
+    end
+    function update_EE_FG(R, I_EE)
+      % Aktualisiere die Freiheitsgrade des Endeffektors
+      % Eingabe:
+      % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert)
+      R.I_EE = I_EE;
+      
+      % Anzahl der kinematischen Zwangsbedingungen der Beinketten
+      % feststellen. Annahme: Beinketten haben selbe FG wie Plattform
+      % TODO: Das ändert sich evtl bei überbestimmten PKM
+      nPhit = sum(I_EE(1:3));
+      nPhir = sum(I_EE(4:6));
+      nPhi = nPhit + nPhir;
+      % Indizes der relevanten Zwangsbedingungen daraus ableiten
+      % Werden benötigt für Ausgabe von constr1
+      R.I_constr_t = zeros(3*R.NLEG,1);
+      R.I_constr_r = zeros(3*R.NLEG,1);
+      R.I_constr_t_red = zeros(nPhit*R.NLEG,1);
+      R.I_constr_r_red = zeros(nPhir*R.NLEG,1);
+      for i = 1:R.NLEG
+        % Indizes bestimmen
+        R.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6+1:(i)*6-3;
+        R.I_constr_r(3*(i-1)+1:3*i) = (i-1)*6+1+3:(i)*6;
+        R.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
+        R.I_constr_r_red(nPhir*(i-1)+1:nPhir*i) = (i-1)*nPhi+1+nPhit:(i)*nPhi;
       end
     end
   end
