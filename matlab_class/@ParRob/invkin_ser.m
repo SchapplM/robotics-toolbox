@@ -30,6 +30,10 @@
 function [q, Phi] = invkin_ser(Rob, xE_soll, q0, s)
 
 %% Initialisierung
+assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
+  'ParRob/invkin1: xE_soll muss 6x1 sein');
+assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
+  'ParRob/invkin1: q0 muss %dx1 sein', Rob.NJ);
 s_std = struct('task_red', false, ...
              'n_min', 0, ... % Minimale Anzahl Iterationen
              'n_max', 1000, ... % Maximale Anzahl Iterationen

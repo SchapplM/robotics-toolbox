@@ -46,6 +46,6 @@ if nargout == 2
   T_W_0 = Rob.T_W_0;
   Tc_ges_W = NaN(4,4,size(Tc_ges,3));
   for i = 1:size(Tc_ges,3)
-    Tc_ges_W(:,:,i) = T_W_0*Tc_ges_W(:,:,i);
+    Tc_ges_W(:,:,i) = T_W_0*Tc_ges(:,:,i);
   end
 end
