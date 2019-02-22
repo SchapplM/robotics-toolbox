@@ -117,48 +117,18 @@ plot3(X_t(:,1), X_t(:,2), X_t(:,3), 'r--');
 %% Beispieltrajektorie berechnen (inverse Kinematik)
 fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 % Inverse Kinematik berechnen
-Phi_t = NaN(length(t), RP.NJ);
-Q_t = NaN(length(t), RP.NJ);
 q0 = q; % Lösung der IK von oben als Startwert
 
-t0 = tic();t1=t0;
+t0 = tic();
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
 s = struct('constr_m', 1, 'Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
-
-% Start der Berechnung
-for i = 1:length(t)
-  xE_soll = X_t(i,:)';
-  % Erster IK-Schritt aus differentieller Kinematik
-  if i > 1
-    Phi_q = RP.constr1grad_q(q0, xE_soll);
-    Phi_x = RP.constr1grad_x(q0, xE_soll);
-    delta_x = XD_t(i,:)'*(t(i)-t(i-1));
-    delta_q = -Phi_q \ Phi_x * delta_x(RP.I_EE);
-    q0k = q0+delta_q;
-  else
-    q0k = q0;
-  end
-
-  % IK berechnen
-  [q1, Phi_num1] = RP.invkin_ser(xE_soll, q0k, s);
-  if any(abs(Phi_num1) > 1e-2)
-    % Trajektorie wahrscheinlich außerhalb des Arbeitsraums
-    error('i=%d: IK konvergiert nicht', i);
-  end
-
-  % Ergebnisse speichern
-  Q_t(i,:) = q1;
-  Phi_t(i,:) = Phi_num1;
-  % Ausgabe der Rechenzeit
-  if toc(t1) > 10
-    % Schätze die noch benötigte Zeit
-    tr_est = toc(t0)/i*(length(t)-i-1);
-    fprintf('%1.1fs nach Start. %1.1f%% (%d/%d) Punkte berechnet. Restzeit: %1.0fmin\n', ...
-      toc(t0), 100*i/length(t), i, length(t), tr_est/60);
-    t1 = tic(); % Zeit seit letzter Meldung zurücksetzen
-  end
-  q0 = q1;
+[q1, Phi_num1] = RP.invkin1(X_t(1,:)', q0, s);
+if any(abs(Phi_num1) > 1e-2)
+  warning('IK konvergiert nicht');
 end
+[Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
+  toc(t0), length(t));
 
 save(fullfile(respath, 'ParRob_class_example_3RPR_traj.mat'));
 

@@ -29,7 +29,7 @@ RS = serroblib_create_robot_class(SName, RName);
 % Test-Einstellungen generieren
 TSS = RS.gen_testsettings(true, false);
 RS.update_base([0.5; 0.5; 0]); % Basis-Transformation (zur freien Positionierung des Roboters)
-RS.I_EE = [1 1 1 0 0 1]; % nur 4FG in InvKin betrachten
+RS.I_EE = logical([1 1 1 0 0 1]); % nur 4FG in InvKin betrachten
 %% Alle Funktionen einmal aufrufen
 q0 = RS.qref;
 
@@ -85,15 +85,7 @@ for k = 1:size(Q,1)
   X(k,:) = RS.t2x(T_0_Ek);
 end
 % Gelenkkräfte berechnen
-TAU = NaN(size(Q,1),RS.NQJ);
-for k = 1:size(Q,1)
-  q_k = Q(k,:)';
-  qD_k = QD(k,:)';
-  qDD_k = QDD(k,:)';
-
-  tau_k = RS.invdyn(q_k, qD_k, qDD_k);
-  TAU(k,:) = tau_k;
-end
+TAU = RS.invdyn_traj(Q, QD, QDD);
 
 %% Roboter in Grundstellung plotten (mit im Gelenkraum entworfener Trajektorie)
 
@@ -182,32 +174,8 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0.1, 0,0,0];
 [X,XD,XDD,T] = traj_trapez2_multipoint(XE, 1, 1e-1, 1e-2, 1e-3, 0.25);
 
 % Gelenkkräfte und inverse Kinematik berechnen
-Q = NaN(size(X,1),RS.NQJ);
-QD = NaN(size(X,1),RS.NQJ);
-QDD = NaN(size(X,1),RS.NQJ);
-XI = NaN(size(X,1),6);
-TAU = NaN(size(Q,1),RS.NQJ);
-qk0 = q0;
-for k = 1:size(Q,1)
-  % Inverse Kinematik berechnen. Hohe Toleranz, damit die Lösung schnell
-  % konvergiert.
-  [qik, Phi] = RS.invkin(X(k,:)',qk0, struct('n_max', 50, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4 , 'constr_m', 1));
-  if any(abs(Phi) > 1e-3)
-    error('Inverse Kinematik stimmt nicht');
-  end
-  Q(k,:) = qik;
-  qk0 = qik;
-  
-  T_0_Ek = RS.fkineEE(Q(k,:)');
-  XI(k,:) = RS.t2x(T_0_Ek);
-%   qD_k = zeros(RS.NQJ,1); % TODO: Berechnen
-%   qDD_k = zeros(RS.NQJ,1); % TODO: Berechnen
-%   tau_k = RS.invdyn(qik, qD_k, qDD_k);
-%   
-%   TAU(k,:) = tau_k*NaN;
-%   QD(k,:)  = qD_k*NaN;
-%   QDD(k,:) = qDD_k*NaN;
-end
+[Q, QD, QDD] = RS.invkin_traj(X,XD,XDD,T,q0,struct('n_max', 50, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4 , 'constr_m', 1, 'wn', 1));
+TAU = RS.invdyn_traj(Q, QD, QDD);
 
 %% Roboter in Grundstellung plotten (mit im Arbeitsraum entworfener Trajektorie)
 
@@ -260,7 +228,7 @@ figure(8);clf;
 for k = 1:6
   subplot(3,6,sprc2no(3,6,1,k));hold on;
   plot(T, X(:,k));
-  plot(T, XI(:,k), '--');
+  % plot(T, XI(:,k), '--');
   grid on;
   if k < 4
     ylabel(sprintf('%s_E [m]', char(119+k)));

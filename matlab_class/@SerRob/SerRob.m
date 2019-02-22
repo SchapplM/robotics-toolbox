@@ -436,6 +436,20 @@ classdef SerRob < matlab.mixin.Copyable
       % tauq: Inverse Dynamik
       tauq = R.invdynfcnhdl(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
     end
+    function TAUq = invdyn_traj(R, Q, QD, QDD)
+      % Gelenkvektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % TAUq: Inverse Dynamik (als Zeitreihe)
+      TAUq = NaN(size(Q));
+      for i = 1:size(Q,1)
+        TAUq(i,:) = R.invdyn(Q(i,:)', QD(i,:)', QDD(i,:)');
+      end
+    end
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
       % Eingabe:
