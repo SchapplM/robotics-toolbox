@@ -101,7 +101,10 @@ classdef ParRob < matlab.mixin.Copyable
       R.I_qa = logical(I_qa); % Index der aktiven (und damit unabhängigen Gelenke)
       R.I_qd = ~R.I_qa; % Index der abhängigen Gelenke
       for i = 1:R.NLEG
-        R.Leg(i).MDH.mu = double( I_qa(R.I1J_LEG(i):R.I2J_LEG(i)) );
+        % Setze Marker mu auf 0 für nicht Teil der Minimalkoordinaten der
+        % Beinkette, 1 für passiv für die PKM, 2 für aktiv bezogen auf PKM
+        I_mincoord_Leg = (R.Leg(i).MDH.mu > 0);
+        R.Leg(i).MDH.mu(I_mincoord_Leg) = 1+double( I_qa(R.I1J_LEG(i):R.I2J_LEG(i)) );
       end
     end
     function update_EE(R, r_P_E, phi_P_E, phiconv_P_E)

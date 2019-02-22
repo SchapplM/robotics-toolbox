@@ -26,7 +26,14 @@
 
 function [q, Phi, Q] = invkin(Rob, xE_soll, q0, s)
 
-sigmaJ = Rob.MDH.sigma(Rob.MDH.mu==1); % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
+% Wähle die Indizes der Schubgelenke in den Minimalkoordinaten aus
+sigmaJ = Rob.MDH.sigma(Rob.MDH.mu>=1); % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
+if length(sigmaJ) < Rob.NQJ
+  error('Marker für Gelenktypen der in Minimalkoordinaten enthaltenen Gelenke passt nicht');
+end
+% Standard-Einstellung der Verstärkungs-Faktoren: Die Schubgelenke müssen
+% langsamer konvergieren als die Drehgelenke, da die Rotation die Position
+% beeinflusst, aber nicht umgekehrt.
 K_def = 0.1*ones(Rob.NQJ,1);
 K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
 
@@ -144,8 +151,8 @@ for jj = 2:n_max
   delta_q = K.*delta_q_T + Kn.*delta_q_N;
   q2 = q1 + delta_q;
 
-  if any(isnan(q2))
-    break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN
+  if any(isnan(q2)) || any(isinf(q2))
+    break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
   end
   
   q1 = q2;

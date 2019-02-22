@@ -15,6 +15,9 @@
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
 %     DH-Parameter a und d (Verschiebung in x- und z-Richtung)
+%   jointcolors
+%     'serial': Klasse entspricht einzelnem seriellem/hybridem Roboter
+%     'parallel': Klassen entspricht Beinkette einer PKM
 % 
 % Ausgabe:
 % hdl
@@ -34,7 +37,8 @@ hdl = [];
 s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ... % Linien gerade setzen oder entlang der MDH-Parameter
-             'ks', [1, Rob.NJ+2]); % nur Basis- und EE-KS
+             'ks', [1, Rob.NJ+2], ... % nur Basis- und EE-KS
+             'jointcolors', 'serial'); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -42,10 +46,13 @@ end
 
 
 
-% Prüfe Felder der Einstellungs-Struktur
-if ~isfield(s, 'mode'),s.mode = s_std.mode; end
-if ~isfield(s, 'ks'),s.ks = s_std.ks; end
-if ~isfield(s, 'straight'),s.straight = s_std.straight; end
+% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
+% Eingabe nicht gesetzt
+for f = fields(s_std)'
+  if ~isfield(s, f{1})
+    s.(f{1}) = s_std.(f{1});
+  end
+end
 
 [~,T_c_W] = Rob.fkine(qJ);
 
@@ -57,6 +64,17 @@ plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen
 if s.mode == 1
+  % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
+  % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
+  % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
+  % in der seriell-hybriden Kette ist (mu=0) oder Minimalkoordinate (mu=1)
+  if     strcmp(s.jointcolors, 'serial')
+    colors = {'b', 'r', 'k'};
+  elseif strcmp(s.jointcolors, 'parallel')
+    colors = {'c', 'b', 'r'};
+  else
+    error('nicht definiert');
+  end
   % Gelenke als Objekte. TODO: An Größe des Roboters anpassen
   gd = 0.04; % Durchmesser der Zylinder und Quader
   gh = 0.15; % Höhe
@@ -65,8 +83,8 @@ if s.mode == 1
   % * Gelenkachse i ist z-Achse des Körper-KS i (MDH-Notation)
   % * Gelenk "sitzt" im Körper-KS i (MDH-Notation)
   for i = 1:Rob.NJ
-    if Rob.MDH.mu(i) == 1, cc = 'r';
-    else,                  cc = 'b'; end
+    % mu: 2=PKM-aktiv, 1=seriell-aktiv, 0=seriell-passiv
+    cc = colors{Rob.MDH.mu(i)+1};
 
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
     r_W_Oi = T_c_W(1:3,4,i+1);

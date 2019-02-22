@@ -30,8 +30,7 @@ for f2 = fields(s_std)'
 end
 
 % Einstellungs-Struktur für serielle Beinketten
-s_ser = struct('ks', []);
-s_ser.straight = s.straight;
+s_ser = struct('ks', [], 'straight', s.straight, 'jointcolors', 'parallel');
 T_W_0 = Rob.T_W_0;
 %% Koppelpunkte berechnen
 r_A1_ges = NaN(Rob.NLEG, 3);
