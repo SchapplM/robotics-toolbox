@@ -5,6 +5,7 @@
 % * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
 % * Rotationsfehler ausgedrückt genauso bspw. in XYZ-Euler-Winkeln
+%   Rotationsfehler wird als R_0_E * R_0_D angenommen (also 0(q)->0(x))
 % 
 % Eingabe:
 % q
@@ -19,7 +20,7 @@
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function Phi = constr1(R, q, xE)
 

@@ -2,6 +2,7 @@
 % Variante 1:
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
 % * Rotationsfehler ausgedrückt in XYZ-Euler-Winkeln
+%   Rotationsfehler wird als R_0_E * R_0_D angenommen (also 0(q)->0(x))
 % 
 % Eingabe:
 % q
@@ -15,7 +16,7 @@
 %   nach den Gelenkwinkeln (in den Spalten)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function Phi_Grad = constr1grad(Rob, q, xE)
 
