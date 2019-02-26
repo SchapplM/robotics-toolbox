@@ -45,7 +45,8 @@ s_std = struct('task_red', false, ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
-             'constr_m', 2); % Nr. der Methode für die Zwangsbedingungen
+             'constr_m', 2, ... % Nr. der Methode für die Zwangsbedingungen
+             'retry_limit', 100); % Anzahl der Neuversuche
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -59,9 +60,6 @@ for f = fields(s_std)'
   end
 end
 
-% Variablen zum Speichern der Zwischenergebnisse
-q1 = q0;
-
 % Variablen aus Einstellungsstruktur holen
 K = s.K; 
 Kn = s.Kn; 
@@ -72,6 +70,11 @@ wn = s.wn;
 constr_m = s.constr_m;
 Phit_tol = s.Phit_tol;
 Phir_tol = s.Phir_tol;
+retry_limit = s.retry_limit;
+
+qmin = Rob.qlim(:,1);
+qmax = Rob.qlim(:,2);
+
 n_Phi_t = sum(Rob.I_EE(1:3));
 
 if wn ~= 0
@@ -84,11 +87,6 @@ end
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
 if nsoptim && Rob.NQJ < 6-task_red
   nsoptim = false;
-end
-
-if nargout == 3
-  Q = NaN(n_max, Rob.NQJ);
-  Q(1,:) = q0;
 end
 
 I_IK = 1:6;
@@ -104,69 +102,83 @@ elseif any(~Rob.I_EE)
   I_IK = find(Rob.I_EE);
   task_red = true; % TODO: Eigener Marker hierfür
 end
+success = false;
 
-for jj = 2:n_max
+for rr = 1:retry_limit
+  if nargout == 3
+    Q = NaN(n_max, Rob.NQJ);
+    Q(1,:) = q0;
+  end
+  % Variablen zum Speichern der Zwischenergebnisse
+  q1 = q0;
+  for jj = 2:n_max
 
-  dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
-  if constr_m == 1
-    dpq=Rob.constr1grad_rq(q1, xE_soll);
-  else
-    dpq=Rob.constr2grad_rq(q1, xE_soll, true);
-  end
-  Jdk_voll = [dxq; dpq];
-  Jdk = Jdk_voll(:,:);
-  
-  if constr_m == 1
-    Phi = Rob.constr1(q1, xE_soll);
-  else
-    Phi = Rob.constr2(q1, xE_soll, true);
-  end
-  
-  %% Aufgabenredundanz
-  if task_red
-    % Aufgabenredundanz. Lasse den letzten Rotations-FG wegfallen
-    
-    Jdk = Jdk(I_IK,:);
-    Phi = Phi(I_IK);
-  end
-  %% Nullstellensuche für Positions- und Orientierungsfehler
-  % (Optimierung der Aufgabe)
-  % Normale Invertierung der Jacobi-Matrix der seriellen Kette
-  delta_q_T = Jdk \ (-Phi);
-  %% Optimierung der Nebenbedingungen (Nullraum)
-  delta_q_N = zeros(size(delta_q_T));
-  if nsoptim && jj < n_max-10 % die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
-    % Berechne Gradienten der zusätzlichen Optimierungskriterien
-    v = zeros(Rob.NQJ, 1);
-    if wn(1) ~= 0
-      [~, hdq] = Rob.optimcrit_limits1(q1);
-      % [1], Gl. (25)
-      v = v - hdq';
+    dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
+    if constr_m == 1
+      dpq=Rob.constr1grad_rq(q1, xE_soll);
+    else
+      dpq=Rob.constr2grad_rq(q1, xE_soll, true);
     end
-    % [1], Gl. (24)
-    delta_q_N = (eye(Rob.NQJ) - pinv(Jdk)* Jdk) * v;
-  end
+    Jdk_voll = [dxq; dpq];
+    Jdk = Jdk_voll(:,:);
 
-  % [1], Gl. (23)
-  delta_q = K.*delta_q_T + Kn.*delta_q_N;
-  q2 = q1 + delta_q;
+    if constr_m == 1
+      Phi = Rob.constr1(q1, xE_soll);
+    else
+      Phi = Rob.constr2(q1, xE_soll, true);
+    end
 
-  if any(isnan(q2)) || any(isinf(q2))
-    break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
+    %% Aufgabenredundanz
+    if task_red
+      % Aufgabenredundanz. Lasse den letzten Rotations-FG wegfallen
+
+      Jdk = Jdk(I_IK,:);
+      Phi = Phi(I_IK);
+    end
+    %% Nullstellensuche für Positions- und Orientierungsfehler
+    % (Optimierung der Aufgabe)
+    % Normale Invertierung der Jacobi-Matrix der seriellen Kette
+    delta_q_T = Jdk \ (-Phi);
+    %% Optimierung der Nebenbedingungen (Nullraum)
+    delta_q_N = zeros(size(delta_q_T));
+    if nsoptim && jj < n_max-10 % die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
+      % Berechne Gradienten der zusätzlichen Optimierungskriterien
+      v = zeros(Rob.NQJ, 1);
+      if wn(1) ~= 0
+        [~, hdq] = Rob.optimcrit_limits1(q1);
+        % [1], Gl. (25)
+        v = v - hdq';
+      end
+      % [1], Gl. (24)
+      delta_q_N = (eye(Rob.NQJ) - pinv(Jdk)* Jdk) * v;
+    end
+
+    % [1], Gl. (23)
+    delta_q = K.*delta_q_T + Kn.*delta_q_N;
+    q2 = q1 + delta_q;
+
+    if any(isnan(q2)) || any(isinf(q2))
+      break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
+    end
+
+    q1 = q2;
+    q1(sigmaJ==0) = normalize_angle(q1(sigmaJ==0)); % nur Winkel normalisieren
+
+    if jj > n_min ... % Mindestzahl Iterationen erfüllt
+        && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
+        ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
+        nsoptim && all(abs(delta_q_N) < 1e-10) ) % oder die Nullraumoptimierung läuft noch
+      success = true;
+      break;
+    end
+    if nargout == 3
+      Q(jj,:) = q1;
+    end
   end
-  
-  q1 = q2;
-  q1(sigmaJ==0) = normalize_angle(q1(sigmaJ==0)); % nur Winkel normalisieren
-  
-  if jj > n_min ... % Mindestzahl Iterationen erfüllt
-      && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
-      ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
-      nsoptim && all(abs(delta_q_N) < 1e-10) ) % oder die Nullraumoptimierung läuft noch
+  if success
     break;
   end
-  
-  if nargout == 3
-    Q(jj,:) = q1;
-  end
+  % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
+  q0 = qmin + rand(Rob.NQJ,1).*(qmax-qmin);
 end
 q = q1;

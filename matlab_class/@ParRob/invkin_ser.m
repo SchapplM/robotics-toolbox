@@ -39,7 +39,8 @@ s_std = struct('task_red', false, ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
-             'constr_m', 1); % Nr. der Methode für die Zwangsbedingungen
+             'constr_m', 1, ... % Nr. der Methode für die Zwangsbedingungen
+             'retry_limit', 100); % Anzahl der Neuversuche
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
