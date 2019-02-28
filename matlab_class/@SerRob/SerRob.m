@@ -15,8 +15,6 @@
 %   * N: Körper-KS des Roboters, an dem der Endeffektor befestigt ist. Bei
 %   seriellen Robotern das letzte Körper-KS der seriellen Kette.
 
-% TODO: Zeitableitung der Jacobi-Matrix-Funktionen mit "JDx" statt "JxD"
-
 %   Quellen
 %   [Rob1] Robotik 1 Skript
 
@@ -71,7 +69,11 @@ classdef SerRob < matlab.mixin.Copyable
     jacobiRfcnhdl % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
     jacobigfcnhdl % Funktions-Handle für geometrische Jacobi-Matrix
     jacobigDfcnhdl % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
-    jointvarfcnhdl % Funktions-Handle für Werte Gelenkvariablen (bei hybriden Robotern)
+    jacobitfcnhdl % Funktions-Handle für Translationskomponente der Jacobi-Matrix
+    jacobitDfcnhdl % Funktions-Handle für Zeitableitung der Translationskomponente
+    jacobiwfcnhdl % Funktions-Handle für Rotationskomponente der geometrischen Jacobi-Matrix
+    jacobiwDfcnhdl % Funktions-Handle für Zeitableitung der Rotationskomponente der geometrischen Jacobi-Matrix
+    jointvarfcnhdl % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
 
@@ -121,8 +123,12 @@ classdef SerRob < matlab.mixin.Copyable
       {'fkinfcnhdl', 'fkine_fixb_rotmat_mdh_sym_varpar'}, ...
       {'jtraffcnhdl', 'joint_trafo_rotmat_mdh_sym_varpar'}, ...
       {'jacobiRfcnhdl', 'jacobiR_rot_sym_varpar'}, ...
-      {'jacobigfcnhdl', 'jacobig_floatb_twist_sym_varpar', 'jacobig_mdh_num'}, ...
-      {'jacobigDfcnhdl', 'jacobigD_floatb_twist_sym_varpar', 'jacobigD_mdh_num'}, ...
+      {'jacobigfcnhdl', 'jacobig_sym_varpar', 'jacobig_mdh_num'}, ...
+      {'jacobigDfcnhdl', 'jacobigD_sym_varpar', 'jacobigD_mdh_num'}, ...
+      {'jacobitfcnhdl', 'jacobia_transl_sym_varpar'}, ...
+      {'jacobitDfcnhdl', 'jacobiaD_transl_sym_varpar'}, ...
+      {'jacobiwfcnhdl', 'jacobig_rot_sym_varpar'}, ...
+      {'jacobiwDfcnhdl', 'jacobigD_rot_sym_varpar'}, ...
       {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
       {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
@@ -276,29 +282,27 @@ classdef SerRob < matlab.mixin.Copyable
       % Jg: Jacobi-Matrix
       Jg = R.jacobigfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin);
     end
-    function JT = jacobiT(R, q)
+    function Jt = jacobit(R, q)
       % Translatorischer Teil der geometrischen Jacobi-Matrix (Zusammenhang
       % zwischen translatorischer Geschwindigkeit des EE und Gelenkgeschwindigkeit)
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % JT: Jacobi-Matrix
-      Jg = jacobig(R, q);
-      JT = Jg(1:3,:); % TODO: Eigene Funktion
+      % Jt: Jacobi-Matrix
+      Jt = R.jacobitfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin);
     end
-    function JW = jacobiW(R, q)
+    function Jw = jacobiw(R, q)
       % Rotatorischer Teil der geometrischen Jacobi-Matrix (Zusammenhang
       % zwischen Winkelgeschwindigkeit des EE und Gelenkgeschwindigkeit)
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % JW: Jacobi-Matrix
-      Jg = jacobig(R, q);
-      JW = Jg(4:6,:); % TODO: Eigene Funktion
+      % Jw: Jacobi-Matrix
+      Jw = R.jacobiwfcnhdl(q, uint8(R.I_EElink), R.pkin);
     end
-    function JTD = jacobiTD(R, q, qD)
+    function JtD = jacobitD(R, q, qD)
       % Zeitableitung des Translatorischen Teils der geometrischen Jacobi-Matrix (Zusammenhang
       % zwischen translatorischer Geschwindigkeit des EE und Gelenkgeschwindigkeit)
       % Eingabe:
@@ -306,9 +310,8 @@ classdef SerRob < matlab.mixin.Copyable
       % qD: Gelenkgeschwindigkeiten
       %
       % Ausgabe:
-      % JTD: Jacobi-Matrix-Zeitableitung
-      JgD = jacobigD(R, q, qD);
-      JTD = JgD(1:3,:); % TODO: Eigene Funktion
+      % JtD: Jacobi-Matrix-Zeitableitung
+      JtD = R.jacobitDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin);
     end
     function JgD = jacobigD(R, q, qD)
       % Zeitableitung der Geometrischen Jacobi-Matrix (bzgl Winkelbeschleunigung)
@@ -320,7 +323,7 @@ classdef SerRob < matlab.mixin.Copyable
       % JgD: Jacobi-Matrix-Zeitableitung
       JgD = R.jacobigDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin);
     end
-    function JWD = jacobiWD(R, q, qD)
+    function JwD = jacobiwD(R, q, qD)
       % Zeitableitung des rotatorischer Teils der geometrischen Jacobi-Matrix
       % (Zusammenhang zwischen Winkelgeschwindigkeit des EE und Gelenkgeschwindigkeit)
       % Eingabe:
@@ -329,8 +332,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % JDW: Jacobi-Matrix-Zeitableitung
-      JgD = jacobigD(R, q, qD);
-      JWD = JgD(4:6,:); % TODO: Eigene Funktion
+      JwD = R.jacobiwDfcnhdl(q, qD, uint8(R.I_EElink), R.pkin);
     end
     function JaD = jacobiaD(R, q, qD)
       % Zeitableitung der analytischen Jacobi-Matrix des Roboters (End-Effektor)
@@ -345,11 +347,11 @@ classdef SerRob < matlab.mixin.Copyable
       % Siehe auch: Aufzeichnungen vom 28.11.2018
       
       % Zeitableitung translatorische Teil-Matrix
-      JTD = R.jacobiTD(q, qD);
+      JtD = R.jacobitD(q, qD);
       % Rotatorische Teilmatrix (geometrisch)
-      Jw = R.jacobiW(q);
+      Jw = R.jacobiw(q);
       % Zeitableitund der rotatorischen Teilmatrix
-      JwD = R.jacobiWD(q, qD);
+      JwD = R.jacobiwD(q, qD);
       % Endeffektor-Orientierung mit Euler-Winkeln
       T_E = R.fkineEE(q);
       phi = r2eul(T_E(1:3,1:3), R.phiconv_W_E);
@@ -366,7 +368,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Zeitableitung der analytischen Jacobi (Rotationsteil)
       JeD = Tw\JwD + TwD_inv *Jw;
       % Gesamtmatrix
-      JaD = [JTD; JeD];
+      JaD = [JtD; JeD];
     end
     function T = ekin(R, q, qD)
       % Kinetische Energie

@@ -25,7 +25,7 @@ assert(isreal(q) && all(size(q) == [Rob.NQJ 1]), ...
   'SerRob/constrgrad_tq: q muss %dx1 sein', Rob.NQJ);
 
 % Bein-Jacobi
-J0_i_trans = Rob.jacobiT(q);
+J0_i_trans = Rob.jacobit(q);
 J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
 dPhidqJi = J_Ai_Bi;
 
