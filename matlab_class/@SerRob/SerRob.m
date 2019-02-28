@@ -73,6 +73,8 @@ classdef SerRob < matlab.mixin.Copyable
     jacobitDfcnhdl % Funktions-Handle für Zeitableitung der Translationskomponente
     jacobiwfcnhdl % Funktions-Handle für Rotationskomponente der geometrischen Jacobi-Matrix
     jacobiwDfcnhdl % Funktions-Handle für Zeitableitung der Rotationskomponente der geometrischen Jacobi-Matrix
+    invkinfcnhdl % Funktions-Handle für inverse Kinematik
+    invkintrajfcnhdl % Funktions-Handle für inverse Kinematik einer Trajektorie
     jointvarfcnhdl % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
@@ -129,6 +131,8 @@ classdef SerRob < matlab.mixin.Copyable
       {'jacobitDfcnhdl', 'jacobiaD_transl_sym_varpar'}, ...
       {'jacobiwfcnhdl', 'jacobig_rot_sym_varpar'}, ...
       {'jacobiwDfcnhdl', 'jacobigD_rot_sym_varpar'}, ...
+      {'invkinfcnhdl', 'invkin_eulangresidual'}, ...
+      {'invkintrajfcnhdl', 'invkin_traj'}, ...
       {'ekinfcnhdl', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl', 'energypot_fixb_slag_vp2'}, ...
       {'gravlfcnhdl', 'gravloadJ_floatb_twist_slag_vp2'}, ...
@@ -246,6 +250,26 @@ classdef SerRob < matlab.mixin.Copyable
       [Tc_0, Tc_W] = R.fkine_vp(q, pkin);
       T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
       T_0_E = Tc_0(:,:,R.I_EElink+1)*R.T_N_E;
+    end
+    function [X,XD,XDD] = fkineEE_traj(R, Q, QD, QDD)
+      % Direkte Kinematik für komplette Trajektorie berechnen
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % X: EE-Lage (als Zeitreihe)
+      X = NaN(size(Q,1),6);
+      XD = X; XDD = X;
+      for i = 1:size(Q,1)
+        [~, T_W_E_i] = fkineEE(R, Q(i,:)');
+        X(i,:) = R.t2x(T_W_E_i);
+        Ja = jacobia(R, Q(i,:)');
+        XD(i,:) = Ja*QD(i,:)';
+        JaD = jacobiaD(R, Q(i,:)', QD(i,:)');
+        XDD(i,:) = Ja*QDD(i,:)' + JaD*QD(i,:)';
+      end
     end
     function Ja = jacobia(R, q)
       % Analytische Jacobi-Matrix des Roboters (End-Effektor)
@@ -369,6 +393,106 @@ classdef SerRob < matlab.mixin.Copyable
       JeD = Tw\JwD + TwD_inv *Jw;
       % Gesamtmatrix
       JaD = [JtD; JeD];
+    end
+    function [q, Phi] = invkin2(R, x, q0, s_in)
+      % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
+      % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
+      % Klassen-Methode `invkin`, die nicht kompilierbar ist.
+      % Eingabe:
+      % x: EE-Lage (Soll)
+      % q0: Start-Pose
+      % s_in: Einstellparameter für die IK. Felder, siehe Implementierung.
+      %
+      % Ausgabe:
+      % q: Gelenkposition
+      % Phi: Residuum
+      % 
+      % Siehe auch: invkin
+
+      % Einstellungen zusammenstellen:
+      sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
+      % Einstellungen für IK
+      K_def = 0.1*ones(R.NQJ,1);
+      K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
+      
+      % Alle Einstellungen in Eingabestruktur für Funktion schreiben
+      s = struct('pkin', R.pkin, ...
+                 'sigmaJ', sigmaJ, ...
+                 'NQJ', R.NQJ, ...
+                 'qlim', R.qlim, ...
+                 'I_EE', R.I_EE, ...
+                 'phiconv_W_E', R.phiconv_W_E, ...
+                 'I_EElink', uint8(R.I_EElink), ...
+                 'reci', true, ...
+                 'T_N_E', R.T_N_E, ...
+                 'task_red', false, ...
+                 'K', K_def, ... % Verstärkung
+                 'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
+                 'wn', 0, ... % Gewichtung der Nebenbedingung
+                 'n_min', 0, ... % Minimale Anzahl Iterationen
+                 'n_max', 1000, ... % Maximale Anzahl Iterationen
+                 'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
+                 'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+                 'retry_limit', 100); % Anzahl der Neuversuche);
+      % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
+      % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
+      % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
+      if nargin == 4
+        for f = fields(s_in)'
+          s.(f{1}) = s_in.(f{1});
+        end
+      end
+      % Funktionsaufruf
+      [q, Phi] = R.invkinfcnhdl(x, q0, s);
+    end
+    function [Q,QD,QDD] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+      % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
+      % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
+      % Klassen-Methode `invkin_traj`, die nicht kompilierbar ist.
+      % Eingabe:
+      % X: EE-Lagen (Zeilen: Zeit, Spalten: EE-Koordinaten)
+      % XD: EE-Geschwindigkeiten (in Euler-Winkeln)
+      % XDD: EE-Beschleunigungen (Euler-Winkel)
+      % T: Zeitbasis
+      % q0: Start-Pose
+      % s_in: Einstellparameter für die IK. Felder, siehe Implementierung.
+      %
+      % Ausgabe:
+      % Q: Gelenkpositionen (Zeilen: Zeit, Spalten: Gelenkkoordinaten)
+      % QD: Gelenkgeschwindigkeiten
+      % QDD: Gelenkbeschleunigungen
+      %
+      % Siehe auch: invkin2, invkin_traj
+      
+      % Einstellungen zusammenstellen
+      sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
+      K_def = 0.1*ones(R.NQJ,1);
+      K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
+      s = struct('pkin', R.pkin, ...
+                 'sigmaJ', sigmaJ, ...
+                 'NQJ', R.NQJ, ...
+                 'qlim', R.qlim, ...
+                 'I_EE', R.I_EE, ...
+                 'phiconv_W_E', R.phiconv_W_E, ...
+                 'I_EElink', uint8(R.I_EElink), ...
+                 'reci', true, ...
+                 'T_N_E', R.T_N_E, ...
+                 'task_red', false, ...
+                 'K', K_def, ... % Verstärkung
+                 'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
+                 'wn', 0, ... % Gewichtung der Nebenbedingung
+                 'n_min', 0, ... % Minimale Anzahl Iterationen
+                 'n_max', 1000, ... % Maximale Anzahl Iterationen
+                 'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
+                 'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+                 'retry_limit', 100); % Anzahl der Neuversuche
+      if nargin == 7
+        for f = fields(s_in)'
+          s.(f{1}) = s_in.(f{1});
+        end
+      end
+      % Funktionsaufruf
+      [Q,QD,QDD] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function T = ekin(R, q, qD)
       % Kinetische Energie
