@@ -5,11 +5,18 @@
 % Eingabe:
 % mex
 %   Schalter zur Wahl von vorkompilierten Funktionen (schnellere Berechnung)
+% compile_missing
+%   Schalter zur Starten eines Kompilierversuches für fehlende Funktionen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function R = fill_fcn_handles(R, mex)
+function R = fill_fcn_handles(R, mex, compile_missing)
+
+if nargin < 3
+  compile_missing = false;
+end
+
 mdlname = R.mdlname;
 for i = 1:length(R.all_fcn_hdl)
   % das erste Feld von ca ist der Name des Funktionshandles in der Klasse,
@@ -24,6 +31,15 @@ for i = 1:length(R.all_fcn_hdl)
     else
       robfcnname = sprintf('%s_%s_mex', mdlname, fcnname_tmp);
     end
+    % Prüfe ob mex-Datei existiert
+    if compile_missing && mex && isempty(which(robfcnname))
+      robfcnbasename = robfcnname(1:end-4); % Endung "_mex" wieder entfernen
+      if ~isempty(which(robfcnbasename))
+        % Prüfe, ob passende m-Datei verfügbar ist.
+        matlabfcn2mex({robfcnbasename});
+      end
+    end
+    
     % Sonderfälle abarbeiten: 
     % Prüfe, ob die einzelnen
     % Jacobi-Matrix-Funktionen vorhanden sind (analytisch hergeleitet).
@@ -31,10 +47,10 @@ for i = 1:length(R.all_fcn_hdl)
     % aber die aufrufenden Funktionen. Daher wird geprüft, ob die
     % abhängigen Funktionen auch da sind und nur in diesem Fall
     % weitergemacht
-    if strcmp(fcnname_tmp, 'jacobig_floatb_twist_sym_varpar')
+    if strcmp(fcnname_tmp, 'jacobig_sym_varpar')
       abort = false;
       for kk = 1:R.NL
-        Jkk_name = sprintf('S6RRPRRR14_jacobia_transl_%d_floatb_twist_sym_varpar', kk);
+        Jkk_name = sprintf('%s_jacobia_transl_%d_sym_varpar', mdlname, kk);
         if isempty(which(Jkk_name))
           abort = true;
         end
