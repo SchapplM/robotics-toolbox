@@ -5,6 +5,7 @@
 slprj
 *.autosave
 *.slx
+*.slxc
 *.mat
 *.mdl.r*
 *.orig
