@@ -35,7 +35,7 @@ for i_conv = uint8(1:N)
   
   %% zufällige Rotationsmatrizen generieren (mit passender Konvention)
   n = 10000;
-  phi_ges = (0.5-rand(n,3))*pi;
+  phi_ges = 2*(0.5-rand(n,3))*pi; % Winkel zwischen -pi und pi
   R_ges = NaN(3,3,n);
 
   for i = 1:n
@@ -77,17 +77,41 @@ for i_conv = uint8(1:N)
   
   %% Aufruf der Gradientenmatrizen zwischen Rotationsmatrizen und Euler-Winkeln
   for i = 1:n
-    R_i = R_ges(:,:,i);
-    phi_i = r2eul(R_i, i_conv);
-    % Beide Gradienten berechnen
-    dphi_dr = eul_diff_rotmat(R_i, i_conv);
-    dr_dphi = rotmat_diff_eul(phi_i, i_conv);
-    % Die Multiplikation der Gradienten muss eins ergeben
+    % erste Orientierung zufällig vorgeben
+    R_1 = R_ges(:,:,i);
+    phi_1 = r2eul(R_1, i_conv); % Euler-Winkel-Darstellung der 1. Orientierung
+    
+    % Zufällige infinitesimale Änderung der Orientierung führt zur 2.
+    % Orientierung
+    delta_phi = rand(3,1)*1e-8;
+    phi_2 = phi_1 + delta_phi;
+    R_2 = eul2r(phi_2, i_conv); % Darstellung der 2. Orientierung als Rotationsmatrix
+    % Differentielle Änderung der Rotationsmatrix (aus absoluten
+    % Orientierungen berechnet)
+    delta_R = R_2 - R_1;
+    
+    % Berechnung differentielle Änderung der Euler-Winkel aus der
+    % Gradientenmatrix (Ableitung der Euler-Winkel nach der Rot.-matrix)
+    dphi_dr = eul_diff_rotmat(R_1, i_conv);
+    delta_phi_test = dphi_dr * delta_R(:);
+    if any(abs(delta_phi_test - delta_phi)>1e-10)
+      error('Delta phi aus eul%s_diff_rotmat stimmt nicht mit direkter Berechnung', eulstr);
+    end
+    
+    % Berechne differentielle Änderung der Rotationsmatrix aus
+    % Gradienten-Matrix (Ableitung der Rotationsmatrix nach Euler-Winkeln)
+    dr_dphi = rotmat_diff_eul(phi_1, i_conv);
+    delta_R_test = reshape(dr_dphi*delta_phi,3,3);
+    if any(abs(delta_R_test(:) - delta_R(:)) > 1e-10)
+      error('Delta Rotationsmatrix aus rotmat_diff_eul%s stimmt nicht mit direkter Berechnung', eulstr);
+    end
+
+    % Die Multiplikation der Gradienten muss Eins ergeben
     % (Differentiale kürzen sich weg)
     test = dphi_dr*dr_dphi - eye(3);
     if any(abs(test(:))>1e-10)
       error('Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s stimmen nicht überein', eulstr, eulstr);
-    end    
+    end
   end
   fprintf('%d Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s getestet\n', n, eulstr, eulstr);
   
@@ -119,8 +143,9 @@ for i_conv = uint8(1:N)
     omega_test = J * phiD;
     
     % Vergleiche, ob Winkelgeschwindigkeit auf beiden Wegen gleich ist
-    test = omega_test -omega;
-    if any(abs(test(:))>1e-7)
+    abserr = omega_test - omega;
+    relerr = omega_test./omega-1;
+    if any(abs(abserr(:))>1e-7) && max(abs(relerr)) > 1e-3
       error('Transformationsmatrix eul%sjac stimmt nicht mit r2eul/eul2r überein', eulstr);
     end    
     
