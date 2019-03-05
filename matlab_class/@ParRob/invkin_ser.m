@@ -39,7 +39,6 @@ s_std = struct('task_red', false, ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
-             'constr_m', 1, ... % Nr. der Methode für die Zwangsbedingungen
              'retry_limit', 100); % Anzahl der Neuversuche
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -69,7 +68,7 @@ for i = 1:Rob.NLEG
   % Plattform-Koppel-Koordinatensystems auf Bein-Seite
   xE_soll_i = [T_0i_Bi(1:3,4); r2eul(t2r(T_0i_Bi), Rob.Leg(i).phiconv_W_E)];
   % Inverse Kinematik für die serielle Beinkette berechnen
-  [q_i, Phi_i] = Rob.Leg(i).invkin(xE_soll_i, q0_i, s);
+  [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s);
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Phi_i;
 end
