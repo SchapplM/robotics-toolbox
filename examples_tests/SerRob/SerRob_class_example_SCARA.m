@@ -42,8 +42,8 @@ RS.fkine(q0);
 RS.fkineEE(q0);
 RS.jacobiR(q0);
 RS.jacobig(q0);
-RS.jacobiT(q0);
-RS.jacobiW(q0);
+RS.jacobit(q0);
+RS.jacobiw(q0);
 RS.jtraf(q0);
 
 RS.ekin(q0,qD0);
@@ -176,7 +176,12 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0.1, 0,0,0];
 % Gelenkkräfte und inverse Kinematik berechnen
 [Q, QD, QDD] = RS.invkin_traj(X,XD,XDD,T,q0,struct('n_max', 50, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4 , 'constr_m', 1, 'wn', 1));
 TAU = RS.invdyn_traj(Q, QD, QDD);
-
+% IK-Ergebnis testen
+for i = 1:length(T)
+  if max(abs( RS.constr1(Q(i,:)', X(i,:)') )) > 1e-4
+    error('IK stimmt nicht');
+  end
+end
 %% Roboter in Grundstellung plotten (mit im Arbeitsraum entworfener Trajektorie)
 
 s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 0);
