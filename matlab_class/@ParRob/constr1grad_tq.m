@@ -55,7 +55,7 @@ for i = 1:NLEG
   phi_0_Ai = Rob.Leg(i).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(i).phiconv_W_0);
   
-  J0i_i_trans = Rob.Leg(i).jacobiT(qs);
+  J0i_i_trans = Rob.Leg(i).jacobit(qs);
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
   if ~Rob.issym

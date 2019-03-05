@@ -12,6 +12,8 @@ addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'ParRob'));
 
 %% Serielle Roboter
+SerRob_constraints_test
+SerRob_IK_test
 SerRob_class_example_SCARA
 SerRob_class_example_Palettierer
 SerRob_class_example_LBR
