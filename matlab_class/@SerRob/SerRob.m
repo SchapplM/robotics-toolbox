@@ -17,11 +17,14 @@
 % 
 %   Definition der Dynamik-Parameter:
 %   DynPar.mode: Umschalten zwischen verschiedenen Dynamik-Parametern als
-%   Eingang der Dynamik-Funktionen
+%   Eingang der Dynamik-Funktionen. Entspricht Ziffer hinter
+%   Funktions-Handles
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,rS,Ic (inertial)
+%   3: Dynamik-Parametervektor (ohne Minimierung); nicht implementiert
 %   4: Dynamik-Minimalparametervektor
+%   6: Dynamik-MPV mit Regressor-Matrix als Eingang
 
 %   Quellen
 %   [Rob1] Robotik 1 Skript
@@ -80,7 +83,10 @@ classdef SerRob < matlab.mixin.Copyable
     cormatfcnhdl2   % Funktions-Handle für Coriolis-Matrix
     cormatfcnhdl4   % ... mit anderen Parametern
     invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
-    invdynfcnhdl4   % ... mit anderen Parametern   
+    invdynfcnhdl4   % ... mit anderen Parametern
+    invdynregmattrajfcnhdl % Funktions-Handle für Trajektorie von Regressor-Matrizen
+    invdyntrajfcnhdl4 % ... für Inverse Dynamik einer Trajektorie von Gelenkvariablen
+    invdyntrajfcnhdl6 % ... für Inverse Dynamik aus einer Trajektorie von Regressormatrizen
     ekinregfcnhdl   % Funktions-Handle für Regressor-Matrix der kinetischen Energie
     epotregfcnhdl   % Funktions-Handle für Regressor-Matrix der potentielle Energie
     gravlregfcnhdl  % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Gravitation
@@ -181,6 +187,9 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecregfcnhdl', 'coriolisvecJ_fixb_regmin_slag_vp'}, ...
       {'cormatregfcnhdl', 'coriolismatJ_fixb_regmin_slag_vp'}, ...
       {'invdynregfcnhdl', 'invdynJ_fixb_regmin_slag_vp'}, ...
+      {'invdynregmattrajfcnhdl', 'invdynJ_fixb_regmin_slag_vp_traj'}, ...
+      {'invdyntrajfcnhdl4', 'invdynJ_fixb_mdp_slag_vp_traj'}, ...
+      {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
       {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
       qunit_eng = cell(R.NJ,1);
@@ -671,7 +680,7 @@ classdef SerRob < matlab.mixin.Copyable
           tauqreg = R.invdynregfcnhdl(q, qD, qDD, R.gravity, R.pkin);
         end
       else
-        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+        error('Methode invdyn für Modus %d noch nicht implementiert', R.DynPar.mode);
       end
     end
     function TAUq = invdyn_traj(R, Q, QD, QDD)
@@ -687,6 +696,47 @@ classdef SerRob < matlab.mixin.Copyable
       for i = 1:size(Q,1)
         TAUq(i,:) = R.invdyn(Q(i,:)', QD(i,:)', QDD(i,:)');
       end
+    end
+    function TAUq = invdyn2_traj(R, Q, QD, QDD)
+      % Gelenkvektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Benutzt eine eigene Funktion für die Inverse Dynamik der Traj.
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % TAUq: Inverse Dynamik (als Zeitreihe)
+      if R.DynPar.mode == 4
+        TAUq = R.invdyntrajfcnhdl4(Q, QD, QDD, R.gravity, R.pkin, R.DynPar.mpv);
+      else
+        error('Methode invdyn2_traj für Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
+    function TAUq = invdyn3_traj(R, RV)
+      % Gelenkvektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Benutzt eine eigene Funktion für die Inverse Dynamik der Traj.
+      % Eingabe:
+      % RV: Regressormatrizen (als Zeitreihe)
+      %
+      % Ausgabe:
+      % TAUq: Inverse Dynamik (als Zeitreihe)
+      if R.DynPar.mode == 4
+        TAUq = R.invdyntrajfcnhdl6(RV, R.DynPar.mpv);
+      else
+        error('Methode invdyn3_traj für Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
+    function RV = invdynregmat_traj(R, Q, QD, QDD)
+      % Zeitreihe der Dynamik-Regressor-Matrix für eine Trajektorie
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % RV: Regressormatrizen (als Zeitreihe)
+      RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin);
     end
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
