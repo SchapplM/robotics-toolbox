@@ -38,6 +38,7 @@ qDD0 = TSS.QDD(10,:)';
 T_E = RS.fkineEE(q0);
 xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
 
+% Rufe Kinematik-Funktionen auf
 RS.fkine(q0);
 RS.fkineEE(q0);
 RS.jacobiR(q0);
@@ -46,6 +47,8 @@ RS.jacobit(q0);
 RS.jacobiw(q0);
 RS.jtraf(q0);
 
+% Rufe Dynamik-Funktionen mit Inertialparametern als Eingang auf
+RS.DynPar.mode = 2;
 RS.ekin(q0,qD0);
 RS.epot(q0);
 RS.gravload(q0);
@@ -54,6 +57,17 @@ RS.corvec(q0,qD0);
 RS.cormat(q0,qD0);
 RS.invdyn(q0,qD0,qDD0);
 
+% Rufe Dynamik-Funktionen mit Minimalparametervektor als Eingang auf
+RS.DynPar.mode = 4;
+[T,Treg]=RS.ekin(q0,qD0); %#ok<ASGLU>
+[U,Ureg]=RS.epot(q0);
+[g,greg]=RS.gravload(q0);
+[M,Mreg]=RS.inertia(q0);
+[c,creg]=RS.corvec(q0,qD0);
+[C,Creg]=RS.cormat(q0,qD0);
+[t,treg]=RS.invdyn(q0,qD0,qDD0);
+
+% Rufe IK-Funktionen auf
 RS.constr1(q0, xE);
 RS.constr1grad(q0, xE);
 RS.constr2(q0, xE);
@@ -61,7 +75,7 @@ RS.constr2grad(q0, xE);
 RS.invkin(xE, q0+0.1*ones(RS.NJ,1), struct('constr_m', 1)); % IK mit Methode 1 testen, sonst Warnung
 
 % Funktionen kompilieren
-RS.fill_fcn_handles(true);
+RS.fill_fcn_handles(false);
 RS.mex_dep();
 %% Gelenkwinkel-Trajektorie berechnen
 % Für jedes Gelenk 
