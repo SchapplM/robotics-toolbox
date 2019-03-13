@@ -35,7 +35,6 @@ function [q, Phi] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 %$cgargs        'I_EElink', uint8(0),
 %$cgargs            'reci', true,
 %$cgargs           'T_N_E', zeros(4,4),
-%$cgargs        'task_red', false,
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
 %$cgargs              'wn', 0,
@@ -52,7 +51,6 @@ sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
 phiconv_W_E = s.phiconv_W_E;
 K = s.K;
 Kn = s.Kn;
-task_red = s.task_red;
 n_min = s.n_min;
 n_max = s.n_max;
 wn = s.wn;
@@ -73,26 +71,21 @@ else
   % Keine zusätzlichen Optimierungskriterien
   nsoptim = false;
 end
+
+% Indizes für kinematische Zwangsbedingungen festlegen
+if reci
+  I_IK2 = [1 2 3 6 5 4];
+else
+  I_IK2 = [1 2 3 4 5 6];
+end
+I_IK = I_IK2(s.I_EE);
+
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
-if nsoptim && s.NQJ < 6-task_red
+if nsoptim && s.NQJ <= length(I_IK)
   nsoptim = false;
 end
 
-% Indizes für Koordinaten festlegen
-I_IK = 1:6;
-if task_red
-  xE_soll(6) = 0; % Dieser Wert hat keinen Einfluss auf die Berechnung, darf aber aufgrund der Implementierung nicht NaN sein.
-  % Indizes zur Auswahl der berücksichtigten ZB-Komponenten
-  I_IK = [1 2 3 5 6]; % Nehme an, dass immer die vierte Komponente des Fehlers weggelassen wird
-elseif any(~s.I_EE)
-  % Falls EE-FG nicht gefordert sind: Streiche die entsprechenden Zeilen in
-  % den ZB und der Jacobi
-  % TODO: Bessere Anpassung an Euler-Winkel
-  % TODO: Funktioniert aktuell eigentlich nur für Methode 1
-  I_IK = find(s.I_EE);
-  task_red = true; % TODO: Eigener Marker hierfür
-end
 % Ausgabe belegen
 Phi = NaN(length(I_IK),1);
 
@@ -110,15 +103,9 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Zwangsbedingungen
     Phi_voll = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
 
-    %% Aufgabenredundanz
-    if task_red
-      % Aufgabenredundanz. Lasse den letzten Rotations-FG wegfallen
-      Jdk = Jdk_voll(I_IK,:);
-      Phi = Phi_voll(I_IK);
-    else
-      Jdk = Jdk_voll;
-      Phi = Phi_voll;
-    end
+    %% Reduktion auf betrachtete FG
+    Jdk = Jdk_voll(I_IK,:);
+    Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Normale Invertierung der Jacobi-Matrix der seriellen Kette
@@ -165,3 +152,4 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q0 = qmin + rand(s.NQJ,1).*(qmax-qmin);
 end
 q = q1;
+
