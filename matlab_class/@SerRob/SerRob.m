@@ -86,6 +86,7 @@ classdef SerRob < matlab.mixin.Copyable
     cormatfcnhdl4   % ... mit anderen Parametern
     invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
     invdynfcnhdl4   % ... mit anderen Parametern
+    intforcefcnhdl2   % Funktions-Handle für Schnittkräfte durch inverse Dynamik
     invdynregmattrajfcnhdl % Funktions-Handle für Trajektorie von Regressor-Matrizen
     invdyntrajfcnhdl4 % ... für Inverse Dynamik einer Trajektorie von Gelenkvariablen
     invdyntrajfcnhdl6 % ... für Inverse Dynamik aus einer Trajektorie von Regressormatrizen
@@ -180,6 +181,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecfcnhdl2', 'coriolisvecJ_fixb_slag_vp2'}, ...
       {'cormatfcnhdl2', 'coriolismatJ_fixb_slag_vp2'}, ...
       {'invdynfcnhdl2', 'invdynJ_fixb_slag_vp2'}, ...
+      {'intforcefcnhdl2', 'invdyn_floatb_eulxyz_nnew_vp2'}, ...
       {'ekinfcnhdl4', 'energykin_fixb_mdp_slag_vp'}, ...
       {'epotfcnhdl4', 'energypot_fixb_mdp_slag_vp'}, ...
       {'gravlfcnhdl4', 'gravloadJ_floatb_twist_mdp_slag_vp'}, ...
@@ -751,7 +753,41 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % RV: Regressormatrizen (als Zeitreihe)
       RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin);
+    end   
+    function W = internforce(R, q, qD, qDD)
+      % Interne Schnittkräfte
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      % qDD: Gelenkbeschleunigung
+      %
+      % Ausgabe:
+      % W: Kraft und Moment in allen Gelenken (Zeilen: fx,fy,fz,mx,my,mz;
+      %    Spalten: Basis, Robotergelenke)
+      [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(q, qD, qDD, ...
+        zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin, ...
+        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      W = [f_i_i_ges; n_i_i_ges];
     end
+    function W_traj = internforce_traj(R, Q, QD, QDD)
+      % Interne Schnittkräfte
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % W_traj: Kraft und Moment in allen Gelenken, als Zeitreihe
+      %         Jede Zeile ein Zeitschritt; erst alle Kräfte, dann alle Momente
+      W_traj = NaN(size(Q,1), R.NL*6);
+      for i = 1:size(Q,1)
+        [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(Q(i,:)', QD(i,:)', QDD(i,:)', ...
+          zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        W_traj(i,:) = [f_i_i_ges(:); n_i_i_ges(:)];
+      end
+    end
+
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
       % Eingabe:
@@ -898,6 +934,37 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv    = mpv;
+    end
+    function update_dynpar2(R, mges, mrSges, Ifges)
+      % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
+      % gegebenen Parametern bezogen auf den Koordinatenursprung
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Basis)
+      % mrSges: Erstes Moment der Robotersegmente (Masse mal Schwerpunktskoordinaten)
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
+      if nargin < 2 || isempty(mges)
+        mges = R.DynPar.mges;
+      end
+      if nargin < 3 || isempty(mrSges)
+        mrSges = R.DynPar.mrSges;
+      end
+      if nargin < 4 || isempty(Ifges)
+        Ifges = R.DynPar.Ifges;
+      end      
+      % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
+      % Moment) in Minimalparameter-Vektor
+      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+
+      % Parameter in Roboterklasse belegen
+      R.DynPar.mges   = mges;
+      R.DynPar.mrSges = mrSges;
+      R.DynPar.Ifges  = Ifges;
+      R.DynPar.mpv    = mpv;
+      
+      % Die physikalischen Parameter werden NaN gesetzt, da sie bei Vorgabe
+      % der Inertialparameter nicht rekonstruiert werden können
+      R.DynPar.rSges  = NaN*R.DynPar.rSges;
+      R.DynPar.Icges  = NaN* R.DynPar.Icges;
     end
     function update_dynpar_mpv(R, mpv)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
