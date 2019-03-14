@@ -41,13 +41,13 @@ for iLeg = 1:Rob.NLEG
   
   Tc_0i = Rob.Leg(iLeg).fkine(qs);
   Tc_0 = Tc_0i;
-  for i = 1:size(Tc_0i,3)
+  for i = 1:Rob.Leg(iLeg).NL
     Tc_0(:,:,i) = T_0_0i * Tc_0i(:,:,i);
   end
   Tc_0(:,:,end+1) = Tc_0(:,:,end) * Rob.Leg(iLeg).T_N_E; %#ok<AGROW>
   J1 = J2+1;
   J2 = J1+Rob.Leg(iLeg).NL-1+1;
-  Tc_Lges(:,:,J1:J2) = Tc_0;
+  Tc_Lges(:,:,J1:J2) = Tc_0(:,:,1:(Rob.Leg(iLeg).NL+1));
 end
 
 %% Trnasformation ins Welt-KS
