@@ -35,9 +35,10 @@ end
 % langsamer konvergieren als die Drehgelenke, da die Rotation die Position
 % beeinflusst, aber nicht umgekehrt.
 K_def = 0.1*ones(Rob.NQJ,1);
-K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
+K_def(sigmaJ==1) = K_def(sigmaJ==1); % Verstärkung für Schubgelenke kleiner
 
-s_std = struct('task_red', false, ...
+s_std = struct( ...
+             'I_EE', Rob.I_EE_Task, ... % FG für die IK
              'K', K_def, ... % Verstärkung
              'Kn', 1e-2*ones(Rob.NQJ,1), ... % Verstärkung
              'wn', 0, ... % Gewichtung der Nebenbedingung
@@ -63,7 +64,6 @@ end
 % Variablen aus Einstellungsstruktur holen
 K = s.K; 
 Kn = s.Kn; 
-task_red = s.task_red;
 n_min = s.n_min;
 n_max = s.n_max;
 wn = s.wn;
@@ -75,33 +75,27 @@ retry_limit = s.retry_limit;
 qmin = Rob.qlim(:,1);
 qmax = Rob.qlim(:,2);
 
-n_Phi_t = sum(Rob.I_EE(1:3));
-
 if wn ~= 0
   nsoptim = true;
 else
   % Keine zusätzlichen Optimierungskriterien
   nsoptim = false;
 end
+
+% Indizes für kinematische Zwangsbedingungen festlegen
+n_Phi_t = sum(s.I_EE(1:3));
+if constr_m == 1
+  I_IK2 = [1 2 3 4 5 6];
+else
+  I_IK2 = [1 2 3 6 5 4];
+end
+I_IK = I_IK2(s.I_EE);
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
-if nsoptim && Rob.NQJ < 6-task_red
+if nsoptim && Rob.NQJ <= length(I_IK)
   nsoptim = false;
 end
 
-I_IK = 1:6;
-if task_red
-  xE_soll(6) = 0; % Dieser Wert hat keinen Einfluss auf die Berechnung, darf aber aufgrund der Implementierung nicht NaN sein.
-  % Indizes zur Auswahl der berücksichtigten ZB-Komponenten
-  I_IK = [1 2 3 5 6]; % Nehme an, dass immer die vierte Komponente des Fehlers weggelassen wird
-elseif any(~Rob.I_EE)
-  % Falls EE-FG nicht gefordert sind: Streiche die entsprechenden Zeilen in
-  % den ZB und der Jacobi
-  % TODO: Bessere Anpassung an Euler-Winkel
-  % TODO: Funktioniert aktuell eigentlich nur für Methode 1
-  I_IK = find(Rob.I_EE);
-  task_red = true; % TODO: Eigener Marker hierfür
-end
 success = false;
 
 for rr = 1:retry_limit
@@ -120,21 +114,16 @@ for rr = 1:retry_limit
       dpq=Rob.constr2grad_rq(q1, xE_soll, true);
     end
     Jdk_voll = [dxq; dpq];
-    Jdk = Jdk_voll(:,:);
 
     if constr_m == 1
-      Phi = Rob.constr1(q1, xE_soll);
+      Phi_voll = Rob.constr1(q1, xE_soll);
     else
-      Phi = Rob.constr2(q1, xE_soll, true);
+      Phi_voll = Rob.constr2(q1, xE_soll, true);
     end
 
-    %% Aufgabenredundanz
-    if task_red
-      % Aufgabenredundanz. Lasse den letzten Rotations-FG wegfallen
-
-      Jdk = Jdk(I_IK,:);
-      Phi = Phi(I_IK);
-    end
+    %% Reduktion auf betrachtete FG
+    Jdk = Jdk_voll(I_IK,:);
+    Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Normale Invertierung der Jacobi-Matrix der seriellen Kette

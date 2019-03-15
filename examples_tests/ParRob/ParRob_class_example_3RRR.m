@@ -25,8 +25,8 @@ SName='S3RRR1';
 
 % Instanz der Roboterklasse erstellen
 RS = serroblib_create_robot_class(SName);
-RS.fill_fcn_handles(true);
-RS.mex_dep()
+RS.fill_fcn_handles(false);
+% RS.mex_dep(true)
 
 % Parameter setzen
 [beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh] = ...
@@ -51,15 +51,14 @@ RP.update_EE(  [0;0;0.1],   [0;0;45 ]*pi/180);
 % Mittelstellung im Arbeitsraum
 X = [ [0.0;0.0;0.1]; [0;0;0]*pi/180 ];
 
-% Inverse Kinematik berechnen
-% [~, Phi] = RP.invkin1(X, q0);
-% if any(abs(Phi) > 1e-10)
-%   error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
-% end
+% Inverse Kinematik berechnen und testen
+[~, Phi] = RP.invkin1(X, rand(RP.NJ,1));
+if any(abs(Phi) > 1e-8) || any(isnan(Phi))
+  error('Inverse Kinematik (für Gesamt-PKM) konnte in Startpose nicht berechnet werden');
+end
 
-[qs, Phis] = RP.invkin_ser(X, rand(RP.NJ,1));
-q=qs;
-if any(abs(Phis) > 1e-6)
+[q, Phi] = RP.invkin_ser(X, rand(RP.NJ,1));
+if any(abs(Phi) > 1e-6) || any(isnan(q))
   error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
 end
 
@@ -125,6 +124,10 @@ if any(abs(Phi_num1) > 1e-2)
   warning('IK konvergiert nicht');
 end
 [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
+   any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
+   error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+end
 fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
   toc(t0), length(t));
 

@@ -62,7 +62,8 @@ classdef SerRob < matlab.mixin.Copyable
     qunitmult_eng_sci % Umrechnungsfaktor zwischen beiden Einheitenarten
     tauunit_sci % Name der Einheiten der Gelenkkräfte
     gravity % Gravitationsvektor ausgedrückt im Welt-KS
-    I_EE % Indizes der genutzten EE-FG. TODO: Funktionen darauf umstellen. Achtung bei Euler-Winkeln
+    I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
+    I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EElink % Index des Segmentes, an dem der Endeffektor befestigt ist.
     mdlname % Name des Robotermodells, das in den Matlab-Funktionen benutzt wird.
     CADstruct % Struktur mit Daten zu CAD-Modellen
@@ -150,6 +151,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.phiconv_W_E = uint8(2); % Euler-XYZ
       R.phiconv_W_0 = uint8(2); % Euler-XYZ
       R.I_EE = true(1,6); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
+      R.I_EE_Task = true(1,6); % zunächst alle Aufgaben-FG vorsehen
       R.I_EElink = R.NL-1; % bezogen auf nummerierte Körper (Basis=0)
       R.gravity = [0;0;-9.81];
       % Liste der Funktionshandle-Variablen mit zugehörigen
@@ -464,19 +466,18 @@ classdef SerRob < matlab.mixin.Copyable
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
       % Einstellungen für IK
       K_def = 0.1*ones(R.NQJ,1);
-      K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
+      K_def(sigmaJ==1) = K_def(sigmaJ==1); % Verstärkung für Schubgelenke kleiner
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
       s = struct('pkin', R.pkin, ...
                  'sigmaJ', sigmaJ, ...
                  'NQJ', R.NQJ, ...
                  'qlim', R.qlim, ...
-                 'I_EE', R.I_EE, ...
+                 'I_EE', R.I_EE_Task, ...
                  'phiconv_W_E', R.phiconv_W_E, ...
                  'I_EElink', uint8(R.I_EElink), ...
                  'reci', true, ...
                  'T_N_E', R.T_N_E, ...
-                 'task_red', false, ...
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
                  'wn', 0, ... % Gewichtung der Nebenbedingung
@@ -496,7 +497,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Funktionsaufruf
       [q, Phi] = R.invkinfcnhdl(x, q0, s);
     end
-    function [Q,QD,QDD] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+    function [Q,QD,QDD,PHI] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin_traj`, die nicht kompilierbar ist.
@@ -512,6 +513,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Q: Gelenkpositionen (Zeilen: Zeit, Spalten: Gelenkkoordinaten)
       % QD: Gelenkgeschwindigkeiten
       % QDD: Gelenkbeschleunigungen
+      % PHI: IK-Fehler (entspricht Zwangsbedingungen)
       %
       % Siehe auch: invkin2, invkin_traj
       
@@ -523,12 +525,11 @@ classdef SerRob < matlab.mixin.Copyable
                  'sigmaJ', sigmaJ, ...
                  'NQJ', R.NQJ, ...
                  'qlim', R.qlim, ...
-                 'I_EE', R.I_EE, ...
+                 'I_EE', R.I_EE_Task, ...
                  'phiconv_W_E', R.phiconv_W_E, ...
                  'I_EElink', uint8(R.I_EElink), ...
                  'reci', true, ...
                  'T_N_E', R.T_N_E, ...
-                 'task_red', false, ...
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
                  'wn', 0, ... % Gewichtung der Nebenbedingung
@@ -543,7 +544,7 @@ classdef SerRob < matlab.mixin.Copyable
         end
       end
       % Funktionsaufruf
-      [Q,QD,QDD] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
+      [Q,QD,QDD,PHI] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function [T, Treg] = ekin(R, q, qD)
       % Kinetische Energie

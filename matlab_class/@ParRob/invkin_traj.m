@@ -49,15 +49,13 @@ QD = Q;
 QDD = Q;
 Phi = NaN(nt, Rob.NLEG*sum(I_EE)); % TODO: Robuste Dimensionsinitialisierung
 
-
 qk0 = q0;
 for k = 1:nt
   x_k = X(k,:)';
   xD_k = XD(k,:)';
   xDD_k = XDD(k,:)';
   
-  % TODO: IK-Methode hier frei wählbar machen über Einstellungen
-  [q_k, Phi_k] = Rob.invkin1(x_k, qk0, s);
+  [q_k, Phi_k] = Rob.invkin_ser(x_k, qk0, s); % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
 
   % Gelenk-Geschwindigkeit berechnen
   Phi_q = Rob.constr1grad_q(q_k, x_k);

@@ -60,7 +60,7 @@ I_constr_r_red = Rob.I_constr_r_red;
 % Variablen zum Speichern der Zwischenergebnisse
 q1 = q0;
 sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
-K = 1*ones(Rob.NJ,1);
+K = 0.1*ones(Rob.NJ,1);
 K(sigma_PKM==1) = K(sigma_PKM==1) / 5; % Verstärkung für Schubgelenke kleiner
 %% Iterative Lösung der IK
 for jj = 2:n_max

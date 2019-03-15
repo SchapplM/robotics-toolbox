@@ -42,18 +42,23 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Q, QD, QDD] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, PHI] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+
+if nargin < 7
+  s = struct('constr_m', 2); % Muss für Übergabe an IK-Funktion definiert sein.
+end
 
 I_EE = Rob.I_EE;
 
 Q = NaN(length(T), Rob.NQJ);
 QD = Q;
 QDD = Q;
+PHI = NaN(length(T), sum(Rob.I_EE));
 
 nt = length(T);
 qk0 = q0;
 for k = 1:nt
-  q_k = Rob.invkin(X(k,:)',qk0, s);
+  [q_k, Phi_k] = Rob.invkin(X(k,:)',qk0, s);
   
   % Gelenk-Geschwindigkeit berechnen (Siehe [1]).
   J_x = Rob.jacobia(q_k);
@@ -74,4 +79,5 @@ for k = 1:nt
   Q(k,:) = q_k;
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
+  PHI(k,:) = Phi_k;
 end

@@ -26,7 +26,7 @@ SName='S6RRPRRR14';
 % Instanz der Roboterklasse erstellen
 RS = serroblib_create_robot_class(SName);
 RS.fill_fcn_handles(true);
-RS.mex_dep()
+% RS.mex_dep(true)
 
 % Parameter setzen
 [beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh] = ...
@@ -146,6 +146,10 @@ if any(abs(Phi_num1) > 1e-2)
 end
 fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
+   any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
+   error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+end
 fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
   toc(t0), length(t));
 save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));

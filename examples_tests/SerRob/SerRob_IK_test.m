@@ -37,16 +37,19 @@ end
 
 %% Benutzereingaben
 % Prüfung repräsentativer Roboter
-Robots = {{'S5RRRRR1', 'S5RRRRR1_KUKA1'}, ...
+
+Robots = {{'S4RRPR1', 'S4RRPR1_KUKA1'}, ...
+          {'S5RRRRR1', 'S5RRRRR1_KUKA1'}, ...
           {'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}, ...
           {'S7RRRRRRR1', 'S7RRRRRRR1_LWR4P'}};
 % Folgende Zeilen zur Prüfung einzelner Roboter einkommentieren:
-% Robots = {{'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}};
+% Robots = {{'S4RRPR1', 'S4RRPR1_KUKA1'}};
 % Robots = {{'S5RRRRR1', 'S5RRRRR1_KUKA1'}};
+% Robots = {{'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}};
 % Robots = {{'S7RRRRRRR1', 'S7RRRRRRR1_LWR4P'}};
 
 % Einstellungen
-use_mex_functions = true; % mit mex geht es etwas schneller
+use_mex_functions = true; % mit mex geht es etwas schneller, dafür ist debuggen schwieriger
 minimal_test = true; % Nur sehr wenige zufällige Winkel testen (geht schneller)
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
 % Implementierung davon richtig ist
@@ -67,7 +70,7 @@ for Robot_Data = Robots
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
-  % RS.mex_dep();
+%   RS.mex_dep(true);
   RS.fill_fcn_handles(use_mex_functions, true);
   
   % Grenzen festlegen (für Zusatz-Optimierung)
@@ -110,14 +113,20 @@ for Robot_Data = Robots
   RS.constr2(q0, xE);
   RS.constr2grad(q0, xE);
   RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
-
+  RS.invkin2(xE, q0+0.1*ones(RS.NJ,1));
+  RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
+    struct('retry_limit', 1));
+  RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
+    struct('retry_limit', 1));
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
   %% (Test 2) Inverse Kinematik (Normal) prüfen (für verschiedene Posen)
   % IK-Ziel ist immer erreichbar, Startwerte für iterativen Algorithmus
   % liegen in der Nähe der Zielkonfiguration
+  % Benutze die EE-FG des Systems (aus I_EE): Die Bewegung ist also je nach
+  % Roboter 3T3R (Industrieroboter), 3T0R (SCARA)
   for m = 2 % Nur nach Methode 2 prüfen
-    for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle funktionierenden Euler-Winkel-Konventionen
+    for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle funktionierenden Euler-Winkel-Konventionen für 3T3R
       eulstr = euler_angle_properties(i_phiconv);
       RS.phiconv_W_E = i_phiconv;
       n_iO1 = 0; n_iO2 = 0; % Zähler für Erfolg der IK (SerRob/Spez.)
@@ -154,7 +163,7 @@ for Robot_Data = Robots
       end
       fprintf(['%s: Inverse Kinematik Variante %d getestet (%s-Euler-Winkel).', ...
         '\n\t%d/%d erfolgreich mit Klasse. %d/%d kompiliert.', ...
-        '\n\tZeit: %1.1fms (Klasse) vs %1.1fms (komp.)\n'], ...
+        '\n\tZeit: %1.1fms (Klassenmethode) vs %1.1fms (Funktion)\n'], ...
         SName, m, eulstr, n_iO1, size(TSS.Q,1), n_iO2, size(TSS.Q,1), ...
         1e3*T1/size(TSS.Q,1), 1e3*T2/size(TSS.Q,1));
     end
@@ -162,58 +171,63 @@ for Robot_Data = Robots
   RS.phiconv_W_E = uint8(2); % zurücksetzen auf Standard XYZ
   fprintf('Einzelpunkt-IK für %s erfolgreich getestet\n', SName);
 
-  %% (Test 3) Inverse Kinematik mit 3T2R
-  % IK-Ziel ist jetzt nicht vollständige Pose, sondern die Richtung der
-  % z-Achse des Endeffektors (3T2R-Aufgabe)
-  for i_phiconv = uint8([2 4 6 7 9 11]) % Schleife für verschiedene Euler-Konventionen
-    eulstr = euler_angle_properties(i_phiconv);
-    n_iO1 = 0; n_iO2 = 0; % Zähler für Erfolg der IK (SerRob/Spez.)
-    T1 = 0; T2 = 0; % Zeit für IK (SerRob/Spez.)
-    for i = 1:size(TSS.Q,1)
-      % Ziel- und Anfangs-Konfiguration definieren (mit Symmetrieachse)
-      q = TSS.Q(i,:)';
-      T_E = RS.fkineEE(q);
-      xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
-      xE(6) = 0; % Rotation um z-Achse des EE interessiert nicht.
-      q0 = q-20*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 20° neben der Endstellung
-      T_E0 = RS.fkineEE(q0);
-      % Berechnung mit SerRob
-      tic();
-      q_test1 = RS.invkin(xE, q0, struct('task_red', true, 'constr_m',2));
-      T1 = T1 + toc();
-      % Prüfe Erfolg mit SerRob
-      T_E_test1 = RS.fkineEE(q_test1);
-      test_T1 = T_E\T_E_test1 - eye(4);
-      test_T1 = test_T1(:,[3,4]); % Spalten mit x-y-Einheitsvektoren lassen sich nicht vergleichen.
-      if any(abs(test_T1(:)) > 1e-8) || any(isnan(test_T1(:)))
-        % Teilweise konvergiert die IK nicht, wenn der Abstand zu groß ist.
-        warning('%s: DK/IK stimmt nicht für Aufgabenredundanz', SName);
-      else
-        n_iO1 = n_iO1+1;
+  %% (Test 3) Inverse Kinematik mit reduzierten FG (3T2R-Aufgabe)
+  if all(RS.I_EE([4,5]))
+    % IK-Ziel ist jetzt nicht vollständige Pose, sondern die Richtung der
+    % z-Achse des Endeffektors (3T2R-Aufgabe)
+    for i_phiconv = uint8([2, 6]) % Schleife für verschiedene Euler-Konventionen (Tait-Bryan), deren letzter Winkel z ist
+      RS.phiconv_W_E = i_phiconv;
+      eulstr = euler_angle_properties(i_phiconv);
+      n_iO1 = 0; n_iO2 = 0; % Zähler für Erfolg der IK (SerRob/Spez.)
+      T1 = 0; T2 = 0; % Zeit für IK (SerRob/Spez.)
+      for i = 1:size(TSS.Q,1)
+        % Ziel- und Anfangs-Konfiguration definieren (mit Symmetrieachse)
+        q = TSS.Q(i,:)';
+        T_E = RS.fkineEE(q);
+        xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
+        xE(6) = 0; % Rotation um z-Achse des EE interessiert nicht.
+        q0 = q-20*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 20° neben der Endstellung
+        T_E0 = RS.fkineEE(q0);
+        % Berechnung mit SerRob
+        tic();
+        q_test1 = RS.invkin(xE, q0, struct('constr_m',2, 'I_EE', logical([1 1 1 1 1 0])));
+        T1 = T1 + toc();
+        % Prüfe Erfolg mit SerRob
+        T_E_test1 = RS.fkineEE(q_test1);
+        test_T1 = T_E\T_E_test1 - eye(4);
+        test_T1 = test_T1(:,[3,4]); % Spalten mit x-y-Einheitsvektoren lassen sich nicht vergleichen.
+        if any(abs(test_T1(:)) > 1e-8) || any(isnan(test_T1(:)))
+          % Teilweise konvergiert die IK nicht, wenn der Abstand zu groß ist.
+          warning('%s: DK/IK stimmt nicht für 3T2R-Aufgabe mit %s-Euler-Winkeln', SName, eulstr);
+        else
+          n_iO1 = n_iO1+1;
+        end
+        % Berechnung mit Spez. Funktion
+        tic();
+        q_test2 = RS.invkin2(xE, q0, struct('I_EE', logical([1 1 1 1 1 0])));
+        T2 = T2 + toc();
+        % Prüfe Erfolg mit Spez. Funktion
+        T_E_test2 = RS.fkineEE(q_test2);
+        test_T2 = T_E\T_E_test2 - eye(4);
+        test_T2 = test_T2(:,[3,4]);
+        if any(abs(test_T2(:)) > 1e-8) || any(isnan(test_T2(:)))
+          % Teilweise konvergiert die IK nicht, wenn der Abstand zu groß ist.
+          warning('%s: DK/IK stimmt nicht für 3T2R-Aufgabe mit %s-Euler-Winkeln', SName, eulstr);
+        else
+          n_iO2 = n_iO2+1;
+        end
       end
-      % Berechnung mit Spez. Funktion
-      tic();
-      q_test2 = RS.invkin2(xE, q0, struct('task_red', true));
-      T2 = T2 + toc();
-      % Prüfe Erfolg mit Spez. Funktion
-      T_E_test2 = RS.fkineEE(q_test2);
-      test_T2 = T_E\T_E_test2 - eye(4);
-      test_T2 = test_T2(:,[3,4]);
-      if any(abs(test_T2(:)) > 1e-8) || any(isnan(test_T2(:)))
-        % Teilweise konvergiert die IK nicht, wenn der Abstand zu groß ist.
-        warning('%s: DK/IK stimmt nicht für Aufgabenredundanz', SName);
-      else
-        n_iO2 = n_iO2+1;
-      end
+      fprintf(['%s: Inverse Kinematik Variante 2 mit Aufgabenredundanz getestet (%s-Euler-Winkel).', ...
+        '\n\t%d/%d erfolgreich mit Klasse. %d/%d kompiliert.', ...
+        '\n\tZeit: %1.1fms (Klassenmethode) vs %1.1fms (Funktion)\n'], ...
+        SName, eulstr, n_iO1, size(TSS.Q,1), n_iO2, size(TSS.Q,1), ...
+        1e3*T1/size(TSS.Q,1), 1e3*T2/size(TSS.Q,1));
     end
-    fprintf(['%s: Inverse Kinematik Variante 2 mit Aufgabenredundanz getestet (%s-Euler-Winkel).', ...
-      '\n\t%d/%d erfolgreich mit Klasse. %d/%d kompiliert.', ...
-      '\n\tZeit: %1.1fms (Klasse) vs %1.1fms (komp.)\n'], ...
-      SName, eulstr, n_iO1, size(TSS.Q,1), n_iO2, size(TSS.Q,1), ...
-      1e3*T1/size(TSS.Q,1), 1e3*T2/size(TSS.Q,1));
+    RS.phiconv_W_E = uint8(2); % zurücksetzen auf Standard XYZ
+    fprintf('Einzelpunkt-IK für 3T2R-Aufgabe für %s erfolgreich getestet\n', SName);
+  else
+    fprintf('Einzelpunkt-IK für 3T2R-Aufgabe mit %s nicht möglich und daher nicht getestet.\n', SName);
   end
-  RS.phiconv_W_E = uint8(2); % zurücksetzen auf Standard XYZ
-  fprintf('Einzelpunkt-IK mit Aufgabenredundanz für %s erfolgreich getestet\n', SName);
   %% (Test 4) Teste Zielfunktion für Zusatzoptimierung
   % Prüfe, ob Implementierung in SerRob und in Spez. Funktion gleich ist.
   for i = 1:size(TSS.Q,1)
@@ -224,26 +238,35 @@ for Robot_Data = Robots
       error('Optimierungsfunktion als einzelne Funktion stimmt nicht mit Klasse überein');
     end
   end
-  %% (Test 5) Inverse Kinematik (mit Zusatzoptimierung) prüfen
+  %% (Test 5) Inverse Kinematik für 3T2R-/3T3R-Aufgabe (mit Zusatzoptimierung) prüfen
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
   % inversen Kinematik
   wn = 1; % Verstärkungsfaktor für Optimierung der Nebenbedingung
-  for i_phiconv = uint8([2 4 6 7 9 11]) % Schleife für verschiedene Euler-Konventionen
-    eulstr = euler_angle_properties(i_phiconv);
-    for tr = [false, true] % Schleife 3T3R bzw 3T2R (Aufgabenredundanz)
-      for m = 2 % Nur Methode 2 prüfen (Methode 1 ist nicht als eigene Funktion implementiert)
-        if tr && m == 2
-          continue; % Variante 1 geht nicht mit Aufgabenredundanz
-        end
+  for tr = [false, true] % Schleife 3T3R bzw 3T2R (Aufgabenredundanz)
+    if tr
+      % EE-Koordinaten, die für die Aufgabe benötigt sind. "0" bedeutet,
+      % dass der FG "egal" ist (Rotationssymmetrie der 3T2R-Aufgabe)
+      I_EE_Task = logical([1 1 1 1 1 0]);
+      % Zulässige Euler-Winkel-Konventionen für die Definition des
+      % Residual-Vektors (letzter Winkel muss der Symmetrieachse (z)
+      % entsprechen
+      eulconv_Task = uint8([2, 6]);
+    else
+      I_EE_Task = logical([1 1 1 1 1 1]);
+      eulconv_Task = uint8([2 4 6 7 9 11]);
+    end
+    for m = 2 % Nur Methode 2 prüfen (Methode 1 ist nicht als eigene Funktion implementiert)
+      if RS.NQJ < 7-tr
+        fprintf('%s: Roboter hat nur %d FG und für %dFG-Aufgaben keinen Nullraum\n', ...
+          RS.mdlname, RS.NJ, 6-tr);
+        continue
+      end
+      for i_phiconv = eulconv_Task % Schleife für verschiedene Euler-Konventionen
+        RS.phiconv_W_E = i_phiconv;
+        eulstr = euler_angle_properties(i_phiconv);
         n_iO1 = 0; n_iO2 = 0; % Zähler für erfolgreiche IK (ohne Nullraum)
         n_identq = 0; % Zähler für identische Ergebnisse (Klasse vs. Sequ.)
         T_ges = zeros(2,3); % Zeitmessung für Klasse/Sequ. (Zeilen) und 3 IK-Verfahren
-        
-        if RS.NQJ < 7-tr
-          fprintf('%s: Roboter hat nur %d FG und für %dFG-Aufgaben keinen Nullraum\n', ...
-            RS.mdlname, RS.NJ, 6-tr);
-          continue
-        end
         K_zopt = NaN(size(TSS.Q,1),6);
         Q_zopt = NaN(size(TSS.Q,1),3*size(TSS.Q,2));
         for i = 1:size(TSS.Q,1)
@@ -255,25 +278,25 @@ for Robot_Data = Robots
            % Berechnung mit SerRob: Ohne Optimierung ("ohne")
           tic();
           q_ohne = RS.invkin(xE, q0, ...
-            struct('task_red', tr, 'constr_m', m));
+            struct('I_EE', I_EE_Task, 'constr_m', m));
           T_ges(1,1)=T_ges(1,1)+toc();
           if any(isnan(q_ohne)), return; end
           % Berechnung mit SerRob: gleichzeitige Optimierung ("mit1")
-          s = struct('K',1e-1*ones(RS.NJ,1), ...
+          s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
                      'wn',wn, ...
-                     'task_red', tr, 'constr_m', m);
+                     'I_EE', I_EE_Task, 'constr_m', m);
           tic()
           [q_mit1,~,Q_mit1] = RS.invkin(xE, q0, s);
           T_ges(1,2)=T_ges(1,2)+toc();
           % Berechnung mit SerRob: nachträgliche Optimierung ("mit2")
           tic();
           [q_mit2,Phi,Q_mit2] = RS.invkin(xE, q_ohne, ...
-            struct('K',1e-1*ones(RS.NJ,1), ...
+            struct('K',5e-1*ones(RS.NJ,1), ...
                    'Kn',1e-2*ones(RS.NJ,1), ...
                    'n_min', 50, ...
                    'wn',wn, ...
-                   'task_red', tr, 'constr_m', m));
+                   'I_EE', I_EE_Task, 'constr_m', m));
           T_ges(1,3)=T_ges(1,3)+toc();
           % Ergebnisse prüfen
           test_T_ohne = T_E\RS.fkineEE(q_ohne) - eye(4);
@@ -284,7 +307,7 @@ for Robot_Data = Robots
           end
           test_T = [test_T_ohne(:); test_T_mit1(:); test_T_mit2(:)];
           if any(abs(test_T) > 1e-5) || any(isnan(test_T))
-            warning('%s: DK/IK stimmt nicht (Var. %d)', SName, m);
+            warning('%s: DK/IK stimmt nicht (Var. %d, %s-Euler-Winkel)', SName, m, eulstr);
           else
             n_iO1 = n_iO1+1;
           end
@@ -299,20 +322,20 @@ for Robot_Data = Robots
 
           % Gleiche Rechnung wie oben, aber mit kompilierten Funktionen
           tic();
-          q2_ohne = RS.invkin2(xE, q0, struct('task_red', tr));
+          q2_ohne = RS.invkin2(xE, q0, struct('I_EE', I_EE_Task));
           T_ges(2,1)=T_ges(2,1)+toc();
-          s = struct('K',1e-1*ones(RS.NJ,1), ...
+          s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
                      'wn',wn, ...
-                     'task_red', tr);
+                     'I_EE', I_EE_Task);
           tic();
           q2_mit1 = RS.invkin2(xE, q0, s); Q2_mit1 = NaN;
           T_ges(2,2)=T_ges(2,2)+toc();
-          s = struct('K',1e-1*ones(RS.NJ,1), ...
+          s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
                      'n_min', 50, ...
                      'wn',wn, ...
-                     'task_red', tr);
+                     'I_EE', I_EE_Task);
           tic();
           q2_mit2 = RS.invkin2(xE, q_ohne, s);
           T_ges(2,3)=T_ges(2,3)+toc();
@@ -403,29 +426,30 @@ for Robot_Data = Robots
           SName, m, trstring, n_iO1, size(TSS.Q,1), eulstr);
         fprintf('\tVergleich Zeiten Klasse/Roboterspezifisch: ohne %1.1fs/%1.1fs, mit gleichz. %1.1fs/%1.1fs, mit nacheinander %1.1fs/%1.1fs.\n', ...
           T_ges(1,1), T_ges(2,1), T_ges(1,2), T_ges(2,2), T_ges(1,3), T_ges(2,3));
-        fprintf('\tErfolg mit Klasse: %d/%d, mit Spezifisch: %d/%d, identisches Ergebnis: %d/%d, Schlechter nach Optimierung: %d/%d (gleichz.), %d/%d (sequ.)\n', ...
-          n_iO1, size(TSS.Q,1), n_iO2, size(TSS.Q,1), n_identq, size(TSS.Q,1), ...
+        fprintf('\tVergleich Leistung Klasse/Roboterspezifisch: Erfolg %d/%d, identisches Ergebnis: %d, Schlechter nach Optimierung: %d/%d (gleichz.), %d/%d (sequ.)\n', ...
+          n_iO1, n_iO2, n_identq, ...
           sum(K_zopt(:,1)-K_zopt(:,2)<=0), sum(K_zopt(:,4)-K_zopt(:,5)<=0), ...
           sum(K_zopt(:,1)-K_zopt(:,3)<=0), sum(K_zopt(:,4)-K_zopt(:,6)<=0));
       end
     end
   end
-
-  %% (Test 6) Inverse Kinematik für komplette Trajektorie prüfen
+  %% (Test 6) Inverse Kinematik für komplette Trajektorie (3T3R) prüfen
+%   continue
   % Trajektorien-IK als Funktion berücksichtigt auch Geschwindigkeit und
   % Beschleunigung benötigt dadurch weniger IK-Iterationen
   for m = 2 % Nur Methode 2 prüfen
     if RS.NQJ < 6
-      fprintf('Roboter %s hat nur %d FG. Keine allgemeinen kartesischen Trajektorien verfolgbar\n', SName, RS.NQJ);
+      fprintf('Roboter %s hat nur %d FG. Keine allgemeinen kartesischen Trajektorien verfolgbar.\n', SName, RS.NQJ);
       break;
     end
     for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle funktionierenden Euler-Winkel-Konventionen
+      RS.phiconv_W_E = i_phiconv;
       eulstr = euler_angle_properties(i_phiconv);
       
       RS.phiconv_W_E = i_phiconv;
       % Trajektorie generieren
       T = zeros(3,1); % Zeitmessung für Trajektorie
-      % Direkte Kinematik für einelne Gelenkwinkel der Trajektorie
+      % Direkte Kinematik für einzelne Gelenkwinkel der Trajektorie
       [X] = RS.fkineEE_traj(TSS.Q,TSS.Q*0,TSS.Q*0);
       % Kartesische Trajektorie zwischen einzelnen Posen berechnen
       [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(X, 2, 0.100, 0.050, 0.001, 0.100);
@@ -442,11 +466,17 @@ for Robot_Data = Robots
       t = t(1:nn,:);
       % Gelenktrajektorie mit Trajektorien-IK auf zwei Wege berechnen
       tic();
-      [Q_IK, QD_IK, QDD_IK] = RS.invkin_traj(X_t,XD_t,XDD_t, t, q0, struct('constr_m', m));
+      [Q_IK, QD_IK, QDD_IK, PHI_IK] = RS.invkin_traj(X_t,XD_t,XDD_t, t, q0, struct('constr_m', m));
       T(1) = toc;
+      if max(abs(PHI_IK(:))) > 1e-9
+        warning('Trajektorie stimmt nicht mit Klassenmethode');
+      end
       tic();
-      [Q_IK2, QD_IK2, QDD_IK2] = RS.invkin2_traj(X_t,XD_t,XDD_t, t, q0);
+      [Q_IK2, QD_IK2, QDD_IK2, PHI_IK2] = RS.invkin2_traj(X_t,XD_t,XDD_t, t, q0);
       T(2) = toc;
+      if max(abs(PHI_IK2(:))) > 1e-9
+        warning('Trajektorie stimmt nicht mit eigener Funktion');
+      end
       % Vergleichsaufruf ohne Eingabe von Geschwindigkeiten
       tic();
       [Q_IK3, ~, ~] = RS.invkin2_traj(X_t,XD_t*0,XDD_t*0, t, q0);

@@ -39,7 +39,7 @@ pkin = S3RPR1_mdhparam2pkin(beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh,
 RS.update_mdh(pkin);
 
 %% Klasse für PKM erstellen
-RS.I_EE = logical([1 1 0 0 0 1]);%logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
+RS.I_EE = logical([1 1 0 0 0 1]); % Für IK der Beinketten mit invkin_ser
 RP = ParRob('P3RPR1');
 RP = RP.create_symmetric_robot(3, RS, 1, 0.3);
 RP = RP.initialize();
@@ -53,14 +53,13 @@ RP.update_actuation(I_qa);
 X = [ [0.2;0.1;0.0]; [0;0;-20]*pi/180 ];
 
 % Inverse Kinematik berechnen
-[q, Phi] = RP.invkin1(X, rand(RP.NJ,1));
+[~, Phi] = RP.invkin1(X, rand(RP.NJ,1));
 if any(abs(Phi) > 1e-7)
-  error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
+  error('Inverse Kinematik (für Gesamt-PKM) konnte in Startpose nicht berechnet werden');
 end
 
-[qs, Phis] = RP.invkin_ser(X, rand(RP.NJ,1));
-q=qs;
-if any(abs(Phis) > 1e-6)
+[q, Phi] = RP.invkin_ser(X, rand(RP.NJ,1));
+if any(abs(Phi) > 1e-6)
   warning('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
 end
 
@@ -121,12 +120,16 @@ q0 = q; % Lösung der IK von oben als Startwert
 
 t0 = tic();
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
-s = struct('constr_m', 1, 'Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
+s = struct('Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
 [q1, Phi_num1] = RP.invkin1(X_t(1,:)', q0, s);
 if any(abs(Phi_num1) > 1e-2)
   warning('IK konvergiert nicht');
 end
 [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
+   any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
+   error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+end
 fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
   toc(t0), length(t));
 
