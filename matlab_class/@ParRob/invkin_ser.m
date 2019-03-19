@@ -57,7 +57,7 @@ end
 %% Start
 Phi_ser = NaN(Rob.NJ,1);
 q = q0;
-Tc_Pges = fkine_platform(Rob, xE_soll);
+Tc_Pges = Rob.fkine_platform(xE_soll);
 % IK für alle Beine einzeln berechnen
 for i = 1:Rob.NLEG 
   q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));

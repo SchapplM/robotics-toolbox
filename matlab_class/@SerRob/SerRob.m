@@ -112,6 +112,10 @@ classdef SerRob < matlab.mixin.Copyable
   methods
     % Konstruktor
     function R=SerRob(Par_struct, mdlname)
+      % Eingabe:
+      % Par_struct: Struktur mit Kinematik- und Dynamik-Parametern
+      % mdlname: Name des Roboters, der bei der Code-Generierung verwendet
+      % wurde (bildet den Präfix aller Funktionsdateien)
       R.mdlname = mdlname;
       R.NJ = sum(Par_struct.sigma~=2);
       if ~isfield(Par_struct, 'v')

@@ -104,6 +104,12 @@ classdef ParRob < matlab.mixin.Copyable
         % Setze Marker mu auf 0 für nicht Teil der Minimalkoordinaten der
         % Beinkette, 1 für passiv für die PKM, 2 für aktiv bezogen auf PKM
         I_mincoord_Leg = (R.Leg(i).MDH.mu > 0);
+        % Alle Gelenke in R.Leg(i) müssen als aktiv gekennzeichnet sein,
+        % auch wenn sie in der PKM passiv sind (für Koordinatendefinition
+        % hybrider Beinketten)
+        if sum(I_mincoord_Leg) ~= R.Leg(i).NQJ
+          error('Die Anzahl der als aktive Minimalkoordinaten gesetzten Gelenke passt nicht zur gespeicherten Anzahl der Gelenke');
+        end
         R.Leg(i).MDH.mu(I_mincoord_Leg) = 1+double( I_qa(R.I1J_LEG(i):R.I2J_LEG(i)) );
       end
     end
@@ -170,7 +176,7 @@ classdef ParRob < matlab.mixin.Copyable
         legFrame = sym('xx', [R.NLEG, 3]);
         legFrame(:)=0;
       end
-      for i = 1:3
+      for i = 1:R.NLEG
         legFrame(i,:) = R.Leg(i).phi_W_0;
       end
       Jinv = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);

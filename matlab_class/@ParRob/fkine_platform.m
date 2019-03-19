@@ -50,7 +50,7 @@ end
 Tc_Pges(:,:,Rob.NLEG+1) = T_0_P;
 Tc_Pges(:,:,Rob.NLEG+2) = T_0_E;
 
-%% Trnasformation ins Welt-KS
+%% Transformation ins Welt-KS
 if nargout == 2
   Tc_Pges_W = NaN(4,4,size(Tc_Pges,3));
   for i = 1:size(Tc_Pges,3)
