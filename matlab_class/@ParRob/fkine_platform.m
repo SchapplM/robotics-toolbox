@@ -5,6 +5,7 @@
 % Eingabe:
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   (nicht: Plattform-Pose)
 % 
 % Ausgabe:
 % Tc_Pges

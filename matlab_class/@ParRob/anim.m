@@ -70,8 +70,14 @@ yw = abs(yminmax(2)-yminmax(1));
 yminmax(1) = yminmax(1)-0.05*yw;
 yminmax(2) = yminmax(2)+0.05*yw;
 zw = abs(zminmax(2)-zminmax(1));
-if all(zminmax == 0)
-  zminmax = [-0.1, 0.1];
+if xw < 1e-3
+  xminmax = [-0.2, 0.2]+mean(xw);
+end
+if yw < 1e-3
+  yminmax = [-0.2, 0.2]+mean(yw);
+end
+if zw < 1e-3
+  zminmax = [-0.2, 0.2]+mean(zw);
 end
 zminmax(1) = zminmax(1)-0.05*zw;
 zminmax(2) = zminmax(2)+0.05*zw;
