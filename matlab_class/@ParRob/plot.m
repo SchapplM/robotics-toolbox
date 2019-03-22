@@ -7,6 +7,11 @@
 %   Endeffektor-Pose (entsprechend Roboterdefinition)
 % s
 %   Struktur mit Plot-Einstellungen. Felder, siehe Quelltext
+%   * ks_legs: Plot der durch Nummer gegebenen KS der Beinketten. 
+%     Reihenfolge bzw. Nummerierung wie in ParRob/fkine_legs
+%   * ks_platform: Plot der durch Nummer gegebenen KS der Plattform. 
+%     Reihenfolge bzw. Nummerierung wie in ParRob/fkine_platform
+%   * straight: Gerade oder winklige Verbindung der Beinketten
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Universität Hannover

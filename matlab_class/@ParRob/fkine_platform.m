@@ -8,10 +8,10 @@
 % 
 % Ausgabe:
 % Tc_Pges
-%   Alle Transformationsmatrizen der Plattform. Ausgedrückt im Basis-KS
-%   1-NLEG: Schnitt-KS Plattform-Seite für jedes Bein
+%   Transformationsmatrizen zu allen KS der Plattform. Ausgedrückt im Basis-KS
+%   1...NLEG: Schnitt-KS Plattform-Seite für jedes Bein
 %   NLEG+1: Plattform-KS
-%   NLEG+2: EE-KS (
+%   NLEG+2: EE-KS
 % Tc_Pges_W
 %   Transformationen bezogen auf Welt-KS
 
