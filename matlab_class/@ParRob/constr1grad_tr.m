@@ -28,7 +28,7 @@ NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_P_tr = [3*NLEG,3];
-dim_P_tr_red = [sum(Rob.I_EE(1:3))*NLEG, sum(Rob.I_EE(4:6))];
+dim_P_tr_red = [length(Rob.I_constr_t_red), sum(Rob.I_EE(4:6))];
 if ~Rob.issym
   Phix_phi = zeros(dim_P_tr);
   Phix_phi_red = zeros(dim_P_tr_red);
@@ -61,5 +61,5 @@ for i = 1:NLEG
   Phix_phi(I1:I1+2,:) = phi_xp;
   
   J1 = sum(Rob.I_EE(1:3))*(i-1)+1;
-  Phix_phi_red(J1:J1+sum(Rob.I_EE(1:3))-1,:) = phi_xp(Rob.I_EE(1:3),Rob.I_EE(4:6));
+  Phix_phi_red(J1:J1+sum(Rob.Leg(i).I_EE(1:3))-1,:) = phi_xp(Rob.Leg(i).I_EE(1:3),Rob.I_EE(4:6));
 end

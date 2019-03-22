@@ -39,11 +39,6 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phi_rt_red,Phi_rt]=Rob.constr1grad_rt();
 [Phi_rr_red,Phi_rr]=Rob.constr1grad_rr(q, xE);
 
-% Anzahl ZB
-nPhit = size(Phi_tt_red,1)/Rob.NLEG;
-nPhir = size(Phi_rr_red,1)/Rob.NLEG;
-nPhi = nPhit + nPhir;
-
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
@@ -58,12 +53,8 @@ else
   Phi_x(:)=0;
 end
 
-
-for i = 1:Rob.NLEG
-  Phi_x_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  Phi_x((i-1)*6+1:(i)*6, :) = ...
-    [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
-     Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
-end
+%% Belegung der Ausgabe
+Phi_x_red(Rob.I_constr_t_red,:) = [Phi_tt_red,Phi_tr_red];
+Phi_x_red(Rob.I_constr_r_red,:) = [Phi_rt_red,Phi_rr_red];
+Phi_x(Rob.I_constr_t,:) = [Phi_tt, Phi_tr];
+Phi_x(Rob.I_constr_r,:) = [Phi_rt, Phi_rr];

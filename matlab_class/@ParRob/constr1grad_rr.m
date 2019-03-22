@@ -42,11 +42,11 @@ NLEG = Rob.NLEG;
 
 if ~Rob.issym
   Phipphi = zeros(3*NLEG,3);
-  Phipphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
+  Phipphi_red = zeros( length(Rob.I_constr_r_red), sum(Rob.I_EE(4:6)) );
 else
   Phipphi = sym('xx',     [3*NLEG,3]);
   Phipphi(:)=0;
-  Phipphi_red = sym('xx', [sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6))]);
+  Phipphi_red = sym('xx', [length(Rob.I_constr_r_red), sum(Rob.I_EE(4:6))]);
   Phipphi_red(:)=0;
 end
 
@@ -105,5 +105,5 @@ for iLeg = 1:NLEG
   % Ausgabe mit reduzierter Dimension
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
   K2 = K1+sum(Rob.I_EE(4:6))-1;
-  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));
+  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.Leg(iLeg).I_EE(4:6),Rob.I_EE(4:6));
 end

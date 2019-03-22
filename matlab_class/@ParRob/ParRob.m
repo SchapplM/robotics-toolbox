@@ -40,7 +40,7 @@ classdef ParRob < matlab.mixin.Copyable
       MDH % Struktur mit MDH-Parametern für Roboterkinematik (der PKM)
       I_qd % Zähl-Indizes der abhängigen Gelenke in allen Gelenken
       I_qa % Zähl-Indizes der aktiven Gelenke in allen Gelenken
-      I_EE % Indizes der genutzten EE-FG. TODO: Funktionen darauf umstellen. Achtung bei Euler-Winkeln
+      I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
       phiconv_W_0 % Nummer der Basis-Euler-Winkelkonvention
       phiconv_P_E % Winkelkonvention der Euler-Winkel vom Plattform-KS zum EE
       phiconv_W_E % Winkelkonvention zur Darstellung der EE-Orientierung im Welt-KS mit Euler-Winkeln
@@ -55,6 +55,10 @@ classdef ParRob < matlab.mixin.Copyable
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
       NQJ_LEG_bc % Anzahl relevanter Beingelenke vor Schnittgelenk (von Basis an gezählt) ("bc"="before cut")
+      I1constr   % Start-Indizes der Beinketten in allen Zwangsbedingungen
+      I2constr   % End-Indizes der Beinketten in allen Zwangsbedingungen
+      I1constr_red   % Start-Indizes der Beinketten in allen reduzierten Zwangsbedingungen
+      I2constr_red   % End-Indizes der Beinketten in allen reduzierten Zwangsbedingungen
       I_constr_t % Indizes der translatorischen Zwangsbedingungen in allen ZB
       I_constr_r % Indizes der rotatorischen ZB in allen ZB
       I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
@@ -93,8 +97,8 @@ classdef ParRob < matlab.mixin.Copyable
       %   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
       %
       % Ausgabe:
-      % Phi
-      %   Kinematische Zwangsbedingungen für die Lösung. 
+      % q: Gelenkposition
+      % Phi: Kinematische Zwangsbedingungen für die Lösung.
       [q, Phi] = R.invkin_ser(xE_soll, q0);
     end
     function update_actuation(R, I_qa)
@@ -199,16 +203,28 @@ classdef ParRob < matlab.mixin.Copyable
       % Anzahl der kinematischen Zwangsbedingungen der Beinketten
       % feststellen. Annahme: Beinketten haben selbe FG wie Plattform
       % TODO: Das ändert sich evtl bei überbestimmten PKM
-      nPhit = sum(I_EE(1:3));
-      nPhir = sum(I_EE(4:6));
-      nPhi = nPhit + nPhir;
       % Indizes der relevanten Zwangsbedingungen daraus ableiten
       % Werden benötigt für Ausgabe von constr1
-      R.I_constr_t = zeros(3*R.NLEG,1);
-      R.I_constr_r = zeros(3*R.NLEG,1);
-      R.I_constr_t_red = zeros(nPhit*R.NLEG,1);
-      R.I_constr_r_red = zeros(nPhir*R.NLEG,1);
+      R.I_constr_t = [];
+      R.I_constr_r = [];
+      R.I_constr_t_red = [];
+      R.I_constr_r_red = [];
+      
+      R.I1constr = [];
+      R.I2constr = [];
+      R.I1constr_red = [];
+      R.I2constr_red = [];
+      
       for i = 1:R.NLEG
+        nPhit = sum(R.Leg(i).I_EE(1:3));
+        nPhir = sum(R.Leg(i).I_EE(4:6));
+        nPhi = nPhit + nPhir;
+        
+        R.I1constr(i) = (i-1)*6+1;
+        R.I2constr(i) = (i)*6;
+        R.I1constr_red(i) = (i-1)*nPhi+1;
+        R.I2constr_red(i) = (i)*nPhi;
+
         % Indizes bestimmen
         R.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6+1:(i)*6-3;
         R.I_constr_r(3*(i-1)+1:3*i) = (i-1)*6+1+3:(i)*6;

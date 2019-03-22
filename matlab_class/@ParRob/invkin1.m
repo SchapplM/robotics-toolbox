@@ -80,13 +80,24 @@ for jj = 2:n_max
   q1 = q2;
   q1(sigma_PKM==0) = normalize_angle(q1(sigma_PKM==0)); % nur Winkel normalisieren
   
-  if jj > n_min ... % Mindestzahl Iterationen erfüllt
-      && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol % Haupt-Bedingung ist erfüllt
-    break;
-  end
-  
-  if all(abs(Phi) < 1e-10)
-    break;
+  if jj > n_min % Mindestzahl Iterationen erfüllt
+    if isempty(I_constr_t_red)
+      trans_iO = true;
+    elseif max(abs(Phi(I_constr_t_red))) <  Phit_tol
+      trans_iO = true;
+    else
+      trans_iO = false;
+    end
+    if isempty(I_constr_r_red)
+      rot_iO = true;
+    elseif max(abs(Phi(I_constr_r_red))) <  Phir_tol
+      rot_iO = true;
+    else
+      rot_iO = false;
+    end
+    if trans_iO && rot_iO % Haupt-Bedingung ist erfüllt
+      break;
+    end
   end
 end
 q = q1;

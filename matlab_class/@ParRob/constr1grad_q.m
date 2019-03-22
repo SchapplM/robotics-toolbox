@@ -37,11 +37,6 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phi_tq_red,Phi_tq]=Rob.constr1grad_tq(q);
 [Phi_rq_red,Phi_rq]=Rob.constr1grad_rq(q, xE);
 
-% Anzahl ZB
-nPhit = size(Phi_tq_red,1)/Rob.NLEG;
-nPhir = size(Phi_rq_red,1)/Rob.NLEG;
-nPhi = nPhit + nPhir;
-
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 dim_Pq_red=[size(Phi_tq_red,1) + size(Phi_rq_red ,1), size(Phi_rq_red,2)];
@@ -58,12 +53,7 @@ else
 end
 
 %% Belegung der Ausgabe
-
-for i = 1:Rob.NLEG
-  Phi_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  Phi_q((i-1)*6+1:(i)*6, :) = ...
-    [Phi_tq((i-1)*3+1:(i)*3, :); ...
-     Phi_rq((i-1)*3+1:(i)*3, :)];
-end
+Phi_q_red(Rob.I_constr_t_red,:) = Phi_tq_red;
+Phi_q_red(Rob.I_constr_r_red,:) = Phi_rq_red;
+Phi_q(Rob.I_constr_t,:) = Phi_tq;
+Phi_q(Rob.I_constr_r,:) = Phi_rq;

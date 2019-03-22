@@ -21,7 +21,7 @@ function [Phi_x_red, Phi_x] = constr1grad_tt(Rob)
 NLEG = Rob.NLEG;
 
 Phi_x = zeros(3*NLEG,3);
-Phi_x_red = zeros(sum(Rob.I_EE(1:3))*NLEG, sum(Rob.I_EE(1:3)));
+Phi_x_red = zeros(length(Rob.I_constr_t_red), sum(Rob.I_EE(1:3)));
 
 %% Belegung der Ausgabevariablen
 % Plattform-Koppelpunkt-Jacobi
@@ -32,6 +32,6 @@ for i = 1:NLEG
   phi = -eye(3);
   Phi_x(I1:I1+2,:) = phi;
   
-  J1 = sum(Rob.I_EE(1:3))*(i-1)+1;
-  Phi_x_red(J1:J1+sum(Rob.I_EE(1:3))-1,:) = phi(Rob.I_EE(1:3), Rob.I_EE(1:3));
+  J1 = sum(Rob.Leg(i).I_EE(1:3))*(i-1)+1; % TODO: Anpassung an unterschiedliche Beine
+  Phi_x_red(J1:J1+sum(Rob.I_EE(1:3))-1,:) = phi(Rob.Leg(i).I_EE(1:3), Rob.I_EE(1:3));
 end

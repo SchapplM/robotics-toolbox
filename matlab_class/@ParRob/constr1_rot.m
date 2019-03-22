@@ -35,8 +35,8 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1_rot: xE muss 6x1 sein');
 
 NLEG = Rob.NLEG;
-Phi = NaN(3*NLEG,1);
-Phi_red = NaN(sum(Rob.I_EE(4:6))*NLEG,1);
+Phi = NaN(length(Rob.I_constr_r),1);
+Phi_red = NaN(length(Rob.I_constr_r_red),1);
 
 R_P_E = Rob.T_P_E(1:3,1:3);
 
@@ -73,9 +73,9 @@ for iLeg = 1:NLEG
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   % Indizes für reduzierte ZB
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
+  K1 = 1+sum(Rob.Leg(iLeg).I_EE(4:6))*(iLeg-1);
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1;
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
-  Phi_red(K1:K2,:) = Phi_i(Rob.I_EE(4:6));
+  Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE(4:6));
 end
