@@ -47,7 +47,7 @@ I_EE = Rob.I_EE;
 Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
-Phi = NaN(nt, Rob.NLEG*sum(I_EE)); % TODO: Robuste Dimensionsinitialisierung
+Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 
 qk0 = q0;
 for k = 1:nt

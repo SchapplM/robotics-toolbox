@@ -37,20 +37,11 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phit_red, Phit] = R.constr1_trans(q, xE);
 [Phir_red, Phir] = R.constr1_rot(q, xE);
 
-% Anzahl ZB
-nPhit = size(Phit_red,1)/R.NLEG;
-nPhir = size(Phir_red,1)/R.NLEG;
-nPhi = nPhit + nPhir;
-
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Indizierung auch mit Klassenvariablen I_constr_t, I_constr_r, ...
 Phi_red = NaN(size(Phit_red,1)+size(Phir_red,1), 1);
 Phi =     NaN(size(Phit,1)    +size(Phir ,1),    1);
-for i = 1:R.NLEG
-  Phi_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phit_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phir_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  Phi((i-1)*6+1:(i)*6, :) = ...
-    [Phit((i-1)*3+1:(i)*3, :); ...
-     Phir((i-1)*3+1:(i)*3, :)];
-end
+Phi_red(R.I_constr_t_red) = Phit_red;
+Phi_red(R.I_constr_r_red) = Phir_red;
+Phi(R.I_constr_t) = Phit;
+Phi(R.I_constr_r) = Phir;

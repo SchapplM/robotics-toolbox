@@ -24,7 +24,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phix_red, Phix] = constr1_trans(Rob, q, xE)
+function [Phi_red, Phi] = constr1_trans(Rob, q, xE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -34,11 +34,8 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 
 NLEG = Rob.NLEG;
 
-Phi_Leg = NaN(3*NLEG,1);
-Phi_Plattform = NaN(3*NLEG,1);
-
-Phi_Leg_red = NaN(sum(Rob.I_EE(1:3))*NLEG,1);
-Phi_Plattform_red = NaN(sum(Rob.I_EE(1:3))*NLEG,1);
+Phi = NaN(length(Rob.I_constr_t),1);
+Phi_red = NaN(length(Rob.I_constr_t_red),1);
 
 %% Berechnung
 r_0_0_E = xE(1:3);
@@ -64,21 +61,23 @@ for iLeg = 1:NLEG
   r_0_Ai_Bi_q = R_0_0i*r_0i_Ai_Bi_q;
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
-  K1 = 1+sum(Rob.I_EE(1:3))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(1:3))-1;
-  Phi_Leg(J1:J2,:) = r_0_Ai_Bi_q([1 2 3]);
-  Phi_Leg_red(K1:K2,:) = r_0_Ai_Bi_q(Rob.I_EE(1:3));
-  
+  K1 = 1+sum(Rob.Leg(iLeg).I_EE(1:3))*(iLeg-1);
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE(1:3))-1;
+
   % Anteil der Plattform
   % Aus den Koordinaten der Plattform
   r_P_P_Bi = Rob.r_P_B_all(:,iLeg);
   r_0_P_Bi = R_0_P * r_P_P_Bi;
   r_0_0_Bi = r_0_0_P + r_0_P_Bi;
   r_0_Ai_Bi_x = -r_0_0_Ai + r_0_0_Bi;
-  Phi_Plattform(J1:J2,:) = r_0_Ai_Bi_x;
-  Phi_Plattform_red(K1:K2,:) = r_0_Ai_Bi_x(Rob.I_EE(1:3));
+  
+  % Positions-Differenz Koppelpunkte aus Beinketten- und
+  % Plattform-Berechnung
+  % Gl. (A.23, B.22)
+  Phi_i = r_0_Ai_Bi_q - r_0_Ai_Bi_x;
+  Phi(J1:J2,:) = Phi_i;
+  if ~isempty(Phi_red)
+    Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE(1:3));
+  end
 end
 
-% Gl. (A.23, B.22)
-Phix = Phi_Leg - Phi_Plattform;
-Phix_red = Phi_Leg_red - Phi_Plattform_red;

@@ -19,4 +19,4 @@ function [Phipx_red, Phipx] = constr1grad_rt(Rob)
 % Die Translation hat keinen Einfluss auf die Rotation
 % Gl. (A.3)
 Phipx = zeros(3*Rob.NLEG,3);
-Phipx_red = zeros( sum(Rob.I_EE(4:6))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
+Phipx_red = zeros(length(Rob.I_constr_r_red),sum(Rob.I_EE(1:3)));

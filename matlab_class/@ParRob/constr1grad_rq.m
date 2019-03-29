@@ -45,11 +45,11 @@ NJ = Rob.NJ;
 
 if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
-  Phipq_red = zeros(sum(Rob.I_EE(4:6))*NLEG,NJ);
+  Phipq_red = zeros(length(Rob.I_constr_r_red),NJ);
 else
   Phipq = sym('phi', [3*NLEG,NJ]);
   Phipq(:)=0;
-  Phipq_red = sym('phi', [sum(Rob.I_EE(4:6))*NLEG,NJ]);
+  Phipq_red = sym('phi', [length(Rob.I_constr_r_red),NJ]);
   Phipq_red(:)=0;
 end
 
@@ -116,7 +116,7 @@ for iLeg = 1:NLEG
   J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
   
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
-  K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
-  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:);
+  K1 = 1+sum(Rob.Leg(iLeg).I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1; % drei rotatorische Einträge
+  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.Leg(iLeg).I_EE(4:6),:);
 end

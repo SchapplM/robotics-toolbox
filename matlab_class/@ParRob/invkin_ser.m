@@ -35,7 +35,6 @@ assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
 assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
   'ParRob/invkin1: q0 muss %dx1 sein', Rob.NJ);
 s_std = struct( ...
-             'I_EE', Rob.I_EE, ...
              'n_min', 0, ... % Minimale Anzahl Iterationen
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
@@ -55,7 +54,7 @@ for f = fields(s_std)'
 end
 
 %% Start
-Phi_ser = NaN(Rob.NJ,1);
+Phi_ser = NaN(Rob.I2constr_red(end),1);
 q = q0;
 Tc_Pges = Rob.fkine_platform(xE_soll);
 % IK für alle Beine einzeln berechnen
@@ -72,7 +71,7 @@ for i = 1:Rob.NLEG
   % Inverse Kinematik für die serielle Beinkette berechnen
   [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
-  Phi_ser(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Phi_i;
+  Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
 end
 Phi = Rob.constr1(q, xE_soll);
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)

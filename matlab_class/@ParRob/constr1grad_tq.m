@@ -37,11 +37,11 @@ NJ = Rob.NJ;
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
   Phi_q_legs = NaN(3*NLEG,NJ);
-  Phi_q_legs_red = NaN(sum(Rob.I_EE(1:3))*NLEG,NJ);
+  Phi_q_legs_red = NaN(length(Rob.I_constr_t_red),NJ);
 else
   Phi_q_legs = sym('phi', [3*NLEG,NJ]);
   Phi_q_legs(:)=0;
-  Phi_q_legs_red = sym('phi', [sum(Rob.I_EE(1:3))*NLEG,NJ]);
+  Phi_q_legs_red = sym('phi', [length(Rob.I_constr_t_red),NJ]);
   Phi_q_legs_red(:)=0;
 end
 
@@ -76,6 +76,8 @@ for i = 1:NLEG
   % Eintragen in Ergebnis-Variable
   I1 = sum(Rob.I_EE(1:3))*(i-1)+1;
   I2 = I1+sum(Rob.I_EE(1:3))-1;
-  dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.I_EE(1:3),:);
-  Phi_q_legs_red(:,IJ_i) = dPhidqJi_red;
+  if ~isempty(Phi_q_legs_red)
+    dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.Leg(i).I_EE(1:3),:);
+    Phi_q_legs_red(:,IJ_i) = dPhidqJi_red;
+  end
 end
