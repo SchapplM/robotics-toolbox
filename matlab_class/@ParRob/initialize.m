@@ -76,3 +76,14 @@ else
   % Position der Koppelpunkte beeinflussen)
   R.NQJ_LEG_bc = 3;
 end
+
+% Dynamik-Parameter initialisieren: Die Anzahl entspricht der Anzahl der
+% für die Dynamik relevanten Beingelenke und eins für die Plattform
+% Annahme: Segmente der Beinkette, die von Plattform-Koppelgelenken bewegt
+% werden haben keinen Einfluss für die PKM (sind Teil der Plattform)
+NL_symPKM = R.NQJ_LEG_bc+1;
+R.DynPar = struct('mges',   NaN(NL_symPKM,1), ...
+                  'rSges',  NaN(NL_symPKM,3), 'Icges', NaN(NL_symPKM,6), ...
+                  'mrSges', NaN(NL_symPKM,3), 'Ifges', NaN(NL_symPKM,6), ...
+                  'mpv', [], ...
+                  'mode', 2);

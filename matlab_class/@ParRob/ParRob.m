@@ -31,6 +31,7 @@ classdef ParRob < matlab.mixin.Copyable
   properties (Access = public)
       NLEG % Anzahl der Beinketten
       NJ % Anzahl der Gelenkkoordinaten des Roboters (Gelenkkoordinaten aller Beinketten)
+      NL % Anzahl der Starrkörper der PKM insgesamt (inkl. Basis und Plattform)
       I1J_LEG % Start-Indizes der Gelenkwinkel der einzelnen Beine in allen Gelenkwinkeln
       I2J_LEG % End-Indizes er Gelenkwinkel ...
       I1L_LEG % Start-Indizes der Segmente der einzelnen Beinketten
@@ -51,9 +52,11 @@ classdef ParRob < matlab.mixin.Copyable
       r_P_E % Position des Endeffektors im Plattform-KS
       phi_P_E % Orientierung des EE-KS im Plattform-KS (ausgedrückt in Euler-Winkeln)
       Type % Typ des Roboters (2=parallel; zur Abgrenzung von SerRob)
+      DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
       mdlname % Name des PKM-Robotermodells, das in den Matlab-Funktionen benutzt wird.
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
+      gravity % Gravitationsvektor ausgedrückt im Basis-KS des Roboters
       NQJ_LEG_bc % Anzahl relevanter Beingelenke vor Schnittgelenk (von Basis an gezählt) ("bc"="before cut")
       I1constr   % Start-Indizes der Beinketten in allen Zwangsbedingungen
       I2constr   % End-Indizes der Beinketten in allen Zwangsbedingungen
@@ -66,6 +69,10 @@ classdef ParRob < matlab.mixin.Copyable
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
+      inertia_x_fcnhdl  % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
+      gravload_x_fcnhdl  % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
+      coriolisvec_x_fcnhdl  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
+      dynparconvfcnhdl % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
   methods
@@ -83,10 +90,15 @@ classdef ParRob < matlab.mixin.Copyable
       R.phi_P_E = zeros(3,1);
       R.T_P_E = eye(4);
       R.T_W_0 = eye(4);
+      R.gravity = [0;0;-9.81];
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
-        {'jacobi_qa_x_fcnhdl', 'Jinv'}};
+        {'jacobi_qa_x_fcnhdl', 'Jinv'}, ...
+        {'inertia_x_fcnhdl', 'inertia_para_pf_slag_vp2'}, ...
+        {'gravload_x_fcnhdl', 'gravload_para_pf_slag_vp2'}, ...
+        {'coriolisvec_x_fcnhdl', 'coriolisvec_para_pf_slag_vp2'}, ...
+        {'dynparconvfcnhdl', 'minimal_parameter_para'}};
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
@@ -151,39 +163,96 @@ classdef ParRob < matlab.mixin.Copyable
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function Jinv = jacobi_qa_x(R, q, x)
+    function Jinv = jacobi_qa_x(R, q, xP)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
-      % x: EE-Koordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
       % Jinv: Inverse Jacobi-Matrix
-      assert(all(size(q) == [R.NJ 1]), 'jacobi_qa_x: q muss %dx1 sein', R.NJ);
-      assert(all(size(x) == [6 1]), 'jacobi_qa_x: x muss 6x1 sein');
-      xred = x(R.I_EE);
-      pkin = R.Leg(1).pkin;
-      NLEGJ_NC = R.NQJ_LEG_bc;
-      if ~R.issym
-        qJ = NaN(NLEGJ_NC, R.NLEG);
-      else
-        qJ = sym('xx', [NLEGJ_NC R.NLEG]);
-        qJ(:)=0;
-      end
-      for i = 1:R.NLEG
-        qJ(:,i) = q(R.I1J_LEG(i):(R.I1J_LEG(i)+NLEGJ_NC-1));
-      end
-      koppelP = R.r_P_B_all';
-      if ~R.issym
-        legFrame = NaN(R.NLEG, 3);
-      else
-        legFrame = sym('xx', [R.NLEG, 3]);
-        legFrame(:)=0;
-      end
-      for i = 1:R.NLEG
-        legFrame(i,:) = R.Leg(i).phi_W_0;
-      end
+      [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
       Jinv = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
+    end
+    function Mx = inertia_platform(R, q, xP)
+      % Massenmatrix bezogen auf Plattformkoordinaten
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      %
+      % Ausgabe:
+      % Mx: Massenmatrix
+      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      Mx = R.inertia_x_fcnhdl(xPred, qJ, legFrame, koppelP, pkin, ...
+        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+    end
+    function Fgx = gravload_platform(R, q, xP)
+      % Gravitationskraft bezogen auf Plattformkoordinaten
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      %
+      % Ausgabe:
+      % Mx: Massenmatrix
+      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      Fgx = R.gravload_x_fcnhdl(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+        R.DynPar.mges, R.DynPar.mrSges);
+    end
+    function Fcx = coriolisvec_platform(R, q, xP, xPD)
+      % Corioliskraft bezogen auf Plattformkoordinaten
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      % xPD: Plattform-Geschwindigkeit (im Basis-KS)
+      %
+      % Ausgabe:
+      % Mx: Massenmatrix
+      xPDred = xPD(R.I_EE);
+      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      Fcx = R.coriolisvec_x_fcnhdl(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
+        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+    end
+    function [T_ges, T_legs, T_plattform] = ekin(R, q, qD, xP, xPD)
+      % Kinetische Energie der PKM
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      % xPD: Plattform-Geschwindigkeit (im Basis-KS)
+      %
+      % Ausgabe:
+      % T_ges: Kinetische Energie der PKM (Beine und Plattform)
+      % T_legs: Kinetische Energie der Beine
+      % T_plattform: Kinetische Energie der Plattform
+      if R.phiconv_W_E ~= 2
+        error('Für Winkelkonvention %d nicht definiert', R.phiconv_W_E);
+      end
+      % TODO: Abgrenzung EE-KS, Plattform-KS
+      T_legs = NaN(R.NLEG,1);
+      T_plattform = rigidbody_energykin_floatb_eulxyz_slag_vp2(xP(1:3), xPD, ...
+        R.DynPar.mges(end), R.DynPar.mrSges(end,:), R.DynPar.Ifges(end,:));
+      for i = 1:R.NLEG
+        I = R.I1J_LEG(i):R.I2J_LEG(i);
+        T_legs(i) = R.Leg(i).ekin(q(I), qD(I));
+      end
+      T_ges = T_plattform + sum(T_legs);
+    end
+    function [U_ges, U_legs, U_plattform] = epot(R, q, xP)
+      % Potentielle Energie der PKM
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      %
+      % Ausgabe:
+      % U_ges: Potentielle Energie der PKM (Beine und Plattform)
+      % U_legs: Potentielle Energie der Beine
+      % U_plattform: Potentielle Energie der Plattform
+      if R.phiconv_W_E ~= 2
+        error('Für Winkelkonvention %d nicht definiert', R.phiconv_W_E);
+      end
+      U_legs = NaN(R.NLEG,1);
+      U_plattform = rigidbody_energypot_floatb_eulxyz_slag_vp2(xP(1:3), xP(4:6), R.gravity, ...
+        R.DynPar.mges(end), R.DynPar.mrSges(end,:));
+      for i = 1:R.NLEG
+        I = R.I1J_LEG(i):R.I2J_LEG(i);
+        U_legs(i) = R.Leg(i).epot(q(I));
+      end
+      U_ges = U_plattform + sum(U_legs);
     end
     function update_mdh_legs(R, pkin)
       % Aktualisiere die Kinematik-Parameter aller Beinketten
@@ -230,6 +299,113 @@ classdef ParRob < matlab.mixin.Copyable
         R.I_constr_r(3*(i-1)+1:3*i) = (i-1)*6+1+3:(i)*6;
         R.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
         R.I_constr_r_red(nPhir*(i-1)+1:nPhir*i) = (i-1)*nPhi+1+nPhit:(i)*nPhi;
+      end
+    end
+    function [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, x)
+      % Wandle die PKM-Parameter vom Format der Matlab-Klasse ins
+      % Toolbox-Format (HybrDyn)
+      % Eingabe:
+      % q: Gestapelte Gelenkwinkel aller Beinketten
+      % x: Plattform-Pose der PKM
+      %
+      % Ausgabe:
+      % qJ: Gelenkwinkel der Beinketten Spaltenweise für jedes Bein ohne
+      %     die letzten Gelenkkoordinaten, die die Dynamik nicht beeinflussen
+      % xred: Reduzierte Plattform-Pose (nur die für Dynamik relevanten FG)
+      % pkin: Kinematik-Parameter für die Funktionen aus der Toolbox
+      % koppelP: Plattform-Koppelpunkt-Koordinaten im Toolbox-Format
+      % legFrame: Ausrichtung der Beinketten-Basis-KS im Toolbox-Format
+      assert(all(size(q) == [R.NJ 1]), 'convert_parameter_class2toolbox: q muss %dx1 sein', R.NJ);
+      assert(all(size(x) == [6 1]), 'convert_parameter_class2toolbox: x muss 6x1 sein');
+      pkin = R.Leg(1).pkin;
+      NLEGJ_NC = R.NQJ_LEG_bc;
+      if ~R.issym
+        qJ = NaN(NLEGJ_NC, R.NLEG);
+      else
+        qJ = sym('xx', [NLEGJ_NC R.NLEG]);
+        qJ(:)=0;
+      end
+      for i = 1:R.NLEG
+        qJ(:,i) = q(R.I1J_LEG(i):(R.I1J_LEG(i)+NLEGJ_NC-1));
+      end
+      xred = x(R.I_EE); % TODO: Es muss zwischen EE- und Plattform-Koordinaten unterschieden werden.
+      koppelP = R.r_P_B_all';
+      if ~R.issym
+        legFrame = NaN(R.NLEG, 3);
+      else
+        legFrame = sym('xx', [R.NLEG, 3]);
+        legFrame(:)=0;
+      end
+      for i = 1:R.NLEG
+        legFrame(i,:) = R.Leg(i).phi_W_0;
+      end
+    end
+    function update_dynpar1(R, mges, rSges, Icges)
+      % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
+      % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
+      % rSges: Schwerpunktskoordinaten aller Robotersegmente (bezogen auf
+      % jeweiliges Körper-KS)
+      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
+      if length(mges) ~= R.NQJ_LEG_bc+1
+        error('Es müssen Dynamikparameter für %d Körper übergeben werden', R.NQJ_LEG_bc+1);
+      end
+        
+      [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
+      % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
+      % Moment) in Minimalparameter-Vektor
+      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      
+      % Aktualisiere die gespeicherten Dynamikparameter aller Beinketten
+      for i = 1:R.NLEG
+        m_Leg = [0; mges(1:end-1); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,1)];
+        rSges_Leg = [zeros(1,3); rSges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,3)];
+        Icges_Leg = [zeros(1,6); Icges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
+        R.Leg(i).update_dynpar1(m_Leg, rSges_Leg, Icges_Leg);
+      end
+      % Parameter für PKM belegen
+      R.DynPar.mges   = mges;
+      R.DynPar.rSges  = rSges;
+      R.DynPar.Icges  = Icges;
+      R.DynPar.mrSges = mrSges;
+      R.DynPar.Ifges  = Ifges;
+      R.DynPar.mpv    = mpv;
+    end
+    function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
+      % Konvertiere die Dynamikparameter zum Minimalparametervektor
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Basis)
+      % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert mit Massen
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
+      % Ausgabe:
+      % mpv: Dynamik-Minimalparametervektor
+      if isempty(R.dynparconvfcnhdl)
+        % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
+        mpv = [];
+      else
+        mpv = R.dynparconvfcnhdl(R.Leg(1).pkin, mges, mrSges, Ifges, R.r_P_B_all');
+      end
+    end
+    function update_gravity(R, g_world)
+      % Aktualisiere den Gravitationsvektor für den Roboter
+      % Der Vektor wird für die PKM und die Beinketten gespeichert.
+      % Eingabe:
+      % g_world: Gravitations-Vektor im Welt-KS
+      R_W_0 = R.T_W_0(1:3,1:3);
+      g_base = R_W_0' * g_world;
+      
+      % Aktualisiere Klassenvariable für PKM (hier Gravitation im Basis-KS)
+      R.gravity = g_base;
+      
+      % Aktualisiere Gravitationsvektor für die Beinketten. Das "Welt"-KS
+      % der Beinketten entspricht dem Basis-KS der PKM (da die Drehung
+      % Welt-Basis der Beinketten die Anordnung der Gestell-Koppelgelenke
+      % ausdrückt)
+      % Der g-Vektor wird für die serielle Kette in deren Basis-KS
+      % gespeichert
+      for i = 1:R.NLEG
+        R.Leg(i).gravity = R.Leg(i).T_W_0(1:3,1:3)'*g_base;
       end
     end
   end

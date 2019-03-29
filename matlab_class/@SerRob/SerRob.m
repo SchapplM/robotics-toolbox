@@ -61,7 +61,7 @@ classdef SerRob < matlab.mixin.Copyable
     qunit_sci % wissenschaftliche Einheiten der Gelenkkoordinaten
     qunitmult_eng_sci % Umrechnungsfaktor zwischen beiden Einheitenarten
     tauunit_sci % Name der Einheiten der Gelenkkräfte
-    gravity % Gravitationsvektor ausgedrückt im Welt-KS
+    gravity % Gravitationsvektor ausgedrückt im Basis-KS
     I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EElink % Index des Segmentes, an dem der Endeffektor befestigt ist.
@@ -910,9 +910,8 @@ classdef SerRob < matlab.mixin.Copyable
     function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
       % Eingabe:
       % mges: Massen aller Robotersegmente (inkl Basis)
-      % rSges: Schwerpunktskoordinaten aller Robotersegmente (bezogen auf
-      % jeweiliges Körper-KS)
-      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
+      % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert mit Massen
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
       % Ausgabe:
       % mpv: Dynamik-Minimalparametervektor
       if isempty(R.dynparconvfcnhdl)
