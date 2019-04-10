@@ -49,6 +49,7 @@ classdef SerRob < matlab.mixin.Copyable
     NL % Anzahl der Starrkörper des Roboters
     NQJ % Anzahl der Gelenkkoordinaten (abweichend von NJ bei hybriden Strukturen)
     pkin % Vektor der Kinematikparameter
+    pkin_names % Namen der Kinematikparameter
     DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
     Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
     r_W_0 % Position der Basis im Welt-KS
@@ -220,6 +221,14 @@ classdef SerRob < matlab.mixin.Copyable
       R.qunitmult_eng_sci = qunitmult_eng_sci;
       R.tauunit_sci = tauunit_sci;
       R.CADstruct = struct('filepath', {}, 'link', [], 'T_body_visual', NaN(4,4,0), 'color', {});
+      structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
+      try
+        [~,~,~,~,~,~,pkin_names] = structkinpar_hdl();
+        R.pkin_names = pkin_names;
+      catch
+        warning('Funktion %s ist nicht aktuell', structkinpar_hdl);
+        R.pkin_names = cell(1,length(R.pkin));
+      end
     end
     
     function mex_dep(R, force)
