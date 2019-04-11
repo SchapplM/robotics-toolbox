@@ -49,6 +49,7 @@ classdef SerRob < matlab.mixin.Copyable
     NL % Anzahl der Starrkörper des Roboters
     NQJ % Anzahl der Gelenkkoordinaten (abweichend von NJ bei hybriden Strukturen)
     pkin % Vektor der Kinematikparameter
+    pkin_gen % Vektor der Kinematikparameter des allgemeinen Modells
     pkin_names % Namen der Kinematikparameter
     DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
     Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
@@ -67,6 +68,7 @@ classdef SerRob < matlab.mixin.Copyable
     I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EElink % Index des Segmentes, an dem der Endeffektor befestigt ist.
     mdlname % Name des Robotermodells, das in den Matlab-Funktionen benutzt wird.
+    mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
     CADstruct % Struktur mit Daten zu CAD-Modellen
   end
   properties (Access = private)
@@ -112,12 +114,21 @@ classdef SerRob < matlab.mixin.Copyable
 
   methods
     % Konstruktor
-    function R=SerRob(Par_struct, mdlname)
+    function R=SerRob(Par_struct, mdlname, mdlname_var)
       % Eingabe:
-      % Par_struct: Struktur mit Kinematik- und Dynamik-Parametern
-      % mdlname: Name des Roboters, der bei der Code-Generierung verwendet
-      % wurde (bildet den Präfix aller Funktionsdateien)
+      % Par_struct: 
+      %   Struktur mit Kinematik- und Dynamik-Parametern
+      % mdlname: 
+      %   Name des Roboters, der bei der Code-Generierung verwendet
+      %   wurde (bildet den Präfix aller Funktionsdateien)
+      % mdlname_var:
+      %   Name der Variante, die dieser Roboter bezüglich mdlname darstellt
+
       R.mdlname = mdlname;
+      if nargin < 3
+        mdlname_var = mdlname;
+      end
+      R.mdlname_var = mdlname_var;
       R.NJ = sum(Par_struct.sigma~=2);
       if ~isfield(Par_struct, 'v')
         Par_struct.v = 0:R.NJ-1; % Vorgänger-Indizes
@@ -224,6 +235,11 @@ classdef SerRob < matlab.mixin.Copyable
       structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
       try
         [~,~,~,~,~,~,pkin_names] = structkinpar_hdl();
+        if ~strcmp(R.mdlname, R.mdlname_var)
+          % Parameternamen für Variante anpassen (weniger Parameter)
+          gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
+          pkin_names = gen2var_hdl(pkin_names);
+        end
         R.pkin_names = pkin_names;
       catch
         warning('Funktion %s ist nicht aktuell', structkinpar_hdl);
@@ -271,7 +287,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % T: Transformationsmatrizen
-      T = R.jtraffcnhdl(q, R.pkin);
+      T = R.jtraffcnhdl(q, R.pkin_gen);
     end
     function [Tc_0, Tc_W] = fkine(R, q)
       % Direkte Kinematik vom Inertial-KS zu den Körper-KS
@@ -281,7 +297,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
       % Tc_W: Bezugssystem ist das Welt-KS
-      Tc_0 = R.fkinfcnhdl(q, R.pkin);
+      Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
       Tc_W = Tc_0;
       for i = 1:size(Tc_0,3)
         Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
@@ -361,7 +377,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % JR: Jacobi-Matrix
-      JR = R.jacobiRfcnhdl(q, uint8(R.I_EElink), R.pkin);
+      JR = R.jacobiRfcnhdl(q, uint8(R.I_EElink), R.pkin_gen);
     end
     function Jg = jacobig(R, q)
       % Geometrische Jacobi-Matrix (bzgl Winkelgeschwindigkeit)
@@ -370,7 +386,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Jg: Jacobi-Matrix
-      Jg = R.jacobigfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin);
+      Jg = R.jacobigfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin_gen);
     end
     function Jt = jacobit(R, q)
       % Translatorischer Teil der geometrischen Jacobi-Matrix (Zusammenhang
@@ -380,7 +396,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Jt: Jacobi-Matrix
-      Jt = R.jacobitfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin);
+      Jt = R.jacobitfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin_gen);
     end
     function Jw = jacobiw(R, q)
       % Rotatorischer Teil der geometrischen Jacobi-Matrix (Zusammenhang
@@ -390,7 +406,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Jw: Jacobi-Matrix
-      Jw = R.jacobiwfcnhdl(q, uint8(R.I_EElink), R.pkin);
+      Jw = R.jacobiwfcnhdl(q, uint8(R.I_EElink), R.pkin_gen);
     end
     function JtD = jacobitD(R, q, qD)
       % Zeitableitung des Translatorischen Teils der geometrischen Jacobi-Matrix (Zusammenhang
@@ -401,7 +417,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % JtD: Jacobi-Matrix-Zeitableitung
-      JtD = R.jacobitDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin);
+      JtD = R.jacobitDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin_gen);
     end
     function JgD = jacobigD(R, q, qD)
       % Zeitableitung der Geometrischen Jacobi-Matrix (bzgl Winkelbeschleunigung)
@@ -411,7 +427,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % JgD: Jacobi-Matrix-Zeitableitung
-      JgD = R.jacobigDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin);
+      JgD = R.jacobigDfcnhdl(q, qD, uint8(R.I_EElink), R.r_N_E, R.pkin_gen);
     end
     function JwD = jacobiwD(R, q, qD)
       % Zeitableitung des rotatorischer Teils der geometrischen Jacobi-Matrix
@@ -422,7 +438,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % JDW: Jacobi-Matrix-Zeitableitung
-      JwD = R.jacobiwDfcnhdl(q, qD, uint8(R.I_EElink), R.pkin);
+      JwD = R.jacobiwDfcnhdl(q, qD, uint8(R.I_EElink), R.pkin_gen);
     end
     function JaD = jacobiaD(R, q, qD)
       % Zeitableitung der analytischen Jacobi-Matrix des Roboters (End-Effektor)
@@ -482,7 +498,7 @@ classdef SerRob < matlab.mixin.Copyable
       K_def(sigmaJ==1) = K_def(sigmaJ==1); % Verstärkung für Schubgelenke kleiner
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
-      s = struct('pkin', R.pkin, ...
+      s = struct('pkin', R.pkin_gen, ...
                  'sigmaJ', sigmaJ, ...
                  'NQJ', R.NQJ, ...
                  'qlim', R.qlim, ...
@@ -534,7 +550,7 @@ classdef SerRob < matlab.mixin.Copyable
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
       K_def = 0.1*ones(R.NQJ,1);
       K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
-      s = struct('pkin', R.pkin, ...
+      s = struct('pkin', R.pkin_gen, ...
                  'sigmaJ', sigmaJ, ...
                  'NQJ', R.NQJ, ...
                  'qlim', R.qlim, ...
@@ -569,11 +585,11 @@ classdef SerRob < matlab.mixin.Copyable
       % T: Kinetische Energie
       % Treg: Regressor-Matrix
       if R.DynPar.mode == 2
-        T = R.ekinfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        T = R.ekinfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
         % TODO: Funktion existiert noch nicht
-        % T = R.ekinfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
-        Treg = R.ekinregfcnhdl(q, qD, R.pkin);
+        % T = R.ekinfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
+        Treg = R.ekinregfcnhdl(q, qD, R.pkin_gen);
         T = Treg * R.DynPar.mpv;
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -588,11 +604,11 @@ classdef SerRob < matlab.mixin.Copyable
       % U: Potentielle Energie
       % Ureg: Regressor-Matrix
       if R.DynPar.mode == 2
-        U = R.epotfcnhdl2(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+        U = R.epotfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
       elseif R.DynPar.mode == 4
         % TODO: Funktion existiert noch nicht
         % U = R.epotfcnhdl4(q, R.gravity, R.pkin, R.mpv);
-        Ureg = R.epotregfcnhdl(q, R.gravity, R.pkin);
+        Ureg = R.epotregfcnhdl(q, R.gravity, R.pkin_gen);
         U = Ureg*R.DynPar.mpv;
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -607,11 +623,11 @@ classdef SerRob < matlab.mixin.Copyable
       % gq: Gravitations-Gelenkmoment
       % gqreg: Regressor-Matrix
       if R.DynPar.mode == 2
-        gq = R.gravlfcnhdl2(q, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges);
+        gq = R.gravlfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
       elseif R.DynPar.mode == 4
         gq = R.gravlfcnhdl4(q, R.gravity, R.pkin, R.DynPar.mpv);
         if nargout == 2
-          gqreg = R.gravlregfcnhdl(q, R.gravity, R.pkin);
+          gqreg = R.gravlregfcnhdl(q, R.gravity, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -626,11 +642,11 @@ classdef SerRob < matlab.mixin.Copyable
       % Mq: Massenmatrix
       % Mqreg: Regressor-Matrix
       if R.DynPar.mode == 2
-        Mq = R.inertiafcnhdl2(q, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        Mq = R.inertiafcnhdl2(q, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
-        Mq = R.inertiafcnhdl4(q, R.pkin, R.DynPar.mpv);
+        Mq = R.inertiafcnhdl4(q, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          Mqreg = R.inertiaregfcnhdl(q, R.pkin);
+          Mqreg = R.inertiaregfcnhdl(q, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -646,11 +662,11 @@ classdef SerRob < matlab.mixin.Copyable
       % cq: Gelenkkräfte für Flieh- und Corioliskräfte
       % cqreg: Regressor-Matrix
       if R.DynPar.mode == 2
-        cq = R.corvecfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        cq = R.corvecfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
-        cq = R.corvecfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
+        cq = R.corvecfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          cqreg = R.corvecregfcnhdl(q, qD, R.pkin);
+          cqreg = R.corvecregfcnhdl(q, qD, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -666,11 +682,11 @@ classdef SerRob < matlab.mixin.Copyable
       % Cq: Coriolis-Matrix
       % Cqreg: Regressor-Matrix
       if R.DynPar.mode == 2
-        Cq = R.cormatfcnhdl2(q, qD, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        Cq = R.cormatfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
         % TODO: Funktion existiert noch nicht
-        % Cq = R.cormatfcnhdl4(q, qD, R.pkin, R.DynPar.mpv);
-        Cqreg = R.cormatregfcnhdl(q, qD, R.pkin);
+        % Cq = R.cormatfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
+        Cqreg = R.cormatregfcnhdl(q, qD, R.pkin_gen);
         Cq = reshape(Cqreg*R.DynPar.mpv, R.NQJ, R.NQJ)';
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -687,11 +703,11 @@ classdef SerRob < matlab.mixin.Copyable
       % tauq: Inverse Dynamik
       % tauqreg: Regressor-Matrix
       if R.DynPar.mode == 2
-        tauq = R.invdynfcnhdl2(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        tauq = R.invdynfcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
-        tauq = R.invdynfcnhdl4(q, qD, qDD, R.gravity, R.pkin, R.DynPar.mpv);
+        tauq = R.invdynfcnhdl4(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          tauqreg = R.invdynregfcnhdl(q, qD, qDD, R.gravity, R.pkin);
+          tauqreg = R.invdynregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
         end
       else
         error('Methode invdyn für Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -722,7 +738,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % TAUq: Inverse Dynamik (als Zeitreihe)
       if R.DynPar.mode == 4
-        TAUq = R.invdyntrajfcnhdl4(Q, QD, QDD, R.gravity, R.pkin, R.DynPar.mpv);
+        TAUq = R.invdyntrajfcnhdl4(Q, QD, QDD, R.gravity, R.pkin_gen, R.DynPar.mpv);
       else
         error('Methode invdyn2_traj für Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -750,7 +766,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % RV: Regressormatrizen (als Zeitreihe)
-      RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin);
+      RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin_gen);
     end
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
@@ -767,7 +783,7 @@ classdef SerRob < matlab.mixin.Copyable
       else
         % Hybrider Roboter: Berechne die Gelenkwinkel aus den
         % Minimalkoordinaten mit vorher generierter Funktion
-        jv = R.jointvarfcnhdl(qJ, R.pkin);
+        jv = R.jointvarfcnhdl(qJ, R.pkin_gen);
       end
     end
     function update_EE(R, r_N_E, phi_N_E, phiconv_N_E)
@@ -816,7 +832,13 @@ classdef SerRob < matlab.mixin.Copyable
       if isempty(R.pkin)
         structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
         [~,~,~,~,NKP] = structkinpar_hdl();
-        R.pkin = NaN(NKP,1);
+        R.pkin_gen = NaN(NKP,1);
+        if ~strcmp(R.mdlname, R.mdlname_var)
+          gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
+          R.pkin = gen2var_hdl(R.pkin_gen);
+        else
+          R.pkin = R.pkin_gen;
+        end
       end
       
       if R.Type == 1
@@ -830,12 +852,25 @@ classdef SerRob < matlab.mixin.Copyable
       % Die Umwandlung MDH->pkin wird nur für echt serielle Roboter gemacht
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
-      pkin = mdh2pkin_hdl(R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
+      pkin_gen2 = mdh2pkin_hdl(R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
         R.MDH.theta, R.MDH.d, zeros(R.NJ,1));
+      if ~strcmp(R.mdlname, R.mdlname_var)
+        gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
+        pkin = gen2var_hdl(pkin_gen2);
+      else
+        pkin = pkin_gen2;
+      end
+      
       R.pkin = pkin;
-      [beta,b,alpha,a,theta,d] = pkin2mdh_hdl(pkin);
+      R.pkin_gen = pkin_gen2;
+      [beta,b,alpha,a,theta,d] = pkin2mdh_hdl(pkin_gen2);
       % Teste Rück-Transformation der Kinematik-Parameter
-      pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
+      pkin_gen_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, zeros(R.NJ,1));
+      if ~strcmp(R.mdlname, R.mdlname_var)
+        pkin_test = gen2var_hdl(pkin_gen_test);
+      else
+        pkin_test = pkin_gen_test;
+      end
       if any(abs(pkin-pkin_test) > 1e-10)
         error('Parameteraktualisierung von pkin hat nicht funktioniert');
       end
@@ -849,14 +884,30 @@ classdef SerRob < matlab.mixin.Copyable
       %   Parameter wird bei der Code-Generierung festgelegt.
       assert(all(size(pkin_neu) == size( R.pkin )), 'Eingabe muss Dimension von pkin haben (%dx1)', length(R.pkin))
       
+      if ~strcmp(R.mdlname, R.mdlname_var)
+        % Dieses Modell stellt eine abgeleitete Variante eines allgemeinen
+        % Modells dar
+        var2gen_hdl = eval(sprintf('@%s_pkin_var2gen', R.mdlname_var));
+        pkin_gen_neu = var2gen_hdl(pkin_neu);
+      else
+        pkin_gen_neu = pkin_neu;
+      end
+      
       mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', R.mdlname));
       pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', R.mdlname));
+      
       % Berechne MDH-Parameter aus pkin-Vektor
-      [beta,b,alpha,a,theta,d,qoffset] = pkin2mdh_hdl(pkin_neu);
+      [beta,b,alpha,a,theta,d,qoffset] = pkin2mdh_hdl(pkin_gen_neu);
       % Teste die Rück-Transformation zu pkin (funktioniert nur für
       % serielle Roboter; bei hybriden stehen nicht alle Par. in MDH
       if R.Type == 0
-        pkin_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, qoffset);
+        pkin_gen_test = mdh2pkin_hdl(beta, b, alpha, a, theta, d, qoffset);
+        if ~strcmp(R.mdlname, R.mdlname_var)
+          gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
+          pkin_test = gen2var_hdl(pkin_gen_test);
+        else
+          pkin_test = pkin_gen_test;
+        end
         if any(abs(pkin_neu-pkin_test) > 1e-10)
           error('Parameteraktualisierung pkin->mdh hat nicht funktioniert');
         end
@@ -867,6 +918,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.MDH.theta=theta; R.MDH.d=d;
       R.MDH.offset = qoffset;
       R.pkin = pkin_neu;
+      R.pkin_gen = pkin_gen_neu;
     end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
@@ -927,7 +979,7 @@ classdef SerRob < matlab.mixin.Copyable
         % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
         mpv = [];
       else
-        mpv = R.dynparconvfcnhdl(R.pkin, mges, mrSges, Ifges);
+        mpv = R.dynparconvfcnhdl(R.pkin_gen, mges, mrSges, Ifges);
       end
     end
     function x_W_E = t2x(R, T_W_E)
