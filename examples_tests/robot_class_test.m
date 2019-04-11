@@ -17,6 +17,7 @@ SerRob_IK_test
 SerRob_class_example_SCARA
 SerRob_class_example_Palettierer
 SerRob_class_example_LBR
+SerRob_class_example_Industrieroboter
 
 %% Parallele Roboter
 ParRob_class_example_3RPR
