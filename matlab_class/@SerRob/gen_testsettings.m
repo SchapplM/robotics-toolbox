@@ -35,7 +35,7 @@ for i = 1:NL
 end
 
 %% Zufällige Kinematik-Parameter generieren
-if any(isnan(RS.pkin))
+if any(isnan(RS.pkin)) || setKin
   % nur generieren, wenn nicht schon gesetzt
   pkin = rand(length(RS.pkin),1);
 end
