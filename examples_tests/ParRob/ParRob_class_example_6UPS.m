@@ -12,60 +12,54 @@
 
 clear
 clc
+
+%% Definitionen, Benutzereingaben
+% Robotermodell entweder aus PKM-Bibliothek oder nur aus
+% Seriell-Roboter-Bibliothek laden. Stellt keinen Unterschied dar.
+use_parrob = false;
+
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
-%% Init
+
+%% Klasse für PKM erstellen (basierend auf serieller Beinkette)
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-
-% Typ des seriellen Roboters auswählen (RRPRRR = UPS)
-SName='S6RRPRRR14';
-
-% Instanz der Roboterklasse erstellen
-RS = serroblib_create_robot_class(SName);
-RS.fill_fcn_handles(true);
-% RS.mex_dep(true)
-
-% Parameter setzen
-[beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh] = ...
-  S6RRPRRR14_pkin2mdhparam(zeros(length(RS.pkin),1));
-d_mdh(4) = 0.2;
-alpha_mdh(2) =  pi/2;
-alpha_mdh(3) = -pi/2;
-pkin = S6RRPRRR14_mdhparam2pkin(beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh);
-RS.update_mdh(pkin);
-
-%% Klasse für PKM erstellen
-
-RP = ParRob('P6RRPRRR14');
-RP = RP.create_symmetric_robot(6, RS, 0.5, 0.2);
-% Erste Achse zusätzlich drehen: Die verwendete serielle Kette dreht um die
-% z-Achse, die automatische Anordnung der seriellen Ketten in
-% create_symmetric_robot dreht die Basis-Koppel-KS auch um die z-Achse.
-% Die Reihenfolge dieser Drehungen muss daher vertauscht werden
-for i = 1:6
-  phi_W_0i = RP.Leg(i).phi_W_0;
-  phi_W_0i(1) = -pi/2;
-  phi_W_0i(2) = -phi_W_0i(3); % Durch rotx(-pi/2) wird y zu -z
-  phi_W_0i(3) = 0; % Keine Drehung mehr um mitgedrehte z-Achse
-  % Basis-KS der seriellen Beinkette aktualisieren. Nehme ZYX-Euler-Winkel
-  % (Nr. 11)
-  RP.Leg(i).update_base([], phi_W_0i, uint8(11));
+if ~use_parrob
+  % Typ des seriellen Roboters auswählen (S6RRPRRRV3 = UPS)
+  SName='S6RRPRRR14V3';
+  % Instanz der Roboterklasse erstellen
+  RS = serroblib_create_robot_class(SName);
+  RS.fill_fcn_handles(true, true);
+  % RS.mex_dep(true)
+  RP = ParRob('P6RRPRRR14V3A1');
+  RP = RP.create_symmetric_robot(6, RS, 0.5, 0.2);
+  RP.initialize();
+  % Schubgelenke sind aktuiert
+  I_qa = false(36,1);
+  I_qa(3:6:36) = true;
+  RP.update_actuation(I_qa);
+  % Benutze PKM-Bibliothek für gespeicherte Funktionen
+  if isempty(which('parroblib_path_init.m'))
+    parroblib_addtopath({'P6RRPRRR14V3A1'});
+  end
+  RP.fill_fcn_handles();
 end
-RP = RP.initialize();
-
-% Schubgelenke sind aktuiert
-I_qa = false(36,1);
-I_qa(3:6:36) = true;
-RP.update_actuation(I_qa);
+%% Alternativ: Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
+if use_parrob
+  if isempty(which('parroblib_path_init.m'))
+    warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
+    return
+  end
+  RP = parroblib_create_robot_class('P6RRPRRR14V3A1', 0.5, 0.2);
+end
 
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
-X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
+X = [ [0.15;0.05;0.5]; [10;-10;5]*pi/180 ];
 q0 = rand(36,1); % Startwerte für numerische IK
-q0(I_qa) = 0; % mit Schubaktor bei Null anfangen (damit Konfiguration nicht umklappt)
+q0(RP.I_qa) = 0.2; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
 
 % Inverse Kinematik auf zwei Arten berechnen
 [~, Phi] = RP.invkin1(X, q0);
@@ -95,22 +89,18 @@ view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X, s_plot );
 
-
 %% Jacobi-Matrizen auswerten
 
-[G_q,Gv_q]  = RP.constr1grad_q(q, X);
-[G_x, Gv_x] = RP.constr1grad_x(q, X);
+G_q = RP.constr1grad_q(q, X);
+G_x = RP.constr1grad_x(q, X);
 
 % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen 
 % * aktiv/unabhängig (a),
 % * passiv+schnitt/abhängig (d)
 G_a = G_q(:,RP.I_qa);
 G_d = G_q(:,RP.I_qd);
-Gv_a = Gv_q(:,RP.I_qa);
-Gv_d = Gv_q(:,RP.I_qd);  
 % Jacobi-Matrix zur Berechnung der abhängigen Gelenke und EE-Koordinaten
 G_dx = [G_d, G_x];
-Gv_dx = [Gv_d, Gv_x];
 
 fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik: %d/%d\n', ...
   RP.mdlname, rank(G_q), RP.NJ);
@@ -119,20 +109,31 @@ fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ..
 fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
   RP.mdlname, rank(G_a), sum(RP.I_EE));
 
-% return
+% Inverse Jacobi-Matrix aus symbolischer Berechnung (mit Funktion aus HybrDyn)
+if ~isempty(which('parroblib_path_init.m'))
+  Jinv_sym = RP.jacobi_qa_x(q, X);
+  Jinv_num_voll = -inv(G_q) * G_x;
+  Jinv_num = Jinv_num_voll(RP.I_qa,:);
+  test_Jinv = Jinv_sym - Jinv_num;
+  if max(abs(test_Jinv(:))) > 1e-10
+    error('Inverse Jacobi-Matrix stimmt nicht zwischen numerischer und symbolischer Berechnung überein');
+  else
+    fprintf('Die inverse Jacobi-Matrix stimmt zwischen symbolischer und numerischer Berechnung überein\n');
+  end
+end
 %% Beispieltrajektorie berechnen und zeichnen
-
-% Dreieck-Trajektorie
-XL = [X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.3]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.3, 0.0]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.3, 0.0, 0.0]]; ...
-      X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
-      X'+1*[[ 0.2,-0.1, 0.3], [0.3, 0.2, 0.1]]; ...
-      X'+1*[[-0.1, 0.2,-0.1], [0.5,-0.2,-0.2]]; ...
-      X'+1*[[ 0.2, 0.3, 0.2], [0.2, 0.1, 0.3]]];
+X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];
+% Trajektorie mit beliebigen Bewegungen der Plattform
+XL = [X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.3]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.3, 0.0]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.3, 0.0, 0.0]]; ...
+      X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
+      X0'+1*[[ 0.2,-0.1, 0.3], [0.3, 0.2, 0.1]]; ...
+      X0'+1*[[-0.1, 0.2,-0.1], [0.5,-0.2,-0.2]]; ...
+      X0'+1*[[ 0.2, 0.3, 0.2], [0.2, 0.1, 0.3]]];
 XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(XL, 1, 0.1, 0.01, 1e-3, 1e-1);
 % Inverse Kinematik berechnen
@@ -158,7 +159,7 @@ save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));
 figure(4);clf;
 subplot(3,2,sprc2no(3,2,1,1)); hold on;
 plot(t, X_t);set(gca, 'ColorOrderIndex', 1)
-plot([0;t(end)],[X';X'],'o--')
+plot([0;t(end)],[X0';X0'],'o--')
 legend({'$x$', '$y$', '$\varphi$'}, 'interpreter', 'latex')
 grid on;
 ylabel('x_E');

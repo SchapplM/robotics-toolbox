@@ -40,12 +40,12 @@ end
 
 Robots = {{'S4RRPR1', 'S4RRPR1_KUKA1'}, ...
           {'S5RRRRR1', 'S5RRRRR1_KUKA1'}, ...
-          {'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}, ...
+          {'S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1'}, ...
           {'S7RRRRRRR1', 'S7RRRRRRR1_LWR4P'}};
 % Folgende Zeilen zur Prüfung einzelner Roboter einkommentieren:
 % Robots = {{'S4RRPR1', 'S4RRPR1_KUKA1'}};
 % Robots = {{'S5RRRRR1', 'S5RRRRR1_KUKA1'}};
-% Robots = {{'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}};
+% Robots = {{'S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1'}};
 % Robots = {{'S7RRRRRRR1', 'S7RRRRRRR1_LWR4P'}};
 
 % Einstellungen
