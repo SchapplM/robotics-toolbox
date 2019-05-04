@@ -163,16 +163,23 @@ classdef ParRob < matlab.mixin.Copyable
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function Jinv = jacobi_qa_x(R, q, xP)
+    function Jinv_qD_xD = jacobi_qa_x(R, q, xP)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
-      % Jinv: Inverse Jacobi-Matrix
+      % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
+      % Plattform-Geschw. mit Euler-Zeitableitung)
+      
+      % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
       [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Jinv = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
+      Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
+      % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+      % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
+      T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+      Jinv_qD_xD = Jinv_qD_sD*T;
     end
     function Mx = inertia_platform(R, q, xP)
       % Massenmatrix bezogen auf Plattformkoordinaten
