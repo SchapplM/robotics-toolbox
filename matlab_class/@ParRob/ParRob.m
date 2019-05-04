@@ -21,6 +21,16 @@
 %   * Zähle die aktiven, passiven und Schnittgelenke aller Beine 
 %   (abhängig = passiv und Schnitt-Gelenkkoordinaten)
 % 
+%   Definition der Dynamik-Parameter:
+%   DynPar.mode: Umschalten zwischen verschiedenen Dynamik-Parametern als
+%   Eingang der Dynamik-Funktionen. Entspricht Ziffer hinter
+%   Funktions-Handles
+%   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
+%      (noch nicht implementiert)
+%   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,rS,Ic (inertial)
+%   3: Dynamik-Parametervektor (ohne Minimierung); nicht implementiert
+%   4: Dynamik-Minimalparametervektor
+% 
 % Siehe auch: SerRob.m (SerRob-Klasse)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
@@ -69,10 +79,15 @@ classdef ParRob < matlab.mixin.Copyable
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
-      inertia_x_fcnhdl  % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
-      gravload_x_fcnhdl  % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
-      coriolisvec_x_fcnhdl  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
-      dynparconvfcnhdl % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+      invdyn_x_fcnhdl2       % Funktions-Handle für Inverse Dynamik in Plattform-Koordinaten
+      invdyn_x_fcnhdl4       % ... mit anderen Parametern
+      inertia_x_fcnhdl2      % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
+      inertia_x_fcnhdl4      % ... mit anderen Parametern
+      gravload_x_fcnhdl2     % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
+      gravload_x_fcnhdl4     % ... mit anderen Parametern
+      coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
+      coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
+      dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
   methods
@@ -95,9 +110,14 @@ classdef ParRob < matlab.mixin.Copyable
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
         {'jacobi_qa_x_fcnhdl', 'Jinv'}, ...
-        {'inertia_x_fcnhdl', 'inertia_para_pf_slag_vp2'}, ...
-        {'gravload_x_fcnhdl', 'gravload_para_pf_slag_vp2'}, ...
-        {'coriolisvec_x_fcnhdl', 'coriolisvec_para_pf_slag_vp2'}, ...
+        {'invdyn_x_fcnhdl2', 'invdyn_para_pf_slag_vp2'}, ...
+        {'inertia_x_fcnhdl2', 'inertia_para_pf_slag_vp2'}, ...
+        {'gravload_x_fcnhdl2', 'gravload_para_pf_slag_vp2'}, ...
+        {'coriolisvec_x_fcnhdl2', 'coriolisvec_para_pf_slag_vp2'}, ...
+        {'invdyn_x_fcnhdl4', 'invdyn_para_pf_mdp'}, ...
+        {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
+        {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
+        {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'}};
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
@@ -174,6 +194,28 @@ classdef ParRob < matlab.mixin.Copyable
       [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
       Jinv = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
     end
+    function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
+      % Corioliskraft bezogen auf Plattformkoordinaten
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      % xPD: Plattform-Geschwindigkeit (im Basis-KS)
+      % xPDD: Plattform-Beschleunigung (im Basis-KS)
+      %
+      % Ausgabe:
+      % Fx: Kraft auf Plattform aus Inverser Dynamik
+      xPDred = xPD(R.I_EE);
+      xPDDred = xPDD(R.I_EE);
+      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      if R.DynPar.mode == 2
+        Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mpv);
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
     function Mx = inertia_platform(R, q, xP)
       % Massenmatrix bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
@@ -182,8 +224,15 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Mx: Massenmatrix
       [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Mx = R.inertia_x_fcnhdl(xPred, qJ, legFrame, koppelP, pkin, ...
-        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      if R.DynPar.mode == 2
+        Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        Mx = R.inertia_x_fcnhdl4(xPred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mpv);
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
     function Fgx = gravload_platform(R, q, xP)
       % Gravitationskraft bezogen auf Plattformkoordinaten
@@ -193,8 +242,15 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Mx: Massenmatrix
       [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Fgx = R.gravload_x_fcnhdl(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
-        R.DynPar.mges, R.DynPar.mrSges);
+      if R.DynPar.mode == 2
+        Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mges, R.DynPar.mrSges);
+      elseif R.DynPar.mode == 4
+        Fgx = R.gravload_x_fcnhdl4(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mpv);
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
     function Fcx = coriolisvec_platform(R, q, xP, xPD)
       % Corioliskraft bezogen auf Plattformkoordinaten
@@ -206,8 +262,15 @@ classdef ParRob < matlab.mixin.Copyable
       % Mx: Massenmatrix
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Fcx = R.coriolisvec_x_fcnhdl(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
-        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      if R.DynPar.mode == 2
+        Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4
+        Fcx = R.coriolisvec_x_fcnhdl4(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mpv);
+      else
+        error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
     end
     function [T_ges, T_legs, T_plattform] = ekin(R, q, qD, xP, xPD)
       % Kinetische Energie der PKM
