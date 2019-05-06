@@ -17,9 +17,10 @@ if isempty(which('serroblib_path_init.m'))
 end
 %% Benutzereingaben
 Robots = {{'S5RRRRR1', 'S5RRRRR1_KUKA1'}, ...
-          {'S6RRRRRR10', 'S6RRRRRR10_KUKA1'}, ...
+          {'S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1'}, ...
           {'S7RRRRRRR1', 'S7RRRRRRR1_LWR4P'}};
-
+% Folgende Zeilen zur Prüfung einzelner Roboter einkommentieren:
+% Robots = {{'S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1'}};
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
@@ -52,6 +53,9 @@ for Robot_Data = Robots
   qD0 = TSS.QD(1,:)';
   qDD0 = TSS.QDD(1,:)';
   T_E = RS.fkineEE(q0);
+  if any(isnan(T_E(:)))
+    error('Roboter %s nicht korrekt initialisiert.', SName);
+  end
   xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
   
   RS.fkine(q0);

@@ -41,7 +41,7 @@ if ~use_parrob
   I_qa(3:6:36) = true;
   RP.update_actuation(I_qa);
   % Benutze PKM-Bibliothek für gespeicherte Funktionen
-  if isempty(which('parroblib_path_init.m'))
+  if ~isempty(which('parroblib_path_init.m'))
     parroblib_addtopath({'P6RRPRRR14V3A1'});
   end
   RP.fill_fcn_handles();
