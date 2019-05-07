@@ -20,7 +20,7 @@ clc
 
 % Beispielsysteme
 % Entsprechen 6UPS, 4xSCARA, 3RRR, 3RPR
-RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P3RRR1', 'P3RPR1'};
+RobotNames = {'P6RRPRRR14', 'P3RRR1', 'P3RPR1'};
 
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
@@ -65,7 +65,7 @@ for NNN = RobotNames
   
   RP.initialize();
   X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
-  xE = X + [[0.1; 0.05; 0]; [0; 0; 10]*pi/180];
+  xE = X + [[0.1; 0.05; 0]; [0; 0; 0]*pi/180];
   
   % Kinematik-Parameter anpassen: Zufällige Rotation zu Koppelpunkt-KS der
   % Beinketten. Damit wird geprüft, ob die Funktionen allgemein funktionieren
@@ -95,17 +95,34 @@ for NNN = RobotNames
   RP.fkine(q0, xE);
   RP.fkine_legs(q0);
   RP.fkine_platform(xE);
+
   RP.constr1(q0, xE);
   RP.constr1_trans(q0, xE);
   RP.constr1_rot(q0, xE);
   RP.constr1grad_q(q0, xE);
+  RP.constr1grad_tq(q0);
+  RP.constr1grad_rq(q0, xE);
   RP.constr1grad_x(q0, xE);
-
+  
+  RP.constr2(q0, xE);
+  RP.constr2_trans(q0, xE);
+  RP.constr2_rot(q0, xE);
+  RP.constr2grad_q(q0, xE);
+  RP.constr2grad_x(q0, xE);
+  
+  RP.constr3(q0, xE);
+  RP.constr3_trans(q0, xE);
+  RP.constr3_rot(q0, xE);
+  RP.constr3grad_q(q0, xE);
+  RP.constr3grad_tq(q0);
+  RP.constr3grad_rq(q0, xE);
+  RP.constr3grad_x(q0, xE);
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', PName);
 
   %% Gradienten der kinematischen Zwangsbedingungen testen
   % Teste, ob die Gradienten dem Differenzenquotienten der
   % Zwangsbedingungen entsprechen.
+  
   for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle Euler-Winkel-Konventionen
     eulstr = euler_angle_properties(i_phiconv);
     RP.phiconv_W_E = i_phiconv;
@@ -117,6 +134,15 @@ for NNN = RobotNames
       [~,Phi1_0] = RP.constr1(q0, x0);
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
+      
+      [~,Phi2_0] = RP.constr2(q0, x0);
+      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
+      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
+      
+      [~,Phi3_0] = RP.constr3(q0, x0);
+      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
+      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);     
+
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
       for id = 1:length(q0) 
@@ -127,64 +153,132 @@ for NNN = RobotNames
 
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
         [~,Phi1_1] = RP.constr1(q1, x0);
-
+        [~,Phi2_1] = RP.constr2(q1, x0);
+        [~,Phi3_1] = RP.constr3(q1, x0);
+        
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
         Phi1_1_g = Phi1_0 + Phi1dq_0*dq;
-        test1 = Phi1_1-Phi1_1_g;
+        test1 = Phi1_1 - Phi1_1_g;
+        
+        Phi2_1_g = Phi2_0 + Phi2dq_0*dq;
+        test2 = Phi2_1 - Phi2_1_g;  
+        
+        Phi3_1_g = Phi3_0 + Phi3dq_0*dq;
+        test3 = Phi3_1 - Phi3_1_g; 
+        
         % Vielfache von 2*Pi entfernen
         test1(abs(abs(test1)-2*pi) < 1e-3 ) = 0;
+        test2(abs(abs(test2)-2*pi) < 1e-3 ) = 0;
+        test3(abs(abs(test3)-2*pi) < 1e-3 ) = 0;
         
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.
-        dPhi_grad = Phi1dq_0*dq;
-        dPhi_diff = Phi1_1 - Phi1_0;
-        RelErr = dPhi_grad./dPhi_diff-1;
+        dPhi_grad1 = Phi1dq_0*dq;
+        dPhi_diff1 = Phi1_1 - Phi1_0;
+        RelErr = dPhi_grad1./dPhi_diff1-1;
         RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test1) > 8e10*eps(1+max(abs(Phi1_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein', PName);
+          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
         end
+        
+        dPhi_grad2 = Phi2dq_0*dq;
+        dPhi_diff2 = Phi2_1 - Phi2_0;
+        RelErr = dPhi_grad2./dPhi_diff2-1;
+        RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test2) > 8e10*eps(max(1+abs(Phi2_1))); % Absoluter Fehler über Toleranz
+        if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta q%d)', PName, id);
+        end  
+        
+        dPhi_grad3 = Phi3dq_0*dq;
+        dPhi_diff3 = Phi3_1 - Phi3_0;
+        RelErr = dPhi_grad3./dPhi_diff3-1;
+        RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test3) > 8e10*eps(max(1+abs(Phi3_1))); % Absoluter Fehler über Toleranz
+        I_nan = isnan(Phi3_0);
+        if any( I_nan | I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta q%d)', PName, id);
+        end 
       end
       % Alle Komponenten der EE-Koordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der direkten Kinematik)
       for id = 1:6 
-        % Neue Koordinaten q1 durch Verschiebung in einer Komponente
+        % Neue Koordinaten x1 durch Verschiebung in einer Komponente
         dx = zeros(6,1);
         dx(id) = 1e-4;
         x1 = x0+dx;
 
-        % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
+        % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
         [~,Phi1_1] = RP.constr1(q0, x1);
-
+        [~,Phi2_1] = RP.constr2(q0, x1);
+        [~,Phi3_1] = RP.constr3(q0, x1);
+        
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
         Phi1_1_g = Phi1_0 + Phi1dx_0*dx;
-        test1 = Phi1_1-Phi1_1_g;
+        test1 = Phi1_1 - Phi1_1_g;
+        
+        Phi2_1_g = Phi2_0 + Phi2dx_0*dx;
+        test2 = Phi2_1 - Phi2_1_g;
+        
+        Phi3_1_g = Phi3_0 + Phi3dx_0*dx;
+        test3 = Phi3_1 - Phi3_1_g;
+        
         % Vielfache von 2*Pi entfernen (Rotationsfehler von 2*Pi ist kein
         % "Fehler" sondern nur in der Darstellung begründet)
         test1(abs(abs(test1)-2*pi) < 1e-3 ) = 0;
-        
+        test2(abs(abs(test2)-2*pi) < 1e-3 ) = 0;
+        test3(abs(abs(test3)-2*pi) < 1e-3 ) = 0;
+
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.
-        dPhi_grad = Phi1dx_0*dx;
-        dPhi_diff = Phi1_1 - Phi1_0;
-        RelErr = dPhi_grad./dPhi_diff-1;
+        dPhi_grad1 = Phi1dx_0*dx;
+        dPhi_diff1 = Phi1_1 - Phi1_0;
+        RelErr = dPhi_grad1./dPhi_diff1-1;
         RelErr(isnan(RelErr)) = 0; % 0/0 -> relativer Fehler 0
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test1) > 8e10*eps(1+max(abs(Phi1_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein', PName);
+          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta x%d)', PName, id);
+        end
+        
+        dPhi_grad2 = Phi2dx_0*dx;
+        dPhi_diff2 = Phi2_1 - Phi2_0;
+        RelErr = dPhi_grad2./dPhi_diff2-1;
+        RelErr(isnan(RelErr)) = 0; % 0/0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test2) > 8e10*eps(max(1+abs(Phi2_1))); % Absoluter Fehler über Toleranz
+        if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta x%d)', PName, id);
+        end
+        
+        dPhi_grad3 = Phi3dx_0*dx;
+        dPhi_diff3 = Phi3_1 - Phi3_0;
+        RelErr = dPhi_grad3./dPhi_diff3-1;
+        RelErr(isnan(RelErr)) = 0; % 0/0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test3) > 8e10*eps(max(1+abs(Phi3_1))); % Absoluter Fehler über Toleranz
+        if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta x%d)', PName, id);
         end
       end
     end
     fprintf('%s: Konsistenz der Zwangsbedingungs-Gradienten erfolgreich getestet für %s-Euler-Winkel.\n', PName, eulstr);
   end
   %% PKM-Jacobi-Matrix testen gegen Zwangsbedingungen
-  for i_phiconv = uint8(2) % Koordinatendefinition funktioniert nur wenn z-Rotation am Ende ist
-    % TODO: Zuordnung von EE-Koordinaten und Zwangsbedingungen einstellen,
-    % sodass auch andere Euler-Konventionen als xyz getestet werden können.
+  % TODO: Bei PKM mit <6 FG passt die Auswahl der Zwangsbedingungen noch
+  % nicht, wenn reziproke Winkel gewählt werden.
+  if RP.NLEG == 6
+    phiconv_sel = uint8([2 4 6 7 9 11]); % Test für alle Euler-Winkel-Konventionen
+  else
+    phiconv_sel = uint8(2); % Koordinatendefinition funktioniert nur wenn z-Rotation am Ende ist
+  end
+  for i_phiconv = phiconv_sel  
     eulstr = euler_angle_properties(i_phiconv);
     RP.phiconv_W_E = i_phiconv;
     for i = 1:size(Q_test,1)
@@ -193,7 +287,7 @@ for NNN = RobotNames
       x0 = X_test(i,:)';
       q0 = Q_test(i,:)';
       % Alternativ: IK berechnen. ZB müssen Null bleiben
-      % q0 = RP.invkin1(x0, rand(RP.NJ,1)); 
+      % q0 = RP.invkin_ser(X_test(i,:)', rand(RP.NJ,1), struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12));
       
       % Benutze hier die Zwangsbedingungen für die reduzierten
       % EE-Koordinaten (sonst schlägt der Test fehl).
@@ -202,25 +296,25 @@ for NNN = RobotNames
       Phi1dx_0 = RP.constr1grad_x(q0, x0);
       
       % Inverse PKM-Jacobi-Matrix
-      Jinv_voll = -inv(Phi1dq_0) * Phi1dx_0;
+      Jinv1_voll = -inv(Phi1dq_0) * Phi1dx_0;
       % Jacobi-Zusammenhang zwischen qD und xD ausnutzen: 
       % Inverse differentielle Kinematik (x->q)
       delta_x_red = (0.5-rand(sum(RP.I_EE),1));
-      delta_q = Jinv_voll * delta_x_red;
+      delta_q1 = Jinv1_voll * delta_x_red;
       % Faktor zur Normierung von delta_q auf den Wert 1e-3. Dann gilt noch
       % die Kleinwinkelnäherung und die Beträge sind noch nicht zu klein.
       % Ansonsten gibt es Probleme mit Singularitäten
-      k = max(abs(delta_q))*1e3;
-      delta_q = delta_q/k;
+      k = max(abs(delta_q1))*1e3;
+      delta_q1 = delta_q1/k;
       delta_x_red = delta_x_red/k;
       delta_x = zeros(6,1); % Umrechnen auf 6 EE-FG für Funktionen
       delta_x(RP.I_EE) = delta_x_red;
       % Berechne neue Koordinaten q1,x1 konsistent mit den Zwangsbed.
-      q1 = q0 + delta_q;
+      q1 = q0 + delta_q1;
       x1 = x0 + delta_x;
-      [Phi1_1] = RP.constr1(q1, x1);
-      test = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
-      if max(abs(test)) > 8e9*eps(1+max(abs(Phi1_0)))
+      Phi1_1 = RP.constr1(q1, x1);
+      test_Phi1 = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
+      if max(abs(test_Phi1)) > 1e11*eps(1+max(abs(Phi1_0)))
         error('%s: Inverse PKM-Jacobi-Matrix ist nicht mit Zwangsbedingungen konsistent.', PName);
       end
       
@@ -229,7 +323,7 @@ for NNN = RobotNames
       for kk = 1:10
         % Wähle beliebiges delta_x für die Berechnung von delta_q. Die
         % Größenordnung muss gleich sein.
-        delta_q_rand = Jinv_voll * diff(minmax2(delta_x_red'))*2*(0.5-rand(sum(RP.I_EE),1));
+        delta_q_rand = Jinv1_voll * diff(minmax2(delta_x_red'))*2*(0.5-rand(sum(RP.I_EE),1));
         q1_rand = q1+delta_q_rand;
         % Berechne damit die Zwangsbedingungen neu und bestimme den Fehler
         Phi1_1_rand = RP.constr1(q1_rand, x1);
@@ -237,8 +331,58 @@ for NNN = RobotNames
         % Speichere den größten Fehler ab und vergleiche mit Lösung oben
         test_rand_worst(abs(test_rand_worst)<abs(test_rand)) = test_rand(abs(test_rand_worst)<abs(test_rand));
       end
-      if max(abs(test)) > 0.5*max(abs(test_rand_worst))
-        error('%s: Bei zufälliger Wahl von delta_q ist das Ergebnis nicht viel besser als bei gegebener Berechnung. Wahrscheinlich Fehler.', PName);
+      if max(abs(test_Phi1)) > 0.5*max(abs(test_rand_worst))
+        warning('%s: Bei zufälliger Wahl von delta_q ist das Ergebnis nicht viel besser als bei gegebener Berechnung. Wahrscheinlich Singularität.', PName);
+      end
+      
+      % Andere ZB-Definitionen vergleichen:
+      % Gradientenmatrizen und inverse Jacobi-Matric
+      Phi2dq_0 = RP.constr2grad_q(q0, x0);
+      Phi2dx_0 = RP.constr2grad_x(q0, x0);
+      Jinv2_voll = -inv(Phi2dq_0) * Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      Phi3dq_0 = RP.constr3grad_q(q0, x0);
+      Phi3dx_0 = RP.constr3grad_x(q0, x0);
+      Jinv3_voll = -inv(Phi3dq_0) * Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      % Änderung der Gelenkwinkel bei gegebener Plattformänderung
+      delta_q2 = Jinv2_voll * delta_x_red;
+      delta_q3 = Jinv3_voll * delta_x_red;
+      % Daraus resultierende Änderung der Zwangsbedingungen
+      Phi2_0 = RP.constr2(q0, x0);
+      Phi2_1 = RP.constr2(q0 + delta_q2, x1);
+      Phi3_0 = RP.constr3(q0, x0);
+      Phi3_1 = RP.constr3(q0 + delta_q3, x1);
+      test_Phi2 = Phi2_0 - Phi2_1;
+      test_Phi3 = Phi3_0 - Phi3_1;
+      if max(abs(test_Phi2)) > 5e11*eps(1+max(abs(Phi2_0)))
+        error('Die inverse Jacobi-Matrix der PKM nach Var. 2 ist nicht konsistent zu den Zwangsbedingungen');
+      end
+      if max(abs(test_Phi3)) > 5e11*eps(1+max(abs(Phi3_0)))
+        error('Die inverse Jacobi-Matrix der PKM nach Var. 3 ist nicht konsistent zu den Zwangsbedingungen');
+      end
+      % Folgende Tests funktionieren nur, wenn die Zwangsbedingungen Null
+      % sind. Dafür muss oben die inverse Kinematik für `q0` benutzt werden
+      % Vergleich der resultierenden Gelenkwinkeländerungen bei
+      % unterschiedlichen ZB-Definitionen
+      % Die Winkeländerungen sind unterschiedlich, da die Definitionen und
+      % die Gradienten anders sind. Ist aber nicht falsch! Entspricht
+      % anderer Gewichtung der Translations- und Rotationskomponenten
+      % Wenn Phi=0 ist, stimmen die Werte überein.
+      if max(abs(Phi1_0)) < 1e-10 && max(abs([Phi2_0;Phi3_0])) > 1e-10
+        error('Wenn Zwangsbed. Var. 1 Null sind, müssen die anderen Var. auch Null sein.');
+      end
+      test_q12 = delta_q2 - delta_q1;
+      test_q13 = delta_q3 - delta_q1;
+      test_q23 = delta_q2 - delta_q3;
+      if max(abs(Phi1_0)) < 1e-10 && max(abs([test_q12;test_q13;test_q23])) > 1e-10
+        error('Wenn ZB Null sind, müssen die Winkeländerungen bei versch. Var. gleich sein.');
+      end
+      % Vergleich der inversen PKM-Jacobi-Matrix bei verschiedenen ZB-Def.
+      % Sind unterschiedlich, wegen unterschiedlicher Def. (nicht falsch!)
+      testJ12 = Jinv1_voll - Jinv2_voll;
+      testJ13 = Jinv1_voll - Jinv3_voll;
+      testJ23 = Jinv2_voll - Jinv3_voll;
+      if max(abs(Phi1_0)) < 1e-10 && max(abs([testJ12(:);testJ13(:);testJ23(:)])) > 1e-10
+        error('Wenn ZB Null sind, müssen inv. Jacobi-Matrizen bei versch. Var. gleich sein.');
       end
     end
     fprintf('%s: Konsistenz der PKM-Jacobi-Matrix erfolgreich getestet für %s-Euler-Winkel.\n', PName, eulstr);
