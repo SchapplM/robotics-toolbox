@@ -244,7 +244,7 @@ classdef SerRob < matlab.mixin.Copyable
         end
         R.pkin_names = pkin_names;
       catch
-        warning('Funktion %s ist nicht aktuell', structkinpar_hdl);
+        warning('Funktion %s ist nicht aktuell', char(structkinpar_hdl));
         R.pkin_names = cell(1,length(R.pkin));
       end
     end
