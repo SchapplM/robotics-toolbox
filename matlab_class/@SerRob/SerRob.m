@@ -89,6 +89,7 @@ classdef SerRob < matlab.mixin.Copyable
     invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
     invdynfcnhdl4   % ... mit anderen Parametern
     intforcefcnhdl2   % Funktions-Handle für Schnittkräfte durch inverse Dynamik
+    intforcemcnhdl2   % Funktions-Handle für Schnittkmomente durch inverse Dynamik
     invdynregmattrajfcnhdl % Funktions-Handle für Trajektorie von Regressor-Matrizen
     invdyntrajfcnhdl4 % ... für Inverse Dynamik einer Trajektorie von Gelenkvariablen
     invdyntrajfcnhdl6 % ... für Inverse Dynamik aus einer Trajektorie von Regressormatrizen
@@ -192,7 +193,8 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecfcnhdl2', 'coriolisvecJ_fixb_slag_vp2'}, ...
       {'cormatfcnhdl2', 'coriolismatJ_fixb_slag_vp2'}, ...
       {'invdynfcnhdl2', 'invdynJ_fixb_slag_vp2'}, ...
-      {'intforcefcnhdl2', 'invdyn_floatb_eulxyz_nnew_vp2'}, ...
+      {'intforcefcnhdl2', 'invdynf_fixb_snew_vp2'}, ...
+      {'intforcemcnhdl2', 'invdynm_fixb_snew_vp2'}, ...
       {'ekinfcnhdl4', 'energykin_fixb_mdp_slag_vp'}, ...
       {'epotfcnhdl4', 'energypot_fixb_mdp_slag_vp'}, ...
       {'gravlfcnhdl4', 'gravloadJ_floatb_twist_mdp_slag_vp'}, ...
@@ -787,9 +789,16 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % W: Kraft und Moment in allen Gelenken (Zeilen: fx,fy,fz,mx,my,mz;
       %    Spalten: Basis, Robotergelenke)
-      [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(q, qD, qDD, ...
-        zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin_gen, ...
-        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      if R.DynPar.mode == 2
+        f_i_i_ges = R.intforcefcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        n_i_i_ges = R.intforcemcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 4 || R.DynPar.mode == 6
+        error('Methode internforce funktioniert nicht für Minimalparameter-Regressorform');
+      else
+        error('Methode internforce für Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
       W = [f_i_i_ges; n_i_i_ges];
     end
     function W_traj = internforce_traj(R, Q, QD, QDD)
@@ -804,9 +813,9 @@ classdef SerRob < matlab.mixin.Copyable
       %         Jede Zeile ein Zeitschritt; erst alle Kräfte, dann alle Momente
       W_traj = NaN(size(Q,1), R.NL*6);
       for i = 1:size(Q,1)
-        [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(Q(i,:)', QD(i,:)', QDD(i,:)', ...
-          zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin_gen, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        w_i = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)');
+        f_i_i_ges = w_i(1:R.NL,:);
+        n_i_i_ges = w_i(R.NL+1:end,:);
         W_traj(i,:) = [f_i_i_ges(:); n_i_i_ges(:)];
       end
     end
