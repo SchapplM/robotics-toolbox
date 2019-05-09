@@ -17,30 +17,35 @@
 
 function types = get_pkin_parameter_type(Rob)
 
+% Funktion initialisieren
 mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', Rob.mdlname));
-types = NaN(size(Rob.pkin));
-
-beta_test = ones(Rob.NJ);
-b_test = ones(Rob.NJ);
-alpha_test = ones(Rob.NJ);
-a_test = ones(Rob.NJ);
-theta_test = ones(Rob.NJ);
-d_test = ones(Rob.NJ);
 
 % Prüfe die Parameter nacheinander, indem NaN eingesetzt wird
-pkin1=mdh2pkin_hdl(beta_test*NaN, b_test, alpha_test, a_test, theta_test, d_test, zeros(Rob.NJ,1)); 
-types(isnan(pkin1)) = uint8(1);
-pkin2=mdh2pkin_hdl(beta_test, b_test*NaN, alpha_test, a_test, theta_test, d_test, zeros(Rob.NJ,1)); 
-types(isnan(pkin2)) = uint8(2);
-pkin3=mdh2pkin_hdl(beta_test, b_test, alpha_test*NaN, a_test, theta_test, d_test, zeros(Rob.NJ,1)); 
-types(isnan(pkin3)) = uint8(3);
-pkin4=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test*NaN, theta_test, d_test, zeros(Rob.NJ,1)); 
-types(isnan(pkin4)) = uint8(4);
-pkin5=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test, theta_test*NaN, d_test, zeros(Rob.NJ,1)); 
-types(isnan(pkin5)) = uint8(5);
-pkin6=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test, theta_test, d_test*NaN, zeros(Rob.NJ,1)); 
-types(isnan(pkin6)) = uint8(6);
+pkin = NaN(6, length(Rob.pkin_gen));
+pkin(1,:)=mdh2pkin_hdl(ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
+pkin(2,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
+pkin(3,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
+pkin(4,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
+pkin(5,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
+pkin(6,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, zeros(Rob.NJ,1)); 
+
+% Übersetze die Parameter zwischen Varianten und allgemeinem Modell
+if ~strcmp(Rob.mdlname, Rob.mdlname_var)
+  gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', Rob.mdlname_var));
+  pkin_var = NaN(6,length(Rob.pkin));
+  for i = 1:6
+    pkin_var(i,:) = gen2var_hdl(pkin(i,:));
+  end
+else
+  pkin_var = pkin;
+end
+
+% Erkenne Pameter-Typ durch Ort der NaN in der Matrix
+types = NaN(size(pkin_var,2),1);
+for i = 1:6
+  types(isnan(pkin_var(i,:))) = uint8(i);
+end
 
 if any(isnan(types))
-  error('Parameterzuordnung nicht möglich');
+  error('Parameterzuordnung nicht möglich.');
 end

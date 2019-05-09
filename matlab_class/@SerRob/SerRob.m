@@ -311,7 +311,14 @@ classdef SerRob < matlab.mixin.Copyable
       % Eingabe:
       % q: Gelenkkoordinaten
       % pkin2: Vektor der Kinematikparameter
-      Tc_0 = R.fkinfcnhdl(q, pkin2);
+      if ~strcmp(R.mdlname, R.mdlname_var)
+        % Umrechnung von Parametern des abgeleiteten Modells auf allgemeines
+        var2gen_hdl = eval(sprintf('@%s_pkin_var2gen', R.mdlname_var));
+        pkin3 = var2gen_hdl(pkin2);
+      else
+        pkin3 = pkin2;
+      end
+      Tc_0 = R.fkinfcnhdl(q, pkin3);
       Tc_W = Tc_0;
       for i = 1:size(Tc_0,3)
         Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
@@ -328,10 +335,10 @@ classdef SerRob < matlab.mixin.Copyable
       T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
       T_0_E = Tc_0(:,:,R.I_EElink+1)*R.T_N_E;
     end
-    function [T_0_E, T_W_E] = fkineEE_vp(R, q, pkin)
+    function [T_0_E, T_W_E] = fkineEE_vp(R, q, pkin2)
       % Direkte Kinematik zum End-Effektor
       % wie fkineEE, nur mit variablen Kinematikparametern
-      [Tc_0, Tc_W] = R.fkine_vp(q, pkin);
+      [Tc_0, Tc_W] = R.fkine_vp(q, pkin2);
       T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
       T_0_E = Tc_0(:,:,R.I_EElink+1)*R.T_N_E;
     end
