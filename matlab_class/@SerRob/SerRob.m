@@ -634,7 +634,7 @@ classdef SerRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         gq = R.gravlfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
       elseif R.DynPar.mode == 4
-        gq = R.gravlfcnhdl4(q, R.gravity, R.pkin, R.DynPar.mpv);
+        gq = R.gravlfcnhdl4(q, R.gravity, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
           gqreg = R.gravlregfcnhdl(q, R.gravity, R.pkin_gen);
         end
