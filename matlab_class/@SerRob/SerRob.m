@@ -784,7 +784,8 @@ classdef SerRob < matlab.mixin.Copyable
       RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin_gen);
     end
     function [W, W_reg] = internforce(R, q, qD, qDD)
-      % Interne Schnittkräfte
+      % Interne Schnittkräfte resultierend aus internen Kräften
+      % (inverser Dynamik)
       % Eingabe:
       % q: Gelenkkoordinaten
       % qD: Gelenkgeschwindigkeiten
@@ -810,6 +811,28 @@ classdef SerRob < matlab.mixin.Copyable
         error('Methode internforce für Modus %d noch nicht implementiert', R.DynPar.mode);
       end
       W = [f_i_i_ges; n_i_i_ges];
+    end
+    function W_ext = internforce_ext(R, q, F_ext, link_index, r_i_i_C)
+      % Interne Schnittkräfte resultierend aus externen Kräften
+      % Eingabe:
+      % q: Gelenkpositionen
+      % F_ext [6x1]: Externe Kraft und Moment (im Basis-KS)
+      % link_index: Nummer des Robotersegments, an dem die Kraft angreift (0=Basis)
+      % r_i_i_C: Punkt, an dem die Kraft angreift. Im jew. Körper-KS
+      %
+      % Ausgabe:
+      % W_ext: Kraft und Moment in allen Gelenken. Siehe SerRob/internforce()
+      %        (Zeilen: fx,fy,fz,mx,my,mz; Spalten: Basis, Robotergelenke)
+      if R.Type == 1
+        error('Nicht für hybride Systeme definiert');
+      end
+      Tc0 = R.fkine(q);
+      Tc0_stack = NaN(3*R.NL,4);
+      for ii = 1:R.NL
+          Tc0_stack(3*ii-2:3*ii,:) = Tc0(1:3,:,ii);
+      end
+      Jg_C = robot_tree_jacobig_cutforce_m(Tc0_stack, R.MDH.v, uint8(link_index), r_i_i_C);
+      W_ext = reshape(Jg_C' * F_ext, 6, R.NL);
     end
     function W_traj = internforce_traj(R, Q, QD, QDD)
       % Interne Schnittkräfte
