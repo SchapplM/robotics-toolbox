@@ -3,12 +3,13 @@
 % Führt alle verfügbaren Modultests aus um die Funktionalität sicherzustellen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-03
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 this_repo_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Füge die Testfunktionen temporär zum Pfad hinzu. Normalerweise werden sie
 % nicht gebraucht und sind nicht im Pfad (robotics_toolbox_path_init)
 addpath(fullfile(this_repo_path, 'examples_tests'));
+addpath(fullfile(this_repo_path, 'examples_tests', 'impedance_controller'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_controllers'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'rotation_integration'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'contact_models'));
@@ -19,6 +20,9 @@ angvec_test
 quaternion_test
 euler_test
 rotvec_test
+
+%% Impedanzregler
+lbr4p_joint_impctrl_test_start
 
 %% Integration von Rotationsdarstellungen
 rotation_integration_comparison
