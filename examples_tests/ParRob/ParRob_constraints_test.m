@@ -220,7 +220,7 @@ for NNN = RobotNames
       x1 = x0 + delta_x;
       [Phi1_1] = RP.constr1(q1, x1);
       test = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
-      if max(abs(test)) > 8e9*eps(1+max(abs(Phi1_0)))
+      if max(abs(test)) > 8e10*eps(1+max(abs(Phi1_0)))
         error('%s: Inverse PKM-Jacobi-Matrix ist nicht mit Zwangsbedingungen konsistent.', PName);
       end
       
