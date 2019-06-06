@@ -98,7 +98,7 @@ Phi = NaN(length(I_IK),1);
 success = false;
 q1 = q0;
 %% Iterative Berechnung der inversen Kinematik
-for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
+for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
@@ -139,11 +139,13 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist
-    delta_ul_rel = (qmax - q2)./(qmax-q1);
-    delta_ll_rel = (-qmin + q2)./(q1-qmin);
+    delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
+    delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
     if scale_lim && any([delta_ul_rel;delta_ll_rel] < 0)
       % Berechne die prozentual stärkste Überschreitung
       % und nutze diese als Skalierung für die Winkeländerung
+      % Reduziere die Winkeländerung so, dass die gröte Überschreitung auf
+      % das Erreichen der Grenzen reduziert wird.
       if min(delta_ul_rel)<min(delta_ll_rel)
         % Verletzung nach oben ist die größere
         [~,I_max] = min(delta_ul_rel);
@@ -151,8 +153,10 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
       else
         % Verletzung nach unten ist maßgeblich
         [~,I_min] = min(delta_ll_rel);
-        scale = (qmax(I_min)-q1(I_min))./(delta_q(I_min));
+        scale = (qmin(I_min)-q1(I_min))./(delta_q(I_min));
       end
+      % Mit `scale` werden die Grenzen direkt für ein Gelenk erreicht.
+      % Durch `scale_lim` wird dieses Erreichen weiter nach "innen" gezogen
       q2 = q1 + scale_lim*scale*delta_q;
     end
 
