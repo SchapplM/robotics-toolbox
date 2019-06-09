@@ -39,6 +39,7 @@
 classdef ParRob < matlab.mixin.Copyable
 
   properties (Access = public)
+      qlim % Minimale und maximale Gelenkkoordinaten q zeilenweise für die Gelenke
       NLEG % Anzahl der Beinketten
       NJ % Anzahl der Gelenkkoordinaten des Roboters (Gelenkkoordinaten aller Beinketten)
       NL % Anzahl der Starrkörper der PKM insgesamt (inkl. Basis und Plattform)
@@ -106,6 +107,7 @@ classdef ParRob < matlab.mixin.Copyable
       R.T_P_E = eye(4);
       R.T_W_0 = eye(4);
       R.gravity = [0;0;-9.81];
+      R.qlim = [-pi,pi];
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...

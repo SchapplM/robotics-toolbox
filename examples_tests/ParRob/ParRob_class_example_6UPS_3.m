@@ -68,16 +68,16 @@ q0 = rand(36,1); % Startwerte für numerische IK
 q0(I_qa) = 0; % mit Schubaktor bei Null anfangen (damit Konfiguration nicht umklappt)
 
 % Inverse Kinematik auf zwei Arten berechnen
-[~, Phi] = RP.invkin3(X, q0);
+[q, Phi] = RP.invkin3(X, q0);
 if any(abs(Phi) > 1e-8)
   error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
 end
 
-[qs, Phis] = RP.invkin_ser(X, rand(36,1));
-q=qs;
-if any(abs(Phis) > 1e-6)
-  error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
-end
+%[qs, Phis] = RP.invkin_ser(X, rand(36,1));
+%q=qs;
+%if any(abs(Phis) > 1e-6)
+%  error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
+%end
 
 %% Zwangsbedingungen in Startpose testen
 Phi1=RP.constr3(q, X);

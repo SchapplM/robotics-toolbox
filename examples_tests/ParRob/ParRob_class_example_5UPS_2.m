@@ -1,4 +1,4 @@
-% Roboterklasse für 6UPS-PKM testen
+% Roboterklasse für 5UPS-PKM testen
 % 
 % Ablauf:
 % * Beispiel-Parameter und Roboter definieren
@@ -40,12 +40,12 @@ RS.update_mdh(pkin);
 %% Klasse für PKM erstellen
 
 RP = ParRob('P6RRPRRR14');
-RP = RP.create_symmetric_robot(6, RS, 0.5, 0.2);
+RP = RP.create_symmetric_robot(5, RS, 0.5, 0.2);
 % Erste Achse zusätzlich drehen: Die verwendete serielle Kette dreht um die
 % z-Achse, die automatische Anordnung der seriellen Ketten in
 % create_symmetric_robot dreht die Basis-Koppel-KS auch um die z-Achse.
 % Die Reihenfolge dieser Drehungen muss daher vertauscht werden
-for i = 1:6
+for i = 1:5
   phi_W_0i = RP.Leg(i).phi_W_0;
   phi_W_0i(1) = -pi/2;
   phi_W_0i(2) = -phi_W_0i(3); % Durch rotx(-pi/2) wird y zu -z
@@ -57,27 +57,27 @@ end
 RP = RP.initialize();
 
 % Schubgelenke sind aktuiert
-I_qa = false(36,1);
-I_qa(3:6:36) = true;
+I_qa = false(30,1);
+I_qa(3:6:30) = true;
 RP.update_actuation(I_qa);
 
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
-q0 = rand(36,1); % Startwerte für numerische IK
+q0 = rand(30,1); % Startwerte für numerische IK
 q0(I_qa) = 0; % mit Schubaktor bei Null anfangen (damit Konfiguration nicht umklappt)
 
 % Inverse Kinematik auf zwei Arten berechnen
-[q, Phi] = RP.invkin2(X, q0);
+[~, Phi] = RP.invkin2(X, q0);
 if any(abs(Phi) > 1e-8)
   error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
 end
 
-%[qs, Phis] = RP.invkin_ser(X, rand(36,1));
-%q=qs;
-%if any(abs(Phis) > 1e-6)
-%  error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
-%end
+[qs, Phis] = RP.invkin_ser(X, rand(30,1));
+q=qs;
+if any(abs(Phis) > 1e-6)
+  error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
+end
 
 %% Zwangsbedingungen in Startpose testen
 Phi1=RP.constr2(q, X);
@@ -87,6 +87,12 @@ if any(abs(Phi1) > 1e-6)
   error('ZB in Startpose ungleich Null');
 end
 
+%Phi3=RP.constr3(q, X);
+%Phit3=RP.constr3_trans(q, X);
+%Phir3=RP.constr3_rot(q, X);
+%if any(abs(Phi3) > 1e-6)
+%  error('ZB in Startpose ungleich Null');
+%end
 %% Roboter in Startpose plotten
 figure(1);clf;
 hold on;grid on;
@@ -136,8 +142,8 @@ XL = [X'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
 XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(XL, 1, 0.1, 0.01, 1e-3, 1e-1);
 % Inverse Kinematik berechnen
-Phi_t = NaN(length(t), 36);
-Q_t = NaN(length(t), 36);
+Phi_t = NaN(length(t), 30);
+Q_t = NaN(length(t), 30);
 q0 = q; % Lösung der IK von oben als Startwert
 t0 = tic();t1=t0;
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
@@ -158,29 +164,13 @@ for i = 1:length(t)
     q0k = q0;
   end
   % IK berechnen
-  
-  % ohne Aufgabenredundanz
   [q1, Phi_num1] = RP.invkin2(xE_soll, q0k, s);
   if any(abs(Phi_num1) > 1e-2)
     warning('IK konvergiert nicht');
   end
-  %Phi = RP.constr2(q1, xE_soll);
-  %xE_ist(1:3) = r_0_0_E_q([1 2 3]);
-  %xE_ist(4:6) = r2eul(R_0_E_q, RP.phiconv_W_E);
-  
-  %mit Aufgabenredundanz
-  %[q12, Phi_num1] = RP.invkin2(xE_soll, q0k, s);
-  %if any(abs(Phi_num1) > 1e-2)
-  %  warning('IK konvergiert nicht');
-  %end
-  %Phi = RP.constr2(q12, xE_soll);
-  %xE_ist(1:3) = r_0_0_E_q([1 2 3]);
-  %xE_ist(4:6) = r2eul(R_0_E_q, RP.phiconv_W_E);
-  
-  
+
   % Ergebnisse speichern
   Q_t(i,:) = q1;
-  % Q_t2(i,:) = q12;
   Phi_t(i,:) = Phi_num1;
   % Ausgabe der Rechenzeit
   if toc(t1) > 10
@@ -216,20 +206,20 @@ plot(t, Q_t);
 grid on;
 ylabel('Q');
 subplot(3,2,sprc2no(3,2,2,2)); hold on;
-plot(t, Phi_t(:,sort([1:6:36, 2:6:36, 3:6:36])));
+plot(t, Phi_t(:,sort([1:6:30, 2:6:30, 3:6:30])));
 plot(t([1 end]), s.Phit_tol*[1;1], 'r--');
 plot(t([1 end]),-s.Phit_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{trans}');
 subplot(3,2,sprc2no(3,2,3,2)); hold on;
-plot(t, Phi_t(:,sort([4:6:36, 5:6:36, 6:6:36])));
+plot(t, Phi_t(:,sort([4:6:30, 5:6:30, 6:6:30])));
 plot(t([1 end]), s.Phir_tol*[1;1], 'r--');
 plot(t([1 end]),-s.Phir_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{rot}');
 
 %% Animation des bewegten Roboters
-s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
+s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_5UPS.gif'));
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 figure(5);clf;hold all;
 view(3);
@@ -237,5 +227,5 @@ axis auto
 hold on;grid on;
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
-fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
-fprintf('Test für 6UPS beendet\n');
+fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_5UPS.gif'));
+fprintf('Test für 5UPS beendet\n');
