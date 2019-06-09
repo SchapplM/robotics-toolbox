@@ -19,12 +19,12 @@
 
 function [h, hdq] = invkin_optimcrit_limits1(q, qlim)
 
-NJ = length(q);
+NQJ = length(q);
 
 % Mittlere Gelenkposition
 qm = (qlim(:,1) + qlim(:,2)) / 2;
 % Wichtungsmatrix
-W = eye(NJ);
+W = eye(NQJ);
 
 % [1], Gl. (34)
 hdq = (q-qm)' * W;
