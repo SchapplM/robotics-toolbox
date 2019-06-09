@@ -511,7 +511,7 @@ classdef SerRob < matlab.mixin.Copyable
                  'T_N_E', R.T_N_E, ...
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
-                 'wn', 0, ... % Gewichtung der Nebenbedingung
+                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
                  'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
                  'normalize', false, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
