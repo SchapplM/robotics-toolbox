@@ -1,0 +1,16 @@
+rotmat_diff_eulyxy := proc (phi)
+#Berechnung der Ableitung der Rotationsmatrix (gestapelt; 9x1) nach den (intrinsischen) yxy-Euler-Winkeln
+local r_dphi, phi1, phi2, phi3:
+phi1:=phi(1): phi2:=phi(2): phi3:=phi(3):
+r_dphi := Matrix(9, 3, [[-sin(phi1)*cos(phi3)-cos(phi1)*cos(phi2)*sin(phi3),
+sin(phi1)*sin(phi2)*sin(phi3),-cos(phi1)*sin(phi3)-sin(phi1)*cos(phi2)*cos(
+phi3)],[0,cos(phi2)*sin(phi3),sin(phi2)*cos(phi3)],[-cos(phi1)*cos(phi3)+sin(
+phi1)*cos(phi2)*sin(phi3),cos(phi1)*sin(phi2)*sin(phi3),sin(phi1)*sin(phi3)-
+cos(phi1)*cos(phi2)*cos(phi3)],[cos(phi1)*sin(phi2),sin(phi1)*cos(phi2),0],[0,
+-sin(phi2),0],[-sin(phi1)*sin(phi2),cos(phi1)*cos(phi2),0],[-sin(phi1)*sin(
+phi3)+cos(phi1)*cos(phi2)*cos(phi3),-sin(phi1)*sin(phi2)*cos(phi3),cos(phi1)*
+cos(phi3)-sin(phi1)*cos(phi2)*sin(phi3)],[0,-cos(phi2)*cos(phi3),sin(phi2)*sin
+(phi3)],[-cos(phi1)*sin(phi3)-sin(phi1)*cos(phi2)*cos(phi3),-cos(phi1)*sin(
+phi2)*cos(phi3),-sin(phi1)*cos(phi3)-cos(phi1)*cos(phi2)*sin(phi3)]]);
+return r_dphi:
+end proc:
