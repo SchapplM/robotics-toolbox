@@ -58,7 +58,12 @@ Phi_ser = NaN(Rob.I2constr_red(end),1);
 q = q0;
 Tc_Pges = Rob.fkine_platform(xE_soll);
 % IK für alle Beine einzeln berechnen
-for i = 1:Rob.NLEG 
+for i = 1:Rob.NLEG
+  % Überschreibe evtl übergebene I_EE für PKM. Das I_EE hier gilt für die Beinkette
+  % Damit wird der Standardwert gesetzt, der sowieso in SerRob/invkin2
+  % genutzt wird
+  s.I_EE = Rob.Leg(i).I_EE_Task;
+
   q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   % Soll-Lage des KS des Plattform-Koppelpunktes bestimmen.
   % Entspricht dem virtuellen Endeffektor der Beinkette

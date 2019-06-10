@@ -335,7 +335,7 @@ classdef ParRob < matlab.mixin.Copyable
         R.Leg(i).update_mdh(pkin);
       end
     end
-    function update_EE_FG(R, I_EE, I_EE_Task)
+    function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:
       % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert)
@@ -343,15 +343,25 @@ classdef ParRob < matlab.mixin.Copyable
       if nargin < 3
         I_EE_Task = I_EE;
       end
+      if nargin < 4
+        I_EE_Legs = repmat(I_EE_Task, R.NLEG,1);
+      end
       R.I_EE_Task = I_EE_Task;
       
       if all(R.I_EE_Task == logical([1 1 1 1 1 0]))
         % Führungs-Beinkette muss auch die 3T2R-FG haben.
         R.Leg(1).I_EE_Task = R.I_EE_Task;
-      elseif all(R.I_EE_Task == logical([1 1 1 1 1 1]))
-        % 3T3R-Fall: Es ist möglich, dass vorher 3T2R gemacht wurde und die
-        % FG der Beinkette noch falsch gesetzt sind.
-        R.Leg(1).I_EE_Task = R.I_EE_Task;
+        for i = 2:R.NLEG
+          % Andere
+          R.Leg(i).I_EE_Task = logical([1 1 1 1 1 1]);
+        end
+      else%if all(R.I_EE_Task == logical([1 1 1 1 1 1]))
+        for i = 1:R.NLEG
+          % Anderer Fall als 3T2R: Setze die Aufgaben-FG auch für die
+          % Beinketten auf die der PKM.
+          % TODO: Muss für überbestimmte PKM angepasst werden
+          R.Leg(i).I_EE_Task = I_EE_Legs(i,:);
+        end
       end
       
       % Anzahl der kinematischen Zwangsbedingungen der Beinketten
