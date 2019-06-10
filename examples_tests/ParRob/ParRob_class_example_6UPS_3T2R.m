@@ -332,44 +332,62 @@ if max(abs(Phi2_t(:))) > max(s.Phit_tol,s.Phir_tol)
 end
 
 % Berechne Ist-EE-Traj.
-X_ist = NaN(n,6*RP.NLEG);
 i_BiKS = 1+RP.Leg(1).NL+1;
 II_BiKS = i_BiKS:(RP.Leg(1).NL+1):(1+(RP.Leg(1).NL+1)*RP.NLEG);
-for i = 1:n
-  Tc_ges = RP.fkine(Q2_t(i,:)', NaN(6,1));
-  % Schnitt-KS aller Beinketten bestimmen
-  T_Bi = Tc_ges(:,:,II_BiKS);
-  for j = 1:RP.NLEG
-    R_0_Bj = T_Bi(1:3,1:3,j);
-    r_0_0_Bj = T_Bi(1:3,4,j);
-    r_P_P_Bj = RP.r_P_B_all(:,j);
-    r_0_Bj_P = -R_0_Bj*r_P_P_Bj;
-    r_0_Ej = r_0_0_Bj + r_0_Bj_P;
-    if j == 1
-      r_0_E_Legs = r_0_Ej;
-    elseif any(abs(r_0_E_Legs-r_0_Ej)>2e-6) % muss größer als IK-Toleranz sein
-      warning('i=%d: EE aus Beinkette %d stimmt nicht mit Beinkette 1 überein', i, j);
-    end
-    T_E_Leg_j = rt2tr(R_0_Bj, r_0_Ej);
-    X_ist(i,6*(j-1)+1:6*j) = RP.t2x(T_E_Leg_j);
+for jj = 1:2
+  X_ist = NaN(n,6*RP.NLEG);
+  if jj == 1
+  	Q_t = Q1_t;
+  else
+    Q_t = Q2_t;
   end
-  R_E_Legs = R_0_Bj;
+  for i = 1:n
+    Tc_ges = RP.fkine(Q_t(i,:)', NaN(6,1));
+    % Schnitt-KS aller Beinketten bestimmen
+    T_Bi = Tc_ges(:,:,II_BiKS);
+    for j = 1:RP.NLEG
+      R_0_Bj = T_Bi(1:3,1:3,j);
+      r_0_0_Bj = T_Bi(1:3,4,j);
+      r_P_P_Bj = RP.r_P_B_all(:,j);
+      r_0_Bj_P = -R_0_Bj*r_P_P_Bj;
+      r_0_Ej = r_0_0_Bj + r_0_Bj_P;
+      if j == 1
+        r_0_E_Legs = r_0_Ej;
+      elseif any(abs(r_0_E_Legs-r_0_Ej)>2e-6) % muss größer als IK-Toleranz sein
+        warning('i=%d: EE aus Beinkette %d stimmt nicht mit Beinkette 1 überein', i, j);
+      end
+      T_E_Leg_j = rt2tr(R_0_Bj, r_0_Ej);
+      X_ist(i,6*(j-1)+1:6*j) = RP.t2x(T_E_Leg_j);
+    end
+    R_E_Legs = R_0_Bj;
+  end
+  if jj == 1
+    X1_ist = X_ist;
+  else
+    X2_ist = X_ist;
+  end
 end
-
-H1_t = NaN(length(t),1+RP.NLEG);
-H2_t = NaN(length(t),1+RP.NLEG);
+H11_t = NaN(length(t),1+RP.NLEG);
+H12_t = NaN(length(t),1+RP.NLEG);
+H21_t = NaN(length(t),1+RP.NLEG);
+H22_t = NaN(length(t),1+RP.NLEG);
 % Gütefunktion nochmal berechnen
 for i = 1:length(t)
-  H1_t(i,1) = invkin_optimcrit_limits2(Q1_t(i,:)', qlim);
-  H2_t(i,1) = invkin_optimcrit_limits2(Q2_t(i,:)', qlim);
+  H11_t(i,1) = invkin_optimcrit_limits1(Q1_t(i,:)', qlim);
+  H12_t(i,1) = invkin_optimcrit_limits1(Q2_t(i,:)', qlim);
+  H21_t(i,1) = invkin_optimcrit_limits2(Q1_t(i,:)', qlim);
+  H22_t(i,1) = invkin_optimcrit_limits2(Q2_t(i,:)', qlim);
   for j = 1:6
-    H1_t(i,1+j) = invkin_optimcrit_limits2(Q1_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
-    H2_t(i,1+j) = invkin_optimcrit_limits2(Q2_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H11_t(i,1+j) = invkin_optimcrit_limits1(Q1_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H12_t(i,1+j) = invkin_optimcrit_limits1(Q2_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H21_t(i,1+j) = invkin_optimcrit_limits2(Q1_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H22_t(i,1+j) = invkin_optimcrit_limits2(Q2_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
   end
 end
 % Gelenkkoordinaten normieren
 Q1_t_norm = (Q1_t - repmat(qlim(:,1)',n,1)) ./ repmat(qlim(:,2)'-qlim(:,1)',n,1);
 Q2_t_norm = (Q2_t - repmat(qlim(:,1)',n,1)) ./ repmat(qlim(:,2)'-qlim(:,1)',n,1);
+
 %% Ergebniss speichern
 save(fullfile(respath, 'ParRob_class_example_6UPS_3T2R_results.mat'));
 
@@ -408,35 +426,49 @@ grid on;
 ylabel('\Phi_{rot}');
 
 figure(5);clf;
-subplot(2,1,1); hold on;
-plot(t, H1_t(:,1));
-plot(t, H2_t(:,1));
-title('Optimierungs-Zielfunktion');
-ylabel('Zielfkt');
-subplot(2,1,2); hold on;
-plot(t, log10(H1_t(:,1)));
-plot(t, log10(H2_t(:,1)));
-ylabel('Log.-Zielfkt');
+subplot(2,2,1); hold on;
+plot(t, H11_t(:,1));
+plot(t, H12_t(:,1));
+title('Zielfunktion 1 (nicht opt.)');
+ylabel('Zielfkt 1'); grid on;
+subplot(2,2,3); hold on;
+plot(t, log10(H11_t(:,1)));
+plot(t, log10(H12_t(:,1)));
+ylabel('Log.-Zielfkt 1 (n.o.)'); grid on;
+subplot(2,2,2); hold on;
+plot(t, H21_t(:,1));
+plot(t, H22_t(:,1));
+title('Optimierungs-Zielfunktion 2');
+ylabel('Zielfkt 2'); grid on;
+subplot(2,2,4); hold on;
+plot(t, log10(H21_t(:,1)));
+plot(t, log10(H22_t(:,1)));
+ylabel('Log.-Zielfkt 2'); grid on;
 legend({'seriell', 'parallel'});
 
 
 figure(6);clf;
 for i = 1:6
   subplot(3,2,i); hold on
-  plot(t, X_ist(:,i:6:end));
-  plot(t, X_t(:,i), '--');
+  linhdl1=plot(t, X1_ist(:,i:6:end));
+  set(gca, 'ColorOrderIndex', 1);
+  linhdl2=plot(t, X2_ist(:,i:6:end), ':');
+  linhdl3=plot(t, X_t(:,i), '--');
   ylabel(sprintf('x %d', i));
   grid on
+  if i == 5
+    legend([linhdl1(1), linhdl2(1), linhdl3(1)], {'Seriell-IK', 'Parallel-IK', 'Soll 3T3R'});
+  end
 end
 linkxaxes
 
 % Bild für einzelne Beine
 for jj = 1:2
   if jj == 1
-    Q_t = Q1_t; Q_t_norm = Q1_t_norm; H_t = H1_t; Phi_t = Phi1_t;
+    Q_t = Q1_t; Q_t_norm = Q1_t_norm; H_t = H11_t; Phi_t = Phi1_t;
     Name = 'Seriell';
   else
-    Q_t = Q2_t; Q_t_norm = Q2_t_norm; H_t = H2_t; Phi_t = Phi2_t;
+    Q_t = Q2_t; Q_t_norm = Q2_t_norm; H_t = H12_t; Phi_t = Phi2_t;
     Name = 'Parallel';
   end
   figure(6+jj);clf;
