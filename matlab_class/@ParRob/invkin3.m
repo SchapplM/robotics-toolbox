@@ -23,7 +23,7 @@
 %   Kinematische Zwangsbedingungen für die Lösung. Bei korrekter Berechnung
 %   muss dieser Wert Null sein.
 
-% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [q, Phi] = invkin3(Rob, xE_soll, q0, s)
@@ -77,9 +77,6 @@ Phir_tol = s.Phir_tol;
 retry_limit = s.retry_limit;
 maxrelstep = s.maxrelstep;
 maxstep_ns = s.maxstep_ns;
-nPhit = 3;
-nPhir = 3;
-nPhi = nPhit + nPhir;
 success = false;
 
 if any(wn ~= 0)
@@ -107,38 +104,7 @@ else
   qmax =  Inf(Rob.NJ,1);
 end
 delta_qlim = qmax - qmin;
-%% Auswahl der Zwangsbedingungen festlegen
-% % TODO: Das wird von der Roboterklasse vorgegeben
-% if ~all(s.I_EE == logical([1 1 1 1 1 0]))
-%   % 
-%   I_constr_t_red = Rob.I_constr_t_red;
-%   I_constr_r_red = Rob.I_constr_r_red;
-% else
-%   Rob.I_constr_t = zeros(3*Rob.NLEG,1);
-%   Rob.I_constr_r = zeros(3*Rob.NLEG-1,1);
-%   Rob.I_constr_t_red = zeros(nPhit*Rob.NLEG,1);
-%   Rob.I_constr_r_red = zeros(nPhir*Rob.NLEG-1,1);
-%   % Indizes bestimmen
-%   % TODO: Die Klasse darf nicht verändert werden!
-%   for i = 1:Rob.NLEG
-%      if i == 1
-%        Rob.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6+1:(i)*6-3;
-%        Rob.I_constr_r(3*(i-1)+1:3*i-1) = (i-1)*6+1+3:(i)*6-1;
-%        Rob.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
-%        Rob.I_constr_r_red(nPhir*(i-1)+1:nPhir*i-1) = (i-1)*nPhi+1+nPhit:(i)*nPhi-1;        
-%        I_constr_t_red = Rob.I_constr_t_red;
-%        I_constr_r_red = Rob.I_constr_r_red;
-%      elseif i > 1            
-%        Rob.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6:(i)*6-4;
-%        Rob.I_constr_r(3*(i-1):3*i-1) = (i-1)*6+3:(i)*6-1;
-%        Rob.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi:(i)*nPhi-nPhir-1;
-%        Rob.I_constr_r_red(nPhir*(i-1):nPhir*i-1) = (i-1)*nPhi+nPhit:(i)*nPhi-1;
-%        I_constr_t_red = Rob.I_constr_t_red;
-%        I_constr_r_red = Rob.I_constr_r_red;
-%      end
-%   end
-% end
-% I_IK = [I_constr_t_red; I_constr_r_red];
+
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 I_IK = Rob.I_constr_red;
