@@ -524,7 +524,11 @@ classdef SerRob < matlab.mixin.Copyable
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
       if nargin == 4
         for f = fields(s_in)'
-          s.(f{1}) = s_in.(f{1});
+          if ~isfield(s, f{1})
+            % error('Feld %s kann nicht übergeben werden');
+          else
+            s.(f{1}) = s_in.(f{1});
+          end
         end
       end
       % Funktionsaufruf
@@ -575,7 +579,11 @@ classdef SerRob < matlab.mixin.Copyable
                  'retry_limit', 100); % Anzahl der Neuversuche
       if nargin == 7
         for f = fields(s_in)'
-          s.(f{1}) = s_in.(f{1});
+          if ~isfield(s, f{1})
+            warning('Feld %s kann nicht übergeben werden', f{1});
+          else
+            s.(f{1}) = s_in.(f{1});
+          end
         end
       end
       % Funktionsaufruf
