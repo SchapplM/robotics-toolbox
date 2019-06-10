@@ -52,6 +52,7 @@ classdef ParRob < matlab.mixin.Copyable
       I_qd % Zähl-Indizes der abhängigen Gelenke in allen Gelenken
       I_qa % Zähl-Indizes der aktiven Gelenke in allen Gelenken
       I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
+      I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
       phiconv_W_0 % Nummer der Basis-Euler-Winkelkonvention
       phiconv_P_E % Winkelkonvention der Euler-Winkel vom Plattform-KS zum EE
       phiconv_W_E % Winkelkonvention zur Darstellung der EE-Orientierung im Welt-KS mit Euler-Winkeln
@@ -74,6 +75,7 @@ classdef ParRob < matlab.mixin.Copyable
       I2constr_red   % End-Indizes der Beinketten in allen reduzierten Zwangsbedingungen
       I_constr_t % Indizes der translatorischen Zwangsbedingungen in allen ZB
       I_constr_r % Indizes der rotatorischen ZB in allen ZB
+      I_constr_red % Indizes der reduzierten ZB in allen ZB
       I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
       I_constr_r_red % ...                       (rotatorisch)
   end
@@ -333,11 +335,24 @@ classdef ParRob < matlab.mixin.Copyable
         R.Leg(i).update_mdh(pkin);
       end
     end
-    function update_EE_FG(R, I_EE)
+    function update_EE_FG(R, I_EE, I_EE_Task)
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:
       % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert)
       R.I_EE = I_EE;
+      if nargin < 3
+        I_EE_Task = I_EE;
+      end
+      R.I_EE_Task = I_EE_Task;
+      
+      if all(R.I_EE_Task == logical([1 1 1 1 1 0]))
+        % Führungs-Beinkette muss auch die 3T2R-FG haben.
+        R.Leg(1).I_EE_Task = R.I_EE_Task;
+      elseif all(R.I_EE_Task == logical([1 1 1 1 1 1]))
+        % 3T3R-Fall: Es ist möglich, dass vorher 3T2R gemacht wurde und die
+        % FG der Beinkette noch falsch gesetzt sind.
+        R.Leg(1).I_EE_Task = R.I_EE_Task;
+      end
       
       % Anzahl der kinematischen Zwangsbedingungen der Beinketten
       % feststellen. Annahme: Beinketten haben selbe FG wie Plattform
@@ -346,6 +361,7 @@ classdef ParRob < matlab.mixin.Copyable
       % Werden benötigt für Ausgabe von constr1
       R.I_constr_t = [];
       R.I_constr_r = [];
+      R.I_constr_red = [];
       R.I_constr_t_red = [];
       R.I_constr_r_red = [];
       
@@ -354,21 +370,48 @@ classdef ParRob < matlab.mixin.Copyable
       R.I1constr_red = [];
       R.I2constr_red = [];
       
+      i_red = 1; % Lauf-Index für I_constr_red (jew. erster Eintrag pro Bein)
+      i_tred = 1; i_rred = 1; % Lauf-Index für I_constr_t_red und I_constr_r_red
+      ii_tred = 1; % Lauf-Index für ersten Eintrag in Gesamt-ZB für aktuelles Bein
       for i = 1:R.NLEG
-        nPhit = sum(R.Leg(i).I_EE(1:3));
-        nPhir = sum(R.Leg(i).I_EE(4:6));
+        % Zähle Zwangsbedingungen für das Bein (werden in I_EE_Task der
+        % Beinkette abgelegt)
+        nPhit = sum(R.Leg(i).I_EE_Task(1:3));
+        nPhir = sum(R.Leg(i).I_EE_Task(4:6));
+        % Sonderfall: 3T2R
+        if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i > 1
+          % Folgekette bei 3T2R muss wieder 3T3R FG haben
+          nPhir = 3;
+        end
         nPhi = nPhit + nPhir;
         
-        R.I1constr(i) = (i-1)*6+1;
+        % Start- und End-Indizes belegen ...
+        R.I1constr(i) = (i-1)*6+1; % ... bezogen auf alle ZB (immer 6)
         R.I2constr(i) = (i)*6;
-        R.I1constr_red(i) = (i-1)*nPhi+1;
-        R.I2constr_red(i) = (i)*nPhi;
-
+        R.I1constr_red(i) = ii_tred; % ... bezogen auf red. ZB (untersch. Zahl)
+        R.I2constr_red(i) = ii_tred+nPhi-1;
+       
         % Indizes bestimmen
         R.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6+1:(i)*6-3;
         R.I_constr_r(3*(i-1)+1:3*i) = (i-1)*6+1+3:(i)*6;
-        R.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
-        R.I_constr_r_red(nPhir*(i-1)+1:nPhir*i) = (i-1)*nPhi+1+nPhit:(i)*nPhi;
+        R.I_constr_t_red(i_tred:i_tred+nPhit-1) = ii_tred:ii_tred+nPhit-1;
+        R.I_constr_r_red(i_rred:i_rred+nPhir-1) = ii_tred+nPhit:ii_tred+nPhi -1;
+
+        % Indizes der reduzierten ZB bestimmen
+        if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
+          % Führungskette für 3T2R anders
+          R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+        else
+          % Folgekette für 3T2R oder beliebige Beinketten
+          R.I_constr_red(i_red:i_red+nPhi-1) = ...
+              [R.I1constr(i)-1+find(R.Leg(i).I_EE_Task(1:3)), ...
+               R.I1constr(i)-1+3+find(R.Leg(i).I_EE_Task(4:6))];
+        end
+        % Lauf-Indizes hochzählen mit der Anzahl ZB für diese Beinkette
+        i_tred = i_tred + nPhit;
+        i_rred = i_rred + nPhir;
+        i_red = i_red + nPhi;
+        ii_tred = ii_tred + nPhi;
       end
     end
     function [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, x)
@@ -477,6 +520,22 @@ classdef ParRob < matlab.mixin.Copyable
       for i = 1:R.NLEG
         R.Leg(i).gravity = R.Leg(i).T_W_0(1:3,1:3)'*g_base;
       end
+    end
+    function x_W_E = t2x(R, T_W_E)
+      % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten
+      % Eingabe:
+      % T_W_E: Transformationsmatrix zwischen Welt- und EE-KS
+      % 
+      % Ausgabe: Vektor aus Position und Euler-Winkeln
+      x_W_E = [T_W_E(1:3,4); r2eul(T_W_E(1:3,1:3), R.phiconv_W_E)];
+    end
+    function T_W_E = x2t(R, x_W_E)
+      % Umwandlung der EE-Lage in eine homogene Transformationsmatrix
+      % Eingabe:
+      % T_W_E: Vektor aus Position und Euler-Winkeln
+      % 
+      % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
+      T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
     end
   end
 end
