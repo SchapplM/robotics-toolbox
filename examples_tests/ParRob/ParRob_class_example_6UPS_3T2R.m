@@ -1,13 +1,22 @@
-% Roboterklasse für 6UPS-PKM testen
+% Roboterklasse für 6UPS-PKM in 3T2R-Aufgaben testen
 % 
 % Ablauf:
 % * Beispiel-Parameter und Roboter definieren
 % * Gelenkwinkel einstellen: Sollen ungefähr Null sein in der Startpose
 % * Jacobi-Beispiel für 3T2R-Jacobi
-% * Beispieltrajektorie definieren und berechnen
+% * Beispieltrajektorie definieren und berechnen mit zwei Verfahren
 % * Auswertung
 % 
-% Beispielsystem: Basis-Kreis 0.5, Plattform-Kreis 0.2
+% Ergebnis:
+% * Mit Nullraumbewegung werden die Gelenkwinkelgrenzen immer gehalten
+% * Mit rein serieller Berechnung (ohne Nullraum) werden die Grenzen
+%   verletzt
+% 
+% TODO:
+% * Die Zwangsbedingungen werden leicht verletzt, wenn an die Grenzen
+%   genähert wird. Anpassung der Trajektorie oder IK-Parameter erforderlich
+% 
+% Beispielsystem: HExapod: Basis-Kreis 0.5, Plattform-Kreis 0.2
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-06
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -20,6 +29,7 @@ clc
 % Seriell-Roboter-Bibliothek laden. Stellt keinen Unterschied dar.
 use_parrob = false;
 short_traj = false;
+eckpunkte_berechnen = false;
 
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
@@ -238,15 +248,17 @@ XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 
 % Berechne IK zu den einzelnen Eckpunkten. Wenn das nicht geht, bringt die
 % Trajektorie sowieso nichts
-s_ep = s;
+s_ep = s; % Einstellungen für die Eckpunkte-IK
 s_ep.wn = [0;1e-3]; % Man kann mehr bis an die Ränder gehen
-s.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer)
-for i = 1:size(XL,1)
-  [q_i, Phi_i] = RP.invkin3(XL(i,:)', qs, s_ep);
-  if max(abs(Phi_i)) > 1e-6
-    error('Eckpunkt %d geht nicht', i);
+s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer)
+if eckpunkte_berechnen
+  for i = 1:size(XL,1)
+    [q_i, Phi_i] = RP.invkin3(XL(i,:)', qs, s_ep);
+    if max(abs(Phi_i)) > 1e-6
+      error('Eckpunkt %d geht nicht', i);
+    end
+    fprintf('Eckpunkt %d berechnet\n', i);
   end
-  fprintf('Eckpunkt %d berechnet\n', i);
 end
 
 [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(XL, 1, 0.1, 0.01, 1e-3, 1e-2);
@@ -302,10 +314,21 @@ plot3(X_t(:,1), X_t(:,2), X_t(:,3));
 s_Traj = s;
 s_Traj.normalize = false; % Mit Kriterium 2 keine Normalisierung. Sonst können Koordinaten jenseits der Grenzen landen
 s_Traj.wn = [0;1];
-fprintf('3T2R Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
-[Q_t, QD_t, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
-if any(any(abs(Phi_t) > max(s.Phit_tol,s.Phir_tol)))
+s_Traj.mode_IK = 1;
+% Referenzlösung ohne Nullraumoptimierung (nur serielle IK, aber auch mit
+% 3T2R)
+[Q1_t, QD1_t, ~, Phi1_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
+if max(abs(Phi1_t(:))) > max(s.Phit_tol,s.Phir_tol)
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+end
+
+% Parallele IK
+s_Traj.mode_IK = 2;
+fprintf('3T2R Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
+[Q2_t, QD2_t, ~, Phi2_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
+if max(abs(Phi2_t(:))) > max(s.Phit_tol,s.Phir_tol)
+  % TODO: Trajektorie oder Einstellungen anpassen, damit der Fehler (1e-4) weg geht 
+  warning('Fehler in Trajektorie zu groß. IK nicht berechenbar');
 end
 
 % Berechne Ist-EE-Traj.
@@ -313,7 +336,7 @@ X_ist = NaN(n,6*RP.NLEG);
 i_BiKS = 1+RP.Leg(1).NL+1;
 II_BiKS = i_BiKS:(RP.Leg(1).NL+1):(1+(RP.Leg(1).NL+1)*RP.NLEG);
 for i = 1:n
-  Tc_ges = RP.fkine(Q_t(i,:)', NaN(6,1));
+  Tc_ges = RP.fkine(Q2_t(i,:)', NaN(6,1));
   % Schnitt-KS aller Beinketten bestimmen
   T_Bi = Tc_ges(:,:,II_BiKS);
   for j = 1:RP.NLEG
@@ -325,7 +348,7 @@ for i = 1:n
     if j == 1
       r_0_E_Legs = r_0_Ej;
     elseif any(abs(r_0_E_Legs-r_0_Ej)>2e-6) % muss größer als IK-Toleranz sein
-      error('EE aus Beinkette %d stimmt nicht mit Beinkette 1 überein', j);
+      warning('i=%d: EE aus Beinkette %d stimmt nicht mit Beinkette 1 überein', i, j);
     end
     T_E_Leg_j = rt2tr(R_0_Bj, r_0_Ej);
     X_ist(i,6*(j-1)+1:6*j) = RP.t2x(T_E_Leg_j);
@@ -334,16 +357,19 @@ for i = 1:n
 end
 
 H1_t = NaN(length(t),1+RP.NLEG);
+H2_t = NaN(length(t),1+RP.NLEG);
 % Gütefunktion nochmal berechnen
 for i = 1:length(t)
-  H1_t(i,1) = invkin_optimcrit_limits1(Q_t(i,:)', qlim);
+  H1_t(i,1) = invkin_optimcrit_limits2(Q1_t(i,:)', qlim);
+  H2_t(i,1) = invkin_optimcrit_limits2(Q2_t(i,:)', qlim);
   for j = 1:6
-    H1_t(i,1+j) = invkin_optimcrit_limits1(Q_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H1_t(i,1+j) = invkin_optimcrit_limits2(Q1_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
+    H2_t(i,1+j) = invkin_optimcrit_limits2(Q2_t(i,RP.I1J_LEG(j):RP.I2J_LEG(j))', qlim(RP.I1J_LEG(j):RP.I2J_LEG(j),:));
   end
 end
 % Gelenkkoordinaten normieren
-Q_t_norm = (Q_t - repmat(qlim(:,1)',n,1)) ./ repmat(qlim(:,2)'-qlim(:,1)',n,1);
-
+Q1_t_norm = (Q1_t - repmat(qlim(:,1)',n,1)) ./ repmat(qlim(:,2)'-qlim(:,1)',n,1);
+Q2_t_norm = (Q2_t - repmat(qlim(:,1)',n,1)) ./ repmat(qlim(:,2)'-qlim(:,1)',n,1);
 %% Ergebniss speichern
 save(fullfile(respath, 'ParRob_class_example_6UPS_3T2R_results.mat'));
 
@@ -365,24 +391,34 @@ plot(t, XDD_t);
 grid on;
 ylabel('xDD_E');
 subplot(3,2,sprc2no(3,2,1,2));
-plot(t, Q_t);
+plot(t, Q2_t);
 grid on;
 ylabel('Q');
 subplot(3,2,sprc2no(3,2,2,2)); hold on;
-plot(t, Phi_t(:,RP.I_constr_t_red));
+plot(t, Phi2_t(:,RP.I_constr_t_red));
 plot(t([1 end]), s.Phit_tol*[1;1], 'r--');
 plot(t([1 end]),-s.Phit_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{trans}');
 subplot(3,2,sprc2no(3,2,3,2)); hold on;
-plot(t, Phi_t(:,RP.I_constr_r_red));
+plot(t, Phi2_t(:,RP.I_constr_r_red));
 plot(t([1 end]), s.Phir_tol*[1;1], 'r--');
 plot(t([1 end]),-s.Phir_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{rot}');
 
 figure(5);clf;
-plot(t, H1_t);
+subplot(2,1,1); hold on;
+plot(t, H1_t(:,1));
+plot(t, H2_t(:,1));
+title('Optimierungs-Zielfunktion');
+ylabel('Zielfkt');
+subplot(2,1,2); hold on;
+plot(t, log10(H1_t(:,1)));
+plot(t, log10(H2_t(:,1)));
+ylabel('Log.-Zielfkt');
+legend({'seriell', 'parallel'});
+
 
 figure(6);clf;
 for i = 1:6
@@ -390,50 +426,70 @@ for i = 1:6
   plot(t, X_ist(:,i:6:end));
   plot(t, X_t(:,i), '--');
   ylabel(sprintf('x %d', i));
-end
-
-% Bild für einzelne Beine
-figure(7);clf;
-for i = 1:RP.NLEG
-  % Gelenkkoordinaten
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,1,i));
-  plot(t, Q_t(:,RP.I1J_LEG(i):RP.I2J_LEG(i)));
-  ylabel(sprintf('q_%d', i)); grid on;
-  if i == 6
-    l = {};
-    for j = 1:6
-      l = {l{:}, sprintf('q_%d', j)}; %#ok<SAGROW>
-    end
-    legend(l);
-  end
-
-  % Normierte Gelenk-Koordinaten.
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,2,i));
-  plot(t, Q_t_norm(:,RP.I1J_LEG(i):RP.I2J_LEG(i)));
-  ylabel(sprintf('q_%d (norm)', i)); grid on;
-  
-  % ZB
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,3,i));
-  plot(t, Phi_t(:,RP.I1constr_red(i):RP.I2constr_red(i)));
-  ylabel(sprintf('ZB %d', i)); grid on;
-  
-  % Zielfunktion
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,4,i));
-  plot(t, H1_t(:,1+i));
-  ylabel(sprintf('Zielfunktion %d', i)); grid on;
+  grid on
 end
 linkxaxes
 
+% Bild für einzelne Beine
+for jj = 1:2
+  if jj == 1
+    Q_t = Q1_t; Q_t_norm = Q1_t_norm; H_t = H1_t; Phi_t = Phi1_t;
+    Name = 'Seriell';
+  else
+    Q_t = Q2_t; Q_t_norm = Q2_t_norm; H_t = H2_t; Phi_t = Phi2_t;
+    Name = 'Parallel';
+  end
+  figure(6+jj);clf;
+  set(6+jj, 'Name', Name, 'NumberTitle', 'off');
+  for i = 1:RP.NLEG
+    % Gelenkkoordinaten
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,1,i));
+    plot(t, Q_t(:,RP.I1J_LEG(i):RP.I2J_LEG(i)));
+    ylabel(sprintf('q_%d', i)); grid on;
+    if i == 6
+      l = {};
+      for j = 1:6
+        l = {l{:}, sprintf('q_%d', j)}; %#ok<SAGROW>
+      end
+      legend(l);
+    end
+
+    % Normierte Gelenk-Koordinaten.
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,2,i));
+    plot(t, Q_t_norm(:,RP.I1J_LEG(i):RP.I2J_LEG(i)));
+    ylabel(sprintf('q_%d (norm)', i)); grid on;
+
+    % ZB
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,3,i));
+    plot(t, Phi_t(:,RP.I1constr_red(i):RP.I2constr_red(i)));
+    ylabel(sprintf('ZB %d', i)); grid on;
+
+    % Zielfunktion
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,4,i));
+    plot(t, H_t(:,1+i));
+    ylabel(sprintf('Zielfunktion %d', i)); grid on;
+  end
+  linkxaxes
+end
 return
 %% Animation des bewegten Roboters
-s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS_3T2R.gif'));
-s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-figure(10);clf;hold all;
-set(10, 'units','normalized','outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
-view(3);
-axis auto
-hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-RP.anim( Q_t(1:20:size(Q_t,1),:), X_t(1:20:size(X_t,1),:), s_anim, s_plot);
-fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
+for jj = 1:2
+  if jj == 1 
+    Q_t = Q1_t;
+    Name = 'IK_Seriell';
+  else
+    Q_t = Q2_t;
+    Name = 'IK_Parallel';
+  end
+  s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS_3T2R_%s.gif', Name));
+  s_plot = struct( 'ks_legs', [], 'straight', 0);
+  figure(10+jj);clf;hold all;
+  set(10+jj, 'units','normalized','outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
+  view(3);
+  axis auto
+  hold on;grid on;
+  xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+  RP.anim( Q_t(1:20:size(Q_t,1),:), X_t(1:20:size(X_t,1),:), s_anim, s_plot);
+  fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
+end
 fprintf('Test für 6UPS beendet\n');

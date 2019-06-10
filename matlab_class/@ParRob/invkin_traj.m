@@ -41,7 +41,9 @@
 
 function [Q, QD, QDD, Phi] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
-s_std = struct('I_EE', Rob.I_EE_Task); % FG für die IK
+s_std = struct( ...
+  'I_EE', Rob.I_EE_Task, ... % FG für die IK
+  'mode_IK', 1);  % 1=Seriell, 2=PKM
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -54,6 +56,7 @@ for f = fields(s_std)'
   end
 end
 dof_3T2R = false;
+mode_IK = s.mode_IK;
 I_EE = Rob.I_EE;
 if all(s.I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
@@ -74,7 +77,7 @@ for k = 1:nt
   xD_k = XD(k,:)';
   xDD_k = XDD(k,:)';
   
-  if dof_3T2R
+  if mode_IK == 2
     % 3T2R-Funktion
     [q_k, Phi_k] = Rob.invkin3(x_k, qk0, s);
   else
@@ -115,5 +118,6 @@ for k = 1:nt
     warning('Phi zu groß');
     break;
   end
-  toc();
+  fprintf('Iteration %d/%d (%1.1f%%). Zeit %1.4f. Geschätzte Restzeit: %1.1fmin\n',...
+    k, nt, 100*k/nt, toc(),(nt-k)*toc()/60);
 end
