@@ -4,6 +4,7 @@
 % Ausgabe:
 % types (Dimension von pkin)
 %   Art der Parameter in pkin. Möglichkeiten:
+%   0 Nicht zuzuordnen / Dummy-Parameter
 %   1 beta
 %   2 b
 %   3 alpha
@@ -40,6 +41,8 @@ pkin5=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test, theta_test*NaN, d_test
 types(isnan(pkin5)) = uint8(5);
 pkin6=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test, theta_test, d_test*NaN, zeros(Rob.NJ,1)); 
 types(isnan(pkin6)) = uint8(6);
+pkin0=mdh2pkin_hdl(beta_test, b_test, alpha_test, a_test, theta_test, d_test, zeros(Rob.NJ,1)); 
+types(isnan(pkin0)) = uint8(0);
 
 if any(isnan(types))
   error('Parameterzuordnung nicht möglich');
