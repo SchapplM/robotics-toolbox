@@ -96,6 +96,24 @@ for f in `find codeexport/r2eul*_matlab.m`; do
   echo "phi = $varname_tmp;" >> $zd
 done
 
+
+# eul_diff_rotmat: Maple-Prozedur generieren
+for f in `find codeexport/eul*_diff_rotmat_maple`; do
+  eulstr=${f:14:3}
+  echo "Erstelle Maple eul_diff_rotmat für $eulstr"
+  # Prozedur erstellen
+  zd="proc_eul${eulstr}_diff_rotmat"
+  echo "eul${eulstr}_diff_rotmat := proc (R)" > $zd
+  echo "#Berechnung der Ableitung der (intrinsischen) $eulstr-Euler-Winkeln nach der Rotationsmatrix (gestapelt; 9x1)" >> $zd
+  echo "#Eingabe: Rotationsmatrix 3x3" >> $zd
+  echo "local GradMat2, r11, r12, r13, r21, r22, r23, r31, r32, r33:" >> $zd
+  echo "r11:=R(1,1):r12:=R(1,2):r13:=R(1,3):r21:=R(2,1):r22:=R(2,2):r23:=R(2,3):r31:=R(3,1):r32:=R(3,2):r33:=R(3,3):" >> $zd
+  cat $f >> $zd
+  echo "return GradMat2:" >> $zd
+  echo "end proc:" >> $zd
+done
+
+
 # eul_diff_rotmat: Matlab-Funktionen generieren
 for f in `find codeexport/eul*_diff_rotmat_matlab.m`; do
   eulstr=${f:14:3}
@@ -130,6 +148,22 @@ for f in `find codeexport/eul*_diff_rotmat_matlab.m`; do
   cat $f >> $zd
   varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
   echo "GradMat = $varname_tmp;" >> $zd
+done
+
+
+# rotmat_diff_eul: Maple-Prozedur generieren
+for f in `find codeexport/rotmat_diff_eul*_maple`; do
+  eulstr=${f:26:3}
+  echo "Erstelle Maple rotmat_diff_eul für $eulstr"
+  # Prozedur erstellen
+  zd="proc_rotmat_diff_eul${eulstr}"
+  echo "rotmat_diff_eul${eulstr} := proc (phi)" > $zd
+  echo "#Berechnung der Ableitung der Rotationsmatrix (gestapelt; 9x1) nach den (intrinsischen) $eulstr-Euler-Winkeln" >> $zd
+  echo "local r_dphi, phi1, phi2, phi3:" >> $zd
+  echo "phi1:=phi(1): phi2:=phi(2): phi3:=phi(3):" >> $zd
+  cat $f >> $zd
+  echo "return r_dphi:" >> $zd
+  echo "end proc:" >> $zd
 done
 
 # rotmat_diff_eul: Matlab-Funktionen generieren
