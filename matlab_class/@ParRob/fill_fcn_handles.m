@@ -13,11 +13,12 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function R = fill_fcn_handles(R, mex, compile_missing)
+function files_missing = fill_fcn_handles(R, mex, compile_missing)
 
 if nargin < 3
   compile_missing = false;
 end
+files_missing = {};
 
 mdlname = R.mdlname;
 % Prüfe, ob Modellname dem Schema aus der PKM-Bibliothek entspricht
@@ -67,6 +68,9 @@ for i = 1:length(R.all_fcn_hdl)
         % Prüfe, ob passende m-Datei verfügbar ist.
         matlabfcn2mex({robfcnbasename});
       end
+    end
+    if isempty(which(robfcnname))
+      files_missing = {files_missing{:}, robfcnname}; %#ok<CCAT>
     end
     % Speichere das Funktions-Handle in der Roboterklasse
     eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
