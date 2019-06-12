@@ -89,9 +89,12 @@ classdef SerRob < matlab.mixin.Copyable
     invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
     invdynfcnhdl4   % ... mit anderen Parametern
     intforcefcnhdl2   % Funktions-Handle für Schnittkräfte durch inverse Dynamik
+    intforcemcnhdl2   % Funktions-Handle für Schnittkmomente durch inverse Dynamik
     invdynregmattrajfcnhdl % Funktions-Handle für Trajektorie von Regressor-Matrizen
     invdyntrajfcnhdl4 % ... für Inverse Dynamik einer Trajektorie von Gelenkvariablen
     invdyntrajfcnhdl6 % ... für Inverse Dynamik aus einer Trajektorie von Regressormatrizen
+    intforcefregfcnhdl % Funktions-Handle für Regressor-M. der Schnittkräfte
+    intforcemregfcnhdl % Funktions-Handle für Regressor-M. der Schnittmomente
     ekinregfcnhdl   % Funktions-Handle für Regressor-Matrix der kinetischen Energie
     epotregfcnhdl   % Funktions-Handle für Regressor-Matrix der potentielle Energie
     gravlregfcnhdl  % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Gravitation
@@ -152,7 +155,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar = struct('mges',   NaN(R.NL,1), ...
                         'rSges',  NaN(R.NL,3), 'Icges', NaN(R.NL,6), ...
                         'mrSges', NaN(R.NL,3), 'Ifges', NaN(R.NL,6), ...
-                        'mpv', [], ...
+                        'mpv', [], 'ipv_floatb', [], ...
                         'mode', 2);
       R.update_dynpar1();
 
@@ -192,7 +195,8 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecfcnhdl2', 'coriolisvecJ_fixb_slag_vp2'}, ...
       {'cormatfcnhdl2', 'coriolismatJ_fixb_slag_vp2'}, ...
       {'invdynfcnhdl2', 'invdynJ_fixb_slag_vp2'}, ...
-      {'intforcefcnhdl2', 'invdyn_floatb_eulxyz_nnew_vp2'}, ...
+      {'intforcefcnhdl2', 'invdynf_fixb_snew_vp2'}, ...
+      {'intforcemcnhdl2', 'invdynm_fixb_snew_vp2'}, ...
       {'ekinfcnhdl4', 'energykin_fixb_mdp_slag_vp'}, ...
       {'epotfcnhdl4', 'energypot_fixb_mdp_slag_vp'}, ...
       {'gravlfcnhdl4', 'gravloadJ_floatb_twist_mdp_slag_vp'}, ...
@@ -200,6 +204,8 @@ classdef SerRob < matlab.mixin.Copyable
       {'corvecfcnhdl4', 'coriolisvecJ_fixb_mdp_slag_vp'}, ...
       {'cormatfcnhdl4', 'coriolismatJ_fixb_mdp_slag_vp'}, ...
       {'invdynfcnhdl4', 'invdynJ_fixb_mdp_slag_vp'}, ...
+      {'intforcefregfcnhdl', 'invdynf_fixb_reg2_snew_vp'}, ...
+      {'intforcemregfcnhdl', 'invdynm_fixb_reg2_snew_vp'}, ...
       {'ekinregfcnhdl', 'energykin_fixb_regmin_slag_vp'}, ...
       {'epotregfcnhdl', 'energypot_fixb_regmin_slag_vp'}, ...
       {'gravlregfcnhdl', 'gravloadJ_regmin_slag_vp'}, ...
@@ -777,8 +783,9 @@ classdef SerRob < matlab.mixin.Copyable
       % RV: Regressormatrizen (als Zeitreihe)
       RV = R.invdynregmattrajfcnhdl(Q, QD, QDD, R.gravity, R.pkin_gen);
     end
-    function W = internforce(R, q, qD, qDD)
-      % Interne Schnittkräfte
+    function [W, W_reg] = internforce(R, q, qD, qDD)
+      % Interne Schnittkräfte resultierend aus internen Kräften
+      % (inverser Dynamik)
       % Eingabe:
       % q: Gelenkkoordinaten
       % qD: Gelenkgeschwindigkeiten
@@ -787,10 +794,45 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % W: Kraft und Moment in allen Gelenken (Zeilen: fx,fy,fz,mx,my,mz;
       %    Spalten: Basis, Robotergelenke)
-      [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(q, qD, qDD, ...
-        zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin_gen, ...
-        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      % W_reg: Regressormatrix (bezogen auf Inertialparameter-Vektor mit Basis)
+      if R.DynPar.mode == 2
+        f_i_i_ges = R.intforcefcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        n_i_i_ges = R.intforcemcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        if nargout == 2
+          f_reg = R.intforcefregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
+          m_reg = R.intforcemregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
+          W_reg = [f_reg; m_reg];
+        end
+      elseif R.DynPar.mode == 4 || R.DynPar.mode == 6
+        error('Methode internforce funktioniert nicht für Minimalparameter-Regressorform');
+      else
+        error('Methode internforce für Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
       W = [f_i_i_ges; n_i_i_ges];
+    end
+    function W_ext = internforce_ext(R, q, F_ext, link_index, r_i_i_C)
+      % Interne Schnittkräfte resultierend aus externen Kräften
+      % Eingabe:
+      % q: Gelenkpositionen
+      % F_ext [6x1]: Externe Kraft und Moment (im Basis-KS)
+      % link_index: Nummer des Robotersegments, an dem die Kraft angreift (0=Basis)
+      % r_i_i_C: Punkt, an dem die Kraft angreift. Im jew. Körper-KS
+      %
+      % Ausgabe:
+      % W_ext: Kraft und Moment in allen Gelenken. Siehe SerRob/internforce()
+      %        (Zeilen: fx,fy,fz,mx,my,mz; Spalten: Basis, Robotergelenke)
+      if R.Type == 1
+        error('Nicht für hybride Systeme definiert');
+      end
+      Tc0 = R.fkine(q);
+      Tc0_stack = NaN(3*R.NL,4);
+      for ii = 1:R.NL
+          Tc0_stack(3*ii-2:3*ii,:) = Tc0(1:3,:,ii);
+      end
+      Jg_C = robot_tree_jacobig_cutforce_m(Tc0_stack, R.MDH.v, uint8(link_index), r_i_i_C);
+      W_ext = reshape(Jg_C' * F_ext, 6, R.NL);
     end
     function W_traj = internforce_traj(R, Q, QD, QDD)
       % Interne Schnittkräfte
@@ -804,9 +846,9 @@ classdef SerRob < matlab.mixin.Copyable
       %         Jede Zeile ein Zeitschritt; erst alle Kräfte, dann alle Momente
       W_traj = NaN(size(Q,1), R.NL*6);
       for i = 1:size(Q,1)
-        [~, ~, ~, f_i_i_ges, n_i_i_ges] = R.intforcefcnhdl2(Q(i,:)', QD(i,:)', QDD(i,:)', ...
-          zeros(3,1), zeros(6,1), [-R.gravity;zeros(3,1)], R.pkin_gen, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+        w_i = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)');
+        f_i_i_ges = w_i(1:3,:);
+        n_i_i_ges = w_i(4:end,:);
         W_traj(i,:) = [f_i_i_ges(:); n_i_i_ges(:)];
       end
     end
@@ -982,6 +1024,16 @@ classdef SerRob < matlab.mixin.Copyable
       end
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
       
+      % Umwandlung in gestapelten Parametervektor. Nehme floatb, da Masse
+      % der Basis zur Berechnung der Schnittkräfte benutzt wird.
+      PV2floatb = NaN(10*R.NL,1);
+      for i = 1:R.NL
+        % different order: Ifges_num_mdh: [XX,YY,ZZ,XY,XZ,YZ], PV2: [XX,XY,XZ,YY,YZ,ZZ]
+        PV2floatb((1:6) +10*(i-1)) = Ifges(i,[1,4,5,2,6,3]);
+        PV2floatb((1:3) +10*(i-1)+6) = mrSges(i,:);
+        PV2floatb(10*i) = mges(i);
+      end
+      
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
       mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
@@ -992,6 +1044,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
+      R.DynPar.ipv_floatb    = PV2floatb;
       R.DynPar.mpv    = mpv;
     end
     function update_dynpar_mpv(R, mpv)
@@ -1009,6 +1062,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.Icges  = NaN*R.DynPar.Icges;
       R.DynPar.mrSges = NaN*R.DynPar.mrSges;
       R.DynPar.Ifges  = NaN*R.DynPar.Ifges;
+      R.DynPar.ipv    = NaN*R.DynPar.Ifges;
       R.DynPar.mpv    = mpv;
     end
     function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)

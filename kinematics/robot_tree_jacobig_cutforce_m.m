@@ -1,49 +1,46 @@
-% Geometrische Jacobi-Matrix für einen beliebigen Roboter in kinematischer
-% Baumstruktur mit einfachen Dreh- oder Schubgelenken mit fester Basis
+% Geometrische Jacobi-Matrix für vollständige Schnittkräfte für einen
+% beliebigen Roboter in kinematischer Baumstruktur
 % Suffix "_m": Modulare Funktion (keine Übergabe von Gelenkwinkeln, sondern
 % von Transformationsmatrizen. Daher für beliebige Roboter verwendbar
 % unabhängig von der Gelenk-Transformations-Notation
 % 
+% Die Matrix kann verwendet werden, um die aus einer externen Kraft
+% resultierenden Schnittkräfte in allen Gelenken des Roboters zu bestimmen
+% 
 % Eingabe:
-% Tc_stack [NJ*3x4]
+% Tc_stack [NL*3x4]
 %   Transformationsmatrizen von der Basis zum jeweiligen Körper-KS
 %   Gestapelte Einträge: Letzte Zeile ([0 0 0 1]) weggelassen
-%   NJ: Anzahl der Gelenke (Annahme: 1DoF Drehgelenke)
-%   (Ohne Eintrag für die Basis selbst)
-% ax_i [NJx3]
-%   Rotationsachsen der Gelenke im Körper-KS des durch das Gelenk
-%   bewegten Körpers
+%   NL: Anzahl der Starrkörper (Mit Eintrag für die Basis selbst)
 % v [NJx1] uint8
 %   Vorgänger-Indizes der Gelenke
-% sigma [NJx1] uint8
-%   Marker für Dreh- und Schubgelenke (0 bzw. 1)
 % link_index [1x1] uint8
 %   Index des Körpers, auf dem der Punkt C liegt. 0=Basis
 % r_i_i_C [3x1]
-%   Punkt C, zu dem die Jacobi-Matrix berechnet wird
+%   Punkt C, zu dem die Jacobi-Matrix berechnet wird (Angriffspunkt der
+%   Kraft)
 % 
 % Ausgabe:
-% Jg [6xNJ]
-%   Geometrische Jacobimatrix
+% Jg [6x(6*NL)]
+%   Geometrische Jacobimatrix für vollständige Schnittkräfte in allen
+%   Körper-KS basierend auf externer Kraft am gegebenen Punkt
+%
+% Quellen:
+% [1] Ortmaier: Robotik I Skript
 
-% Moritz Schappler, schappler@irt.uni-hannover.de, 2017-11
-% (C) Institut für Regelungstechnik, Leibniz Universität Hannover
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Jg_C = robot_tree_jacobig_m(Tc_stack, ax_i, v, sigma, link_index, r_i_i_C)
+function Jg_C = robot_tree_jacobig_cutforce_m(Tc_stack, v, link_index, r_i_i_C)
 
 %% Init
 assert(isa(link_index,'uint8') && all(size(link_index) == [1 1]), ...
   'robot_tree_jacobig_m: link_index has to be [1x1] uint8');
 
-NJ = size(ax_i,1);
+NL = size(Tc_stack,1)/3;
 % Initialisierung. Alle Spalten die nicht gesetzt werden haben keinen
 % Einfluss.
-Jg_C = zeros(6,NJ);
-
-if link_index == 0
-  % Die Gelenkwinkel haben keinen Einfluss auf die Basis
-  return;
-end
+Jg_C = zeros(6,6*NL);
 
 % Variablen initialisieren (zur Kompilierbarkeit in Simulink)
 % Zuordnung mit (:) weiter unten deshalb auch notwendig.
@@ -59,44 +56,44 @@ r_0_i_C = NaN(3,1);
 
 %% Jacobi berechnen
 I = uint8(zeros(3,1)); % Zeilenindex in gestapelten Transformationsmatrizen. ...
-I(:) = (3*link_index-2:3*link_index); % ... Muss als 3x1 initialisiert werden (für Simulink/codegen), damit die Dimension vorher bekannt ist.
+I(:) = (3*(link_index+1)-2:3*(link_index+1)); % ... Muss als 3x1 initialisiert werden (für Simulink/codegen), damit die Dimension vorher bekannt ist.
 R_0_i(1:3,1:3) = Tc_stack(I, 1:3);
 r_0_0_i(:) = Tc_stack(I, 4);
 r_0_i_C(:) = R_0_i * (r_i_i_C);
 
 
 j = link_index; % Die Indizes j und k haben die Basis als 0.
-for tmp = 1:NJ
+for tmp = 1:NL
   % Ortsvektor des aktuellen Gelenkes "j"
   I = uint8(zeros(3,1)); % Zeilenindex in gestapelten Transformationsmatrizen.
-  I(:) = 3*j-2:3*j;
+  I(:) = 3*(j+1)-2:3*(j+1);
   r_0_0_j(:) = Tc_stack(I, 4);
   R_0_j(1:3,1:3) = Tc_stack(I, 1:3);
   
-  % Rotation axis
-  ax_0(:) = R_0_j*ax_i(j,:)';
-
-  
   % Berechne Vektor vom aktuellen Gelenk zum betrachteten Punkt C
   r_0_j_i = -r_0_0_j + r_0_0_i;
-  
   r_0_j_C(:) = r_0_j_i + r_0_i_C;
-  
-  if sigma(j) == 0 % Drehgelenk
-    % Hebelarm vom Gelenk zum Punkt
-    jt = cross(ax_0, r_0_j_C);
-    jr = ax_0;
-  else % Schubgelenk
+
+  % Geometrische Jacobi-Matrix für alle Achsen des Körper-KS bestimmen.
+  % Normalerweise wird eine Schnittmomentkomponente auf ein Drehgelenk
+  % projiziert.
+  for i_xyz = 1:3
+    ax_0(:) = Tc_stack(I,i_xyz); % Koordinatenachse für Projektion
+    
+    % Spalte für Kräfte: Entspricht Schubgelenk, [1], Gl. (4.18)
     jt = ax_0;
     jr = zeros(3,1);
+    Jg_C(:,(j)*6+i_xyz) = [jt; jr];
+    
+    % Spalte für Momente: Entspricht Drehgelenk, [1], Gl. (4.19)
+    jt = cross(ax_0, r_0_j_C); % Hebelarm vom Gelenk zum Punkt
+    jr = ax_0;
+    Jg_C(:,(j)*6+i_xyz+3) = [jt; jr];
   end
-  % Spalte der Jacobi-Matrix eintragen
-  Jg_C(:,j) = [jt; jr];
-  
   % Indizes tauschen: Kinematische Kette weiter Richtung Basis entlanggehen
-  j = v(j); % Index mit Basis als 1
-  if j == 0
-    % An Basis angekommen
+  if j == 0%-1
+    % Nächerst wäre Basis. Ist bereits berechnet.
     return;
   end
+  j = v(j); % Index mit Basis als 1
 end
