@@ -54,9 +54,9 @@ for f = fields(s_std)'
 end
 
 %% Start
-Phi_ser = NaN(Rob.I2constr_red(end),1);
+Phi_ser = NaN(Rob.I2constr_red(end),1);%für red dim(Phi_ser)<dim(q)
 q = q0;
-Tc_Pges = Rob.fkine_platform(xE_soll);
+Tc_Pges = Rob.fkine_platform(xE_soll);% LJN: nur Translation unterschiedlich
 % IK fÃ¼r alle Beine einzeln berechnen
 for i = 1:Rob.NLEG 
   q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
@@ -69,9 +69,16 @@ for i = 1:Rob.NLEG
   % Plattform-Koppel-Koordinatensystems auf Bein-Seite
   xE_soll_i = [T_0i_Bi(1:3,4); r2eul(t2r(T_0i_Bi), Rob.Leg(i).phiconv_W_E)];
   % Inverse Kinematik fÃ¼r die serielle Beinkette berechnen
-  [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+  [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei.
+  % LJN: invkin_eulangresidual.m kann NAN werte ausgeben
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
-  Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
+  Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i; % origin
+%   if size(Phi_i,1)> sum(Rob.I_EE) % LJN: red_Phi nehmen, andere Phi löschen
+%     Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i(Rob.I_EE);% LJN
+%   else
+%     Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
+%   end
+  
 end
 Phi = Rob.constr1(q, xE_soll);
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)

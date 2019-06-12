@@ -354,22 +354,45 @@ classdef ParRob < matlab.mixin.Copyable
       R.I1constr_red = [];
       R.I2constr_red = [];
       
+
+      Index_red = 1;
+      Index_red_t = 1;
+      Index_red_r = 1;
+      
       for i = 1:R.NLEG
         nPhit = sum(R.Leg(i).I_EE(1:3));
         nPhir = sum(R.Leg(i).I_EE(4:6));
-        nPhi = nPhit + nPhir;
-        
+
+        nPhi(i) = nPhit + nPhir;
+
+
+
         R.I1constr(i) = (i-1)*6+1;
         R.I2constr(i) = (i)*6;
-        R.I1constr_red(i) = (i-1)*nPhi+1;
-        R.I2constr_red(i) = (i)*nPhi;
+%         R.I1constr_red(i) = (i-1)*nPhi+1; % origin
+%         R.I2constr_red(i) = (i)*nPhi; % origin
+        R.I1constr_red(i) = Index_red; 
+        R.I2constr_red(i) = Index_red + nPhi(i) - 1;
+        Index_red = Index_red + nPhi(i);
+        
 
         % Indizes bestimmen
         R.I_constr_t(3*(i-1)+1:3*i) = (i-1)*6+1:(i)*6-3;
         R.I_constr_r(3*(i-1)+1:3*i) = (i-1)*6+1+3:(i)*6;
-        R.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
-        R.I_constr_r_red(nPhir*(i-1)+1:nPhir*i) = (i-1)*nPhi+1+nPhit:(i)*nPhi;
+        % TODO: ZB aufsummiert zählen und Indizes richtig eintragen
+        % ii_rot,...
+%         R.I_constr_t_red(nPhit*(i-1)+1:nPhit*i) = (i-1)*nPhi+1:(i)*nPhi-nPhir;
+%         R.I_constr_r_red(nPhir*(i-1)+1:nPhir*i) = (i-1)*nPhi+1+nPhit:(i)*nPhi;
+        
+        R.I_constr_t_red(Index_red_t :(Index_red_t+nPhit-1)) = sum(nPhi)-nPhi(i)+1:sum(nPhi)-nPhir;
+        R.I_constr_r_red(Index_red_r :(Index_red_r+nPhir-1)) = sum(nPhi)-nPhir+1:sum(nPhi);
+        Index_red_t = Index_red_t + nPhit;
+        Index_red_r = Index_red_r + nPhir;
+
+
+
       end
+%       return
     end
     function [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, x)
       % Wandle die PKM-Parameter vom Format der Matlab-Klasse ins

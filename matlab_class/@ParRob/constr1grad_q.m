@@ -35,7 +35,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [Phi_tq_red,Phi_tq]=Rob.constr1grad_tq(q);
-[Phi_rq_red,Phi_rq]=Rob.constr1grad_rq(q, xE);
+[Phi_rq_red,Phi_rq]=Rob.constr1grad_rq(q, xE);% LJN
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art

@@ -34,8 +34,8 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1: xE muss 6x1 sein');
 
 % rotatorischer und translatorischer Teil der ZB
-[Phit_red, Phit] = R.constr1_trans(q, xE);
-[Phir_red, Phir] = R.constr1_rot(q, xE);
+[Phit_red, Phit] = R.constr1_trans(q, xE); % LJN: noch keine Veränderungen für Transl_red 
+[Phir_red, Phir] = R.constr1_rot(q, xE); % LJN
 
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Indizierung auch mit Klassenvariablen I_constr_t, I_constr_r, ...

@@ -104,6 +104,7 @@ for iLeg = 1:NLEG
   
   % Ausgabe mit reduzierter Dimension
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
+%   K2 = K1+sum(Rob.I_EE(4:6))-1;
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1;
   Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.Leg(iLeg).I_EE(4:6),Rob.I_EE(4:6));
 end
