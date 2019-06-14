@@ -48,13 +48,14 @@ s_std = struct( ...
 s = s_std;
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
-% Fehler aufgeworfen werden wg zu vieler Felder.
-for f = fields(s_in)'
-  if isfield(s_std, f{1})
-    s.(f{1}) = s_in.(f{1});
+% Fehler aufgeworfen werden wg zu vieler Felder
+if nargin >= 4
+  for f = fields(s_in)'
+    if isfield(s_std, f{1})
+      s.(f{1}) = s_in.(f{1});
+    end
   end
 end
-
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
   s.reci = true;
 end
