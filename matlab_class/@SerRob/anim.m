@@ -6,6 +6,8 @@
 % s_anim:
 %   Struktur für Einstellungen zur Animation mit Feldern
 %   * gif_name: Pfad zu einer GIF-Datei zum speichern der Animation
+%   * avi_name: Pfad zu einer AVI-Videodatei. Das Video wird mit 30fps
+%     gespeichert mit den Standard-Einstellungen des VideoWriter.
 % s_plot:
 %   Struktur mit Einstellungen zum Plotten in der Animation mit
 %   Feldern wie in SerRob.plot
@@ -24,7 +26,7 @@ if isempty(Q)
 end
 
 %% Initialisierung
-s_std = struct('gif_name', []);
+s_std = struct('gif_name', [], 'avi_name', []);
 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -37,6 +39,7 @@ end
 
 % Prüfe Felder der Einstellungs-Struktur
 if ~isfield(s_anim, 'gif_name'),s_anim.gif_name = s_std.gif_name; end
+if ~isfield(s_anim, 'avi_name'),s_anim.gif_name = s_std.avi_name; end
 
 drawnow;
 pause(1);
@@ -89,6 +92,11 @@ xlim(xminmax);ylim(yminmax);zlim(zminmax);
 % eingezeichnete Trajektorien). Diese sollen bei der Animation erhalten
 % bleiben.
 children_keeplist = get(gca, 'children');
+
+if ~isempty(s_anim.avi_name)
+  v = VideoWriter(s_anim.avi_name, 'Uncompressed AVI');
+  open(v)
+end
 %% Trajektorie durchgehen und Roboter für jeden Zeitpunkt neu zeichnen
 for i=1:size(Q,1)
   % Plot-Elemente des vorherigen Zeitpunktes entfernen, nur zu behaltende
@@ -131,13 +139,18 @@ for i=1:size(Q,1)
       mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
     end
   end
+  if ~isempty(s_anim.avi_name)
+     writeVideo(v,f);
+  end
   if i == 1
     [view1_save,view2_save] = view();
   end
 end
 
-%% Create animated GIF
+%% Create GIF and AVI files
 if ~isempty(s_anim.gif_name)
   imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
 end
- 
+if ~isempty(s_anim.avi_name)
+   close(v);
+end
