@@ -23,7 +23,7 @@
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
-%   3: Dynamik-Parametervektor (ohne Minimierung); nicht implementiert
+%   3: Dynamik-Parametervektor (ohne Minimierung);
 %   4: Dynamik-Minimalparametervektor
 %   6: Dynamik-MPV mit Regressor-Matrix als Eingang
 
@@ -99,13 +99,20 @@ classdef SerRob < matlab.mixin.Copyable
     invdyntrajfcnhdl6 % ... für Inverse Dynamik aus einer Trajektorie von Regressormatrizen
     intforcefregfcnhdl % Funktions-Handle für Regressor-M. der Schnittkräfte
     intforcemregfcnhdl % Funktions-Handle für Regressor-M. der Schnittmomente
-    ekinregfcnhdl   % Funktions-Handle für Regressor-Matrix der kinetischen Energie
-    epotregfcnhdl   % Funktions-Handle für Regressor-Matrix der potentielle Energie
-    gravlregfcnhdl  % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Gravitation
-    inertiaregfcnhdl% Funktions-Handle für Regressor-Matrix der Massenmatrix
-    corvecregfcnhdl % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch Coriolis- und Fliehkräfte
-    cormatregfcnhdl % Funktions-Handle für Regressor-Matrix der Coriolis-Matrix
-    invdynregfcnhdl % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch inverse Dynamik
+    ekinregfcnhdl3     % Funktions-Handle für Inertialparameter-Regressor-Matrix der kinetischen Energie
+    ekinregfcnhdl4     % ... mit anderen Parametern (Minimalparameter)
+    epotregfcnhdl3     % Funktions-Handle für Inertialparameter-Regressor-Matrix der potentielle Energie
+    epotregfcnhdl4     % ... mit anderen Parametern (Minimalparameter)
+    gravlregfcnhdl3    % Funktions-Handle für Inertialparameter-Regressor-Matrix der Gelenkkräfte durch Gravitation
+    gravlregfcnhdl4    % ... mit anderen Parametern (Minimalparameter)
+    inertiaregfcnhdl3  % Funktions-Handle für Inertialparameter-Regressor-Matrix der Massenmatrix
+    inertiaregfcnhdl4  % ... mit anderen Parametern (Minimalparameter)
+    corvecregfcnhdl3   % Funktions-Handle für Inertialparameter-Regressor-Matrix der Gelenkkräfte durch Coriolis- und Fliehkräfte
+    corvecregfcnhdl4   % ... mit anderen Parametern (Minimalparameter)
+    cormatregfcnhdl3   % Funktions-Handle für Inertialparameter-Regressor-Matrix der Coriolis-Matrix
+    cormatregfcnhdl4   % ... mit anderen Parametern (Minimalparameter)
+    invdynregfcnhdl3   % Funktions-Handle für Inertialparameter-Regressor-Matrix der Gelenkkräfte durch inverse Dynamik
+    invdynregfcnhdl4   % ... mit anderen Parametern (Minimalparameter)
     jacobiRfcnhdl   % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
     jacobiRDfcnhdl  % Funktions-Handle für Zeitableitung der RotMat-Jacobi
     jacobigfcnhdl   % Funktions-Handle für geometrische Jacobi-Matrix
@@ -234,13 +241,20 @@ classdef SerRob < matlab.mixin.Copyable
       {'invdynfcnhdl4', 'invdynJ_fixb_mdp_slag_vp'}, ...
       {'intforcefregfcnhdl', 'invdynf_fixb_reg2_snew_vp'}, ...
       {'intforcemregfcnhdl', 'invdynm_fixb_reg2_snew_vp'}, ...
-      {'ekinregfcnhdl', 'energykin_fixb_regmin_slag_vp'}, ...
-      {'epotregfcnhdl', 'energypot_fixb_regmin_slag_vp'}, ...
-      {'gravlregfcnhdl', 'gravloadJ_regmin_slag_vp'}, ...
-      {'inertiaregfcnhdl', 'inertiaJ_regmin_slag_vp'}, ...
-      {'corvecregfcnhdl', 'coriolisvecJ_fixb_regmin_slag_vp'}, ...
-      {'cormatregfcnhdl', 'coriolismatJ_fixb_regmin_slag_vp'}, ...
-      {'invdynregfcnhdl', 'invdynJ_fixb_regmin_slag_vp'}, ...
+      {'ekinregfcnhdl3', 'energykin_fixb_reg2_slag_vp'}, ...
+      {'ekinregfcnhdl4', 'energykin_fixb_regmin_slag_vp'}, ...
+      {'epotregfcnhdl3', 'energypot_fixb_reg2_slag_vp'}, ...
+      {'epotregfcnhdl4', 'energypot_fixb_regmin_slag_vp'}, ...
+      {'gravlregfcnhdl3', 'gravloadJ_reg2_slag_vp'}, ...
+      {'gravlregfcnhdl4', 'gravloadJ_regmin_slag_vp'}, ...
+      {'inertiaregfcnhdl3', 'inertiaJ_reg2_slag_vp'}, ...
+      {'inertiaregfcnhdl4', 'inertiaJ_regmin_slag_vp'}, ...
+      {'corvecregfcnhdl3', 'coriolisvecJ_fixb_reg2_slag_vp'}, ...
+      {'corvecregfcnhdl4', 'coriolisvecJ_fixb_regmin_slag_vp'}, ...
+      {'cormatregfcnhdl3', 'coriolismatJ_fixb_reg2_slag_vp'}, ...
+      {'cormatregfcnhdl4', 'coriolismatJ_fixb_regmin_slag_vp'}, ...
+      {'invdynregfcnhdl3', 'invdynJ_fixb_reg2_slag_vp'}, ...
+      {'invdynregfcnhdl4', 'invdynJ_fixb_regmin_slag_vp'}, ...
       {'invdynregmattrajfcnhdl', 'invdynJ_fixb_regmin_slag_vp_traj'}, ...
       {'invdyntrajfcnhdl4', 'invdynJ_fixb_mdp_slag_vp_traj'}, ...
       {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
@@ -660,10 +674,13 @@ classdef SerRob < matlab.mixin.Copyable
       % Treg: Regressor-Matrix
       if R.DynPar.mode == 2
         T = R.ekinfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 3
+        Treg = R.ekinregfcnhdl3(q, qD, R.pkin_gen);
+        T = Treg * R.DynPar.ipv;
       elseif R.DynPar.mode == 4
-        % TODO: Funktion existiert noch nicht
+        % TODO: Eigene Funktion mit eingesetztem MPV existiert noch nicht
         % T = R.ekinfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
-        Treg = R.ekinregfcnhdl(q, qD, R.pkin_gen);
+        Treg = R.ekinregfcnhdl4(q, qD, R.pkin_gen);        
         T = Treg * R.DynPar.mpv;
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -675,14 +692,27 @@ classdef SerRob < matlab.mixin.Copyable
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
-      % U: Potentielle Energie
+      % Ausgabe:
+      % U: Potentielle Energie (bezogen auf Null-Konfiguration)
       % Ureg: Regressor-Matrix
+      % 
+      % TODO: Bei jeder Methode kommt eine andere Energie raus, da der
+      % Bezug anders ist. Daher jedes mal erneute Berechnung von U0
       if R.DynPar.mode == 2
-        U = R.epotfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
+        Uq = R.epotfcnhdl2(q,   R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
+        U0 = R.epotfcnhdl2(q*0, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
+        U = Uq - U0;
+      elseif R.DynPar.mode == 3
+        Uregq = R.epotregfcnhdl3(q,   R.gravity, R.pkin_gen);
+        Ureg0 = R.epotregfcnhdl3(q*0, R.gravity, R.pkin_gen);
+        Ureg = Uregq-Ureg0;
+        U = Ureg * R.DynPar.ipv;
       elseif R.DynPar.mode == 4
-        % TODO: Funktion existiert noch nicht
+        % TODO: Eigene Funktion mit eingesetztem MPV existiert noch nicht
         % U = R.epotfcnhdl4(q, R.gravity, R.pkin, R.mpv);
-        Ureg = R.epotregfcnhdl(q, R.gravity, R.pkin_gen);
+        Uregq = R.epotregfcnhdl4(q,   R.gravity, R.pkin_gen);
+        Ureg0 = R.epotregfcnhdl4(q*0, R.gravity, R.pkin_gen);
+        Ureg = Uregq-Ureg0;
         U = Ureg*R.DynPar.mpv;
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -698,10 +728,13 @@ classdef SerRob < matlab.mixin.Copyable
       % gqreg: Regressor-Matrix
       if R.DynPar.mode == 2
         gq = R.gravlfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
+      elseif R.DynPar.mode == 3
+        gqreg = R.gravlregfcnhdl3(q, R.gravity, R.pkin_gen);
+        gq = gqreg * R.DynPar.ipv;
       elseif R.DynPar.mode == 4
         gq = R.gravlfcnhdl4(q, R.gravity, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          gqreg = R.gravlregfcnhdl(q, R.gravity, R.pkin_gen);
+          gqreg = R.gravlregfcnhdl4(q, R.gravity, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -717,10 +750,13 @@ classdef SerRob < matlab.mixin.Copyable
       % Mqreg: Regressor-Matrix
       if R.DynPar.mode == 2
         Mq = R.inertiafcnhdl2(q, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 3
+        Mqreg = R.inertiaregfcnhdl3(q, R.pkin_gen);
+        Mq = vec2symmat(Mqreg * R.DynPar.ipv);
       elseif R.DynPar.mode == 4
         Mq = R.inertiafcnhdl4(q, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          Mqreg = R.inertiaregfcnhdl(q, R.pkin_gen);
+          Mqreg = R.inertiaregfcnhdl4(q, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -737,10 +773,13 @@ classdef SerRob < matlab.mixin.Copyable
       % cqreg: Regressor-Matrix
       if R.DynPar.mode == 2
         cq = R.corvecfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 3
+        cqreg = R.corvecregfcnhdl3(q, qD, R.pkin_gen);
+        cq = cqreg * R.DynPar.ipv;
       elseif R.DynPar.mode == 4
         cq = R.corvecfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          cqreg = R.corvecregfcnhdl(q, qD, R.pkin_gen);
+          cqreg = R.corvecregfcnhdl4(q, qD, R.pkin_gen);
         end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -757,10 +796,13 @@ classdef SerRob < matlab.mixin.Copyable
       % Cqreg: Regressor-Matrix
       if R.DynPar.mode == 2
         Cq = R.cormatfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 3
+        Cqreg = R.cormatregfcnhdl3(q, qD, R.pkin_gen);
+        Cq = reshape(Cqreg*R.DynPar.ipv, R.NQJ, R.NQJ)';
       elseif R.DynPar.mode == 4
         % TODO: Funktion existiert noch nicht
         % Cq = R.cormatfcnhdl4(q, qD, R.pkin_gen, R.DynPar.mpv);
-        Cqreg = R.cormatregfcnhdl(q, qD, R.pkin_gen);
+        Cqreg = R.cormatregfcnhdl4(q, qD, R.pkin_gen);
         Cq = reshape(Cqreg*R.DynPar.mpv, R.NQJ, R.NQJ)';
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -778,10 +820,13 @@ classdef SerRob < matlab.mixin.Copyable
       % tauqreg: Regressor-Matrix
       if R.DynPar.mode == 2
         tauq = R.invdynfcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      elseif R.DynPar.mode == 3
+        tauqreg = R.invdynregfcnhdl3(q, qD, qDD, R.gravity, R.pkin_gen);
+        tauq = tauqreg*R.DynPar.ipv;
       elseif R.DynPar.mode == 4
         tauq = R.invdynfcnhdl4(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mpv);
         if nargout == 2
-          tauqreg = R.invdynregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
+          tauqreg = R.invdynregfcnhdl4(q, qD, qDD, R.gravity, R.pkin_gen);
         end
       else
         error('Methode invdyn für Modus %d noch nicht implementiert', R.DynPar.mode);
@@ -1104,9 +1149,11 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
       R.DynPar.ipv_floatb    = PV2floatb;
+      R.DynPar.ipv    = PV2floatb(11:end);
       R.DynPar.mpv    = mpv;
     end
-    function update_dynpar2(R, mges, mrSges, Ifges)
+
+function update_dynpar2(R, mges, mrSges, Ifges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
       % Eingabe:
@@ -1155,6 +1202,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.ipv_floatb = PV2floatb;
       R.DynPar.mpv    = mpv;
     end
+
     function update_dynpar_mpv(R, mpv)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenem Minimalparameter-Vektor

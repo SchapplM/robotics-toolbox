@@ -31,7 +31,7 @@ TSS = RS.gen_testsettings(true, false);
 RS.update_base([0.5; 0.5; 0]); % Basis-Transformation (zur freien Positionierung des Roboters)
 RS.I_EE = logical([1 1 1 0 0 1]); % nur 4FG in InvKin betrachten
 %% Alle Funktionen einmal aufrufen
-q0 = RS.qref;
+q0 = rand(4,1);
 
 qD0 = TSS.QD(10,:)';
 qDD0 = TSS.QDD(10,:)';
@@ -49,23 +49,33 @@ RS.jtraf(q0);
 
 % Rufe Dynamik-Funktionen mit Inertialparametern als Eingang auf
 RS.DynPar.mode = 2;
-RS.ekin(q0,qD0);
-RS.epot(q0);
-RS.gravload(q0);
-RS.inertia(q0);
-RS.corvec(q0,qD0);
-RS.cormat(q0,qD0);
-RS.invdyn(q0,qD0,qDD0);
+T2 = RS.ekin(q0,qD0);
+U2 = RS.epot(q0);
+g2 = RS.gravload(q0);
+M2 = RS.inertia(q0);
+c2 = RS.corvec(q0,qD0);
+C2 = RS.cormat(q0,qD0);
+t2 = RS.invdyn(q0,qD0,qDD0);
+
+% Rufe Dynamik-Funktionen mit Inertialparametervektor als Eingang auf
+RS.DynPar.mode = 3;
+[T3,Treg]=RS.ekin(q0,qD0);
+[U3,Ureg3]=RS.epot(q0);
+[g3,greg3]=RS.gravload(q0);
+[M3,Mreg3]=RS.inertia(q0);
+[c3,creg3]=RS.corvec(q0,qD0);
+[C3,Creg3]=RS.cormat(q0,qD0);
+[t3,treg3]=RS.invdyn(q0,qD0,qDD0);
 
 % Rufe Dynamik-Funktionen mit Minimalparametervektor als Eingang auf
 RS.DynPar.mode = 4;
-[T,Treg]=RS.ekin(q0,qD0); %#ok<ASGLU>
-[U,Ureg]=RS.epot(q0);
-[g,greg]=RS.gravload(q0);
-[M,Mreg]=RS.inertia(q0);
-[c,creg]=RS.corvec(q0,qD0);
-[C,Creg]=RS.cormat(q0,qD0);
-[t,treg]=RS.invdyn(q0,qD0,qDD0);
+[T4,Treg4]=RS.ekin(q0,qD0);
+[U4,Ureg4]=RS.epot(q0);
+[g4,greg4]=RS.gravload(q0);
+[M4,Mreg4]=RS.inertia(q0);
+[c4,creg4]=RS.corvec(q0,qD0);
+[C4,Creg4]=RS.cormat(q0,qD0);
+[t4,treg4]=RS.invdyn(q0,qD0,qDD0);
 
 % Rufe IK-Funktionen auf
 RS.constr1(q0, xE);
@@ -77,6 +87,7 @@ RS.invkin(xE, q0+0.1*ones(RS.NJ,1), struct('constr_m', 1)); % IK mit Methode 1 t
 % Funktionen kompilieren
 RS.fill_fcn_handles(false);
 RS.mex_dep();
+
 %% Gelenkwinkel-Trajektorie berechnen
 % Für jedes Gelenk 
 k=1; QE = RS.qref';
