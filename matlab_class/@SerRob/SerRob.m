@@ -147,7 +147,15 @@ classdef SerRob < matlab.mixin.Copyable
         R.Type = 1; % hybride Struktur
       end
 
-      R.MDH = Par_struct; % TODO: Nur gewünschte Felder
+      R.MDH = Par_struct;
+      % Fehlende Felder mit Standard-Werten beschreiben
+      Par_struct_default = struct('beta', zeros(R.NJ,1), 'b', zeros(R.NJ,1), ...
+        'mu', ones(R.NJ,1), 'offset', zeros(R.NJ,1));
+      for f = fields(Par_struct_default)'
+        if ~isfield(Par_struct, f{1})
+          R.MDH.(f{1}) = Par_struct_default.(f{1});
+        end
+      end
       R.pkin = Par_struct.pkin;
       if isempty(R.pkin)
         R.update_pkin();
