@@ -50,7 +50,9 @@ RP = RP.create_symmetric_robot(3, RS, 0.2, 0.15);
 RP = RP.initialize();
 
 X0 = [0.1;0.05;-0.7; pi; 0; 0];
-RP.update_EE_FG(I_EE);
+% EE-FG setzen: Technische EE-FG der PKM, Aufgaben-EE-FG, FG aller
+% Beinketten (muss nochmal gesetzt werden)
+RP.update_EE_FG(I_EE, I_EE, repmat(logical(I_EE_Leg),3,1));
 
 % Basis-Orientierung der Beinketten nachbearbeiten: So, dass die
 % Basis-Koppelgelenke tangential auf Kreis liegen

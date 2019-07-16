@@ -532,7 +532,10 @@ classdef SerRob < matlab.mixin.Copyable
                  'T_N_E', R.T_N_E, ...
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
-                 'wn', 0, ... % Gewichtung der Nebenbedingung
+                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+                 'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
+                 'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
+                 'normalize', true, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
                  'n_max', 1000, ... % Maximale Anzahl Iterationen
                  'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
@@ -543,7 +546,11 @@ classdef SerRob < matlab.mixin.Copyable
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
       if nargin == 4
         for f = fields(s_in)'
-          s.(f{1}) = s_in.(f{1});
+          if ~isfield(s, f{1})
+            % error('Feld %s kann nicht übergeben werden');
+          else
+            s.(f{1}) = s_in.(f{1});
+          end
         end
       end
       % Funktionsaufruf
@@ -584,7 +591,10 @@ classdef SerRob < matlab.mixin.Copyable
                  'T_N_E', R.T_N_E, ...
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
-                 'wn', 0, ... % Gewichtung der Nebenbedingung
+                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+                 'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
+                 'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
+                 'normalize', true, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
                  'n_max', 1000, ... % Maximale Anzahl Iterationen
                  'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
@@ -592,7 +602,11 @@ classdef SerRob < matlab.mixin.Copyable
                  'retry_limit', 100); % Anzahl der Neuversuche
       if nargin == 7
         for f = fields(s_in)'
-          s.(f{1}) = s_in.(f{1});
+          if ~isfield(s, f{1})
+            warning('Feld %s kann nicht übergeben werden', f{1});
+          else
+            s.(f{1}) = s_in.(f{1});
+          end
         end
       end
       % Funktionsaufruf

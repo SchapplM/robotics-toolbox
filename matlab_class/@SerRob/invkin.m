@@ -46,6 +46,8 @@ s_std = struct( ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+             'scale_lim', 0, ... % Herunterskalierung bei Grenzüberschreitung
+             'normalize', false, ... % Normalisieren auf +/- 180°
              'constr_m', 2, ... % Nr. der Methode für die Zwangsbedingungen
              'retry_limit', 100); % Anzahl der Neuversuche
 if nargin < 4
@@ -71,11 +73,11 @@ constr_m = s.constr_m;
 Phit_tol = s.Phit_tol;
 Phir_tol = s.Phir_tol;
 retry_limit = s.retry_limit;
-
 qmin = Rob.qlim(:,1);
 qmax = Rob.qlim(:,2);
+scale_lim = s.scale_lim;
 
-if wn ~= 0
+if any(wn ~= 0)
   nsoptim = true;
 else
   % Keine zusätzlichen Optimierungskriterien
@@ -138,6 +140,10 @@ for rr = 1:retry_limit
         % [1], Gl. (25)
         v = v - hdq';
       end
+      if wn(2) ~= 0
+        [~, hdq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
+        v = v - hdq';
+      end
       % [1], Gl. (24)
       delta_q_N = (eye(Rob.NQJ) - pinv(Jdk)* Jdk) * v;
     end
@@ -145,13 +151,32 @@ for rr = 1:retry_limit
     % [1], Gl. (23)
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     q2 = q1 + delta_q;
+    
+    % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
+    % die Schrittweite, falls das der Fall ist
+    delta_ul_rel = (qmax - q2)./(qmax-q1);
+    delta_ll_rel = (-qmin + q2)./(q1-qmin);
+    if scale_lim && any([delta_ul_rel;delta_ll_rel] < 0)
+      % Berechne die prozentual stärkste Überschreitung
+      % und nutze diese als Skalierung für die Winkeländerung
+      if min(delta_ul_rel)<min(delta_ll_rel)
+        % Verletzung nach oben ist die größere
+        [~,I_max] = min(delta_ul_rel);
+        scale = (qmax(I_max)-q1(I_max))./(delta_q(I_max));
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_min] = min(delta_ll_rel);
+        scale = (qmax(I_min)-q1(I_min))./(delta_q(I_min));
+      end
+      q2 = q1 + scale_lim*scale*delta_q;
+    end
 
     if any(isnan(q2)) || any(isinf(q2))
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
     q1 = q2;
-    q1(sigmaJ==0) = normalize_angle(q1(sigmaJ==0)); % nur Winkel normalisieren
+    
 
     if jj > n_min ... % Mindestzahl Iterationen erfüllt
         && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
@@ -169,5 +194,9 @@ for rr = 1:retry_limit
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
   q0 = qmin + rand(Rob.NQJ,1).*(qmax-qmin);
+end
+
+if s.normalize
+  q1(sigmaJ==0) = normalize_angle(q1(sigmaJ==0)); % nur Winkel normalisieren
 end
 q = q1;

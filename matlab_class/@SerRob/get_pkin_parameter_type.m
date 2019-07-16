@@ -4,6 +4,7 @@
 % Ausgabe:
 % types (Dimension von pkin)
 %   Art der Parameter in pkin. Möglichkeiten:
+%   0 Nicht zuzuordnen / Dummy-Parameter
 %   1 beta
 %   2 b
 %   3 alpha
@@ -41,11 +42,7 @@ else
 end
 
 % Erkenne Pameter-Typ durch Ort der NaN in der Matrix
-types = NaN(size(pkin_var,2),1);
+types = zeros(size(pkin_var,2),1);
 for i = 1:6
   types(isnan(pkin_var(i,:))) = uint8(i);
-end
-
-if any(isnan(types))
-  error('Parameterzuordnung nicht möglich.');
 end
