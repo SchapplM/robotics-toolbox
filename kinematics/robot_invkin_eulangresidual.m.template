@@ -120,8 +120,8 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % [1], Gl. (25)
         v = v - hdq';
       end
-      % [1], Gl. (24)
-      delta_q_N = (eye(s.NQJ) - pinv(Jdk)* Jdk) * v;
+      % [1], Gl. (24); Zuweisung mit Doppelpunkt für Code-Generierung
+      delta_q_N(:) = (eye(s.NQJ) - pinv(Jdk)* Jdk) * v;
     end
 
     % [1], Gl. (23)
@@ -149,7 +149,7 @@ for rr = 1:retry_limit % Schleife über Neu-Anfänge der Berechnung
     break;
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
-  q0 = qmin + rand(s.NQJ,1).*(qmax-qmin);
+  q0(:) = qmin + rand(s.NQJ,1).*(qmax-qmin); % Zuweisung mit ":" für codegen
 end
 q = q1;
 
