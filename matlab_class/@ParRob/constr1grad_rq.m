@@ -117,13 +117,8 @@ for iLeg = 1:NLEG
   J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
   
-%   K1 = 1+sum(Rob.Leg(iLeg).I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
-%   K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1; % drei rotatorische Einträge
-%   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1); % LJN
-%   K2 = K1+sum(Rob.I_EE(4:6))-1; % LJN
   K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1;
-  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.Leg(iLeg).I_EE(4:6),:);%origin
-%   Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:);%LJN
+  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.Leg(iLeg).I_EE(4:6),:);
   K1 = K2+1;
-  
 end
+
