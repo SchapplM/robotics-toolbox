@@ -64,12 +64,14 @@ end
 % noch ein zusätzlicher Hebelarm den Fehler verstärkt
 s.Phit_tol = s.Phit_tol/2;
 s.Phir_tol = s.Phir_tol/2;
-%% Start
+%% Berechnung der Beinketten-IK
+% Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
 q = q0;
 % Tc_Pges = Rob.fkine_platform(xE_soll);
 r_P_P_B_ges = Rob.r_P_B_all;
-r_P_P_E = Rob.T_P_E(1:3,4);
+T_P_E = Rob.T_P_E;
+r_P_P_E = T_P_E(1:3,4);
 T_0_E = Rob.x2t(xE_soll);
 % IK für alle Beine einzeln berechnen
 for i = 1:Rob.NLEG
@@ -84,10 +86,10 @@ for i = 1:Rob.NLEG
 
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
   % Dafür wird die IK berechnet und dieser Wert wird übergeben
-  r_P_Bi_E = -r_P_P_B_ges(:,i) + r_P_P_E; % Vektor von Koppelpunkt zum Endeffektor
+  r_P_Bi_P = -r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
   T_0i_E = invtr(T_0_0i) * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
-  s.T_N_E = Rob.Leg(i).T_N_E * transl(r_P_Bi_E); % Anpassung der EE-Transformation für IK
+  s.T_N_E = Rob.Leg(i).T_N_E * transl(r_P_Bi_P) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
   % Inverse Kinematik für die serielle Beinkette berechnen
   [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
@@ -97,13 +99,14 @@ for i = 1:Rob.NLEG
     % anderen Beinketten vor.
     [~,T_0_Bi] = Rob.Leg(i).fkineEE(q_i);
     % Aktualisiere die EE-Transformation auf die resultierend aus Bein 1
-    T_0_E = T_0_Bi * transl(r_P_Bi_E);
+    T_0_E = T_0_Bi * transl(r_P_Bi_P + r_P_P_E);
   end
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
 end
-% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
+
+%% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
   Phi_voll = Rob.constr3(q, xE_soll);
   Phi = Phi_voll(Rob.I_constr_red);

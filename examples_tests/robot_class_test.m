@@ -23,5 +23,6 @@ SerRob_class_example_Industrieroboter
 ParRob_class_example_3RPR
 ParRob_class_example_3RRR
 ParRob_class_example_6UPS
+ParRob_class_example_6UPS_3T2R
 ParRob_class_example_Delta
 ParRob_constraints_test

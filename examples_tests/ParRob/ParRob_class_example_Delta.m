@@ -88,11 +88,11 @@ RP.constr1grad_x(q0, X0)
 % rotatorischer FG im nächsten Abschnitt auch sehr genau ist.
 [q, Phi_test1] = RP.invkin_ser(X0, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
 % Orientierung korrekt einstellen
-[q_test, Phi_test2] = RP.invkin(X0, q0);
+[q_test, Phi_test2] = RP.invkin1(X0, q0);
 
 Phi1=RP.constr1(q, X0);
 if any(abs(Phi1) > 1e-6) || any(isnan(Phi1))
-  warning('ZB in Startpose ungleich Null');
+  error('ZB in Startpose ungleich Null');
   q = q0;
 end
 
@@ -173,7 +173,7 @@ RP.plot( q, X0, s_plot );
 plot3(X(:,1), X(:,2), X(:,3), 'r--');
 
 %% Gelenkkräfte und inverse Kinematik berechnen
-iksettings = struct('n_max', 100, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4);
+iksettings = struct('n_max', 100, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4, 'debug', true);
 [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q0,iksettings);
 for i = 1:length(T)
   if max(abs( Phi )) > 1e-4
@@ -217,7 +217,7 @@ ylabel('\Phi_{rot}');
 
 %% Animation
 mkdirs(resdir);
-s_anim = struct( 'gif_name', fullfile(resdir, 'delta_box_traj.gif'));
+s_anim = struct( 'avi_name', fullfile(resdir, 'delta_box_traj.avi'));
 figure(9);clf;
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));

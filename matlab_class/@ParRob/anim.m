@@ -8,6 +8,8 @@
 % s_anim:
 %   Struktur für Einstellungen zur Animation mit Feldern
 %   * gif_name: Pfad zu einer GIF-Datei (Endung .gif) zum speichern der Animation
+%   * avi_name: Pfad zu einer AVI-Videodatei. Das Video wird mit 30fps
+%     gespeichert mit den Standard-Einstellungen des VideoWriter.
 % s_plot:
 %   Struktur mit Einstellungen zum Plotten in der Animation mit
 %   Feldern wie in SerRob.gif_nameplot
@@ -28,7 +30,7 @@ if isempty(Q)
 end
 
 %% Initialisierung
-s_std = struct('gif_name', []);
+s_std = struct('gif_name', [], 'avi_name', []);
 
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -41,11 +43,12 @@ end
 
 % Prüfe Felder der Einstellungs-Struktur
 if ~isfield(s_anim, 'gif_name'),s_anim.gif_name = s_std.gif_name; end
+if ~isfield(s_anim, 'avi_name'),s_anim.avi_name = s_std.avi_name; end
 
 drawnow;
 pause(1);
 
-%% Beginne Animation
+%% Vorbereitung des Bildes
 % Prüfe Bereich des Plots
 for i=1:size(Q,1)
   [~,Tc_W] = Rob.fkine(Q(i,:)', X(i,:)');
@@ -84,6 +87,12 @@ zminmax(2) = zminmax(2)+0.05*zw;
 
 xlim(xminmax);ylim(yminmax);zlim(zminmax);
 children_keeplist = get(gca, 'children');
+
+if ~isempty(s_anim.avi_name)
+  v = VideoWriter(s_anim.avi_name, 'Uncompressed AVI');
+  open(v)
+end
+%% Trajektorie durchgehen und Roboter für jeden Zeitpunkt neu zeichnen
 for i=1:size(Q,1)
   if i > 1
     for c = get(gca, 'children')'
@@ -109,7 +118,7 @@ for i=1:size(Q,1)
   xlim(xminmax);ylim(yminmax);zlim(zminmax);
   
   grid on;
-  if ~isempty(s_anim.gif_name)
+  if ~isempty(s_anim.gif_name) || ~isempty(s_anim.avi_name)
     f=getframe(gcf);
   end
   % Create a colormap for the first frame. For the rest of the frames,
@@ -123,13 +132,18 @@ for i=1:size(Q,1)
       mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
     end
   end
+  if ~isempty(s_anim.avi_name)
+     writeVideo(v,f);
+  end
   if i == 1
     [view1_save,view2_save] = view();
   end
 end
 
-%% Create animated GIF
+%% Create GIF and AVI files
 if ~isempty(s_anim.gif_name)
   imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
 end
- 
+if ~isempty(s_anim.avi_name)
+   close(v);
+end

@@ -44,7 +44,7 @@ s_std = struct('I_EE', Rob.I_EE, ... % FG für die IK
                'K', K, ... % Verstärkung
                'Kn', 0.4*ones(Rob.NJ,1), ... % Verstärkung
                'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-               'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum
+               'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
                'normalize', true, ...
                'n_min', 0, ... % Minimale Anzahl Iterationen
                'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -52,6 +52,7 @@ s_std = struct('I_EE', Rob.I_EE, ... % FG für die IK
                'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
                'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
                'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
+               'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
                'retry_limit', 100); % Anzahl der Neuversuche
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -76,6 +77,7 @@ Phit_tol = s.Phit_tol;
 Phir_tol = s.Phir_tol;
 retry_limit = s.retry_limit;
 maxrelstep = s.maxrelstep;
+maxrelstep_ns = s.maxrelstep_ns;
 maxstep_ns = s.maxstep_ns;
 success = false;
 
@@ -112,7 +114,6 @@ I_IK = Rob.I_constr_red;
 for rr = 0:retry_limit
   q1 = q0;
   for jj = 2:n_max
-
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     [~,Jik_voll]=Rob.constr3grad_q(q1, xE_soll);
     Jik = Jik_voll(I_IK,:);
@@ -126,19 +127,36 @@ for rr = 0:retry_limit
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && jj < n_max-10 % die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
-        % Berechne Gradienten der zusätzlichen Optimierungskriterien
-        v = zeros(Rob.NJ, 1);
-        if wn(1) ~= 0
-          [h1, hdq] = invkin_optimcrit_limits1(q1, qlim);
-          v = v - wn(1)*hdq'; % [1], Gl. (25)
-        end
-        if wn(2) ~= 0
-          [h2, hdq] = invkin_optimcrit_limits2(q1, qlim);
-          v = v - wn(2)*hdq';
-        end
-        % [1], Gl. (24)
-        delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
-    end  
+      % Berechne Gradienten der zusätzlichen Optimierungskriterien
+      v = zeros(Rob.NJ, 1);
+      if wn(1) ~= 0
+        [h1, hdq] = invkin_optimcrit_limits1(q1, qlim);
+        v = v - wn(1)*hdq'; % [1], Gl. (25)
+      end
+      if wn(2) ~= 0
+        [h2, hdq] = invkin_optimcrit_limits2(q1, qlim);
+        v = v - wn(2)*hdq';
+      end
+      % [1], Gl. (24)
+      delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
+    end
+        
+    % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
+    % Bei nur gemeinsamer Reduzierung kann die Nullraumbewegung zu groß
+    % werden; Dokumentation siehe unten
+    if limits_set && ~isnan(maxrelstep)
+      abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim .* K);
+      if any(abs_delta_q_T_rel > maxrelstep)
+        delta_q_T = delta_q_T .* maxrelstep / max(abs_delta_q_T_rel);
+      end
+    end
+    if limits_set && ~isnan(maxrelstep_ns)
+      abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim .* Kn);
+      if any(abs_delta_q_N_rel > maxrelstep_ns)
+        delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
+      end
+    end
+    
     % Inkrement der Gelenkwinkel
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     
@@ -154,7 +172,7 @@ for rr = 0:retry_limit
       end
     end
     
-    q2 = q1 + K.*delta_q;
+    q2 = q1 + delta_q;
 
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist
@@ -180,17 +198,17 @@ for rr = 0:retry_limit
     end
 
     if any(isnan(q2)) || any(isinf(q2))
-        break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
+      break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
     q1 = q2;
 
     if jj > n_min ... % Mindestzahl Iterationen erfüllt
-        && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
-        ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
-        nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
-       success = true; 
-       break;
+      && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
+      ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
+      nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
+     success = true; 
+     break;
     end
   end
   if success

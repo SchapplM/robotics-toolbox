@@ -39,7 +39,7 @@ end
 
 % Prüfe Felder der Einstellungs-Struktur
 if ~isfield(s_anim, 'gif_name'),s_anim.gif_name = s_std.gif_name; end
-if ~isfield(s_anim, 'avi_name'),s_anim.gif_name = s_std.avi_name; end
+if ~isfield(s_anim, 'avi_name'),s_anim.avi_name = s_std.avi_name; end
 
 drawnow;
 pause(1);

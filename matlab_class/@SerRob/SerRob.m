@@ -517,8 +517,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Einstellungen zusammenstellen:
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
       % Einstellungen für IK
-      K_def = 0.1*ones(R.NQJ,1);
-      K_def(sigmaJ==1) = K_def(sigmaJ==1); % Verstärkung für Schubgelenke kleiner
+      K_def = 0.5*ones(R.NQJ,1);
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
       s = struct('pkin', R.pkin_gen, ...
@@ -533,8 +532,8 @@ classdef SerRob < matlab.mixin.Copyable
                  'K', K_def, ... % Verstärkung
                  'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
                  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-                 'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
-                 'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
+                 'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+                 'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
                  'normalize', true, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
                  'n_max', 1000, ... % Maximale Anzahl Iterationen

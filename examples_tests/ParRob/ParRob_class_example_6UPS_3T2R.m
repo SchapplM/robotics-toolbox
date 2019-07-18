@@ -15,8 +15,10 @@
 % TODO:
 % * Die Zwangsbedingungen werden leicht verletzt, wenn an die Grenzen
 %   genähert wird. Anpassung der Trajektorie oder IK-Parameter erforderlich
+% * Die IK-Berechnung ist aktuell nur ohne Kompilierung möglich, was sehr
+%   lange dauert
 % 
-% Beispielsystem: HExapod: Basis-Kreis 0.5, Plattform-Kreis 0.2
+% Beispielsystem: Hexapod: Basis-Kreis 0.5, Plattform-Kreis 0.2
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-06
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -70,28 +72,40 @@ if use_parrob
   RP = parroblib_create_robot_class('P6RRPRRR14V3A1', 0.5, 0.2);
 end
 
+%% Grenzen für die Gelenkpositionen setzen
+% Dadurch wird die Schrittweite bei der inversen Kinematik begrenzt (auf 5%
+% der Spannbreite der Gelenkgrenzen) und die Konfiguration klappt nicht um.
+for i = 1:RP.NLEG
+  % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
+  RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
+  % Begrenze die Länge der Schubgelenke
+  RP.Leg(i).qlim(3,:) = [0.1, 1.5];
+end
+
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];
 for i = 1:10 % Mehrere Versuche für "gute" Pose
-  % Startwerte gleichmäßig um Null verteilen, für die Winkelnormalisierung
-  q0 = -0.5+rand(36,1); % Startwerte für numerische IK
-  q0(RP.I_qa) = 0.4; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
+  q0 = -0.5+rand(36,1); % Startwerte für numerische IK (zwischen -0.5 und 0.5 rad)
+  q0(RP.I_qa) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
 
   % Inverse Kinematik auf zwei Arten berechnen
-  [~, Phi] = RP.invkin1(X0, q0);
+  [q1, Phi] = RP.invkin1(X0, q0);
   if any(abs(Phi) > 1e-8)
     error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
   end
-  s_init = struct('normalize', true);
-  [qs1, Phis] = RP.invkin_ser(X0, rand(36,1), s_init);
+  if any(q1(RP.I_qa) < 0)
+    warning('Start-Konfiguration ist umgeklappt mit Methode 1.');
+  end
+
+  [qs, Phis] = RP.invkin_ser(X0, rand(36,1));
   if any(abs(Phis) > 1e-6)
     error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
   end
-  % Nehme nur die normale Konfiguration, nicht die umgeklappte
-  if any(qs1(RP.I_qa) < 0)
+  if any(qs(RP.I_qa) < 0)
+    warning('Versuch %d: Start-Konfiguration ist umgeklappt mit Methode Seriell. Erneuter Versuch.', i);
     if i == 10
-      error('Start-Konfiguration ist umgeklappt. Nochmal machen.');
+      return
     else
       continue;
     end
@@ -99,16 +113,16 @@ for i = 1:10 % Mehrere Versuche für "gute" Pose
     break;
   end
 end
+
 %% Wähle willkürlichen Winkel-Offset für Beinketten-Koppel-KS
 % Gelenkkoordinaten sollen möglichst um die Null sein, um die
 % Winkel-Normalisierung zu vereinfachen
 % Benutze die zusätzliche Transformation am Endeffektor der einzelnen
 T_0_E = RP.x2t(X0);
-qs = qs1;
 disp('Gelenkwinkel der Kardangelenke vor Verschiebung der Nullpunkte:');
-disp(qs1([1:6:RP.NJ;2:6:RP.NJ])*180/pi);
+disp(qs([1:6:RP.NJ;2:6:RP.NJ])*180/pi);
 disp('Gelenkwinkel der Kugelgelenke vor Verschiebung der Nullpunkte:');
-disp(qs1([4:6:RP.NJ;5:6:RP.NJ;6:6:RP.NJ])*180/pi);
+disp(qs([4:6:RP.NJ;5:6:RP.NJ;6:6:RP.NJ])*180/pi);
 for i = 1:6
   % Initialisierung (für Mehrfach-Durchführungen)
   RP.Leg(i).update_EE([], zeros(3,1));
@@ -317,6 +331,7 @@ s_Traj.wn = [0;1];
 s_Traj.mode_IK = 1;
 % Referenzlösung ohne Nullraumoptimierung (nur serielle IK, aber auch mit
 % 3T2R)
+fprintf('3T2R Inverse Kinematik (seriell-IK) für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 [Q1_t, QD1_t, ~, Phi1_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
 if max(abs(Phi1_t(:))) > max(s.Phit_tol,s.Phir_tol)
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
@@ -324,7 +339,8 @@ end
 
 % Parallele IK
 s_Traj.mode_IK = 2;
-fprintf('3T2R Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
+s_Traj.debug = true;
+fprintf('3T2R Inverse Kinematik (parallel-IK) für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 [Q2_t, QD2_t, ~, Phi2_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
 if max(abs(Phi2_t(:))) > max(s.Phit_tol,s.Phir_tol)
   % TODO: Trajektorie oder Einstellungen anpassen, damit der Fehler (1e-4) weg geht 
@@ -454,7 +470,10 @@ for i = 1:6
   set(gca, 'ColorOrderIndex', 1);
   linhdl2=plot(t, X2_ist(:,i:6:end), ':');
   linhdl3=plot(t, X_t(:,i), '--');
-  ylabel(sprintf('x %d', i));
+  if i < 4, unit = 'm';
+  else, unit = 'rad';
+  end
+  ylabel(sprintf('x %d in %s', i, unit));
   grid on
   if i == 5
     legend([linhdl1(1), linhdl2(1), linhdl3(1)], {'Seriell-IK', 'Parallel-IK', 'Soll 3T3R'});

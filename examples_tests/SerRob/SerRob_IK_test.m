@@ -241,7 +241,7 @@ for Robot_Data = Robots
   %% (Test 5) Inverse Kinematik für 3T2R-/3T3R-Aufgabe (mit Zusatzoptimierung) prüfen
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
   % inversen Kinematik
-  wn = 1; % Verstärkungsfaktor für Optimierung der Nebenbedingung
+  wn = [1;0]; % Auswahl der Nebenbedingungen zur Optimierung
   for tr = [false, true] % Schleife 3T3R bzw 3T2R (Aufgabenredundanz)
     if tr
       % EE-Koordinaten, die für die Aufgabe benötigt sind. "0" bedeutet,

@@ -43,7 +43,8 @@ function [Q, QD, QDD, Phi] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
-  'mode_IK', 1);  % 1=Seriell, 2=PKM
+  'mode_IK', 1, ...  % 1=Seriell, 2=PKM
+  'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -114,10 +115,12 @@ for k = 1:nt
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
   Phi(k,:) = Phi_k;
-  if max(abs(Phi_k)) > 1e-3
-    warning('Phi zu groß');
-    break;
+  if s.debug
+    if max(abs(Phi_k)) > 1e-3
+      warning('Phi zu groß');
+      break;
+    end
+    fprintf('Iteration %d/%d (%1.1f%%). Zeit %1.4f. Geschätzte Restzeit: %1.1fmin\n',...
+      k, nt, 100*k/nt, toc(),(nt-k)*toc()/60);
   end
-  fprintf('Iteration %d/%d (%1.1f%%). Zeit %1.4f. Geschätzte Restzeit: %1.1fmin\n',...
-    k, nt, 100*k/nt, toc(),(nt-k)*toc()/60);
 end
