@@ -1,29 +1,29 @@
 % Kinematische Zwangsbedingungen zwischen Ist- und Soll-Konfiguration
-% VollstÃ¤ndige Rotations- und Translationskomponenten
+% Vollständige Rotations- und Translationskomponenten
 % Variante 1:
 % * Vektor vom Basis- zum Koppelpunkt-KS (unterschiedlich zur Variante 1
 %   bei seriellen Robotern; dort Basis bis EE)
-% * Absolute Rotation ausgedrÃ¼ckt bspw. in XYZ-Euler-Winkeln
+% * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
-% * Rotationsfehler ausgedrÃ¼ckt genauso bspw. in XYZ-Euler-Winkeln
+% * Rotationsfehler ausgedrückt genauso bspw. in XYZ-Euler-Winkeln
 % 
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
-%   Endeffektorpose des Roboters bezÃ¼glich des Basis-KS
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
 % Phi_red
 %   Reduzierte kinematische Zwangsbedingungen (siehe folgendes)
 %   Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi [6x1]
-%   Kinematische Zwangsbedingungen des Roboters: MaÃŸ fÃ¼r den Positions- und
+%   Kinematische Zwangsbedingungen des Roboters: Maß für den Positions- und
 %   Orientierungsfehler zwischen Ist-Pose aus gegebenen Gelenkwinkeln q und
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut fÃ¼r Mechatronische Systeme, UniversitÃ¤t Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [Phi_red, Phi] = constr1(R, q, xE)
 
@@ -45,3 +45,4 @@ Phi_red(R.I_constr_t_red) = Phit_red;
 Phi_red(R.I_constr_r_red) = Phir_red;
 Phi(R.I_constr_t) = Phit;
 Phi(R.I_constr_r) = Phir;
+

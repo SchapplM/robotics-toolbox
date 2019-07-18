@@ -57,6 +57,7 @@ end
 R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 
+K1 = 1;
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
@@ -116,7 +117,8 @@ for iLeg = 1:NLEG
   J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
   
-  K1 = 1+sum(Rob.Leg(iLeg).I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
-  K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1; % drei rotatorische Einträge
-  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.Leg(iLeg).I_EE(4:6),:);
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1;
+  Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.Leg(iLeg).I_EE_Task(4:6),:);
+  K1 = K2+1;
 end
+

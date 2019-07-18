@@ -68,14 +68,16 @@ for iLeg = 1:NLEG
 end
 
 % Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG
+K1 = 1; % Zähler für Zwangsbedingungen
 for iLeg = 1:NLEG
   % Indizes für volle ZB
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   % Indizes für reduzierte ZB
-  K1 = 1+sum(Rob.Leg(iLeg).I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.Leg(iLeg).I_EE(4:6))-1;
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1; % Anzahl der rot. ZB. dieser Beinkette
+
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
-  Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE(4:6));
+  Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE_Task(4:6));
+  K1 = K2 + 1;
 end

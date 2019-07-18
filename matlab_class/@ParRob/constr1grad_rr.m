@@ -54,6 +54,7 @@ end
 R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 
+K1 = 1;
 for iLeg = 1:NLEG
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
@@ -103,7 +104,8 @@ for iLeg = 1:NLEG
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
   
   % Ausgabe mit reduzierter Dimension
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
-  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.Leg(iLeg).I_EE(4:6),Rob.I_EE(4:6));
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1;
+  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.Leg(iLeg).I_EE_Task(4:6),Rob.I_EE(4:6));
+  K1 = K2+1;
 end
+
