@@ -9,6 +9,9 @@
 %   eingeht
 
 % Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 15.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -27,7 +30,7 @@ Phi_x_red = zeros(length(Rob.I_constr_t_red), sum(Rob.I_EE(1:3)));
 % Plattform-Koppelpunkt-Jacobi
 for i = 1:NLEG
   I1 = 3*(i-1)+1;
-  % Gl. (A.37, B.24)
+  % Gl. (A.37, B.24); entspricht [2_SchapplerTapOrt2019a]/35 (oben links)
   % negatives Vorzeichen, siehe Definition der Zwangsbedingungen
   phi = -eye(3);
   Phi_x(I1:I1+2,:) = phi;

@@ -9,7 +9,10 @@
 % h [1x1] : Optimierungskriterium
 % hdq [1xN]: Ableitung des Kriteriums nach den Gelenkwinkeln
 
-% Quelle:
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [ZhuQuCaoYan2013]: An off-line programming system for robotic drilling
 % in aerospace manufacturing (2013)
 
@@ -29,7 +32,7 @@ I_viol = q<qlim(:,1) | q>qlim(:,2);
 
 for i = 1:n
   if ~I_viol(i)
-    % [ZhuQuCaoYan2013], Gl. 4
+    % [ZhuQuCaoYan2013], Gl. 4; [2_SchapplerTapOrt2019a]/(45)
     h = h + (qlim(i,2)-qlim(i,1))^2/(8*n) * (1/(q(i)-qlim(i,1))^2+...
                                              1/(q(i)-qlim(i,2))^2);
     % Gradient: Berechnung Schappler vom 01.06.2019

@@ -1,7 +1,6 @@
 % Ableitung der Translationskomponente der kinematischen ZB nach der EE-Orientierung
 % Rotation ausgedrückt in XYZ-Euler-Winkeln
 % 
-% 
 % Eingabe:
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
@@ -12,7 +11,7 @@
 % Phix_phi [3xN]
 %   Ableitung der Translations-ZB nach der EE-Orientierung.
 
-% Quelle:
+% Quellen:
 % [A] Aufzeichnungen Schappler vom 15.06.2018 und 19.06.2018
 % [B] Aufzeichnungen Schappler vom 21.06.2018
 

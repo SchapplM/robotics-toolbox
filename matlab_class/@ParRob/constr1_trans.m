@@ -2,6 +2,8 @@
 % Variante 1:
 % * Vektor vom Basis- zum Koppelpunkt-KS (unterschiedlich zur Variante 1
 %   bei seriellen Robotern; dort Basis bis EE)
+% * Entspricht Standard-Modellierung für PKM. Siehe [2_SchapplerTapOrt2019a],
+%   Kap. 2; "Parallel Robots" (Merlet); Robotik 2 Skript
 % 
 % Eingabe:
 % q [Nx1]
@@ -18,6 +20,10 @@
 %   Maß für den Positionsfehler zwischen Ist-Pose aus
 %   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
 
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 15.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -73,7 +79,7 @@ for iLeg = 1:NLEG
   
   % Positions-Differenz Koppelpunkte aus Beinketten- und
   % Plattform-Berechnung
-  % Gl. (A.23, B.22)
+  % [2_SchapplerTapOrt2019a]/(6) bzw. Gl. (A.23, B.22)
   Phi_i = r_0_Ai_Bi_q - r_0_Ai_Bi_x;
   Phi(J1:J2,:) = Phi_i;
   if ~isempty(Phi_red)

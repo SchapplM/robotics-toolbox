@@ -1,4 +1,5 @@
 % Ableitung der Rotationsmatrix nach den sie erzeugenden Euler-Winkeln
+% Erklärung: [2_SchapplerTapOrt2019a] Kap. 5.1, (A21)
 % 
 % Eingabe:
 % phi [3x1]
@@ -21,6 +22,11 @@
 % Ausgabe:
 % GradMat [9x3]:
 %   Gradientenmatrix: Ableitung der Rotationsmatrix nach den Euler-Winkeln
+
+% Quelle:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Leibniz Universität Hannover

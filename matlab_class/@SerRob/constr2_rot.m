@@ -21,12 +21,15 @@
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Quellen:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [A] Aufzeichnungen Schappler vom 27.07.2018
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi = constr2_rot(Rob, qJ, xE, reci)
+function Phi_r = constr2_rot(Rob, qJ, xE, reci)
 
 assert(isreal(qJ) && all(size(qJ) == [Rob.NQJ 1]), ...
   'SerRob/constr2_rot: qJ muss %dx1 sein', Rob.NQJ);
@@ -45,11 +48,10 @@ T_0_E_q = Rob.fkineEE(qJ);
   
 R_0_E_q = T_0_E_q(1:3,1:3);
 
-% Gl. (A.47)  
+% Argument in [SchapplerTapOrt2019]/(9) bzw. Gl. (A.47)  
 R_Ex_Eq = R_0_E_x' * R_0_E_q;
 
 % Differenz-Rotation mit z.B. mit ZYX-Euler-Winkel
+% [SchapplerTapOrt2019]/(9) mit (11)
 % Gl. (A.30) (dort Vertauschung der Reihenfolge, hier nicht)
-phiR = r2eul(R_Ex_Eq, phiconv_delta);
-
-Phi = phiR;
+Phi_r = r2eul(R_Ex_Eq, phiconv_delta);

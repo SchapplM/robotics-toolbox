@@ -18,7 +18,10 @@
 % 
 % Siehe auch: SerRob/constr1grad_tq.m
 
-% Quelle:
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 15.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -54,10 +57,11 @@ for i = 1:NLEG
   phi_0_Ai = Rob.Leg(i).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(i).phiconv_W_0);
   
+  % Jacobi-Matrix der Beinkette, bezogen auf den Koppelpunkt
   J0i_i_trans = Rob.Leg(i).jacobit(qs);
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
-  
+  % Berücksichtigung des zusätzlichen "Hebelarms" vom Koppelpunkt zum EE
   J0i_i_rot = Rob.Leg(i).jacobiw(qs);
   J0_i_rot = R_0_0i*J0i_i_rot;
  
@@ -68,9 +72,9 @@ for i = 1:NLEG
   r_P_P_Bi = Rob.r_P_B_all(:,i);
   r_P_Bi_P = -  r_P_P_Bi;
   r_B_E = R_0_Bi * (r_P_Bi_P + Rob.r_P_E);
-  
+  % Umrechnung der vorher auf Koppelpunkt bezogenen Jacobi auf den Endeffektor
+  % Siehe dazu adjoint_jacobian.m
   J_0_E = J_Ai_Bi + -skew(r_B_E) * J0_i_rot;
-  
   
   if ~Rob.issym
     dPhidqJi = zeros(3*NLEG,Rob.Leg(i).NQJ);
@@ -82,7 +86,7 @@ for i = 1:NLEG
     dPhidqJi_red(:)=0;
   end
   
-  % Gl. (A.25-26, B.23)
+  % [2_SchapplerTapOrt2019a]/(A15); Gl. (A.25-26, B.23)
   % Kein negatives Vorzeichen, siehe Definition der Zwangsbedingungen
   dPhidqJi(3*(i-1)+1:3*(i),:) = J_0_E;
   Phi_q_legs(:,IJ_i) = dPhidqJi;

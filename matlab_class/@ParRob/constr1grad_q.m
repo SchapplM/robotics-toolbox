@@ -4,8 +4,9 @@
 % * geometrische Matrix der inversen Kinematik
 % 
 % Variante 1:
+% * Positionsfehler als Differenz der Vektoren vom Basis- zum Koppelpunkt-KS
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt in XYZ-Euler-Winkeln
+% * Rotationsfehler definiert als 0x-0q ausgedrückt in XYZ-Euler-Winkeln
 % 
 % Eingabe:
 % q [Nx1]
@@ -19,6 +20,11 @@
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi_q [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+
+% Quelle:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -53,6 +59,7 @@ else
 end
 
 %% Belegung der Ausgabe
+% Entspricht [2_SchapplerTapOrt2019a]/(32)
 Phi_q_red(Rob.I_constr_t_red,:) = Phi_tq_red;
 Phi_q_red(Rob.I_constr_r_red,:) = Phi_rq_red;
 Phi_q(Rob.I_constr_t,:) = Phi_tq;

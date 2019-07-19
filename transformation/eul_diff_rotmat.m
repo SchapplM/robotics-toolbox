@@ -1,4 +1,5 @@
 % Ableitung der Euler-Winkel nach der daraus berechneten Rotationsmatrix
+% Erklärung: [SchapplerTapOrt2019] Kap. 3.3; [2_SchapplerTapOrt2019a]/(A.20)
 % 
 % Eingabe:
 % R [3x3]:
@@ -23,8 +24,16 @@
 %   Gradientenmatrix: Ableitung der Euler-Winkel nach der (spaltenweise
 %   gestapelten) Rotationsmatrix
 
+% Quelle:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function GradMat = eul_diff_rotmat(R, conv)
 %% Init

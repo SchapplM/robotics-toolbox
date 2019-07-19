@@ -20,6 +20,10 @@
 %   Maß für den Orientierungsfehler zwischen Ist-Pose aus
 %   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
 
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 27.07.2018
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
@@ -29,7 +33,7 @@ function [Phi_red, Phi] = constr2_rot(Rob, q, xE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr1_rot: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2_rot: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2_rot: xE muss 6x1 sein');
 NLEG = Rob.NLEG;
@@ -59,12 +63,11 @@ for iLeg = 1:NLEG
   R_0_E_q = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E;
   R_Ex_Eq = R_0_E_x' * R_0_E_q;
 
-  % Gl. (A.30)
+  % [2_SchapplerTapOrt2019a]/(19); Gl. (A.30)
   phiR = r2eul(R_Ex_Eq, phiconv_W_E_reci); 
-  phi = phiR; 
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
-  Phi(J1:J2,:) = phi;
+  Phi(J1:J2,:) = phiR;
 end
 
 % Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG

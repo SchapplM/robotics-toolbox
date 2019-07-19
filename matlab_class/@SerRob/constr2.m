@@ -23,6 +23,11 @@
 %   Orientierungsfehler zwischen Ist-Pose aus gegebenen Gelenkwinkeln q und
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
+% Quelle:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
+
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
@@ -32,6 +37,9 @@ assert(isreal(q) && all(size(q) == [R.NQJ 1]), ...
 if nargin < 4
   reci = false;
 end
-Phir = R.constr1_trans(q, xE); % Kein Unterschied zu Variante 1
-Phip = R.constr2_rot(q, xE, reci);
-Phi = [Phir; Phip];
+% [SchapplerTapOrt2019], Gl. 8
+Phi_t = R.constr1_trans(q, xE); % Kein Unterschied zu Variante 1
+% [SchapplerTapOrt2019], Gl. 9
+Phi_r = R.constr2_rot(q, xE, reci);
+% [SchapplerTapOrt2019], Gl. 7
+Phi = [Phi_t; Phi_r];

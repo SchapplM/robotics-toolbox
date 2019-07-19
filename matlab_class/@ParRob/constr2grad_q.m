@@ -5,7 +5,7 @@
 % 
 % Variante 2:
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt in ZYX-Euler-Winkeln
+% * Rotationsfehler ausgedrückt in ZYX-Euler-Winkeln (und als E(q)-E(x)
 % 
 % Eingabe:
 % q [Nx1]
@@ -58,7 +58,7 @@ else
 end
 
 %% Belegung der Ausgabe
-
+% Entspricht [2_SchapplerTapOrt2019a]/(32)
 for i = 1:Rob.NLEG
   Phi_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
     [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...

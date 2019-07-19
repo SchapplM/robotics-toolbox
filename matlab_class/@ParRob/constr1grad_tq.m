@@ -19,7 +19,10 @@
 % 
 % Siehe auch: SerRob/constr1grad_tq.m
 
-% Quelle:
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 15.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -68,7 +71,7 @@ for i = 1:NLEG
     dPhidqJi_red(:)=0;
   end
   
-  % Gl. (A.25-26, B.23)
+  % Gl. (A.25-26, B.23); siehe [2_SchapplerTapOrt2019a]/(A15) (ähnlich)
   % Kein negatives Vorzeichen, siehe Definition der Zwangsbedingungen
   dPhidqJi(3*(i-1)+1:3*(i),:) = J_Ai_Bi;
   Phi_q_legs(:,IJ_i) = dPhidqJi;

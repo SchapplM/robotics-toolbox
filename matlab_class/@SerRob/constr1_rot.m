@@ -4,6 +4,7 @@
 % * Rotationsfehler genauso ausgedrückt z.B. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
 %   Rotationsfehler wird als R_0_E * R_0_D angenommen (also 0(q)->0(x))
+%   Unterschiedlich zu [SchapplerTapOrt2019], Berechnung aber ähnlich
 % 
 % Eingabe:
 % qJ
@@ -18,6 +19,9 @@
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Quellen:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [A] Aufzeichnungen Schappler vom 21.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -38,7 +42,7 @@ T_0_E_q = Rob.fkineEE(qJ);
 R_0_E_q = T_0_E_q(1:3,1:3);
 R_0q_0x = R_0_E_q * R_0_E_x';
 
-% Gl. (A.1, B.25)
+% Gl. (A.1, B.25) bzw. [SchapplerTapOrt2019]/(9) mit anderer Reihenfolge
 phi = r2eul(R_0q_0x, Rob.phiconv_W_E);
 
 Phi = phi;

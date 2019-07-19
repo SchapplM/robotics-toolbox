@@ -4,7 +4,7 @@
 % * geometrische Matrix der inversen Kinematik
 % 
 % Variante 3:
-% Implementierung mit Führungs-Beinkette und Folge-Beinketten
+% Implementierung mit FÃ¼hrungs-Beinkette und Folge-Beinketten
 % 
 % Eingabe:
 % q [Nx1]
@@ -33,7 +33,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tq_red,Phi_tq]=Rob.constr3grad_tq(q);
+[Phi_tq_red,Phi_tq]=Rob.constr2grad_tq(q); % Translation identisch mit Var. 2
 [Phi_rq_red,Phi_rq]=Rob.constr3grad_rq(q, xE);
 
 % Anzahl ZB

@@ -1,9 +1,8 @@
 % Kinematische Zwangsbedingungen zwischen Ist- und Soll-Konfiguration
 % Vollständige Rotations- und Translationskomponenten
-% Variante 3:
-% Andere Implementierung:
-% * Implementierung mit F�hrungs-Beinkette und Folge-Beinketten
-% * Translation mit Vektor 0-E statt A-B
+% Variante 3: Andere Implementierung als Variante 2:
+% * Implementierung mit Führungs-Beinkette und Folge-Beinketten
+% * Translation mit Vektor 0-E statt A-B (im Gegensatz zu Var. 1)
 % * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
 % * Rotationsfehler mit Orientierungsfehler ZYX-Rotation um festes KS
@@ -36,7 +35,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2: xE muss 6x1 sein');
 
 % rotatorischer und translatorischer Teil der ZB
-[Phit_red, Phit] = R.constr3_trans(q, xE);
+[Phit_red, Phit] = R.constr2_trans(q, xE); % Translation identisch mit Var. 2
 [Phir_red, Phir] = R.constr3_rot(q, xE);
 
 % Anzahl ZB

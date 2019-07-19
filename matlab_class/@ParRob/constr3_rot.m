@@ -1,7 +1,7 @@
 % Rotationskomponente der kinematischen ZB zwischen Ist- und Soll-Konfiguration
 % Vollständige Rotations- und Translationskomponenten
 % Variante 3:
-% Implementierung mit Führungs-Beinkette und Folge-Beinketten 
+% * Implementierung mit Führungs-Beinkette und Folge-Beinketten 
 % 
 % Eingabe:
 % q [Nx1]
@@ -18,6 +18,10 @@
 %   Maß für den Orientierungsfehler zwischen Ist-Pose aus
 %   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
 
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 27.07.2018
 % [B] Aufzeichnungen Schappler vom 02.02.2019
 
@@ -57,8 +61,8 @@ for iLeg = 1:NLEG
   % (Bi und P sind gleich orientiert)
 
   if iLeg == 1 % Führungskette
-    R_0_E_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E;
-    % [B] Gl. 16
+    R_0_E_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
+    % [2_SchapplerTapOrt2019a]/(19; [B] Gl. 16
     R_Ex_Eq = R_0_E_x' * R_0_E_q_L;
     phiL = r2eul(R_Ex_Eq, phiconv_W_E_reci); 
     J1 = 1+3*(iLeg-1);
@@ -66,9 +70,9 @@ for iLeg = 1:NLEG
     Phi(J1:J2,:) = phiL;
   
   elseif iLeg > 1 % Folge-Kette
-    
+    % [2_SchapplerTapOrt2019a]/(27) Term 1
     R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
-    % [B] Gl. 18
+    % [2_SchapplerTapOrt2019a]/(27); [B] Gl. 18
     R_Lq_Eq = R_0_E_q_L' * R_0_E_q_f;
     phif = r2eul(R_Lq_Eq, phiconv_W_E_reci); 
     J1 = 1+3*(iLeg-1);

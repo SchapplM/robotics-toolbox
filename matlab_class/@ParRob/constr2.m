@@ -1,12 +1,11 @@
 % Kinematische Zwangsbedingungen zwischen Ist- und Soll-Konfiguration
 % Vollständige Rotations- und Translationskomponenten
-% Variante 2:
-% Andere Implementierung:
+% Variante 2: Andere Formel und Implementierung als Variante 1:
 % * Translation mit Vektor 0-E statt A-B
 % * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
-% * Rotationsfehler mit Orientierungsfehler ZYX-Rotation um festes KS
-%   (Linksmultiplikation)
+% * Rotationsfehler mit Orientierungsfehler ZYX-Rotation (bzw. reziproke
+% Konvention zu absoluter Orientierung); Fehler ausgedrückt als E(q)-E(x)
 % 
 % Eingabe:
 % q [Nx1]

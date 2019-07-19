@@ -3,8 +3,7 @@
 % Variante 1:
 % * Absolute Rotation (Basis->PKM-EE)ausgedrückt in XYZ-Euler-Winkeln
 % * Rotationsfehler (Basis-PKM-EE) ausgedrückt in XYZ-Euler-Winkeln
-% 
-% Implementierung mit Einzelmatrizen (nicht mit Endergebnis aus Maple)
+%   Im Gegensatz zu [2_SchapplerTapOrt2019a] hier Rotation 0(q)-0(x)
 % 
 % Eingabe:
 % q [Nx1]
@@ -20,6 +19,9 @@
 %   Rotatorischer Teil
 
 % Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 19.06.2018
 % [B] Aufzeichnungen Schappler vom 21.06.2018
 % [C] Aufzeichnungen Schappler vom 13.07.2018
@@ -37,7 +39,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
-% Endergebnis: Gl. (C.35)
+% Endergebnis: Gl. (C.35); entspricht [2_SchapplerTapOrt2019a]/(36)
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 
 if ~Rob.issym
@@ -67,12 +69,14 @@ for iLeg = 1:NLEG
   R_0i_E_q = T_0i_Bi(1:3,1:3) * R_P_E;
   R_0_E_q = R_0_0i * R_0i_E_q;
 
-  % Rotationsmatrix Differenz-Rotation. So Definiert wie in den
-  % Zwangsbedingungen bsp6uPs_ZB_phi
+  % Rotationsmatrix Differenz-Rotation.
+  % Unterschied zu [2_SchapplerTapOrt2019a]
   R_0x_0q = (R_0_E_q * R_0_E_x');
 
-  % Dritter Termin in Gl. (C.35): Ableitung des Matrixproduktes
-  % Gl. (B.12)
+  %% (III) Ableitung des Matrixproduktes
+  % Dritter Term in (C.35); entspricht [2_SchapplerTapOrt2019a]/(36)/III
+  % Hier aber andere Reihenfolge als in [2_SchapplerTapOrt2019a].
+  % Gl. (B.12) bzw. [2_SchapplerTapOrt2019a]/(A24)
   % Unabhängig vom Roboter (Rotationsmatrix aus Kinematik wird in
   % Platzhalterelemente eingesetzt)
   % Aus rmatvecprod_diff_rmatvec1_matlab.m
@@ -81,24 +85,29 @@ for iLeg = 1:NLEG
   b13=R_0_E_q(3,1);b23=R_0_E_q(3,2);b33=R_0_E_q(3,3);
   dPidR1b = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
 
-  % vierter Termin in Gl. (C.35): Ableitung von R_0_E nach den Euler-Winkeln
+  %% (IV) Ableitung von R_0_E nach den Euler-Winkeln
+  % Vierter Term in Gl. (C.35) bzw. in [2_SchapplerTapOrt2019a]/(36)
   % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
   dR0Ebdphi = rotmat_diff_eul(xE(4:6), Rob.phiconv_W_E);
   
-  % Transpositions-Matrix; Gl (C.29)
-  % zweiter Term in Gl. (C.35)
+  %% (II) Transpositions-Matrix; Gl (C.29), [2_SchapplerTapOrt2019a]/(A19)
+  % zweiter Term in Gl. (C.35) bzw. in [2_SchapplerTapOrt2019a]/(36)
   % Aus permat_rvec_transpose_matlab.m
   P_T = [1 0 0 0 0 0 0 0 0; 0 0 0 1 0 0 0 0 0; 0 0 0 0 0 0 1 0 0; 0 1 0 0 0 0 0 0 0; 0 0 0 0 1 0 0 0 0; 0 0 0 0 0 0 0 1 0; 0 0 1 0 0 0 0 0 0; 0 0 0 0 0 1 0 0 0; 0 0 0 0 0 0 0 0 1;];
   
-  % Erster Term in Gl. (C.35),(C.28),(B.16): Ableitung der Euler-Winkel nach der
-  % Rotationsmatrix
+  %% (I) Ableitung der Euler-Winkel nach der Rotationsmatrix
+  % Erster Term in Gl. (C.35),(C.28),(B.16)
+  % Es wird eine andere Matrix als in [2_SchapplerTapOrt2019a]/(36)
+  % eingesetzt.
   % Aus P_3RRR/phixyz_diff_rmatvec_matlab.m
   % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
   dphidRb = eul_diff_rotmat(R_0x_0q, Rob.phiconv_W_E);
   
-  % Gl. (C.35)
+  %% Gesamtergebnis
+  % Gl. (C.35); entspricht [2_SchapplerTapOrt2019a]/(36)
   Phi_phi_i_Gradx = dphidRb * P_T*dPidR1b * dR0Ebdphi;
   
+  %% Einsetzen in Ausgabevariable
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;

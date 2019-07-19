@@ -2,11 +2,13 @@
 % Bezeichnungen: Rotatorischer Teil der ...
 % * Jacobi-Matrix der inversen Kinematik, 
 % * geometrische Matrix der inversen Kinematik
-% (ist in der Literatur wenig gebräuchlich)
+%   (ist in der Literatur wenig gebräuchlich)
 % 
 % Variante 1:
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt in XYZ-Euler-Winkeln
+% * Rotationsfehler ausgedrückt genauso bspw. in XYZ-Euler-Winkeln
+%   Rotationsfehler wird als R_0_E * R_D_0 angenommen (also 0(q)->0(x))
+%   (anders herum als in [2_SchapplerTapOrt2019a])
 % 
 % Eingabe:
 % q [Nx1]
@@ -23,6 +25,12 @@
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [A] Aufzeichnungen Schappler vom 21.06.2018
 % [B] Aufzeichnungen Schappler vom 13.07.2018
 % [C] Aufzeichnungen Schappler vom 21.08.2018
@@ -41,7 +49,7 @@ NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
-% Endergebnis, siehe Gl. (B.30)
+% Endergebnis, siehe Gl. (B.30); entspricht [2_SchapplerTapOrt2019a]/(34)
 
 if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
@@ -72,8 +80,10 @@ for iLeg = 1:NLEG
   R_0_E_q = R_0_0i * R_0i_E_q;
   R_0x_0q = R_0_E_q * R_0_E_x';
 
-  % Term III aus Gl. (B.31): Ableitung der Rotationsmatrix R_0_E nach q
-  % Berücksichtigung der zusätzlichen Transformation RS.T_N_E: Gl. (C.7)
+  %% (III) Ableitung der Rotationsmatrix R_0_E nach q
+  % Term III aus Gl. (B.31); oder ähnlich aus [2_SchapplerTapOrt2019a]/(34)
+  % Berücksichtigung der zusätzlichen Transformation RS.T_N_E: Gl. (C.7);
+  % bzw. [SchapplerTapOrt2019]/(32)
   % (jacobiR berücksichtigt diese Rotation nicht; ist definiert zum letzten
   % Körper-KS N der seriellen Kette. Hier werden dadurch direkt zwei
   % Transformationen berücksichtigt: N->Bi->E
@@ -89,28 +99,34 @@ for iLeg = 1:NLEG
 
   % Bezug auf Basis-KS der PKM und nicht Basis des seriellen Roboters
   % Matrix-Produkt aus rmatvecprod_diff_rmatvec2_matlab.m, siehe Gl. (A.13)
+  % oder [2_SchapplerTapOrt2019a]/(A23)
+  % Entspricht [2_SchapplerTapOrt2019a]/(34)/II
   a11=R_0_0i(1,1);a12=R_0_0i(1,2);a13=R_0_0i(1,3);
   a21=R_0_0i(2,1);a22=R_0_0i(2,2);a23=R_0_0i(2,3);
   a31=R_0_0i(3,1);a32=R_0_0i(3,2);a33=R_0_0i(3,3);
   dPidRb2 = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
   dRb_0E_dq = dPidRb2 * dRb_0iE_dq;
 
-  % Term II aus Gl. (B.31): Innere Ableitung des Matrix-Produktes
-  % Die Matrix R_0_E_x wird transponiert eingesetzt.
-  % aus rmatvecprod_diff_rmatvec1_matlab.m
+  %% (II) Innere Ableitung des Matrix-Produktes. Die Matrix R_0_E_x wird
+  % transponiert eingesetzt.
+  % Term II aus Gl. (B.31)
+  % aus rmatvecprod_diff_rmatvec1_matlab.m; [2_SchapplerTapOrt2019a]/(A24)
   b11=R_0_E_x(1,1);b12=R_0_E_x(2,1);b13=R_0_E_x(3,1);
   b21=R_0_E_x(1,2);b22=R_0_E_x(2,2);b23=R_0_E_x(3,2);
   b31=R_0_E_x(1,3);b32=R_0_E_x(2,3);b33=R_0_E_x(3,3);
   dPidRb1 = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
  
-  % Term I aus Gl. (B.31): Ableitung der Euler-Winkel nach der Rot.-matrix
+  %% (I) Ableitung der Euler-Winkel nach der Rot.-matrix
+  % Term I aus Gl. (B.31) bzw. aus [2_SchapplerTapOrt2019a]/(34)
   % Euler-Winkel-Konvention von Trafo W->E
   % Aus codeexport/eulxyz_diff_rmatvec_matlab.m
   dphidRb = eul_diff_rotmat(R_0x_0q, Rob.phiconv_W_E);
-  % Gl. (B.31)
+  
+  %% Gesamtergebnis
+  % Gl. (B.31) bzw. ähnlich in [2_SchapplerTapOrt2019a]/(34)
   Phi_phi_i_Gradq = dphidRb * dPidRb1 * dRb_0E_dq;
 
-  % In Endergebnis einsetzen
+  %% In Endergebnis einsetzen
   I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
   I2 = I1+2; % drei rotatorische Einträge
   J1 = Rob.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke

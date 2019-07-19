@@ -111,10 +111,8 @@ for NNN = RobotNames
   RP.constr2grad_x(q0, xE);
   
   RP.constr3(q0, xE);
-  RP.constr3_trans(q0, xE);
   RP.constr3_rot(q0, xE);
   RP.constr3grad_q(q0, xE);
-  RP.constr3grad_tq(q0);
   RP.constr3grad_rq(q0, xE);
   RP.constr3grad_x(q0, xE);
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', PName);

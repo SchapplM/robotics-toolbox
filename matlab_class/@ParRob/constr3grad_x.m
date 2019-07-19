@@ -4,7 +4,7 @@
 % * geometrische Matrix der direkten Kinematik
 % 
 % Variante 3:
-% Implementierung mit F�hrungs-Beinkette und Folge-Beinketten
+% * Implementierung der Rotation mit Führungs-Beinkette und Folge-Beinketten
 % 
 % Eingabe:
 % q [Nx1]
@@ -20,7 +20,7 @@
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [Phi_x_red, Phi_x] = constr3grad_x(Rob, q, xE)
 
@@ -33,8 +33,8 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tt_red,Phi_tt]=Rob.constr3grad_tt();
-[Phi_tr_red,Phi_tr]=Rob.constr3grad_tr(xE);
+[Phi_tt_red,Phi_tt]=Rob.constr2grad_tt();  % Translation identisch mit Var. 2
+[Phi_tr_red,Phi_tr]=Rob.constr2grad_tr(xE);% Translation identisch mit Var. 2
 [Phi_rt_red,Phi_rt]=Rob.constr3grad_rt();
 [Phi_rr_red,Phi_rr]=Rob.constr3grad_rr(q, xE);
 

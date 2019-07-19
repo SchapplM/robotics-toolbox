@@ -10,9 +10,18 @@
 % recconv [1x1 uint8]
 %   Nummer der dazu reziproken Winkelkonvention (also mit umgedrehter
 %   Reihenfolge der Drehachsen). Null, falls nicht zutreffen.
+%   Siehe [SchapplerTapOrt2019], [2_SchapplerTapOrt2019a]
+
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Leibniz Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [str, recconv] = euler_angle_properties(conv)
 
@@ -25,7 +34,7 @@ switch conv
     recconv = uint8(0);
   case 2 % xyz
     str = 'xyz';
-    % ZYX ist reciprok zu XYZ
+    % ZYX ist reziprok zu XYZ
     recconv = uint8(11);
   case 3 % xzx
     str = 'xzx';

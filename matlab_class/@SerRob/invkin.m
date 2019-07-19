@@ -21,7 +21,10 @@
 % Q
 %   Alle Zwischenergebnisse der Iterationen der Gelenkwinkel
 
-% Quelle:
+% Quellen:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [1] Aufzeichnungen Schappler vom 3.8.2018
 
 function [q, Phi, Q] = invkin(Rob, xE_soll, q0, s)
@@ -89,6 +92,7 @@ n_Phi_t = sum(s.I_EE(1:3));
 if constr_m == 1
   I_IK2 = [1 2 3 4 5 6];
 else
+  % Reihenfolge hergeleitet in [SchapplerTapOrt2019]; siehe z.B. Gl. (21)
   I_IK2 = [1 2 3 6 5 4];
 end
 I_IK = I_IK2(s.I_EE);
@@ -109,6 +113,7 @@ for rr = 1:retry_limit
   q1 = q0;
   for jj = 2:n_max
 
+    % Gradientenmatrix, siehe [SchapplerTapOrt2019]/(23)
     dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
     if constr_m == 1
       dpq=Rob.constr1grad_rq(q1, xE_soll);
@@ -144,11 +149,11 @@ for rr = 1:retry_limit
         [~, hdq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
         v = v - hdq';
       end
-      % [1], Gl. (24)
+      % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       delta_q_N = (eye(Rob.NQJ) - pinv(Jdk)* Jdk) * v;
     end
 
-    % [1], Gl. (23)
+    % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     q2 = q1 + delta_q;
     

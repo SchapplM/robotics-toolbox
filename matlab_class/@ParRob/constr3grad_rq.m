@@ -26,6 +26,12 @@
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [A] Aufzeichnungen Schappler vom 21.06.2018
 % [B] Aufzeichnungen Schappler vom 13.07.2018
 % [C] Aufzeichnungen Schappler vom 27.07.2018
@@ -71,11 +77,13 @@ for iLeg = 1:NLEG
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
   
+  %% (III) Ableitung der Rotationsmatrix nach q
   % Ableitung der Koppel-KS-Rotationsmatrix der aktuellen Beinkette nach
   % den Gelenkwinkeln der aktuellen Beinkette
   % Term III aus Gl. (D.22) bzw. (D.24)
   % Term III aus Gl. (B.31): Ableitung der Rotationsmatrix R_0_E nach q
   % Berücksichtigung der zusätzlichen Transformation RS.T_N_E: Gl. (C.7)
+  % bzw. [SchapplerTapOrt2019]/(32)
   % (jacobiR berücksichtigt diese Rotation nicht; ist definiert zum letzten
   % Körper-KS N der seriellen Kette. Hier werden dadurch direkt zwei
   % Transformationen berücksichtigt: N->Bi->E
@@ -97,16 +105,17 @@ for iLeg = 1:NLEG
   dPidRb2 = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
   dRb_0E_dq = dPidRb2 * dRb_0iE_dq; 
   
-  if iLeg == 1
+  if iLeg == 1 % ZB für Führungskette; entspricht constr2grad_rq.m
     % Kinematik, Definitionen
-    R_0_L_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E;
+    R_0_L_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
     R_Ex_Eq = R_0_E_x' * R_0_L_q_L;
 
     % Abspeichern der für jede Beinkette berechneten Ableitung für die
     % Führungskette (siehe unten)
     dRb_0L_dq = dRb_0E_dq;
 
-    % Term II aus Gl. (C.49): Innere Ableitung des Matrix-Produktes
+    %% (II) Innere Ableitung des Matrix-Produktes
+    % Term II aus Gl. (C.49) bzw. aus [2_SchapplerTapOrt2019a]/(34)
     % Die Matrix R_0_E_x wird transponiert eingesetzt.
     % aus rmatvecprod_diff_rmatvec2_matlab.m
     a11=R_0_E_x(1,1);a12=R_0_E_x(2,1);a13=R_0_E_x(3,1);
@@ -114,12 +123,15 @@ for iLeg = 1:NLEG
     a31=R_0_E_x(1,3);a32=R_0_E_x(2,3);a33=R_0_E_x(3,3);
     dPidRb2 = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
 
-    % Term I aus Gl. (C.49): Ableitung der Euler-Winkel nach der Rot.-matrix
+    %% (I) Ableitung der Euler-Winkel nach der Rot.-matrix
+    % Term I aus Gl. (C.49) bzw. aus [2_SchapplerTapOrt2019a]/(34) 
     % (ZYX-Euler-Winkel des Orientierungsfehlers)
     % Aus eulzyx_diff_rmatvec_matlab.m
     % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
     dphidRb = eul_diff_rotmat(R_Ex_Eq, phiconv_W_E_reci);
 
+    %% Gesamtergebnis
+    % Gl. [2_SchapplerTapOrt2019a]/(34)
     Phi_phi_i_Gradq = dphidRb * dPidRb2 * dRb_0E_dq; % Gl. (C.49)  
     % In Endergebnis einsetzen
     I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
@@ -132,19 +144,21 @@ for iLeg = 1:NLEG
     K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
     Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:);
    
-  elseif iLeg > 1
+  elseif iLeg > 1 % ZB für Folgekette
     R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
-    % Gl. D.18, D.21 
+    % Argument erste Zeile von [2_SchapplerTapOrt2019a]/(38); Gl. D.18, D.21 
     R_Lq_Eq_f = R_0_L_q_L' * R_0_E_q_f;
 
+    %% (III) Ableitung Rotationsmatrix nach Gelenkwinkeln
     % Ableitung der EE-Rotation der Folge-Kette nach den Gelenkwinkeln der
-    % Folge-Kette (Term III in D.22)
+    % Folge-Kette (Term III in [2_SchapplerTapOrt2019a]/(38); D.22)
     dRb_0E_dq_f = dRb_0E_dq;
-    % Das gleiche für die Führungskette (Term III in D.24)
+    % Das gleiche für die Führungskette
+    % (Term III in [2_SchapplerTapOrt2019a]/(39); D.24)
     dRb_0L_dq_L = dRb_0L_dq;
 
-    % Term II aus Gl. (D.24)
-    % Term II aus Gl. (C.49): Innere Ableitung des Matrix-Produktes
+    %% (II) Ableitung des Matrix-Produktes
+    % Term II aus Gl. [2_SchapplerTapOrt2019a]/(39); (D.24)
     % Die Matrix R_0_E_x wird transponiert eingesetzt.
     % aus rmatvecprod_diff_rmatvec2_matlab.m
     a11=R_0_E_q_f(1,1);a12=R_0_E_q_f(2,1);a13=R_0_E_q_f(3,1);
@@ -152,27 +166,32 @@ for iLeg = 1:NLEG
     a31=R_0_E_q_f(1,3);a32=R_0_E_q_f(2,3);a33=R_0_E_q_f(3,3);
     dPidRb2f = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
 
-    % Term II aus Gl. (D.22)
+    % Term II aus Gl. [2_SchapplerTapOrt2019a]/(38); (D.22)
     a11=R_0_L_q_L(1,1);a12=R_0_L_q_L(2,1);a13=R_0_L_q_L(3,1);
     a21=R_0_L_q_L(1,2);a22=R_0_L_q_L(2,2);a23=R_0_L_q_L(3,2);
     a31=R_0_L_q_L(1,3);a32=R_0_L_q_L(2,3);a33=R_0_L_q_L(3,3);
     dPidRb2L = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
 
-    % Term I aus Gl. (D.22): 
-    % Term I aus Gl. (C.49): Ableitung der Euler-Winkel nach der Rot.-matrix
+    %% (I) Ableitung der Euler-Winkel nach der Rot.-matrix
+    % Term I aus Gl. [2_SchapplerTapOrt2019a]/(38); (D.22): 
+    % Term I aus Gl. (C.49): 
     % (ZYX-Euler-Winkel des Orientierungsfehlers)
     % Aus eulzyx_diff_rmatvec_matlab.m
     % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
     dphidRbf = eul_diff_rotmat(R_Lq_Eq_f, phiconv_W_E_reci);
-    % Term I aus Gl. D.24
+    % Term I aus Gl. [2_SchapplerTapOrt2019a]/(39); (D.24)
     dphidRbL = eul_diff_rotmat(R_Lq_Eq_f, phiconv_W_E_reci);
 
+    % Term II in [2_SchapplerTapOrt2019a]/(39)
     P_T = [1 0 0 0 0 0 0 0 0; 0 0 0 1 0 0 0 0 0; 0 0 0 0 0 0 1 0 0; 0 1 0 0 0 0 0 0 0; 0 0 0 0 1 0 0 0 0; 0 0 0 0 0 0 0 1 0; 0 0 1 0 0 0 0 0 0; 0 0 0 0 0 1 0 0 0; 0 0 0 0 0 0 0 0 1;];
 
-    % Gl. (D.24); Ableitung nach Gelenkwinkeln der Führungskette
+    %% Gesamtergebnisse
+    % [2_SchapplerTapOrt2019a]/(39); Gl. (D.24);
+    % Ableitung nach Gelenkwinkeln der Führungskette
     Phi_phi_i_Gradq_L = dphidRbL * P_T*dPidRb2f * dRb_0L_dq_L;
     
-    % Gl. (D.22); Ableitung nach Gelenkwinkeln der Folgekette
+    % [2_SchapplerTapOrt2019a]/(38); Gl. (D.22); 
+    % Ableitung nach Gelenkwinkeln der Folgekette
     Phi_phi_i_Gradq_f = dphidRbf * dPidRb2L * dRb_0E_dq_f; 
 
     % In Endergebnis einsetzen

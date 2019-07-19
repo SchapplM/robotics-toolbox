@@ -15,6 +15,9 @@
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Quellen:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [A] Aufzeichnungen Schappler vom 15.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -32,5 +35,5 @@ r_0_E_x = xE(1:3);
 T_0_E = Rob.fkineEE(qJ);
 r_0_E_q = T_0_E(1:3,4);
 
-% Gl. (A.23, B.22)
+% [SchapplerTapOrt2019]/(8) bzw. Gl. (A.23, B.22)
 Phix = r_0_E_q - r_0_E_x;

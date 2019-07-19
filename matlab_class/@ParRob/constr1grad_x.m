@@ -5,7 +5,7 @@
 % 
 % Variante 1:
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
-% * Rotationsfehler ausgedrückt in XYZ-Euler-Winkeln
+% * Rotationsfehler definiert als 0x-0q ausgedrückt in XYZ-Euler-Winkeln
 % 
 % Eingabe:
 % q [Nx1]
@@ -20,8 +20,13 @@
 % Phi_x [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
+% Quelle:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [Phi_x_red, Phi_x] = constr1grad_x(Rob, q, xE)
 
@@ -54,6 +59,7 @@ else
 end
 
 %% Belegung der Ausgabe
+% Entspricht [2_SchapplerTapOrt2019a]/(35) (aber hier andere R-Reihenfolge)
 Phi_x_red(Rob.I_constr_t_red,:) = [Phi_tt_red,Phi_tr_red];
 Phi_x_red(Rob.I_constr_r_red,:) = [Phi_rt_red,Phi_rr_red];
 Phi_x(Rob.I_constr_t,:) = [Phi_tt, Phi_tr];

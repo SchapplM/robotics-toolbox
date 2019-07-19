@@ -4,6 +4,7 @@
 % * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
 % * Rotationsfehler ausgedrückt genauso bspw. in XYZ-Euler-Winkeln
+%   Im Gegensatz zu [2_SchapplerTapOrt2019a] hier Rotation 0(q)-0(x)
 % 
 % Eingabe:
 % q [Nx1]
@@ -20,6 +21,10 @@
 %   Maß für den Orientierungsfehler zwischen Ist-Pose aus
 %   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
 
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 % [A] Aufzeichnungen Schappler vom 21.06.2018
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
@@ -58,9 +63,9 @@ for iLeg = 1:NLEG
   % Kette: 0 -> 0i -> Bi -> E
   % (Bi und P sind gleich orientiert)
   R_0_E_q = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E;
-  R_0q_0x = R_0_E_q * R_0_E_x';
+  R_0q_0x = R_0_E_q * R_0_E_x'; % Unterschied zu [2_SchapplerTapOrt2019a]
 
-  % Gl. (A.1, B.25)
+  % Gl. (A.1, B.25); ähnlich wie [2_SchapplerTapOrt2019a]/(19)
   phi = r2eul(R_0q_0x, Rob.phiconv_W_E);
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;

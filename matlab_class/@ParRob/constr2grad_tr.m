@@ -1,6 +1,7 @@
 % Ableitung der Translationskomponente der kinematischen ZB nach der EE-Orientierung
 % Rotation ausgedrückt in XYZ-Euler-Winkeln
-% 
+% Variante 2:
+% * Implementierung mit Vektor 0-E statt A-B
 % 
 % Eingabe:
 % xE [6x1]
@@ -12,9 +13,10 @@
 % Phix_phi [3xN]
 %   Ableitung der Translations-ZB nach der EE-Orientierung.
 
-% Quelle:
-% [A] Aufzeichnungen Schappler vom 15.06.2018 und 19.06.2018
-% [B] Aufzeichnungen Schappler vom 21.06.2018
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -39,8 +41,11 @@ else
   Phix_phi_red(:) = 0;
 end
 
-% Plattform-Koppelpunkt-Jacobi
- for i = 1:NLEG
+% Die Rotation hat keinen Einfluss auf die Translation, da die Positions-ZB
+% bis zum Endeffektor definiert sind (im Gegensatz zu Variante 1, bei der
+% die Koppelpunkt-Positionen durch die EE-Rotation beeinflusst werden)
+% [2_SchapplerTapOrt2019a]/(35) (oben rechts)
+for i = 1:NLEG
   I1 = 3*(i-1)+1;
   Phix_phi(I1:I1+2,:) = zeros(3,3);
 end

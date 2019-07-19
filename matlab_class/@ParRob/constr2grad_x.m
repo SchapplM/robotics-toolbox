@@ -21,7 +21,7 @@
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [Phi_x_red, Phi_x] = constr2grad_x(Rob, q, xE)
 
