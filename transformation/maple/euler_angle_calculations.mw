@@ -4,7 +4,7 @@
 <Label-Scheme value="2" prefix=""/>
 <View-Properties presentation="true" autoexpanding_sections="true" UserProfileName="Maple Default Profile" NumericFormat-ApplyInteger="true" NumericFormat-ApplyRational="true" NumericFormat-ApplyExponent="false" editable="true">
 </View-Properties>
-<MapleNet-Properties prettyprint="3" warnlevel="3" preplot="" helpbrowser="standard" displayprecision="-1" echo="1" unitattributes="&quot;fontweight&quot; = &quot;bold&quot;" imaginaryunit="I" longdelim="true" elisiontermsthreshold="10000" elisiondigitsafter="100" elisiondigitsbefore="100" plotdevice="inline" errorbreak="1" plotoptions="" plotdriver="opengl" quiet="false" elisiontermsbefore="100" elisiontermsafter="100" screenwidth="79" indentamount="4" plotoutput="terminal" screenpixelheight="1050" rtablesize="20" useclientjvm="true" labelwidth="20" postplot="" typesetting="extended" ansi="false" ansicolor="[]" elisiondigitsthreshold="10000" showassumed="1" ansilprint="false" errorcursor="false" labelling="true" screenheight="25" prompt="&gt; " verboseproc="1" latexwidth="8.0" ShowLabels="true"/>
+<MapleNet-Properties prettyprint="3" warnlevel="3" preplot="" helpbrowser="standard" displayprecision="-1" echo="1" unitattributes="&quot;fontweight&quot; = &quot;bold&quot;" imaginaryunit="I" longdelim="true" elisiontermsthreshold="10000" elisiondigitsafter="100" elisiondigitsbefore="100" plotdevice="inline" errorbreak="1" plotoptions="" plotdriver="opengl" quiet="false" elisiontermsbefore="100" elisiontermsafter="100" screenwidth="79" indentamount="4" plotoutput="terminal" screenpixelheight="1200" rtablesize="20" useclientjvm="true" labelwidth="20" postplot="" typesetting="extended" ansi="false" ansicolor="[]" elisiondigitsthreshold="10000" showassumed="1" ansilprint="false" errorcursor="false" labelling="true" screenheight="25" prompt="&gt; " verboseproc="1" latexwidth="8.0" ShowLabels="true"/>
 <Styles>
 <Font name="Heading 1" background="[255,255,255]" bold="true" executable="false" family="Times New Roman" foreground="[0,0,0]" italic="false" opaque="false" readonly="false" size="18" subscript="false" superscript="false" underline="false" placeholder="false"/>
 <Font name="Warning" background="[255,255,255]" bold="false" executable="false" family="Courier New" foreground="[0,0,255]" italic="false" opaque="false" readonly="true" size="12" subscript="false" superscript="false" underline="false" placeholder="false"/>
@@ -255,16 +255,12 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block>
 <Group view="code" labelreference="L1733" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Allgemeine Rotationsmatrix mit Platzhaltern f\303\274r Matrixeintr\303\244ge</Font></Text-field>
 </Input>
-</Group>
-<Group view="code" labelreference="L1698" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">RR := Matrix(3,3):
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" inline-output="false" labelreference="L2076" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion11" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">RR := Matrix(3,3):
 for i from 1 to 3 do:
   for j from 1 to 3 do:
     RR(i,j) := parse(sprintf(&quot;r%d%d&quot;, i, j)):
   end do:
-end do:</Text-field>
-</Input>
-</Group>
+end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
 <Group view="code" labelreference="L1710" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field style="Text" layout="Normal">Matlab-Code generieren</Text-field>
 </Input>
@@ -343,16 +339,39 @@ end proc:</Text-field>
     GradMat2 := subs(RR(i,1)^2+RR(i,2)^2+RR(i,3)^2=1, GradMat2): # Zeile ist Einheitsvektor
     GradMat2 := subs(RR(1,i)^2+RR(2,i)^2+RR(3,i)^2=1, GradMat2): # Spalte ist Einheitsvektor
   end do:
+  # Weitere Vereinfachungen: Summe zweier Quadrate ist Eins minus das andere Quadrat der Komponenten eines Einheitsvektors
+  # Das ist mathematisch richtig, f\303\274hrt aber zu Code, der numerisch teilweise Probleme bereitet, da eher durch Null geteilt wird
+  # Die Reduktion der Rechenoperationen rechtfertigt hier keinen weiteren Aufwand.
+  for i from 1 to 3 do;
+    for j from 1 to 3 do;
+      if j = 1 then
+        lhs_j := [2, 3]:
+      elif j = 2 then
+        lhs_j := [1, 3]:
+      else
+        lhs_j := [1, 2]:
+      end if:
+      rhs_j := j:
+      #Funktioniert, aber nicht machen, da Implementierung dann numerisch weniger stabil bei Singularit\303\244ten
+      #GradMat2 := subs(RR(i,lhs_j[1])^2+RR(i,lhs_j[2])^2=1-RR(i,rhs_j)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Zeilenvektors
+      #GradMat2 := subs(RR(lhs_j[1],i)^2+RR(lhs_j[2],i)^2=1-RR(rhs_j,i)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Spaltenvektors
+    end do:
+  end do:
+  # Exportieren
   save GradMat2, sprintf(&quot;codeexport/eul%s_diff_rotmat_maple&quot;, eulstr):
   MatlabExport(GradMat2, sprintf(&quot;codeexport/eul%s_diff_rotmat_matlab.m&quot;, eulstr), 2):
 end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
 <Group view="code" labelreference="L2064" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field style="Text" layout="Normal">Test der generierten Maple-Prozedur</Text-field>
+<Input><Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Test der generierten Maple-Prozedur (f\303\274r letzte Euler-Konvention aus der Schleife</Font></Text-field>
 </Input>
 </Group>
 <Group view="code" labelreference="L2063" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">read(sprintf(&quot;proc_eul%s_diff_rotmat&quot;, eulstr)): # Prozedur aus Datei einlesen
 edr := parse(sprintf(&quot;eul%s_diff_rotmat<Font encoding="UTF-8">&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`</Font></Text-field>
+</Input>
+</Group>
+<Group view="code" hide-input="false" labelreference="L2078" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">edr(RR);</Text-field>
 </Input>
 </Group>
 <Group view="code" hide-input="false" labelreference="L2065" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
@@ -387,8 +406,8 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation
 </Input>
 </Group>
 <Group view="code" labelreference="L2060" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"><Font encoding="UTF-8">read(sprintf(&quot;proc_rotmat_diff_eul%s&quot;, eulstr)): # Prozedur aus Datei einlesen
-rde := parse(sprintf(&quot;rotmat_diff_eul%s&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`</Font></Text-field>
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">read(sprintf(&quot;proc_rotmat_diff_eul%s&quot;, eulstr)): # Prozedur aus Datei einlesen
+<Font encoding="UTF-8">rde := parse(sprintf(&quot;rotmat_diff_eul%s&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`</Font></Text-field>
 </Input>
 </Group>
 <Group view="code" hide-input="false" labelreference="L2059" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
@@ -399,11 +418,7 @@ rde := parse(sprintf(&quot;rotmat_diff_eul%s&quot;, eulstr)): # Prozedur lokal d
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>
-</Section><Presentation-Block>
-<Group view="code" labelreference="L2006" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
-</Input>
-</Group></Presentation-Block>
+</Section>
 <Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">euljac: Transformation zwischen Winkelgeschwindigkeiten und Zeitableitung der Euler-Winkel</Text-field></Title><Presentation-Block>
 <Group view="presentation" inline-output="false" labelreference="L7" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field style="Text" layout="Normal">Diese Jacobi-Matrix stellt den linearen Zusammenhang w=J phiD dar.</Text-field>

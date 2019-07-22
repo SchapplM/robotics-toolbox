@@ -76,10 +76,18 @@ for i_conv = uint8(1:N)
   fprintf('%d Umrechnungen mit r2eul%s getestet\n', n, eulstr);
   
   %% Aufruf der Gradientenmatrizen zwischen Rotationsmatrizen und Euler-Winkeln
+  n_sing = 0;
   for i = 1:n
     % erste Orientierung zufällig vorgeben
     R_1 = R_ges(:,:,i);
     phi_1 = r2eul(R_1, i_conv); % Euler-Winkel-Darstellung der 1. Orientierung
+    
+    % Zur Diagnose
+    J = euljac(phi_1, i_conv);
+    if cond(J) > 1e3
+      n_sing = n_sing+1;
+      % continue
+    end
     
     % Zufällige infinitesimale Änderung der Orientierung führt zur 2.
     % Orientierung
@@ -108,12 +116,18 @@ for i_conv = uint8(1:N)
 
     % Die Multiplikation der Gradienten muss Eins ergeben
     % (Differentiale kürzen sich weg)
+    % Nahe von Singularitäten wird der Gradient dphi_dr sehr groß
+    % (Ist hauptsächlich ein Problem bei anderer Implementierung)
     test = dphi_dr*dr_dphi - eye(3);
-    if any(abs(test(:))>1e-10)
-      error('Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s stimmen nicht überein', eulstr, eulstr);
+    if max(abs(test(:))) > 1e-10 % 1e5*eps(1+max(abs(dphi_dr(:)))) % feinere Toleranz bei anderer Implementierung
+      % Dieser Fehler tritt nahe einer Orientierungssingularität auf
+      % Die Werte sind aber trotzdem nicht viel zu groß
+      % Singuläre Stellungen werden durch Abfrage oben vermieden
+      error('i=%d: Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s stimmen nicht überein\n', i, eulstr, eulstr);
     end
   end
-  fprintf('%d Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s getestet\n', n, eulstr, eulstr);
+  fprintf('%d Gradientenmatrizen eul%s_diff_rotmat und rotmat_diff_eul%s getestet.\n', ...
+    n, eulstr, eulstr);
   
   %% Testen der Transformationsmatrizen euljac und euljacD bzgl der Zeitableitungen
   % Test: euljac, euljacD
