@@ -352,9 +352,9 @@ end proc:</Text-field>
         lhs_j := [1, 2]:
       end if:
       rhs_j := j:
-      #Funktioniert, aber nicht machen, da Implementierung dann numerisch weniger stabil bei Singularit\303\244ten
-      #GradMat2 := subs(RR(i,lhs_j[1])^2+RR(i,lhs_j[2])^2=1-RR(i,rhs_j)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Zeilenvektors
-      #GradMat2 := subs(RR(lhs_j[1],i)^2+RR(lhs_j[2],i)^2=1-RR(rhs_j,i)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Spaltenvektors
+      # Funktioniert, aber nicht in Repo \303\274bernehmen, da Implementierung dann numerisch weniger stabil bei Singularit\303\244ten ist.
+      # GradMat2 := subs(RR(i,lhs_j[1])^2+RR(i,lhs_j[2])^2=1-RR(i,rhs_j)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Zeilenvektors
+      # GradMat2 := subs(RR(lhs_j[1],i)^2+RR(lhs_j[2],i)^2=1-RR(rhs_j,i)^2, GradMat2): # Enth\303\244lt Summe zweier Komponentenquadrate eines Spaltenvektors
     end do:
   end do:
   # Exportieren
@@ -376,6 +376,60 @@ edr := parse(sprintf(&quot;eul%s_diff_rotmat<Font encoding="UTF-8">&quot;, eulst
 </Group>
 <Group view="code" hide-input="false" labelreference="L2065" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">edr(RR) - GradMat2;</Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section>
+<Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">eulD_diff_rotmat</Text-field></Title><Presentation-Block>
+<Group view="presentation" inline-output="false" labelreference="L2081" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Ableitung des vorherigen Zusammenhangs eul_diff_rotmat nach der Zeit.
+<Font encoding="UTF-8">Dieser Term wird zur Berechnung der Zeitableitung der kinematischen Zwangsbedingungen ben\303\266tigt</Font></Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L2082" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal"><Font encoding="UTF-8">Vorbereitung: Ersetzungsausdr\303\274cke f\303\274r Rotationsmatrix</Font></Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" inline-output="false" labelreference="L2087" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion13" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">RR_s := Matrix(3,3): # Rotationsmatrix substituiert
+RR_t := Matrix(3,3): # Rotationsmatrix, alle Elemente markiert als zeitabh\303\244ngig
+RRD_s := Matrix(3,3): # Zeitableitung der Rotationsmatrix, substituiert
+RRD_t := Matrix(3,3): # Zeitableitung der Rotationsmatrix, alle Ableitungen als Zeitabh\303\244ngige Gr\303\266\303\237en
+for i from 1 to 3 do:
+  for j from 1 to 3 do:
+    RR_s(i,j) := parse(sprintf(&quot;r%d%ds&quot;, i, j)):
+    RR_t(i,j) := parse(sprintf(&quot;r%d%d(t)&quot;, i, j)):
+    RRD_t(i,j) := parse(sprintf(&quot;r%d%dD(t)&quot;, i, j)):
+    RRD_s(i,j) := parse(sprintf(&quot;r%d%dDs&quot;, i, j)):
+  end do:
+end do:</EC-CodeEditor></CodeEditor-ExecGroup>
+<Group view="code" labelreference="L2088" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Eigentliche Berechnung</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" hide-input="false" inline-output="false" labelreference="L2084" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion12" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">for iconv from 1 to 12 do
+  eulstr := eulstrings[iconv]:
+  # Ergebnis von oben einlesen aus vorab gespeicherter Maple-Prozedur
+  read(sprintf(&quot;proc_eul%s_diff_rotmat&quot;, eulstr)): # Prozedur aus Datei einlesen
+  edr := parse(sprintf(&quot;eul%s_diff_rotmat&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
+
+  A_t:= edr(RR_t):
+  # Ableitung nach der Zeit
+  AD_t := diff~(A_t,t):
+  for i from 1 to 3 do
+    for j from 1 to 3 do
+      AD_t := subs(diff(RR_t(i,j),t)=RRD_t(i,j), AD_t):
+    end do:
+  end do:
+  AD_s := AD_t:
+  for i from 1 to 3 do
+    for j from 1 to 3 do
+      AD_s := subs(RR_t(i,j)=RR_s(i,j), AD_s):
+      AD_s := subs(RRD_t(i,j)=RRD_s(i,j), AD_s):
+    end do:
+  end do:
+  AD_s;
+  save AD_s, sprintf(&quot;codeexport/eul%sD_diff_rotmat_maple&quot;, eulstr):
+  MatlabExport(AD_s, sprintf(&quot;codeexport/eul%sD_diff_rotmat_matlab.m&quot;, eulstr), 2):
+end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L2089" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>
 </Section>
