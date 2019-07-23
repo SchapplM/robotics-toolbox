@@ -154,14 +154,14 @@ done
 echo "Erstelle Matlab eulD_diff_rotmat"
 # Matlab-Funktion erstellen
 zd="../eulD_diff_rotmat.m"
-echo "% Ableitung der ${eulstr}-Euler-Winkel nach der daraus berechneten Rotationsmatrix und der Zeit" > $zd
+echo "% Ableitung der Euler-Winkel nach der daraus berechneten Rotationsmatrix und der Zeit" > $zd
 echo "%"  >> $zd
 echo "% Eingabe:"  >> $zd
 echo "% R [3x3]:"  >> $zd
 echo "%   Rotationsmatrix"  >> $zd
 echo "% RD [3x3]:"  >> $zd
 echo "%   Zeitableitung der Rotationsmatrix"  >> $zd
-echo "% conv [1x1]"  >> $zd
+echo "% conv [1x1] (uint8)"  >> $zd
 echo "%   Nummer der Euler-Winkel-Konvention"  >> $zd
 echo "%   Siehe euler_angle_properties.m"  >> $zd
 echo "%"  >> $zd
@@ -248,6 +248,68 @@ for f in `find codeexport/rotmat_diff_eul*_matlab.m`; do
   cat $f >> $zd
   varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
   echo "GradMat = $varname_tmp;" >> $zd
+done
+
+# rotmatD_diff_eul: Matlab-Funktionen generieren (alles in eine Funktion schreiben)
+echo "Erstelle Matlab rotmatD_diff_eul"
+# Matlab-Funktion erstellen
+zd="../rotmatD_diff_eul.m"
+echo "% Ableitung der Rotationsmatrix nach den Euler-Winkeln und der Zeit" > $zd
+echo "%"  >> $zd
+echo "% Eingabe:"  >> $zd
+echo "% phi [3x1]:"  >> $zd
+echo "%   Euler-Winkel"  >> $zd
+echo "% phiD [3x1]:"  >> $zd
+echo "%   Zeitableitung der Euler-Winkel"  >> $zd
+echo "% conv [1x1] (uint8)"  >> $zd
+echo "%   Nummer der Euler-Winkel-Konvention"  >> $zd
+echo "%   Siehe euler_angle_properties.m"  >> $zd
+echo "%"  >> $zd
+echo "% Ausgabe:"  >> $zd
+echo "% GradMatD [9x3]:"  >> $zd
+printf "%%   Gradientenmatrix: Ableitung der (spaltenweise gestapelten) Rotationsmatrix\n%%   nach den sie erzeugenden Euler-Winkeln und dieses nochmal nach der Zeit\n"  >> $zd
+echo ""  >> $zd
+echo "% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-07" >> $zd
+echo "% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover" >> $zd
+echo ""  >> $zd
+echo "function GradMatD = rotmatD_diff_eul(phi, phiD, conv)" >> $zd
+echo "%% Init" >> $zd
+echo "%#codegen" >> $zd
+echo "%\$cgargs {zeros(3,1), zeros(3,1), uint8(2)}" >> $zd
+echo "assert(isreal(phi) && all(size(phi) == [3 1]), 'rotmatD_diff_eul: phi has to be [3x1] (double)');" >> $zd
+echo "assert(isreal(phiD) && all(size(phiD) == [3 1]), 'rotmatD_diff_eul: phiD has to be [3x1] (double)');" >> $zd
+echo "assert(isa(conv,'uint8') && isscalar(conv), 'rotmatD_diff_eul: Number of Euler convention has to be [1x1] uint8');" >> $zd
+echo "phi1_s=phi(1);phi2_s=phi(2);phi3_s=phi(3);" >> $zd
+echo "phi1D_s=phiD(1);phi2D_s=phiD(2);phi3D_s=phiD(3);" >> $zd
+echo "%% Berechnung" >> $zd
+echo "switch conv" >> $zd
+i=0
+for f in `find codeexport/rotmatD_diff_eul*_matlab.m`; do
+  i=$(($i+1))
+  eulstr=${f:27:3}
+  echo "case $i % $eulstr" >> $zd
+  echo "% aus $f (euler_angle_calculations.mw)" >> $zd
+  cat $f >> $zd
+  varname_tmp=`grep "=" $f | tail -1 | sed 's/\([a-zA-Z0-9_]*\).*/\1/'`
+  echo "GradMatD = $varname_tmp;" >> $zd
+done
+echo "otherwise" >> $zd
+echo "error('rotmatD_diff_eul: conv has to be 1 to 12');" >> $zd
+echo "end" >> $zd
+
+# rotmat_diff_eul: Maple-Prozedur generieren
+for f in `find codeexport/rotmat_diff_eul*_maple`; do
+  eulstr=${f:26:3}
+  echo "Erstelle Maple rotmat_diff_eul für $eulstr"
+  # Prozedur erstellen
+  zd="proc_rotmat_diff_eul${eulstr}"
+  echo "rotmat_diff_eul${eulstr} := proc (phi)" > $zd
+  echo "#Berechnung der Ableitung der Rotationsmatrix (gestapelt; 9x1) nach den (intrinsischen) $eulstr-Euler-Winkeln" >> $zd
+  echo "local r_dphi, phi1, phi2, phi3:" >> $zd
+  echo "phi1:=phi(1): phi2:=phi(2): phi3:=phi(3):" >> $zd
+  cat $f >> $zd
+  echo "return r_dphi:" >> $zd
+  echo "end proc:" >> $zd
 done
 
 

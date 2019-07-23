@@ -182,7 +182,7 @@ for i_conv = uint8(1:N)
   fprintf('%d Transformationsmatrizen eul%sjac und eul%sjacD getestet\n', n, eulstr, eulstr);
   
   %% Teste Zeitableitungen der Euler-Gradientenmatrizen
-  % Test: eulD_diff_rotmat
+  % Test: eulD_diff_rotmat, rotmatD_diff_eul
   for i = 1:n
     % erste Orientierung zufällig vorgeben
     R_1 = R_ges(:,:,i);
@@ -194,15 +194,6 @@ for i_conv = uint8(1:N)
     phi_2 = phi_1 + delta_phi;
     R_2 = eul2r(phi_2, i_conv); % Darstellung der 2. Orientierung als Rotationsmatrix
     
-    % Zur Diagnose
-    J_1 = euljac(phi_1, i_conv);
-    J_2 = euljac(phi_1, i_conv);
-    if cond(J_1) > 1e2 || cond(J_2) > 1e2
-      % Für fast-singuläre Orientierungen funktioniert es nicht gut.
-      n_sing = n_sing+1;
-      continue
-    end
-    
     % Orientierungsänderung als Geschwindigkeit darstellen
     delta_t = 1e-9;
     phiD = delta_phi / delta_t;
@@ -210,18 +201,47 @@ for i_conv = uint8(1:N)
     delta_R = R_2 - R_1;
     RD = delta_R / delta_t;
     
+    % Gradientenmatrix berechnen
+    B_1 = rotmat_diff_eul(phi_1, i_conv);
+    B_2 = rotmat_diff_eul(phi_2, i_conv);
+    BD_sym = rotmatD_diff_eul(phi_1, phiD, i_conv);
+    BD_num = (B_2-B_1)/delta_t;
+    test_BD = BD_sym - BD_num;
+    if max(abs(test_BD(:))) > 1e10*eps(1+max(abs(BD_num(:)))) % Schwellwert ca. 4e-6 für normale Werte
+      error('Transformationsmatrix rotmatD_diff_eul%s stimmt nicht gegen rotmatD_diff_eul%s', eulstr, eulstr);
+    end
+
+    % Zur Diagnose
+    J_1 = euljac(phi_1, i_conv);
+    J_2 = euljac(phi_1, i_conv);
+    if cond(J_1) > 1e2 || cond(J_2) > 1e2
+      % Für fast-singuläre Orientierungen funktioniert eul_diff_rotmat nicht gut.
+      % Für rotmat_diff_eul geht es immer (keine Singularitäten in diese
+      % Transformationsrichtung)
+      n_sing = n_sing+1;
+      continue
+    end
+
     % Gradientenmatrix für beide Orientierungen berechnen
     A_1 = eul_diff_rotmat(R_1, i_conv);
     A_2 = eul_diff_rotmat(R_2, i_conv);
     % Zeitableitung der Gradientenmatrix analytisch und per
     % Differenzenquotient
-    AD_1 = eulD_diff_rotmat(R_1, RD, i_conv);
-    AD_test = (A_2-A_1)/delta_t;
-    test = AD_1 - AD_test;
-    if max(abs(test(:))) > 1e10*eps(1+max(abs(AD_test(:)))) % Schwellwert ca. 1e-6 für normale Werte
-      error('Transformationsmatrix eul%sD_diff_rotmat stimmt nicht gegen eul_diff_rotmat', eulstr);
+    AD_sym = eulD_diff_rotmat(R_1, RD, i_conv);
+    AD_num = (A_2-A_1)/delta_t;
+    test_AD = AD_sym - AD_num;
+    if max(abs(test_AD(:))) > 1e10*eps(1+max(abs(AD_num(:)))) % Schwellwert ca. 1e-6 für normale Werte
+      error('Transformationsmatrix eul%sD_diff_rotmat stimmt nicht gegen eul%s_diff_rotmat', eulstr, eulstr);
+    end
+    % Zeitableitung des Tests auf Einheitsmatrix von oben: Produktregel
+    test_ABD = AD_sym*B_1 + A_1*BD_sym;
+    if max(abs(test_ABD(:))) > 1e10*eps(1+max(abs(AD_sym(:)))) % Schwellwert ca. 1e-6 für normale Werte
+      error('Transformationsmatrix eul%sD_diff_rotmat stimmt nicht gegen eul%s_diff_rotmat', eulstr, eulstr);
     end
   end
-  fprintf('%d/%d Gradienten eul%sD_diff_rotmat getestet. Der Rest (nahezu) singulär\n', n-n_sing,n, eulstr);
+  fprintf('%d Gradienten rotmatD_diff_eul%s getestet\n', n, eulstr);
+  fprintf('%d/%d Gradienten eul%sD_diff_rotmat getestet. Der Rest (nahezu) singulär\n', ...
+    n-n_sing,n, eulstr);
 end
-matlabfcn2mex({'r2eul', 'eul2r', 'rotmat_diff_eul', 'eul_diff_rotmat', 'eulD_diff_rotmat', 'euljac', 'euljacD'});
+matlabfcn2mex({'r2eul', 'eul2r', 'rotmat_diff_eul', 'rotmatD_diff_eul', ...
+  'eul_diff_rotmat', 'eulD_diff_rotmat', 'euljac', 'euljacD'});

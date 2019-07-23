@@ -379,7 +379,7 @@ edr := parse(sprintf(&quot;eul%s_diff_rotmat<Font encoding="UTF-8">&quot;, eulst
 </Input>
 </Group></Presentation-Block>
 </Section>
-<Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">eulD_diff_rotmat</Text-field></Title><Presentation-Block>
+<Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">eulD_diff_rotmat: Ableitung der Euler-Winkel nach der Rotationsmatrix und dann nach der Zeit</Text-field></Title><Presentation-Block>
 <Group view="presentation" inline-output="false" labelreference="L2081" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field style="Text" layout="Normal">Ableitung des vorherigen Zusammenhangs eul_diff_rotmat nach der Zeit.
 <Font encoding="UTF-8">Dieser Term wird zur Berechnung der Zeitableitung der kinematischen Zwangsbedingungen ben\303\266tigt</Font></Text-field>
@@ -452,7 +452,7 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation
       r_dphi(i,j) := diff(r_phi(i), phi(j)):
     end do:
   end do:
-  save r_dphi, sprintf(&quot;codeexport/rotmat_diff_eul%s_maple&quot;, eulstr):
+  save r_dphi, sprintf(&quot;codeexport/rotmat_diff_eul%s_maple&quot;, eulstr): # Hiermit wird mit gen_proc.sh eine Maple-Prozedur erstellt.
   MatlabExport(r_dphi, sprintf(&quot;codeexport/rotmat_diff_eul%s_matlab.m&quot;, eulstr), 2):
 end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
 <Group view="code" labelreference="L2061" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
@@ -465,10 +465,50 @@ end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation
 </Input>
 </Group>
 <Group view="code" hide-input="false" labelreference="L2059" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
-<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">rde(phi_s) - r_dphi;</Text-field>
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal">rde(phi) - r_dphi;</Text-field>
 </Input>
 </Group></Presentation-Block><Presentation-Block>
 <Group view="code" labelreference="L2058" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
+</Input>
+</Group></Presentation-Block>
+</Section>
+<Section collapsed="false" isCollapsible="true" drawButton="true" MultipleChoiceAnswerIndex="-1" MultipleChoiceRandomizeChoices="false" TrueFalseAnswerIndex="-1" EssayAnswerRows="5" EssayAnswerColumns="60"><Title><Text-field style="Heading 1" layout="Heading 1">rotmatD_diff_eul: Ableitung der Rotationsmatrix nach den Euler-Winkeln und dann nach der Zeit</Text-field></Title><Presentation-Block>
+<Group view="presentation" inline-output="false" labelreference="L2091" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Ableitung des vorherigen Zusammenhangs  nach der Zeit.
+<Font encoding="UTF-8">Dieser Term wird zur Berechnung der Zeitableitung der kinematischen Zwangsbedingungen ben\303\266tigt</Font></Text-field>
+</Input>
+</Group>
+<Group view="code" labelreference="L2098" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Vorbereitung</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" inline-output="false" labelreference="L2102" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion15" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">phi_t:=Matrix(3,1,&lt;phi1(t),phi2(t),phi3(t)&gt;):
+phiD_t:=diff~(phi_t,t):
+phi_s:=Matrix(3,1,&lt;phi1_s,phi2_s,phi3_s&gt;):
+phiD_s:=Matrix(3,1,&lt;phi1D_s,phi2D_s,phi3D_s&gt;):</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L2100" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
+<Input><Text-field style="Text" layout="Normal">Eigentliche Berechnung</Text-field>
+</Input>
+</Group></Presentation-Block><Presentation-Block><CodeEditor-ExecGroup view="presentation" hide-input="false" inline-output="false" labelreference="L2096" drawlabel="true" applyint="true" applyrational="true" display="code"><EC-CodeEditor id="CodeEditRegion14" expanded="true" visible="true" pixel-width="500" pixel-height="200" code-language="text/maple" autofit="true" wrapping="true" show-border="true" code-line-numbers="true">for iconv from 1 to 12 do
+  # iconv := 2:
+  eulstr := eulstrings[iconv]:
+  read(sprintf(&quot;proc_rotmat_diff_eul%s&quot;, eulstr)): # Prozedur aus Datei einlesen
+  rde := parse(sprintf(&quot;rotmat_diff_eul%s&quot;, eulstr)): # Prozedur lokal definieren f\303\274r Konvention Nummer `i`
+  # Gradientenmatrix rotmat_diff_eul aus oben generierter Maple-Prozedur erstellen
+  B_t := rde(phi_t):
+
+  # Ableitung nach der Zeit
+  BD_t := diff~(B_t,t):
+  BD_s := BD_t:
+  for i from 1 to 3 do
+    BD_s := subs(phiD_t(i,1)=phiD_s(i,1), BD_s):
+    BD_s := subs(phi_t(i,1)=phi_s(i,1), BD_s):
+  end do:
+  # BD_s;
+  save BD_s, sprintf(&quot;codeexport/rotmatD_diff_eul%s_maple&quot;, eulstr):
+  MatlabExport(BD_s, sprintf(&quot;codeexport/rotmatD_diff_eul%s_matlab.m&quot;, eulstr), 2):
+end do:</EC-CodeEditor></CodeEditor-ExecGroup></Presentation-Block><Presentation-Block>
+<Group view="code" labelreference="L2092" drawlabel="true" applyint="true" applyrational="true" applyexponent="false">
 <Input><Text-field prompt="&gt; " style="Maple Input" layout="Normal"></Text-field>
 </Input>
 </Group></Presentation-Block>
