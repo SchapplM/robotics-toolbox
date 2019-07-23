@@ -106,6 +106,7 @@ classdef SerRob < matlab.mixin.Copyable
     cormatregfcnhdl % Funktions-Handle für Regressor-Matrix der Coriolis-Matrix
     invdynregfcnhdl % Funktions-Handle für Regressor-Matrix der Gelenkkräfte durch inverse Dynamik
     jacobiRfcnhdl   % Funktions-Handle für Jacobi-Matrix bzgl der Rotationsmatrix des Endeffektors
+    jacobiRDfcnhdl  % Funktions-Handle für Zeitableitung der RotMat-Jacobi
     jacobigfcnhdl   % Funktions-Handle für geometrische Jacobi-Matrix
     jacobigDfcnhdl  % Funktions-Handle für Zeitableitung der geometrischen Jacobi-Matrix
     jacobitfcnhdl   % Funktions-Handle für Translationskomponente der Jacobi-Matrix
@@ -205,6 +206,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'fkinfcnhdl', 'fkine_fixb_rotmat_mdh_sym_varpar'}, ...
       {'jtraffcnhdl', 'joint_trafo_rotmat_mdh_sym_varpar'}, ...
       {'jacobiRfcnhdl', 'jacobiR_rot_sym_varpar'}, ...
+      {'jacobiRDfcnhdl', 'jacobiRD_rot_sym_varpar'}, ...
       {'jacobigfcnhdl', 'jacobig_sym_varpar', 'jacobig_mdh_num'}, ...
       {'jacobigDfcnhdl', 'jacobigD_sym_varpar', 'jacobigD_mdh_num'}, ...
       {'jacobitfcnhdl', 'jacobia_transl_sym_varpar'}, ...
@@ -455,6 +457,16 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % Jw: Jacobi-Matrix
       Jw = R.jacobiwfcnhdl(q, uint8(R.I_EElink), R.pkin_gen);
+    end
+    function JRD = jacobiRD(R, q, qD)
+      % Zeitableitung der Jacobi-Matrix bezüglich der Rotationsmatrix des Endeffektors
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeiten
+      %
+      % Ausgabe:
+      % JRD: Jacobi-Matrix-Zeitableitung
+      JRD = R.jacobiRDfcnhdl(q, qD, uint8(R.I_EElink), R.pkin_gen);
     end
     function JtD = jacobitD(R, q, qD)
       % Zeitableitung des Translatorischen Teils der geometrischen Jacobi-Matrix (Zusammenhang
