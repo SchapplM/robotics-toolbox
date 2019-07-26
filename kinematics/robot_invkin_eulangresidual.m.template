@@ -16,6 +16,9 @@
 %   Restfehler mit der IK-Lösung
 
 % Quelle:
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [1] Aufzeichnungen Schappler vom 3.8.2018
 
 % %VERSIONINFO%
@@ -91,6 +94,7 @@ end
 
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
+  % Reihenfolge hergeleitet in [SchapplerTapOrt2019]; siehe z.B. Gl. (21)
   I_IK2 = [1 2 3 6 5 4];
 else
   I_IK2 = [1 2 3 4 5 6];
@@ -115,7 +119,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   for jj = 2:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
 
-    % Gradienten-Matrix
+    % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     % Zwangsbedingungen
     Phi_voll = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
@@ -134,17 +138,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       v = zeros(NQJ, 1);
       if wn(1) ~= 0
         [~, hdq] = invkin_optimcrit_limits1(q1, [qmin, qmax]);
-        v = v - wn(1)*hdq'; % [1], Gl. (25)
+        v = v - wn(1)*hdq';
       end
       if wn(2) ~= 0
         [~, hdq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
         v = v - wn(2)*hdq';
       end
-      % [1], Gl. (24)
+      % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       delta_q_N = (eye(NQJ) - pinv(Jdk)* Jdk) * v;
     end
 
-    % [1], Gl. (23)
+    % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     
     % Reduziere Schrittweite auf einen Maximalwert bezogen auf
