@@ -27,7 +27,7 @@
 %   Funktions-Handles
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
-%   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,rS,Ic (inertial)
+%   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
 %   3: Dynamik-Parametervektor (ohne Minimierung); nicht implementiert
 %   4: Dynamik-Minimalparametervektor
 % 
