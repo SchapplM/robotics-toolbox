@@ -386,12 +386,20 @@ classdef ParRob < matlab.mixin.Copyable
       for i = 1:R.NLEG
         % Zähle Zwangsbedingungen für das Bein (werden in I_EE_Task der
         % Beinkette abgelegt)
-        nPhit = sum(R.Leg(i).I_EE_Task(1:3));
+        nPhit = sum(R.Leg(i).I_EE_Task(1:3));%origin
         nPhir = sum(R.Leg(i).I_EE_Task(4:6));
+        
+%         nPhit = sum(R.Leg(i).I_EE(1:3));
+%         nPhir = sum(R.Leg(i).I_EE(4:6));        
+        
         % Sonderfall: 3T2R
         if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i > 1
           % Folgekette bei 3T2R muss wieder 3T3R FG haben
-          nPhir = 3;
+          
+          if R.Leg(i).NJ == 6 % TODO: Bei Sonderf�llen Bedingung �ndern
+            % TODO: Alternative: I_EE/I_EE_Task; Nur mit Basis-Orientierung?
+            nPhir = 3;
+          end
         end
         nPhi = nPhit + nPhir;
         
@@ -415,7 +423,12 @@ classdef ParRob < matlab.mixin.Copyable
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
               [R.I1constr(i)-1+find(R.Leg(i).I_EE_Task(1:3)), ...
-               R.I1constr(i)-1+3+find(R.Leg(i).I_EE_Task(4:6))];
+               R.I1constr(i)-1+3+find(R.Leg(i).I_EE_Task(4:6))];%origin
+             
+%           R.I_constr_red(i_red:i_red+nPhi-1) = ...
+%                [R.I1constr(i)-1+find(R.Leg(i).I_EE(1:3)), ...
+%                R.I1constr(i)-1+3+find(R.Leg(i).I_EE(4:6))];
+             
         end
         % Lauf-Indizes hochzählen mit der Anzahl ZB für diese Beinkette
         i_tred = i_tred + nPhit;

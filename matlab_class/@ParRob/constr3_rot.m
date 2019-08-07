@@ -33,14 +33,14 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2_rot: xE muss 6x1 sein');
 NLEG = Rob.NLEG;
 Phi = NaN(3*NLEG,1);
-Phi_red = NaN(sum(Rob.I_EE(4:6))*NLEG,1);
+Phi_red = NaN(length(Rob.I_constr_r_red),1);
 
 R_P_E = Rob.T_P_E(1:3,1:3);
 
 %% Berechnung
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E); 
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
-
+K1 = 1; % Zähler für Zwangsbedingungen
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   % (Aus direkter Kinematik)
@@ -81,9 +81,14 @@ for iLeg = 1:NLEG
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   % Indizes für reduzierte ZB
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
+  K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1; % Anzahl der rot. ZB. dieser Beinkette
+
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
-  Phi_red(K1:K2,:) = Phi_i(Rob.I_EE(4:6));
+  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
+    Phi_red(K1:K2,:) = Phi_i([2 3]);
+  else
+    Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE_Task(4:6));
+  end
+  K1 = K2 + 1;
 end
