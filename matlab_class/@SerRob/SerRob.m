@@ -1076,6 +1076,49 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.ipv_floatb    = PV2floatb;
       R.DynPar.mpv    = mpv;
     end
+    function update_dynpar2(R, mges, mrSges, Ifges)
+      % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
+      % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Basis)
+      % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert
+      % mit Masse (bezogen auf jeweiliges Körper-KS)
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf Ursprung)
+      if nargin < 2 || isempty(mges)
+        mges = R.DynPar.mges;
+      end
+      if nargin < 3 || isempty(mrSges)
+        mrSges = R.DynPar.mrSges;
+      end
+      if nargin < 4 || isempty(Ifges)
+        Ifges = R.DynPar.Ifges;
+      end
+      
+      % Umwandlung in gestapelten Parametervektor. Nehme floatb, da Masse
+      % der Basis zur Berechnung der Schnittkräfte benutzt wird.
+      PV2floatb = NaN(10*R.NL,1);
+      for i = 1:R.NL
+        % different order: Ifges_num_mdh: [XX,YY,ZZ,XY,XZ,YZ], PV2: [XX,XY,XZ,YY,YZ,ZZ]
+        PV2floatb((1:6) +10*(i-1)) = Ifges(i,[1,4,5,2,6,3]);
+        PV2floatb((1:3) +10*(i-1)+6) = mrSges(i,:);
+        PV2floatb(10*i) = mges(i);
+      end
+      
+      % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
+      % Moment) in Minimalparameter-Vektor
+      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+
+      % Parameter in Roboterklasse belegen. Die baryzentrischen Parameter
+      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
+      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      R.DynPar.mges   = mges;
+      R.DynPar.rSges  = mrSges*NaN;
+      R.DynPar.Icges  = Ifges*NaN;
+      R.DynPar.mrSges = mrSges;
+      R.DynPar.Ifges  = Ifges;
+      R.DynPar.ipv_floatb    = PV2floatb;
+      R.DynPar.mpv    = mpv;
+    end
     function update_dynpar_mpv(R, mpv)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenem Minimalparameter-Vektor

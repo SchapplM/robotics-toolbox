@@ -505,6 +505,40 @@ classdef ParRob < matlab.mixin.Copyable
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv    = mpv;
     end
+    function update_dynpar2(R, mges, mrSges, Ifges)
+      % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
+      % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
+      % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert
+      % mit Masse (bezogen auf jeweiliges Körper-KS)
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf Ursprung)
+      if length(mges) ~= R.NQJ_LEG_bc+1
+        error('Es müssen Dynamikparameter für %d Körper übergeben werden', R.NQJ_LEG_bc+1);
+      end
+        
+      % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
+      % Moment) in Minimalparameter-Vektor
+      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      
+      % Aktualisiere die gespeicherten Dynamikparameter aller Beinketten
+      for i = 1:R.NLEG
+        m_Leg = [0; mges(1:end-1); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,1)];
+        mrSges_Leg = [zeros(1,3); mrSges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,3)];
+        Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
+        R.Leg(i).update_dynpar2(m_Leg, mrSges_Leg, Ifges_Leg);
+      end
+      % Parameter für PKM belegen. Die baryzentrischen Parameter
+      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
+      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      R.DynPar.mges   = mges;
+      R.DynPar.rSges  = NaN*mrSges;
+      R.DynPar.Icges  = NaN*Ifges;
+      R.DynPar.mrSges = mrSges;
+      R.DynPar.Ifges  = Ifges;
+      R.DynPar.mpv    = mpv;
+    end
+    
     function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
       % Konvertiere die Dynamikparameter zum Minimalparametervektor
       % Eingabe:
