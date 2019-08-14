@@ -95,6 +95,7 @@ classdef ParRob < matlab.mixin.Copyable
   methods
     % Konstruktor
     function R=ParRob(mdlname)
+      % Standardwerte vorbelegen
       R.mdlname = mdlname;
       R.Type = 2; % Parallel
       R.Leg = [];
@@ -106,6 +107,8 @@ classdef ParRob < matlab.mixin.Copyable
       R.r_P_E = zeros(3,1);
       R.phi_P_E = zeros(3,1);
       R.T_P_E = eye(4);
+      R.r_W_0 = zeros(3,1);
+      R.phi_W_0 = zeros(3,1);
       R.T_W_0 = eye(4);
       R.gravity = [0;0;-9.81];
       % Liste der Funktionshandle-Variablen mit zugehörigen
@@ -181,7 +184,7 @@ classdef ParRob < matlab.mixin.Copyable
         R.phi_W_0 = phi_W_0;
       end
       if nargin > 3 && ~isempty(phiconv_W_0)
-        R.phiconv_P_E = phiconv_W_0;
+        R.phiconv_W_0 = phiconv_W_0;
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
@@ -198,10 +201,16 @@ classdef ParRob < matlab.mixin.Copyable
       % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
       [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
       Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
-      % Korrekturmatrix (symbolische Jacobi bezieht sich auf
-      % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
-      T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
-      Jinv_qD_xD = Jinv_qD_sD*T;
+      if ~all(R.I_EE == [1 1 1 1 1 1])
+        % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
+        % Rotations-FG erforderlich
+        Jinv_qD_xD = Jinv_qD_sD;
+      else
+        % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+        % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+        Jinv_qD_xD = Jinv_qD_sD*T;
+      end
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
       % Corioliskraft bezogen auf Plattformkoordinaten
