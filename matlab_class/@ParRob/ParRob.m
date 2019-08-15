@@ -188,19 +188,20 @@ classdef ParRob < matlab.mixin.Copyable
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function Jinv_qD_xD = jacobi_qa_x(R, q, xP)
+    function Jinv_qD_xD = jacobi_qa_x(R, q, xE)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
-      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      % xE: EE-Koordinaten (6x1) (nicht: Plattform-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
       
       % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
-      [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xred, qJ, pkin, koppelP, legFrame);
+      xP = R.xE2xP(xE);
+      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
       if ~all(R.I_EE == [1 1 1 1 1 1])
         % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
         % Rotations-FG erforderlich
@@ -555,6 +556,23 @@ classdef ParRob < matlab.mixin.Copyable
       % 
       % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
       T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
+    end
+    function xP = xE2xP(R, xE)
+      % Umrechnung von EE-Lagevektor xE zum Plattform-Lagevektor xP
+      % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
+      % zusätzlichen Transformation basiert, die beliebig geändert werden
+      % kann
+      % Eingabe:
+      % xE (6x1): Lagevektor des EE-KS im Roboter-Basis-KS
+      % Ausgabe:
+      % xP (6x1): Lagevektor des Plattform-KS im Roboter-Basis-KS
+      if all(all(R.T_P_E==eye(4)))
+        xP = xE;
+      else
+        T_0_E = R.x2t(xE);
+        T_0_P = T_0_E * invtr(R.T_P_E);
+        xP = R.t2x(T_0_P);
+      end
     end
   end
 end
