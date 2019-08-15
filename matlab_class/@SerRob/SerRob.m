@@ -314,9 +314,11 @@ classdef SerRob < matlab.mixin.Copyable
       % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
       % Tc_W: Bezugssystem ist das Welt-KS
       Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
-      Tc_W = Tc_0;
-      for i = 1:size(Tc_0,3)
-        Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
+      if nargout == 2
+        Tc_W = Tc_0;
+        for i = 1:size(Tc_0,3)
+          Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
+        end
       end
     end
     function [Tc_0, Tc_W] = fkine_vp(R, q, pkin2)
@@ -333,9 +335,11 @@ classdef SerRob < matlab.mixin.Copyable
         pkin3 = pkin2;
       end
       Tc_0 = R.fkinfcnhdl(q, pkin3);
-      Tc_W = Tc_0;
-      for i = 1:size(Tc_0,3)
-        Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
+      if nargout == 2
+        Tc_W = Tc_0;
+        for i = 1:size(Tc_0,3)
+          Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
+        end
       end
     end
     function [T_0_E, T_W_E] = fkineEE(R, q)
@@ -345,8 +349,12 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Homogene Transformationsmatrix von Basis-KS bzw. Welt-KS zum EE-KS
-      [Tc_0, Tc_W] = R.fkine(q);
-      T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
+      if nargout == 2
+        [Tc_0, Tc_W] = R.fkine(q);
+        T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
+      else
+        Tc_0 = R.fkine(q);
+      end
       T_0_E = Tc_0(:,:,R.I_EElink+1)*R.T_N_E;
     end
     function [T_0_E, T_W_E] = fkineEE_vp(R, q, pkin2)
