@@ -4,7 +4,7 @@
 % * geometrische Matrix der direkten Kinematik
 % 
 % Variante 3:
-% Implementierung mit F�hrungs-Beinkette und Folge-Beinketten
+% Implementierung mit Führungs-Beinkette und Folge-Beinketten
 % 
 % Eingabe:
 % q [Nx1]
@@ -59,6 +59,8 @@ end
 
 
 for i = 1:Rob.NLEG
+  % TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
+  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
   Phi_x_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
     [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
      Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)];

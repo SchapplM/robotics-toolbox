@@ -106,6 +106,8 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47)
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
   
   % Ausgabe mit reduzierter Dimension
+  % TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
+  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
   K2 = K1+sum(Rob.I_EE(4:6))-1;
   Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));

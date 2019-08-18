@@ -108,9 +108,7 @@ end
 
 %% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  Phi_voll = Rob.constr3(q, xE_soll);
-%   Phi = Phi_voll(Rob.I_constr_red);%origin
-  Phi = Phi_voll;%LJN
+  Phi = Rob.constr3(q, xE_soll);
 else
   Phi = Rob.constr1(q, xE_soll);
 end
