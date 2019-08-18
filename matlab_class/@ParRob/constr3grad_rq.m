@@ -64,8 +64,7 @@ R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 
-% Index der Phi_red 
-K1 = 1;
+K1 = 1; % Index der Phi_red 
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
@@ -133,10 +132,8 @@ for iLeg = 1:NLEG
     J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
 
-%     K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
-    K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
-%     Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:);%Origin: ZB ZYX    
-    Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:);%LJN: 2(Y) und 3(Z)  
+    K2 = K1+sum(Rob.I_EE(4:6))-1; % zwei oder drei rotatorische Einträge 
+    Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
     K1 = K2+1;
   elseif iLeg > 1
     R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
@@ -193,11 +190,7 @@ for iLeg = 1:NLEG
     % Ableitung nach den Gelenkwinkeln der Folgekette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq_f;
 
-%     K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1); % K: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
-%     K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge %Origin
     K2 = K1+2;
-%     Phipq_red(K1:K2,G1:G2) = Phi_phi_i_Gradq_L(Rob.I_EE(4:6),:);
-%     Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq_f(Rob.I_EE(4:6),:);
     Phipq_red(K1:K2,G1:G2) = Phi_phi_i_Gradq_L;
     Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq_f;
     K1 = K2+1;

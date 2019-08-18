@@ -40,8 +40,8 @@ assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
 s_std = struct( ...
              'n_min', 0, ... % Minimale Anzahl Iterationen
              'n_max', 1000, ... % Maximale Anzahl Iterationen
-             'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
-             'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+             'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
+             'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
              'reci', false, ... % Keine reziproken Winkel für ZB-Def.
              'retry_limit', 100); % Anzahl der Neuversuche
 

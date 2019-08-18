@@ -91,14 +91,10 @@ for k = 1:nt
     Phi_x = Rob.constr1grad_x(q_k, x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
-%     Phi_q = Rob.constr3grad_q(q_k, x_k);% Oigin
-%     Phi_x = Rob.constr3grad_x(q_k, x_k);
     [~,Phi_q] = Rob.constr3grad_q(q_k, x_k);
     [~,Phi_x] = Rob.constr3grad_x(q_k, x_k);
     I = Rob.I_constr_red;
-    J_x_inv = -Phi_q(I,:) \ Phi_x(I,1:5);%origin Fehler: Dimension
-%     J_x_inv = -Phi_q \ Phi_x;% LJN
-    
+    J_x_inv = -Phi_q(I,:) \ Phi_x(I,1:5);
   end
 
   qD_k = J_x_inv * xD_k(I_EE);

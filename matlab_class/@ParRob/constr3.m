@@ -2,7 +2,7 @@
 % Vollständige Rotations- und Translationskomponenten
 % Variante 3:
 % Andere Implementierung:
-% * Implementierung mit F�hrungs-Beinkette und Folge-Beinketten
+% * Implementierung mit F�hrungs-Beinkette und Folge-Beinketten
 % * Translation mit Vektor 0-E statt A-B
 % * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
@@ -39,11 +39,6 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phit_red, Phit] = R.constr3_trans(q, xE);
 [Phir_red, Phir] = R.constr3_rot(q, xE);
 
-% Anzahl ZB
-nPhit = size(Phit_red,1)/R.NLEG;
-nPhir = size(Phir_red,1)/R.NLEG;
-nPhi = nPhit + nPhir;
-
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 Phi_red = NaN(size(Phit_red,1)+size(Phir_red,1), 1);
 Phi =     NaN(size(Phit,1)    +size(Phir ,1),    1);
@@ -51,11 +46,6 @@ Phi_red(R.I_constr_t_red') = Phit_red;
 Phi_red(R.I_constr_r_red') = Phir_red;
 
 for i = 1:R.NLEG
-    
-  
-%   Phi_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-%     [Phit_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-%      Phir_red((i-1)*nPhir+1:(i)*nPhir, :)];
   Phi((i-1)*6+1:(i)*6, :) = ...
     [Phit((i-1)*3+1:(i)*3, :); ...
      Phir((i-1)*3+1:(i)*3, :)];
