@@ -217,11 +217,15 @@ RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
 
 %% Jacobi-Matrizen auswerten
 
-G_q_voll = RP.constr3grad_q(qs, X0);
-G_x_voll = RP.constr3grad_x(qs, X0);
+[G_q_red,G_q_voll] = RP.constr3grad_q(qs, X0);
+[~,G_x_voll] = RP.constr3grad_x(qs, X0); % TODO G_x_red ist noch nicht voll implementiert
 
+% Testen der Komponentenaufteilung
 G_q = G_q_voll(RP.I_constr_red,:);
 G_x = G_x_voll(RP.I_constr_red,:);
+if any(G_q_red(:)-G_q(:))
+  error('Aufteilung der ZB-Komponenten stimmt nicht zwischen constr3grad_q/constr3grad_x/ParRob');
+end
 
 % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen 
 % * aktiv/unabhängig (a),
