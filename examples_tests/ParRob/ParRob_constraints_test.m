@@ -91,30 +91,38 @@ for NNN = RobotNames
   X_test = rand(n, 6);
   X_test(:,~RP.I_EE) = 0;
   %% Alle Funktionen einmal aufrufen
-  
-  RP.fkine(q0, xE);
-  RP.fkine_legs(q0);
-  RP.fkine_platform(xE);
+  % Prüfe dabei, ob eine Ausgabe NaN wird. Das darf bei der Eingabe nicht
+  % sein.
+  testNaN = cell(40,1);
+  [testNaN{1},testNaN{2}]=RP.fkine(q0, xE);
+  [testNaN{3},testNaN{4}]=RP.fkine_legs(q0);
+  [testNaN{5},testNaN{6}]=RP.fkine_platform(xE);
 
-  RP.constr1(q0, xE);
-  RP.constr1_trans(q0, xE);
-  RP.constr1_rot(q0, xE);
-  RP.constr1grad_q(q0, xE);
-  RP.constr1grad_tq(q0);
-  RP.constr1grad_rq(q0, xE);
-  RP.constr1grad_x(q0, xE);
+  testNaN{7}=RP.constr1(q0, xE);
+  testNaN{8}=RP.constr1_trans(q0, xE);
+  testNaN{9}=RP.constr1_rot(q0, xE);
+  [testNaN{10},testNaN{11}]=RP.constr1grad_q(q0, xE);
+  [testNaN{12},testNaN{13}]=RP.constr1grad_tq(q0);
+  [testNaN{14},testNaN{15}]=RP.constr1grad_rq(q0, xE);
+  [testNaN{16},testNaN{17}]=RP.constr1grad_x(q0, xE);
   
-  RP.constr2(q0, xE);
-  RP.constr2_trans(q0, xE);
-  RP.constr2_rot(q0, xE);
-  RP.constr2grad_q(q0, xE);
-  RP.constr2grad_x(q0, xE);
+  [testNaN{18}]=RP.constr2(q0, xE);
+  [testNaN{19},testNaN{20}]=RP.constr2_trans(q0, xE);
+  [testNaN{21},testNaN{22}]=RP.constr2_rot(q0, xE);
+  [testNaN{23},testNaN{24}]=RP.constr2grad_q(q0, xE);
+  [testNaN{25},testNaN{26}]=RP.constr2grad_x(q0, xE);
   
-  RP.constr3(q0, xE);
-  RP.constr3_rot(q0, xE);
-  RP.constr3grad_q(q0, xE);
-  RP.constr3grad_rq(q0, xE);
-  RP.constr3grad_x(q0, xE);
+  [testNaN{27},testNaN{28}]=RP.constr3(q0, xE);
+  [testNaN{31},testNaN{32}]=RP.constr3_rot(q0, xE);
+  [testNaN{33},testNaN{34}]=RP.constr3grad_q(q0, xE);
+  [testNaN{37},testNaN{38}]=RP.constr3grad_rq(q0, xE);
+  [testNaN{39},testNaN{40}]=RP.constr3grad_x(q0, xE);
+  for i = 1:40
+    test = testNaN{i};
+    if any(isnan(test(:)))
+      error('Die aufgerufenen Funktionen für Argument %d liefert NaN', i);
+    end
+  end
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', PName);
 
   %% Gradienten der kinematischen Zwangsbedingungen testen
@@ -294,7 +302,7 @@ for NNN = RobotNames
       Phi1dx_0 = RP.constr1grad_x(q0, x0);
       
       % Inverse PKM-Jacobi-Matrix
-      Jinv1_voll = -inv(Phi1dq_0) * Phi1dx_0;
+      Jinv1_voll = -Phi1dq_0 \ Phi1dx_0;
       % Jacobi-Zusammenhang zwischen qD und xD ausnutzen: 
       % Inverse differentielle Kinematik (x->q)
       delta_x_red = (0.5-rand(sum(RP.I_EE),1));
@@ -302,14 +310,14 @@ for NNN = RobotNames
       % Faktor zur Normierung von delta_q auf den Wert 1e-3. Dann gilt noch
       % die Kleinwinkelnäherung und die Beträge sind noch nicht zu klein.
       % Ansonsten gibt es Probleme mit Singularitäten
-      k = max(abs(delta_q1))*1e3;
-      delta_q1 = delta_q1/k;
-      delta_x_red = delta_x_red/k;
-      delta_x = zeros(6,1); % Umrechnen auf 6 EE-FG für Funktionen
-      delta_x(RP.I_EE) = delta_x_red;
+      k1 = max(abs(delta_q1))*1e3;
+      delta_q1 = delta_q1/k1;
+      delta_x_red1 = delta_x_red/k1;
+      delta_x1 = zeros(6,1); % Umrechnen auf 6 EE-FG für Funktionen
+      delta_x1(RP.I_EE) = delta_x_red1;
       % Berechne neue Koordinaten q1,x1 konsistent mit den Zwangsbed.
       q1 = q0 + delta_q1;
-      x1 = x0 + delta_x;
+      x1 = x0 + delta_x1;
       Phi1_1 = RP.constr1(q1, x1);
       test_Phi1 = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
       if max(abs(test_Phi1)) > 1e11*eps(1+max(abs(Phi1_0)))
@@ -334,21 +342,34 @@ for NNN = RobotNames
       end
       
       % Andere ZB-Definitionen vergleichen:
-      % Gradientenmatrizen und inverse Jacobi-Matric
+      % Gradientenmatrizen und inverse Jacobi-Matrix
       Phi2dq_0 = RP.constr2grad_q(q0, x0);
       Phi2dx_0 = RP.constr2grad_x(q0, x0);
-      Jinv2_voll = -inv(Phi2dq_0) * Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      Jinv2_voll = -Phi2dq_0 \ Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
       Phi3dq_0 = RP.constr3grad_q(q0, x0);
       Phi3dx_0 = RP.constr3grad_x(q0, x0);
-      Jinv3_voll = -inv(Phi3dq_0) * Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      Jinv3_voll = -Phi3dq_0 \ Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
       % Änderung der Gelenkwinkel bei gegebener Plattformänderung
+      % Führe auch wieder eine Anpassung der Schrittweite mit Faktor k2 und
+      % k3 ein. Wenn andere ZB-Definitionen schlechter konditioniert sind,
+      % gibt es sonst Probleme
       delta_q2 = Jinv2_voll * delta_x_red;
+      k2 = max(abs(delta_q2))*1e3;
+      delta_q2 = delta_q2/k2;
+      delta_x_red2 = delta_x_red/k2;
+      delta_x2 = zeros(6,1);
+      delta_x2(RP.I_EE) = delta_x_red2;
       delta_q3 = Jinv3_voll * delta_x_red;
+      k3 = max(abs(delta_q3))*1e3;
+      delta_q3 = delta_q3/k3;
+      delta_x_red3 = delta_x_red/k3;
+      delta_x3 = zeros(6,1);
+      delta_x3(RP.I_EE) = delta_x_red3;
       % Daraus resultierende Änderung der Zwangsbedingungen
       Phi2_0 = RP.constr2(q0, x0);
-      Phi2_1 = RP.constr2(q0 + delta_q2, x1);
+      Phi2_1 = RP.constr2(q0 + delta_q2, x0+delta_x2);
       Phi3_0 = RP.constr3(q0, x0);
-      Phi3_1 = RP.constr3(q0 + delta_q3, x1);
+      Phi3_1 = RP.constr3(q0 + delta_q3, x0+delta_x3);
       test_Phi2 = Phi2_0 - Phi2_1;
       test_Phi3 = Phi3_0 - Phi3_1;
       if max(abs(test_Phi2)) > 5e11*eps(1+max(abs(Phi2_0)))
