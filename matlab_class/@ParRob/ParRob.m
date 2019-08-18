@@ -344,6 +344,8 @@ classdef ParRob < matlab.mixin.Copyable
         I_EE_Task = I_EE;
       end
       if nargin < 4
+        % TODO: Bei 3T2R stimmt das eventuell nicht, wenn Beinketten 5
+        % Gelenke haben
         I_EE_Legs = repmat(I_EE_Task, R.NLEG,1);
       end
       R.I_EE_Task = I_EE_Task;

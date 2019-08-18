@@ -122,5 +122,7 @@ for iLeg = 1:NLEG
   
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
   K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
+  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:);
 end

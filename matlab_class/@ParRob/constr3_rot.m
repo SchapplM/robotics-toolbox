@@ -88,6 +88,8 @@ for iLeg = 1:NLEG
   if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
     Phi_red(K1:K2,:) = Phi_i([2 3]);
   else
+    % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+    % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
     Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE_Task(4:6));
   end
   K1 = K2 + 1;
