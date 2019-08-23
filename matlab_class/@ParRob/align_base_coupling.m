@@ -24,8 +24,8 @@ else
   phi_0_Ai_ges = sym('xx', [3,NLEG]);
   phi_0_Ai_ges(:)=0;
 end
-
-
+Rob.DesPar.base_method = uint8(method);
+Rob.DesPar.base_par = param;
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
 % Parameter: Abstand

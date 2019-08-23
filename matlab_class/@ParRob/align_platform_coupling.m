@@ -23,7 +23,8 @@ else
   r_P_P_Bi_ges = sym('xx', [3,NLEG]);
   r_P_P_Bi_ges(:)=0;
 end
-
+Rob.DesPar.platform_method = uint8(method);
+Rob.DesPar.platform_par = [param;0];
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
 % Parameter: Abstand zum Mittelpunkt

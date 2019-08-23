@@ -64,6 +64,7 @@ classdef ParRob < matlab.mixin.Copyable
       phi_P_E % Orientierung des EE-KS im Plattform-KS (ausgedrückt in Euler-Winkeln)
       Type % Typ des Roboters (2=parallel; zur Abgrenzung von SerRob)
       DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
+      DesPar % Struktur mit Entwurfsparameter (Gestell,Plattform)
       mdlname % Name des PKM-Robotermodells, das in den Matlab-Funktionen benutzt wird.
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
@@ -111,6 +112,11 @@ classdef ParRob < matlab.mixin.Copyable
       R.phi_W_0 = zeros(3,1);
       R.T_W_0 = eye(4);
       R.gravity = [0;0;-9.81];
+      R.DesPar = struct(...
+        'base_method', uint8(0), ... % Modellierungsart Gestell (1=Kreis)
+        'base_par', 0, ... % Parameter dafür (Durchmesser)
+        'platform_method', uint8(0), ... % Modellierungsart Plattform (1=Kreisscheibe)
+        'platform_par', zeros(1,2)); % Parameter dafür (Durchmesser, Stärke)
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
@@ -214,7 +220,7 @@ classdef ParRob < matlab.mixin.Copyable
       end
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
-      % Corioliskraft bezogen auf Plattformkoordinaten
+      % Inverse Dynamik bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       % xPD: Plattform-Geschwindigkeit (im Basis-KS)
@@ -233,6 +239,21 @@ classdef ParRob < matlab.mixin.Copyable
           R.DynPar.mpv);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
+    function Fx_traj = invdyn_platform_traj(R, Q, XP, XPD, XPDD)
+      % Vektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % XP: Plattform-Koordinaten (Trajektorie)
+      % XPD: Plattform-Geschwindigkeit (Trajektorie)
+      % XPDD: Plattform-Beschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      for i = 1:size(Q,1)
+        Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
     function Mx = inertia_platform(R, q, xP)
@@ -591,21 +612,62 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
       T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
     end
-    function xP = xE2xP(R, xE)
+    function [xP, xPD, xPDD] = xE2xP(R, xE, xED, xEDD)
       % Umrechnung von EE-Lagevektor xE zum Plattform-Lagevektor xP
       % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
       % zusätzlichen Transformation basiert, die beliebig geändert werden
       % kann
       % Eingabe:
       % xE (6x1): Lagevektor des EE-KS im Roboter-Basis-KS
+      % xED (6x1): Geschwindigkeitsvektor EE-KS (Euler-Winkel)
+      % xEDD (6x1): Beschleunigungsvektor EE-KS (Euler-Winkel)
       % Ausgabe:
       % xP (6x1): Lagevektor des Plattform-KS im Roboter-Basis-KS
+      % xPD (6x1): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
+      % xEDD (6x1): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
       if all(all(R.T_P_E==eye(4)))
+        % Keine Änderung der Transformation. Keine Umrechnung notwendig.
         xP = xE;
-      else
-        T_0_E = R.x2t(xE);
-        T_0_P = T_0_E * invtr(R.T_P_E);
-        xP = R.t2x(T_0_P);
+        if nargout > 1
+          xPD = xED;
+        end
+        if nargout > 2
+          xPDD = xEDD;
+        end
+        return
+      end
+      T_0_E = R.x2t(xE);
+      T_0_P = T_0_E * invtr(R.T_P_E);
+      xP = R.t2x(T_0_P);
+      % Geschwindigkeit berechnen
+      if nargin > 2
+        % Umrechnung auf Winkelgeschwindigkeit (bezogen auf Endeffektor)
+        T_phiE = euljac(xE(4:6), R.phiconv_W_E);
+        omega_0_E = T_phiE * xED(4:6);
+        % Umrechnung von Punkt E auf Punkt P (mit Adjunkt-Matrix)
+        V_0_E = [xED(1:3); omega_0_E];
+        r_P_P_E = R.T_P_E(1:3);
+        R_0_P = T_0_P(1:3,1:3);
+        r_0_E_P = -R_0_P*r_P_P_E;
+        A_P_E = adjoint_jacobian(r_0_E_P);
+        V_0_P = A_P_E * V_0_E;
+        % Umrechnung auf Euler-Winkel-Geschwindigkeit bezogen auf Plattform
+        T_phiP = euljac(xP(4:6), R.phiconv_W_E);
+        xPD = [V_0_P(1:3); T_phiP\V_0_P(4:6)];
+      end
+      % Beschleunigung berechnen
+      if nargin > 3
+        % Umrechnung auf Winkelbeschleunigung (bezogen auf Endeffektor)
+        TD_phiE = euljacD(xE(4:6), xED(4:6), R.phiconv_W_E);
+        omegaD_0_E = TD_phiE*xED(4:6) + T_phiE * xEDD(4:6);
+        % Umrechnung von Punkt E auf Punkt P (mit Adjunkt-Matrix)
+        VD_0_E = [xEDD(1:3); omegaD_0_E];
+        omega_0_P = omega_0_E; % gleicher Starrkörper
+        AD_P_E = adjointD_jacobian(-r_P_P_E, R_0_P, omega_0_P);
+        VD_0_P = AD_P_E*V_0_E + A_P_E * VD_0_E;
+        % Umrechnung auf Euler-Winkel-Beschleunigung bezogen auf Plattform
+        TD_phiP = euljac(xP(4:6), xPD(4:6), R.phiconv_W_E);
+        xPDD = [VD_0_P(1:3); T_phiP\(VD_0_P(4:6)-TD_phiP*xPD(4:6))];
       end
     end
   end
