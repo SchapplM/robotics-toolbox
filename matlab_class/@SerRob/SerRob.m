@@ -52,7 +52,8 @@ classdef SerRob < matlab.mixin.Copyable
     pkin_gen % Vektor der Kinematikparameter des allgemeinen Modells
     pkin_names % Namen der Kinematikparameter
     pkin_types % Typ der Kinematikparameter; siehe get_pkin_parameter_type()
-    DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
+    DynPar % Struktur mit Dynamikparametern (Masse, Schwerpunkt, Trägheit)
+    DesPar % Struktur mit Entwurfsparameter (Segmentgeometrie, Motorauswahl, ...)
     Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
     r_W_0 % Position der Basis im Welt-KS
     phi_W_0 % Orientierung des Basis-KS im Welt-KS (ausgedrückt in Euler-Winkeln)
@@ -168,6 +169,13 @@ classdef SerRob < matlab.mixin.Copyable
                         'mpv', [], 'ipv_floatb', [], ...
                         'mode', 2);
       R.update_dynpar1();
+      R.DesPar = struct(...
+        'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
+        'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
+        'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes
+        'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors
+        'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks 
+        'joint_type', uint8(zeros(R.NJ,1))); % Art des passiven Gelenks
 
       R.qref = zeros(R.NQJ,1);
 
