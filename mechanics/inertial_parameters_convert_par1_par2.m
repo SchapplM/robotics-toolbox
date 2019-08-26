@@ -1,21 +1,23 @@
 % Convert dynamic parameters for from parameter set 1 to set 2
 % 
 % set 1:
-%   Mass, Center of Mass, Inertia around CoM
+%   Mass, Center of Mass, Inertia around CoM ("barycentric parameters")
 % set 2:
-%   Mass, First Moment, Inertia round Frame Origin
+%   Mass, First Moment, Inertia round Frame Origin ("inertial parameters")
 % 
 % Input:
-% rSges_num_urdf [Nx3 double]
+% mges [Nx1 double]
+%   masses of N bodies
+% rSges [Nx3 double]
 %   center of mass of N bodies
-% ISges_num [Nx6 double]
+% ISges [Nx6 double]
 %   inertia of all N bodies around their center of mass
 %   order: xx, yy, zz, xy, xz, yz
 % 
 % Output:
-% mrSges_num [Nx3 double]
+% mrSges [Nx3 double]
 %   first moment of all N bodies
-% Ifges_num [Nx6 double]
+% Ifges [Nx6 double]
 %   inertia of all N bodies around the frame origin
 %   order: xx, yy, zz, xy, xz, yz
 
@@ -23,25 +25,27 @@
 % (c) Institut für Regelungstechnik, Universität Hannover
 
 
-function [mrSges_num, Ifges_num] = ...
-  inertial_parameters_convert_par1_par2(rSges_num, ISges_num, m_num)
+function [mrSges, Ifges] = ...
+  inertial_parameters_convert_par1_par2(rSges, ISges, mges)
+assert(size(rSges,2) == 3, 'Schwerpunkte müssen zeilenweise vorliegen: Nx3');
+assert(size(ISges,2) == 6, 'Trägheitstensoren müssen zeilenweise vorliegen: Nx6');
 
-N = size(rSges_num,1);
+N = size(rSges,1);
 %% Erstes Moment
-mrSges_num = NaN(N,3);
+mrSges = NaN(N,3);
 for i = 1:N
-  mrSges_num(i,:) = m_num(i) * rSges_num(i,:);
+  mrSges(i,:) = mges(i) * rSges(i,:);
 end
 
 %% Trägheitstensor um das Körperkoordinatensystem
-Ifges_num = NaN(N,6);
+Ifges = NaN(N,6);
 for i = 1:N
   % Trägheitstensor um den Schwerpunkt
-  I_iSi = inertiavector2matrix(ISges_num(i,:));
+  I_iSi = inertiavector2matrix(ISges(i,:));
   
   % Steinerscher-Verschiebungssatz: Trägheitstensor um Koordinatensystem
-  I_ii = inertia_steiner(I_iSi, rSges_num(i,:)', m_num(i));
+  I_ii = inertia_steiner(I_iSi, rSges(i,:)', mges(i));
   
   % Ausgabe zusammenstellen
-  Ifges_num(i,:) = inertiamatrix2vector(I_ii);
+  Ifges(i,:) = inertiamatrix2vector(I_ii);
 end

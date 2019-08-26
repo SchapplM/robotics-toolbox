@@ -18,7 +18,8 @@
 %   Definition der Dynamik-Parameter:
 %   DynPar.mode: Umschalten zwischen verschiedenen Dynamik-Parametern als
 %   Eingang der Dynamik-Funktionen. Entspricht Ziffer hinter
-%   Funktions-Handles
+%   Funktions-Handles. Die Parameter können unabhängig vom Modus der
+%   Funktionen übergeben werden.
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
@@ -1117,16 +1118,17 @@ classdef SerRob < matlab.mixin.Copyable
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
       mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      
+      % Umwandlung in baryzentrische Parameter
+      [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
 
-      % Parameter in Roboterklasse belegen. Die baryzentrischen Parameter
-      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
-      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      % Parameter in Roboterklasse belegen.
       R.DynPar.mges   = mges;
-      R.DynPar.rSges  = mrSges*NaN;
-      R.DynPar.Icges  = Ifges*NaN;
+      R.DynPar.rSges  = rSges;
+      R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
-      R.DynPar.ipv_floatb    = PV2floatb;
+      R.DynPar.ipv_floatb = PV2floatb;
       R.DynPar.mpv    = mpv;
     end
     function update_dynpar_mpv(R, mpv)

@@ -549,12 +549,14 @@ classdef ParRob < matlab.mixin.Copyable
         Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
         R.Leg(i).update_dynpar2(m_Leg, mrSges_Leg, Ifges_Leg);
       end
-      % Parameter für PKM belegen. Die baryzentrischen Parameter
-      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
-      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      
+      % Umwandlung in baryzentrische Parameter
+      [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
+      
+      % Parameter für PKM belegen.
       R.DynPar.mges   = mges;
-      R.DynPar.rSges  = NaN*mrSges;
-      R.DynPar.Icges  = NaN*Ifges;
+      R.DynPar.rSges  = rSges;
+      R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv    = mpv;
