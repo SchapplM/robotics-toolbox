@@ -5,7 +5,7 @@
 % * Beispiel zu Jacobi-Matrizen
 % * Beispieltrajektorie kartesisch: Inverse Kinematik und Visualisierung
 % 
-% Beispielsystem: Basis-Kreis 0.5, Plattform-Kreis 0.2
+% Beispielsystem: Basis-Kreis 0.5, Plattform-Kreis 0.2 (Radius)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
 % (C) Institut für mechatronische Systeme, Universität Hannover
