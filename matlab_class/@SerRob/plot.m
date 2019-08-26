@@ -161,8 +161,8 @@ if any(s.mode == [1 3 4])
           'LineWidth',1,'Color','k')
       elseif s.mode == 4
         % Als Zylinder entsprechend der Entwurfsparameter zeichnen
-        if Rob.DesPar.seg_type(i+1) == 1
-          drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i+1,2)/2], ...
+        if Rob.DesPar.seg_type(i) == 1
+          drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
             'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
             'EdgeAlpha', 0.1); 
         else
@@ -245,9 +245,23 @@ end
   
 %% Verbindung zum Endeffektor
 T_W_N = T_c_W(:,:,Rob.I_EElink+1);
-[~,T_W_E] = Rob.fkineEE(qJ);
-plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
-  'LineWidth',4,'Color','k')
+T_W_E = T_W_N*Rob.T_N_E;
+if s.mode == 1
+  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+    'LineWidth',4,'Color','k')
+elseif s.mode == 3
+  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+    'LineWidth',1,'Color','k')  
+elseif s.mode == 4
+  % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+  if Rob.DesPar.seg_type(i+1) == 1
+    drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
+      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+      'EdgeAlpha', 0.1); 
+  else
+    error('Segmenttyp ist nicht definiert');
+  end
+end
 
 %% Koordinatensysteme
 for i = 1:size(T_c_W,3)
