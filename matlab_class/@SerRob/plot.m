@@ -11,6 +11,8 @@
 %   mode
 %     1: Strichmodell mit stilisierten Gelenken (Zylinder, Quader)
 %     2: CAD-Modell des Roboters aus hinterlegten STL-Dateien der Körper
+%     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)
+%     4: Darstellung der Körper mit Entwurfsparametern (z.B. Zylinder)
 %   straight (nur aktiv, wenn `mode` auf 1 (Strichmodell)
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
@@ -63,7 +65,7 @@ O_xyz_ges = squeeze(T_c_W(1:3,4,:));
 plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen
-if s.mode == 1
+if any(s.mode == [1 3 4])
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -78,6 +80,7 @@ if s.mode == 1
   % Gelenke als Objekte. TODO: An Größe des Roboters anpassen
   gd = 0.04; % Durchmesser der Zylinder und Quader
   gh = 0.15; % Höhe
+  
   % Anmerkungen:
   % * Gelenk i bewegt Körper i
   % * Gelenkachse i ist z-Achse des Körper-KS i (MDH-Notation)
@@ -86,6 +89,17 @@ if s.mode == 1
     % mu: 2=PKM-aktiv, 1=seriell-aktiv, 0=seriell-passiv
     cc = colors{Rob.MDH.mu(i)+1};
 
+    if s.mode == 4
+      % Passe zu zeichnendes Gelenk von der Größe her an
+      if Rob.DesPar.seg_type(i+1) == 1
+        % Das Gelenk sollte etwas größer sein als das skizzierte Segment
+        gh = max(Rob.DesPar.seg_par(i+1,2)*2, gh);
+        gd = gh/4; % Gleiche Proportion des Gelenks
+      else
+        error('Noch nicht definiert');
+      end
+    end
+    
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
     r_W_Oi = T_c_W(1:3,4,i+1);
     % Gelenk so verschieben, dass es bei d-Verschiebung (z-Achse) in der
@@ -119,17 +133,42 @@ if s.mode == 1
     end
   end
 end
+%% Trägheitsellipsen zeichnen
+if s.mode == 3
+  for i = 1:Rob.NL
+    inertia_ellipsoid( ...
+      inertiavector2matrix(Rob.DynPar.Icges(i,:)), ...
+      Rob.DynPar.mges(i)/2700, ... % Dichte von Aluminium zur Skalierung der Größe
+      Rob.DynPar.rSges(i,:), ...
+      T_c_W(:,:,i));
+  end
+end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
-if s.mode == 1
-  if s.straight % if Rob.NQJ ~= Rob.NJ
+if any(s.mode == [1 3 4])
+  if s.straight || any(s.mode == [3 4]) % if Rob.NQJ ~= Rob.NJ
     % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
     % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
     for i = 1:Rob.NJ
       j = v(i)+1; % Körper-Index (Vorgänger)
       T1 = T_c_W(:,:,j);
       T2 = T_c_W(:,:,i+1);
-      plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-        'LineWidth',4,'Color','k')
+      if s.mode == 1
+        % Als Linie zeichnen
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',4,'Color','k')
+      elseif s.mode == 3
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',1,'Color','k')
+      elseif s.mode == 4
+        % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+        if Rob.DesPar.seg_type(i+1) == 1
+          drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i+1,2)/2], ...
+            'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+            'EdgeAlpha', 0.1); 
+        else
+          error('Segmenttyp ist nicht definiert');
+        end
+      end
     end
   else
     q = Rob.jointvar(qJ);

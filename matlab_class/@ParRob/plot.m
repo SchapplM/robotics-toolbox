@@ -35,7 +35,8 @@ for f2 = fields(s_std)'
 end
 
 % Einstellungs-Struktur für serielle Beinketten
-s_ser = struct('ks', [], 'straight', s.straight, 'jointcolors', 'parallel');
+s_ser = struct('ks', [], 'straight', s.straight, 'jointcolors', 'parallel', ...
+  'mode', s.mode);
 T_W_0 = Rob.T_W_0;
 %% Koppelpunkte berechnen
 r_A1_ges = NaN(Rob.NLEG, 3);
@@ -95,11 +96,32 @@ end
 [~,Tc_Pges_W] = Rob.fkine_platform(x);
 
 % Plattform als Objekt
-r_B2_ges = squeeze(Tc_Pges_W(1:3,4,1:Rob.NLEG))';
-r_B2_ges = [r_B2_ges; r_B2_ges(1,:)]; % damit Viel-Eck geschlossen wird
-plot3(r_B2_ges(:,1), r_B2_ges(:,2), r_B2_ges(:,3), ...
-  'color', 'm','LineWidth',3);
-
+if s.mode == 1
+  r_B2_ges = squeeze(Tc_Pges_W(1:3,4,1:Rob.NLEG))';
+  r_B2_ges = [r_B2_ges; r_B2_ges(1,:)]; % damit Viel-Eck geschlossen wird
+  plot3(r_B2_ges(:,1), r_B2_ges(:,2), r_B2_ges(:,3), ...
+    'color', 'm','LineWidth',3);
+end
+if s.mode == 3
+  % Trägheitsellipse
+    inertia_ellipsoid( ...
+      inertiavector2matrix(Rob.DynPar.Icges(end,:)), ...
+      Rob.DynPar.mges(end)/2700, ... % Dichte von Aluminium zur Skalierung der Größe
+      Rob.DynPar.rSges(end,:), ...
+      Tc_Pges_W(:,:,end-1));
+end
+if s.mode == 4
+  if Rob.DesPar.platform_method == 1
+    h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
+    rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS
+    rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
+    % Plattform als Kreisscheibe modellieren
+    drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
+      'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k')
+  else
+    error('Methode für platform_method nicht implementiert');
+  end
+end
 % Plattform-bezogene KS
 for i = 1:size(Tc_Pges_W,3)
   if ~any(s.ks_platform == i)
@@ -119,5 +141,7 @@ axis auto
 
 
 %% Plattform Plotten (von Bein-Endpunkten her; als Viel-Eck)
-plot3(r_B1_ges(:,1), r_B1_ges(:,2), r_B1_ges(:,3), '--', ...
-  'color', 'c','LineWidth',2);
+if s.mode == 1
+  plot3(r_B1_ges(:,1), r_B1_ges(:,2), r_B1_ges(:,3), '--', ...
+    'color', 'c','LineWidth',2);
+end
