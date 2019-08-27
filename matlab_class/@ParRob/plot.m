@@ -103,12 +103,14 @@ if s.mode == 1
     'color', 'm','LineWidth',3);
 end
 if s.mode == 3
-  % Trägheitsellipse
+  % Trägheitsellipse. Nur plotten, wenn Dynamikparameter gegeben.
+  if ~any(isnan([Rob.DynPar.Icges(end,:), Rob.DynPar.mges(end), Rob.DynPar.rSges(end,:)]))
     inertia_ellipsoid( ...
       inertiavector2matrix(Rob.DynPar.Icges(end,:)), ...
       Rob.DynPar.mges(end)/2700, ... % Dichte von Aluminium zur Skalierung der Größe
       Rob.DynPar.rSges(end,:), ...
       Tc_Pges_W(:,:,end-1));
+  end
 end
 if s.mode == 4
   if Rob.DesPar.platform_method == 1

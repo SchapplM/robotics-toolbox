@@ -136,6 +136,9 @@ end
 %% Trägheitsellipsen zeichnen
 if s.mode == 3
   for i = 1:Rob.NL
+    if any(isnan([Rob.DynPar.Icges(i,:), Rob.DynPar.mges(i), Rob.DynPar.rSges(i,:)]))
+      continue % Nur plotten, wenn Dynamikparameter gegeben sind.
+    end
     inertia_ellipsoid( ...
       inertiavector2matrix(Rob.DynPar.Icges(i,:)), ...
       Rob.DynPar.mges(i)/2700, ... % Dichte von Aluminium zur Skalierung der Größe
