@@ -115,11 +115,13 @@ end
 if s.mode == 4
   if Rob.DesPar.platform_method == 1
     h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
-    rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS
-    rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
-    % Plattform als Kreisscheibe modellieren
-    drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
-      'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k')
+    if h > 0
+      rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS
+      rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
+      % Plattform als Kreisscheibe modellieren
+      drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
+        'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.0, 'EdgeAlpha', 0.3)
+    end
   else
     error('Methode für platform_method nicht implementiert');
   end

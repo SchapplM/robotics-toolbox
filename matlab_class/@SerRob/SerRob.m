@@ -173,10 +173,10 @@ classdef SerRob < matlab.mixin.Copyable
       R.DesPar = struct(...
         'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
         'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
-        'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes
-        'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors
-        'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks 
-        'joint_type', uint8(zeros(R.NJ,1))); % Art des passiven Gelenks
+        'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes (aus Datenbank)
+        'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors (aus Datenbank)
+        'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks (aus Datenbank)
+        'joint_type', uint8(R.MDH.sigma)); % Art des Gelenks: 0=Drehgelenk, 1=Schub- (allgemein), 2=Kardan-, 3=Kugel-, 4=Schub- mit Führung, 5=Schub- mit Zylinder
 
       R.qref = zeros(R.NQJ,1);
 
