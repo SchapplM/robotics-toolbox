@@ -96,15 +96,19 @@ RP.update_EE_FG(I_EE,I_EE_Task,I_EE_Legs);
 
 %% PKM testen
 % Definition der Test-Pose
-
 X_E = [ [0.1;0.2;1]; [10;5;0]*pi/180 ];
-q0 = rand(RP.NJ,1); % Anfangswert für IK
-q0(RP.I_qa) = 0.2; % Schubachsen mit positivem Anfangswert
-% Testweise ausführen von Funktionen
-RP.constr3(q0,X_E);
 
 % IK für Roboter berechnen
-[q,phi] = RP.invkin_ser(X_E, q0);
+for i = 1:10
+  q0 = rand(RP.NJ,1); % Anfangswert für IK
+  q0(RP.I_qa) = 0.2; % Schubachsen mit positivem Anfangswert
+  [q,phi] = RP.invkin_ser(X_E, q0);
+  if any(isnan(q))
+    warning('IK konnte in Versuch %d nicht berechnet werden', i);
+  else
+    break
+  end
+end
 
 % Jacobi-Matrizen berechnen
 [~,G_q] = RP.constr3grad_q(q, X_E);

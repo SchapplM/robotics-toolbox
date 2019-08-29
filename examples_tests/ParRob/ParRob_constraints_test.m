@@ -111,12 +111,13 @@ for NNN = RobotNames
   [testNaN{21},testNaN{22}]=RP.constr2_rot(q0, xE);
   [testNaN{23},testNaN{24}]=RP.constr2grad_q(q0, xE);
   [testNaN{25},testNaN{26}]=RP.constr2grad_x(q0, xE);
-  
-  [testNaN{27},testNaN{28}]=RP.constr3(q0, xE);
-  [testNaN{31},testNaN{32}]=RP.constr3_rot(q0, xE);
-  [testNaN{33},testNaN{34}]=RP.constr3grad_q(q0, xE);
-  [testNaN{37},testNaN{38}]=RP.constr3grad_rq(q0, xE);
-  [testNaN{39},testNaN{40}]=RP.constr3grad_x(q0, xE);
+  if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
+    [testNaN{27},testNaN{28}]=RP.constr3(q0, xE);
+    [testNaN{31},testNaN{32}]=RP.constr3_rot(q0, xE);
+    [testNaN{33},testNaN{34}]=RP.constr3grad_q(q0, xE);
+    [testNaN{37},testNaN{38}]=RP.constr3grad_rq(q0, xE);
+    [testNaN{39},testNaN{40}]=RP.constr3grad_x(q0, xE);
+  end
   for i = 1:40
     test = testNaN{i};
     if any(isnan(test(:)))
@@ -145,10 +146,14 @@ for NNN = RobotNames
       [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
       [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
       
+      if all(RP.I_EE == [1 1 1 1 1 1])
       [~,Phi3_0] = RP.constr3(q0, x0);
       [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
-      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);     
-
+      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);   
+      else
+      Phi3_0=NaN*Phi2_0; Phi3dq_0=NaN*Phi2dq_0;Phi3dx_0=NaN*Phi2dx_0;
+      end
+      
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
       for id = 1:length(q0) 
@@ -169,9 +174,8 @@ for NNN = RobotNames
         
         Phi2_1_g = Phi2_0 + Phi2dq_0*dq;
         test2 = Phi2_1 - Phi2_1_g;  
-        
         Phi3_1_g = Phi3_0 + Phi3dq_0*dq;
-        test3 = Phi3_1 - Phi3_1_g; 
+        test3 = Phi3_1 - Phi3_1_g;
         
         % Vielfache von 2*Pi entfernen
         test1(abs(abs(test1)-2*pi) < 1e-3 ) = 0;
@@ -200,6 +204,7 @@ for NNN = RobotNames
           error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta q%d)', PName, id);
         end  
         
+        if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
         dPhi_grad3 = Phi3dq_0*dq;
         dPhi_diff3 = Phi3_1 - Phi3_0;
         RelErr = dPhi_grad3./dPhi_diff3-1;
@@ -209,7 +214,8 @@ for NNN = RobotNames
         I_nan = isnan(Phi3_0);
         if any( I_nan | I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
           error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta q%d)', PName, id);
-        end 
+        end
+        end
       end
       % Alle Komponenten der EE-Koordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der direkten Kinematik)
@@ -262,7 +268,7 @@ for NNN = RobotNames
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
           error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta x%d)', PName, id);
         end
-        
+        if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
         dPhi_grad3 = Phi3dx_0*dx;
         dPhi_diff3 = Phi3_1 - Phi3_0;
         RelErr = dPhi_grad3./dPhi_diff3-1;
@@ -271,6 +277,7 @@ for NNN = RobotNames
         I_abserr = abs(test3) > 8e10*eps(max(1+abs(Phi3_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
           error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta x%d)', PName, id);
+        end
         end
       end
     end
@@ -346,9 +353,14 @@ for NNN = RobotNames
       Phi2dq_0 = RP.constr2grad_q(q0, x0);
       Phi2dx_0 = RP.constr2grad_x(q0, x0);
       Jinv2_voll = -Phi2dq_0 \ Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
       Phi3dq_0 = RP.constr3grad_q(q0, x0);
       Phi3dx_0 = RP.constr3grad_x(q0, x0);
       Jinv3_voll = -Phi3dq_0 \ Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
+      else
+      Phi3dq_0=Phi2dq_0*NaN; Phi3dx_0=Phi2dx_0*NaN;
+      Jinv3_voll=NaN*Jinv2_voll;
+      end
       % Änderung der Gelenkwinkel bei gegebener Plattformänderung
       % Führe auch wieder eine Anpassung der Schrittweite mit Faktor k2 und
       % k3 ein. Wenn andere ZB-Definitionen schlechter konditioniert sind,
