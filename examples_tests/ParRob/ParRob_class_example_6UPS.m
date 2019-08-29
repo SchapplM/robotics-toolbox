@@ -62,7 +62,7 @@ for i = 1:RP.NLEG
   % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
   RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
   % Begrenze die Länge der Schubgelenke
-  RP.Leg(i).qlim(3,:) = [0.1, 1.5];
+  RP.Leg(i).qlim(3,:) = [0.4, 0.7];
 end
 
 %% Startpose bestimmen
@@ -106,12 +106,25 @@ if any(abs(Phi1) > 1e-6)
 end
 
 %% Roboter in Startpose plotten
-figure(1);clf;
-hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-view(3);
+figure(1); clf; hold on; grid on; % Bild als Kinematik-Skizze
+xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X, s_plot );
+title('6UPS in Startkonfiguration als Kinematik-Skizze');
+
+figure(2); clf; hold on; grid on;% Bild der Entwurfsparameter
+for i = 1:RP.NLEG
+  % Setze Schubgelenke als Hubzylinder
+  RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 5;
+  % Setze Segmente als Hohlzylinder mit Radius 50mm
+  RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
+end
+RP.DesPar.platform_par(2) = 5e-3;
+
+xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
+RP.plot( q, X, s_plot );
+title('6UPS in Startkonfiguration mit Ersatzkörpern');
 
 %% Jacobi-Matrizen auswerten
 

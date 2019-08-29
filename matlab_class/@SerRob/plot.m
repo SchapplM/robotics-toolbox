@@ -64,7 +64,7 @@ v = Rob.MDH.v;
 O_xyz_ges = squeeze(T_c_W(1:3,4,:));
 plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
-%% Gelenke zeichnen
+%% Gelenke zeichnen (als Zylinder oder Quader)
 if any(s.mode == [1 3 4])
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
@@ -113,21 +113,30 @@ if any(s.mode == [1 3 4])
       d = Rob.MDH.d(i);
     end
     r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
-    % T_c_W(1:3,4,Rob.MDH.v(i)+1);
-    r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
-    
+
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
+      % Drehgelenke werden so auf der z-Achse verschoben, dass sie in der
+      % Mitte zwischen den beiden KS sind (ist dann übersichtlicher)
+      r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
       r_W_P1 = r_W_Gi + R_W_i*[0;0;-gh/2];
       r_W_P2 = r_W_Gi + R_W_i*[0;0; gh/2];
       drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
         'FaceAlpha', 0.3, 'FaceColor', 'w')
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
-      % Eckpunkte des Quaders definieren
-      r_W_Q1 = r_W_Gi + R_W_i*[-gd/2; -gd/2; -gh/2];
-      r_W_Q1Q2 = R_W_i*[gd;0;0];
-      r_W_Q1Q3 = R_W_i*[0;gd;0];
-      r_W_Q1Q4 = R_W_i*[0;0;gh];
-      plot_cube2(r_W_Q1, r_W_Q1Q2, r_W_Q1Q3, r_W_Q1Q4, cc);
+      if Rob.MDH.a(i) ~= 0
+        % Schubgelenke werden nicht auf der Achse verschoben, wenn es einen
+        % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
+        % auf dem Quader befestigt ist
+        r_W_Gi = r_W_Oi;
+      else
+        % Bei der normalen Kinematik-Skizze wird das Schubgelenk auch in
+        % die Mitte zwischen die KS gesetzt
+        r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
+      end
+      cubpar_c = r_W_Gi; % Mittelpunkt des Quaders
+      cubpar_l = [gd; gd; gh]; % Dimension des Quaders
+      cubpar_a = 180/pi*r2eulzyx(R_W_i); % Orientierung des Quaders
+      drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
     else
       continue % kein Gelenk
     end
@@ -163,13 +172,54 @@ if any(s.mode == [1 3 4])
         plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
           'LineWidth',1,'Color','k')
       elseif s.mode == 4
-        % Als Zylinder entsprechend der Entwurfsparameter zeichnen
-        if Rob.DesPar.seg_type(i) == 1
-          drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
-            'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-            'EdgeAlpha', 0.1); 
-        else
-          error('Segmenttyp ist nicht definiert');
+        if Rob.MDH.sigma(i) == 0 % Drehgelenk
+          % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+          % Bei Drehgelenken wird das aktuelle Gelenk direkt mit dem
+          % vorherigen verbunden
+          if Rob.DesPar.seg_type(i) == 1
+            drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+              'EdgeAlpha', 0.1); 
+          else
+            error('Segmenttyp ist nicht definiert');
+          end
+        else % Schubgelenk
+          % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
+          % berücksichtigt.
+          % Transformation zu Anfangs- und Endlage des Schubgelenkes
+          T_qmin = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
+          T_qmax = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
+          if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
+            % Normales Segment zum Start der Linearführung
+            if Rob.DesPar.seg_type(i) == 1
+              drawCylinder([T1(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                'EdgeAlpha', 0.1);
+            end
+            % Zeichne Linearführung als Quader
+            cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2; % Mittelpunkt des Quaders
+            cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
+            cubpar_a = 180/pi*r2eulzyx(T_qmin(1:3,1:3)); % Orientierung des Quaders
+            drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
+          else % Schubgelenk ist Hubzylinder
+            % Großer Zylinder, muss so lang sein wie maximaler Hub.
+            T_grozylstart = T_qmin * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            drawCylinder([T_grozylstart(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 1 0], ...
+              'EdgeAlpha', 0.1);
+            % Normales Segment zum Start des Hubzylinders
+            if Rob.DesPar.seg_type(i) == 1
+              drawCylinder([T1(1:3,4)', T_grozylstart(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                'EdgeAlpha', 0.1);
+            end
+            % Kleinerer Zylinder, der herauskommt (aber so lang ist, wie
+            % der maximale Hub)
+            T_klezylstart = T2 * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            drawCylinder([T_klezylstart(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/3], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 0 0], ...
+              'EdgeAlpha', 0.1);
+          end
         end
       end
     end
