@@ -18,6 +18,8 @@
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi_q [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Annahme: Funktioniert aktuell wahrscheinlich nur für 3T2R-PKM
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -37,8 +39,10 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phi_rq_red,Phi_rq]=Rob.constr3grad_rq(q, xE);
 
 % Anzahl ZB
-nPhit = size(Phi_tq_red,1)/Rob.NLEG;
-nPhir = size(Phi_rq_red,1)/Rob.NLEG;
+% TODO: Das funktioniert wahrscheinlich nicht bei allen asymmetrischen PKM,
+% falls planare Roboter modelliert werden.
+nPhit = size(Phi_tq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
+nPhir = size(Phi_rq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
 nPhi = nPhit + nPhir;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
@@ -57,11 +61,22 @@ else
 end
 
 %% Belegung der Ausgabe
-
 for i = 1:Rob.NLEG
-  Phi_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
+  if all(Rob.I_EE_Task == [1 1 1 1 1 0])
+    if i == 1 % Führungskette: Reduzierte FG um Rotation
+      Phi_q_red(1:5, :) = ...
+        [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+         Phi_rq_red(1:2, :)];
+    else % Folgekette: Alle weiteren Ketten 6 Zwangsbedingungen
+      Phi_q_red(6+6*(i-2):5+6*(i-1), :) = ...
+        [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+         Phi_rq_red(3+3*(i-2):5+3*(i-2), :)];
+    end
+  else
+    Phi_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
+      [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+       Phi_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
+  end
   Phi_q((i-1)*6+1:(i)*6, :) = ...
     [Phi_tq((i-1)*3+1:(i)*3, :); ...
      Phi_rq((i-1)*3+1:(i)*3, :)];

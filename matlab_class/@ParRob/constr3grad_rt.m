@@ -23,3 +23,5 @@ function [Phipx_red, Phipx] = constr3grad_rt(Rob)
 % Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
 Phipx = zeros(3*Rob.NLEG,3);
 Phipx_red = zeros( sum(Rob.I_EE(4:6))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
+% TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
+% Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R

@@ -108,12 +108,11 @@ end
 
 %% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  Phi_voll = Rob.constr3(q, xE_soll);
-  Phi = Phi_voll(Rob.I_constr_red);
+  Phi = Rob.constr3(q, xE_soll);
 else
   Phi = Rob.constr1(q, xE_soll);
 end
 % Probe: Stimmen die Zwangsbedingungen?
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)
-  error('Fehler: ZB stimmen nicht überein. Wahrscheinlichste Ursache: EE-KS der Beinkette ist falsch gedreht.');
+  warning('Fehler: ZB stimmen nicht überein. Wahrscheinlichste Ursache: EE-KS der Beinkette ist falsch gedreht.');
 end

@@ -91,8 +91,11 @@ for k = 1:nt
     Phi_x = Rob.constr1grad_x(q_k, x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
-    Phi_q = Rob.constr3grad_q(q_k, x_k);
-    Phi_x = Rob.constr3grad_x(q_k, x_k);
+    % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
+    % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
+    % Systeme mit Beinketten mit fünf Gelenken.
+    [~,Phi_q] = Rob.constr3grad_q(q_k, x_k);
+    [~,Phi_x] = Rob.constr3grad_x(q_k, x_k);
     I = Rob.I_constr_red;
     J_x_inv = -Phi_q(I,:) \ Phi_x(I,1:5);
   end

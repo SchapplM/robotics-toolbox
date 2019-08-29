@@ -119,7 +119,7 @@ for rr = 0:retry_limit
     Jik = Jik_voll(I_IK,:);
 
     % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
-    [Phi_voll] = Rob.constr3(q1, xE_soll);
+    [~,Phi_voll] = Rob.constr3(q1, xE_soll);
     Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)

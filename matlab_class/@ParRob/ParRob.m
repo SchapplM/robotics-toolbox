@@ -354,6 +354,8 @@ classdef ParRob < matlab.mixin.Copyable
         I_EE_Task = I_EE;
       end
       if nargin < 4
+        % TODO: Bei 3T2R stimmt das eventuell nicht, wenn Beinketten 5
+        % Gelenke haben
         I_EE_Legs = repmat(I_EE_Task, R.NLEG,1);
       end
       R.I_EE_Task = I_EE_Task;
@@ -398,10 +400,14 @@ classdef ParRob < matlab.mixin.Copyable
         % Beinkette abgelegt)
         nPhit = sum(R.Leg(i).I_EE_Task(1:3));
         nPhir = sum(R.Leg(i).I_EE_Task(4:6));
+
         % Sonderfall: 3T2R
         if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i > 1
           % Folgekette bei 3T2R muss wieder 3T3R FG haben
-          nPhir = 3;
+          if R.Leg(i).NJ == 6 % TODO: Bei Sonderfällen Bedingung ändern
+            % TODO: Alternative: I_EE/I_EE_Task; Nur mit Basis-Orientierung?
+            nPhir = 3;
+          end
         end
         nPhi = nPhit + nPhir;
         

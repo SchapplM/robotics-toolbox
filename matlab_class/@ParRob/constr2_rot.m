@@ -80,5 +80,7 @@ for iLeg = 1:NLEG
   K2 = K1+sum(Rob.I_EE(4:6))-1;
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
+  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   Phi_red(K1:K2,:) = Phi_i(Rob.I_EE(4:6));
 end
