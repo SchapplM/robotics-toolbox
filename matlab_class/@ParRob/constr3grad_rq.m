@@ -52,14 +52,13 @@ NJ = Rob.NJ;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis, siehe Gl. (B.30)
-
 if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
-  Phipq_red = zeros(sum(Rob.Leg(1).I_EE(4:6))+3*(NLEG-1),NJ);
+  Phipq_red = zeros(sum(Rob.Leg(1).I_EE_Task(4:6))+3*(NLEG-1),NJ);
 else
   Phipq = sym('phi', [3*NLEG,NJ]);
   Phipq(:)=0;
-  Phipq_red = sym('phi', [sum(Rob.Leg(1).I_EE(4:6))+3*(NLEG-1),NJ]);
+  Phipq_red = sym('phi', [sum(Rob.Leg(1).I_EE_Task(4:6))+3*(NLEG-1),NJ]);
   Phipq_red(:)=0;
 end
 
@@ -143,8 +142,14 @@ for iLeg = 1:NLEG
     J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
 
-    K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
-    Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:);%LJN: 2(Y) und 3(Z)  
+    K2 = K1+sum(Rob.I_EE_Task(4:6))-1; % zwei oder drei rotatorische Einträge
+    if all(Rob.I_EE_Task(4:6) == [1 1 0])
+      Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
+    else
+      % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+      % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
+      Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(Rob.I_EE(4:6),:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
+    end
     K1 = K2+1;
   elseif iLeg > 1 % ZB für Folgekette
     R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
