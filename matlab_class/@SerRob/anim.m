@@ -145,6 +145,7 @@ for i=1:size(Q,1)
   if i == 1
     [view1_save,view2_save] = view();
   end
+  drawnow();
 end
 
 %% Create GIF and AVI files
