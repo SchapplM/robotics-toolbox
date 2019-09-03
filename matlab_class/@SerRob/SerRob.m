@@ -158,7 +158,13 @@ classdef SerRob < matlab.mixin.Copyable
       end
       R.pkin = Par_struct.pkin;
       if isempty(R.pkin)
+        % Keine pkin-Werte gegeben. Initialisiere Variable aus
+        % MDH-Parametern
         R.update_pkin();
+      else
+        % Werte für pkin gegeben. Aktualisiere Parameter pkin_gen und
+        % MDH-Paramter, damit die verschiedenen Parameter konsistent sind.
+        R.update_mdh(R.pkin)
       end
       R.DynPar = struct('mges',   NaN(R.NL,1), ...
                         'rSges',  NaN(R.NL,3), 'Icges', NaN(R.NL,6), ...
