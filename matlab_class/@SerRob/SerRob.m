@@ -1121,6 +1121,11 @@ classdef SerRob < matlab.mixin.Copyable
       
       % Umwandlung in baryzentrische Parameter
       [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
+      for i = 1:size(Icges,1)
+        if any(eig(inertiavector2matrix(Icges(i,:)))<0)
+          error('Berechneter Trägheitstensor zu Körper %d wird negativ', i);
+        end
+      end
 
       % Parameter in Roboterklasse belegen.
       R.DynPar.mges   = mges;
