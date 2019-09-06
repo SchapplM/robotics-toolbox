@@ -627,6 +627,7 @@ classdef ParRob < matlab.mixin.Copyable
       % xP (6x1): Lagevektor des Plattform-KS im Roboter-Basis-KS
       % xPD (6x1): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
       % xEDD (6x1): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
+      % Quelle: Aufzeichnungen Schappler, 23.08.2019
       if all(all(R.T_P_E==eye(4)))
         % Keine Änderung der Transformation. Keine Umrechnung notwendig.
         xP = xE;
@@ -648,7 +649,7 @@ classdef ParRob < matlab.mixin.Copyable
         omega_0_E = T_phiE * xED(4:6);
         % Umrechnung von Punkt E auf Punkt P (mit Adjunkt-Matrix)
         V_0_E = [xED(1:3); omega_0_E];
-        r_P_P_E = R.T_P_E(1:3);
+        r_P_P_E = R.T_P_E(1:3,4);
         R_0_P = T_0_P(1:3,1:3);
         r_0_E_P = -R_0_P*r_P_P_E;
         A_P_E = adjoint_jacobian(r_0_E_P);
@@ -668,7 +669,7 @@ classdef ParRob < matlab.mixin.Copyable
         AD_P_E = adjointD_jacobian(-r_P_P_E, R_0_P, omega_0_P);
         VD_0_P = AD_P_E*V_0_E + A_P_E * VD_0_E;
         % Umrechnung auf Euler-Winkel-Beschleunigung bezogen auf Plattform
-        TD_phiP = euljac(xP(4:6), xPD(4:6), R.phiconv_W_E);
+        TD_phiP = euljacD(xP(4:6), xPD(4:6), R.phiconv_W_E);
         xPDD = [VD_0_P(1:3); T_phiP\(VD_0_P(4:6)-TD_phiP*xPD(4:6))];
       end
     end
