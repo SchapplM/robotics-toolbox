@@ -91,7 +91,8 @@ classdef ParRob < matlab.mixin.Copyable
       coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
-      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
+      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
+      extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
   methods
     % Konstruktor
@@ -130,6 +131,7 @@ classdef ParRob < matlab.mixin.Copyable
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'}};
+      R.extfcn_available = false(length(R.all_fcn_hdl),1);
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
@@ -204,19 +206,26 @@ classdef ParRob < matlab.mixin.Copyable
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
       
-      % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
-      xP = R.xE2xP(xE);
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
-      if ~all(R.I_EE == [1 1 1 1 1 1])
-        % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
-        % Rotations-FG erforderlich
-        Jinv_qD_xD = Jinv_qD_sD;
-      else
-        % Korrekturmatrix (symbolische Jacobi bezieht sich auf
-        % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
-        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
-        Jinv_qD_xD = Jinv_qD_sD*T;
+      if R.extfcn_available(1)
+        % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
+        xP = R.xE2xP(xE);
+        [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+        Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
+        if ~all(R.I_EE == [1 1 1 1 1 1])
+          % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
+          % Rotations-FG erforderlich
+          Jinv_qD_xD = Jinv_qD_sD;
+        else
+          % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+          % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
+          T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+          Jinv_qD_xD = Jinv_qD_sD*T;
+        end
+      else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
+        G_q  = R.constr1grad_q(q, xE);
+        G_x = R.constr1grad_x(q, xE);
+        Jinv_num_voll = -G_q \ G_x;
+        Jinv_qD_xD = Jinv_num_voll(R.I_qa,:);
       end
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
