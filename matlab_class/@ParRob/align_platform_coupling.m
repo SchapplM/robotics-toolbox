@@ -23,12 +23,13 @@ else
   r_P_P_Bi_ges = sym('xx', [3,NLEG]);
   r_P_P_Bi_ges(:)=0;
 end
-
+Rob.DesPar.platform_method = uint8(method);
+Rob.DesPar.platform_par = [param;0];
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
-% Parameter: Abstand zum Mittelpunkt
+% Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
 if method == 1
-  d_PB = param(1);
+  r_PB = param(1);
   
   for i = 1:NLEG
     if Rob.issym
@@ -36,7 +37,7 @@ if method == 1
     else
       beta_i = 2*pi/NLEG*(i-1);
     end
-    r_P_P_Bi_ges(:,i) = rotz(beta_i)*[d_PB;0;0];
+    r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
 
     Rob.Leg(i).update_EE();
   end

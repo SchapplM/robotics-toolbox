@@ -5,7 +5,7 @@
 % * Beispiel zu Jacobi-Matrizen
 % * Beispieltrajektorie kartesisch: Inverse Kinematik und Visualisierung
 % 
-% Beispielsystem: Basis-Kreis 0.5, Plattform-Kreis 0.2
+% Beispielsystem: Basis-Kreis 0.5, Plattform-Kreis 0.2 (Radius)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
 % (C) Institut für mechatronische Systeme, Universität Hannover
@@ -62,7 +62,7 @@ for i = 1:RP.NLEG
   % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
   RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
   % Begrenze die Länge der Schubgelenke
-  RP.Leg(i).qlim(3,:) = [0.1, 1.5];
+  RP.Leg(i).qlim(3,:) = [0.4, 0.7];
 end
 
 %% Startpose bestimmen
@@ -106,12 +106,25 @@ if any(abs(Phi1) > 1e-6)
 end
 
 %% Roboter in Startpose plotten
-figure(1);clf;
-hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-view(3);
+figure(1); clf; hold on; grid on; % Bild als Kinematik-Skizze
+xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X, s_plot );
+title('6UPS in Startkonfiguration als Kinematik-Skizze');
+
+figure(2); clf; hold on; grid on;% Bild der Entwurfsparameter
+for i = 1:RP.NLEG
+  % Setze Schubgelenke als Hubzylinder
+  RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 5;
+  % Setze Segmente als Hohlzylinder mit Radius 50mm
+  RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
+end
+RP.DesPar.platform_par(2) = 5e-3;
+
+xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
+RP.plot( q, X, s_plot );
+title('6UPS in Startkonfiguration mit Ersatzkörpern');
 
 %% Jacobi-Matrizen auswerten
 
@@ -223,3 +236,20 @@ xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
 fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
 fprintf('Test für 6UPS beendet\n');
+
+%% Teste Umrechnung zwischen Plattform- und EE-Koordinaten
+X_E = X_t;
+XD_E = XD_t;
+XDD_E = XDD_t;
+[X_P, XD_P, XDD_P] = RP.xE2xP_traj(X_E, XD_E, XDD_E);
+% Neuen EE festlegen
+RP.update_EE(rand(3,1),rand(3,1));
+% Geschwindigkeit des neuen EE ausrechnen
+[X_E2, XD_E2, XDD_E2] = RP.xP2xE_traj(X_P, XD_P, XDD_P);
+% Zurückrechnen auf Plattform
+[X_P2, XD_P2, XDD_P2] = RP.xE2xP_traj(X_E2, XD_E2, XDD_E2);
+% Prüfen, ob durch Hin- und Herrechnen ein Fehler passiert ist
+Test=[X_P;XD_P;XDD_P]-[X_P2;XD_P2;XDD_P2];
+if any(abs(Test(:)) > 1e-10)
+  error('Umrechnung Plattform-EE mit xP2xE / xE2xP stimmt nicht');
+end

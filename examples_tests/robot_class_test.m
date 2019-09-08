@@ -25,6 +25,7 @@ ParRob_class_example_3RRR
 ParRob_class_example_6UPS
 ParRob_class_example_6UPS_3T2R
 ParRob_class_example_Delta
+ParRob_class_example_6PUS
 ParRob_class_example_Gogu_3T1R
 ParRob_class_example_PRRRR_4PRRRRR
 ParRob_class_example_Gogu_3T2R

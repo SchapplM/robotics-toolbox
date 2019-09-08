@@ -18,7 +18,8 @@
 %   Definition der Dynamik-Parameter:
 %   DynPar.mode: Umschalten zwischen verschiedenen Dynamik-Parametern als
 %   Eingang der Dynamik-Funktionen. Entspricht Ziffer hinter
-%   Funktions-Handles
+%   Funktions-Handles. Die Parameter können unabhängig vom Modus der
+%   Funktionen übergeben werden.
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
@@ -51,7 +52,9 @@ classdef SerRob < matlab.mixin.Copyable
     pkin % Vektor der Kinematikparameter
     pkin_gen % Vektor der Kinematikparameter des allgemeinen Modells
     pkin_names % Namen der Kinematikparameter
-    DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
+    pkin_types % Typ der Kinematikparameter; siehe get_pkin_parameter_type()
+    DynPar % Struktur mit Dynamikparametern (Masse, Schwerpunkt, Trägheit)
+    DesPar % Struktur mit Entwurfsparameter (Segmentgeometrie, Motorauswahl, ...)
     Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
     r_W_0 % Position der Basis im Welt-KS
     phi_W_0 % Orientierung des Basis-KS im Welt-KS (ausgedrückt in Euler-Winkeln)
@@ -166,12 +169,20 @@ classdef SerRob < matlab.mixin.Copyable
         % MDH-Paramter, damit die verschiedenen Parameter konsistent sind.
         R.update_mdh(R.pkin)
       end
+      R.pkin_types = R.get_pkin_parameter_type();
       R.DynPar = struct('mges',   NaN(R.NL,1), ...
                         'rSges',  NaN(R.NL,3), 'Icges', NaN(R.NL,6), ...
                         'mrSges', NaN(R.NL,3), 'Ifges', NaN(R.NL,6), ...
                         'mpv', [], 'ipv_floatb', [], ...
                         'mode', 2);
       R.update_dynpar1();
+      R.DesPar = struct(...
+        'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
+        'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
+        'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes (aus Datenbank)
+        'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors (aus Datenbank)
+        'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks (aus Datenbank)
+        'joint_type', uint8(R.MDH.sigma)); % Art des Gelenks: 0=Drehgelenk, 1=Schub- (allgemein), 2=Kardan-, 3=Kugel-, 4=Schub- mit Führung, 5=Schub- mit Zylinder
 
       R.qref = zeros(R.NQJ,1);
 
@@ -1113,16 +1124,22 @@ classdef SerRob < matlab.mixin.Copyable
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
       mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      
+      % Umwandlung in baryzentrische Parameter
+      [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
+      for i = 1:size(Icges,1)
+        if any(eig(inertiavector2matrix(Icges(i,:)))<0)
+          error('Berechneter Trägheitstensor zu Körper %d wird negativ', i);
+        end
+      end
 
-      % Parameter in Roboterklasse belegen. Die baryzentrischen Parameter
-      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
-      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      % Parameter in Roboterklasse belegen.
       R.DynPar.mges   = mges;
-      R.DynPar.rSges  = mrSges*NaN;
-      R.DynPar.Icges  = Ifges*NaN;
+      R.DynPar.rSges  = rSges;
+      R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
-      R.DynPar.ipv_floatb    = PV2floatb;
+      R.DynPar.ipv_floatb = PV2floatb;
       R.DynPar.mpv    = mpv;
     end
     function update_dynpar_mpv(R, mpv)

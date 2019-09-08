@@ -48,6 +48,7 @@ for i = 1:length(R.all_fcn_hdl)
   % Dynamik-Toolbox generiert werden.
   ca = R.all_fcn_hdl{i};
   hdlname = ca{1};
+  missing_i = true;
   for j = 2:length(ca) % Gehe alle möglichen Funktionsdateien durch
     fcnname_tmp = ca{j};
     if ~parrob || any(strcmp(Ai_list, ca{j}))
@@ -71,8 +72,11 @@ for i = 1:length(R.all_fcn_hdl)
     end
     if isempty(which(robfcnname))
       files_missing = {files_missing{:}, robfcnname}; %#ok<CCAT>
+    else
+      missing_i = false;
     end
     % Speichere das Funktions-Handle in der Roboterklasse
     eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
   end
+  R.extfcn_available(i) = ~missing_i;
 end

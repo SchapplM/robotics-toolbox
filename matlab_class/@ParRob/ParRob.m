@@ -64,6 +64,7 @@ classdef ParRob < matlab.mixin.Copyable
       phi_P_E % Orientierung des EE-KS im Plattform-KS (ausgedrückt in Euler-Winkeln)
       Type % Typ des Roboters (2=parallel; zur Abgrenzung von SerRob)
       DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
+      DesPar % Struktur mit Entwurfsparameter (Gestell,Plattform)
       mdlname % Name des PKM-Robotermodells, das in den Matlab-Funktionen benutzt wird.
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
@@ -90,7 +91,8 @@ classdef ParRob < matlab.mixin.Copyable
       coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
-      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
+      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
+      extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
   methods
     % Konstruktor
@@ -111,6 +113,11 @@ classdef ParRob < matlab.mixin.Copyable
       R.phi_W_0 = zeros(3,1);
       R.T_W_0 = eye(4);
       R.gravity = [0;0;-9.81];
+      R.DesPar = struct(...
+        'base_method', uint8(0), ... % Modellierungsart Gestell (1=Kreis)
+        'base_par', 0, ... % Parameter dafür (Radius)
+        'platform_method', uint8(0), ... % Modellierungsart Plattform (1=Kreisscheibe)
+        'platform_par', zeros(1,2)); % Parameter dafür (Radius, Stärke)
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
@@ -124,6 +131,7 @@ classdef ParRob < matlab.mixin.Copyable
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'}};
+      R.extfcn_available = false(length(R.all_fcn_hdl),1);
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
@@ -198,23 +206,30 @@ classdef ParRob < matlab.mixin.Copyable
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
       
-      % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
-      xP = R.xE2xP(xE);
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-      Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
-      if ~all(R.I_EE == [1 1 1 1 1 1])
-        % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
-        % Rotations-FG erforderlich
-        Jinv_qD_xD = Jinv_qD_sD;
-      else
-        % Korrekturmatrix (symbolische Jacobi bezieht sich auf
-        % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
-        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
-        Jinv_qD_xD = Jinv_qD_sD*T;
+      if R.extfcn_available(1)
+        % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
+        xP = R.xE2xP(xE);
+        [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+        Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
+        if ~all(R.I_EE == [1 1 1 1 1 1])
+          % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
+          % Rotations-FG erforderlich
+          Jinv_qD_xD = Jinv_qD_sD;
+        else
+          % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+          % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
+          T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+          Jinv_qD_xD = Jinv_qD_sD*T;
+        end
+      else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
+        G_q  = R.constr1grad_q(q, xE);
+        G_x = R.constr1grad_x(q, xE);
+        Jinv_num_voll = -G_q \ G_x;
+        Jinv_qD_xD = Jinv_num_voll(R.I_qa,:);
       end
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
-      % Corioliskraft bezogen auf Plattformkoordinaten
+      % Inverse Dynamik bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       % xPD: Plattform-Geschwindigkeit (im Basis-KS)
@@ -233,6 +248,21 @@ classdef ParRob < matlab.mixin.Copyable
           R.DynPar.mpv);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
+    function Fx_traj = invdyn_platform_traj(R, Q, XP, XPD, XPDD)
+      % Vektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % XP: Plattform-Koordinaten (Trajektorie)
+      % XPD: Plattform-Geschwindigkeit (Trajektorie)
+      % XPDD: Plattform-Beschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      for i = 1:size(Q,1)
+        Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
     function Mx = inertia_platform(R, q, xP)
@@ -534,12 +564,14 @@ classdef ParRob < matlab.mixin.Copyable
         Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
         R.Leg(i).update_dynpar2(m_Leg, mrSges_Leg, Ifges_Leg);
       end
-      % Parameter für PKM belegen. Die baryzentrischen Parameter
-      % werden NaN gesetzt, da sie sich nicht mehr bestimmen lassen.
-      % Es dürfen dann nur noch Funktionen für DynPar.mode=2 benutzt werden
+      
+      % Umwandlung in baryzentrische Parameter
+      [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
+      
+      % Parameter für PKM belegen.
       R.DynPar.mges   = mges;
-      R.DynPar.rSges  = NaN*mrSges;
-      R.DynPar.Icges  = NaN*Ifges;
+      R.DynPar.rSges  = rSges;
+      R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv    = mpv;
@@ -597,21 +629,176 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
       T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
     end
-    function xP = xE2xP(R, xE)
+    function [xP, xPD, xPDD] = xE2xP(R, xE, xED, xEDD)
       % Umrechnung von EE-Lagevektor xE zum Plattform-Lagevektor xP
       % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
       % zusätzlichen Transformation basiert, die beliebig geändert werden
       % kann
       % Eingabe:
       % xE (6x1): Lagevektor des EE-KS im Roboter-Basis-KS
+      % xED (6x1): Geschwindigkeitsvektor EE-KS (Euler-Winkel)
+      % xEDD (6x1): Beschleunigungsvektor EE-KS (Euler-Winkel)
       % Ausgabe:
       % xP (6x1): Lagevektor des Plattform-KS im Roboter-Basis-KS
+      % xPD (6x1): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
+      % xPDD (6x1): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
+      % Quelle: Aufzeichnungen Schappler, 23.08.2019
+      
       if all(all(R.T_P_E==eye(4)))
+        % Keine Änderung der Transformation. Keine Umrechnung notwendig.
         xP = xE;
-      else
-        T_0_E = R.x2t(xE);
-        T_0_P = T_0_E * invtr(R.T_P_E);
-        xP = R.t2x(T_0_P);
+        if nargout > 1, xPD = xED;   end
+        if nargout > 2, xPDD = xEDD; end
+        return
+      end
+      T_0_E = R.x2t(xE);
+      T_0_P = T_0_E * invtr(R.T_P_E);
+      xP = R.t2x(T_0_P);
+      % Geschwindigkeit berechnen
+      if nargin > 2
+        % Umrechnung auf Winkelgeschwindigkeit (bezogen auf Endeffektor)
+        T_phiE = euljac_mex(xE(4:6), R.phiconv_W_E);
+        omega_0_E = T_phiE * xED(4:6);
+        % Umrechnung von Punkt E auf Punkt P (mit Adjunkt-Matrix)
+        V_0_E = [xED(1:3); omega_0_E];
+        r_P_P_E = R.T_P_E(1:3,4);
+        R_0_P = T_0_P(1:3,1:3);
+        r_0_E_P = -R_0_P*r_P_P_E;
+        A_P_E = adjoint_jacobian_mex(r_0_E_P);
+        V_0_P = A_P_E * V_0_E;
+        % Umrechnung auf Euler-Winkel-Geschwindigkeit bezogen auf Plattform
+        T_phiP = euljac_mex(xP(4:6), R.phiconv_W_E);
+        xPD = [V_0_P(1:3); T_phiP\V_0_P(4:6)];
+      end
+      % Beschleunigung berechnen
+      if nargin > 3
+        % Umrechnung auf Winkelbeschleunigung (bezogen auf Endeffektor)
+        TD_phiE = euljacD_mex(xE(4:6), xED(4:6), R.phiconv_W_E);
+        omegaD_0_E = TD_phiE*xED(4:6) + T_phiE * xEDD(4:6);
+        % Umrechnung von Punkt E auf Punkt P (mit Adjunkt-Matrix)
+        VD_0_E = [xEDD(1:3); omegaD_0_E];
+        omega_0_P = omega_0_E; % gleicher Starrkörper
+        AD_P_E = adjointD_jacobian_mex(-r_P_P_E, R_0_P, omega_0_P);
+        VD_0_P = AD_P_E*V_0_E + A_P_E * VD_0_E;
+        % Umrechnung auf Euler-Winkel-Beschleunigung bezogen auf Plattform
+        TD_phiP = euljacD_mex(xP(4:6), xPD(4:6), R.phiconv_W_E);
+        xPDD = [VD_0_P(1:3); T_phiP\(VD_0_P(4:6)-TD_phiP*xPD(4:6))];
+      end
+    end
+    function [XP, XPD, XPDD] = xE2xP_traj(R, XE, XED, XEDD)
+      % Umrechnung von EE-Lagevektor xE zum Plattform-Lagevektor xP
+      % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
+      % zusätzlichen Transformation basiert, die beliebig geändert werden
+      % kann
+      % Eingabe:
+      % xE (Nx6): Lagevektor des EE-KS im Roboter-Basis-KS für N Bahnpunkte
+      % xED (Nx6): Geschwindigkeitsvektor EE-KS (Euler-Winkel)
+      % xEDD (Nx6): Beschleunigungsvektor EE-KS (Euler-Winkel)
+      % Ausgabe:
+      % xP (Nx6): Lagevektor des Plattform-KS im Roboter-Basis-KS
+      % xPD (Nx6): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
+      % xPDD (Nx6): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
+      % Quelle: Aufzeichnungen Schappler, 23.08.2019
+      
+      % Initialisierung der Ausgabevariablen mit Dimension der Eingabe
+      XP = XE;
+      if nargout > 1, XPD = XED;   end
+      if nargout > 2, XPDD = XEDD; end
+      for i = 1:size(XE,1)
+        if nargin == 2
+          XP(i,:) = R.xE2xP(XE(i,:)');
+        elseif nargin == 3 
+          [XP(i,:),XPD(i,:)] = R.xE2xP(XE(i,:)',XED(i,:)');
+        else
+          [XP(i,:),XPD(i,:),XPDD(i,:)] = R.xE2xP(XE(i,:)',XED(i,:)',XEDD(i,:)');
+        end
+      end
+    end
+    function [xE, xED, xEDD] = xP2xE(R, xP, xPD, xPDD)
+      % Umrechnung von Plattform-Lagevektor xP zum Endeffektor-Lagevektor xE
+      % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
+      % zusätzlichen Transformation basiert, die beliebig geändert werden
+      % kann. Die Rückrechnung in dieser Funktion dient zur Probe.
+      % Eingabe:
+      % xP (6x1): Lagevektor des Plattform-KS im Roboter-Basis-KS (N mal)
+      % xPD (6x1): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
+      % xPDD (6x1): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
+      % Ausgabe:
+      % xE (6x1): Lagevektor des EE-KS im Roboter-Basis-KS
+      % xED (6x1): Geschwindigkeitsvektor EE-KS (Euler-Winkel)
+      % xEDD (6x1): Beschleunigungsvektor EE-KS (Euler-Winkel)
+      % Quelle: Aufzeichnungen Schappler, 23.08.2019
+      
+      % Initialisierung der Ausgabevariablen mit Dimension der Eingabe
+
+      if all(all(R.T_P_E==eye(4)))
+        xE = xP;
+        if nargout > 1, xED = xPD;   end
+        if nargout > 2, xEDD = xPDD; end
+        % Keine Änderung der Transformation. Keine Umrechnung notwendig.
+        return
+      end
+      T_0_P = R.x2t(xP);
+      T_0_E = T_0_P * R.T_P_E;
+      xE = R.t2x(T_0_E);
+      % Geschwindigkeit berechnen
+      if nargin > 2
+        % Umrechnung auf Winkelgeschwindigkeit (bezogen auf Plattform)
+        T_phiP = euljac_mex(xP(4:6), R.phiconv_W_E);
+        omega_0_P = T_phiP * xPD(4:6);
+        % Umrechnung von Punkt P auf Punkt E (mit Adjunkt-Matrix)
+        V_0_P = [xPD(1:3); omega_0_P];
+        r_P_P_E = R.T_P_E(1:3,4);
+        R_0_P = T_0_P(1:3,1:3);
+        r_0_P_E = R_0_P*r_P_P_E;
+        A_E_P = adjoint_jacobian_mex(r_0_P_E);
+        V_0_E = A_E_P * V_0_P;
+        % Umrechnung auf Euler-Winkel-Geschwindigkeit bez. auf Endeffektor
+        T_phiE = euljac_mex(xE(4:6), R.phiconv_W_E);
+        xED = [V_0_E(1:3); T_phiE\V_0_E(4:6)];
+      end
+      % Beschleunigung berechnen
+      if nargin > 3
+        % Umrechnung auf Winkelbeschleunigung (bezogen auf Plattform)
+        TD_phiP = euljacD_mex(xP(4:6), xPD(4:6), R.phiconv_W_E);
+        omegaD_0_P = TD_phiP*xPD(4:6) + T_phiP * xPDD(4:6);
+        % Umrechnung von Punkt P auf Punkt E (mit Adjunkt-Matrix)
+        VD_0_P = [xPDD(1:3); omegaD_0_P];
+        omega_0_E = omega_0_P; % gleicher Starrkörper
+        AD_E_P = adjointD_jacobian_mex(r_P_P_E, R_0_P, omega_0_E);
+        VD_0_E = AD_E_P*V_0_P + A_E_P * VD_0_P;
+        % Umrechnung auf Euler-Winkel-Beschleunigung bez. auf Endeffektor
+        TD_phiE = euljacD_mex(xE(4:6), xED(4:6), R.phiconv_W_E);
+        xEDD = [VD_0_E(1:3); T_phiE\(VD_0_E(4:6)-TD_phiE*xED(4:6))];
+      end
+    end
+    function [XE, XED, XEDD] = xP2xE_traj(R, XP, XPD, XPDD)
+      % Umrechnung von Plattform-Lagevektor xP zum Endeffektor-Lagevektor xE
+      % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
+      % zusätzlichen Transformation basiert, die beliebig geändert werden
+      % kann. Die Rückrechnung in dieser Funktion dient zur Probe.
+      % Eingabe:
+      % xP (6xN): Lagevektor des Plattform-KS im Roboter-Basis-KS (N mal)
+      % xPD (6xN): Geschwindigkeitsvektor Plattform-KS (Euler-Winkel)
+      % xPDD (6xN): Beschleunigungsvektor Plattform-KS (Euler-Winkel)
+      % Ausgabe:
+      % xE (6xN): Lagevektor des EE-KS im Roboter-Basis-KS
+      % xED (6xN): Geschwindigkeitsvektor EE-KS (Euler-Winkel)
+      % xEDD (6xN): Beschleunigungsvektor EE-KS (Euler-Winkel)
+      % Quelle: Aufzeichnungen Schappler, 23.08.2019
+      
+      % Initialisierung der Ausgabevariablen mit Dimension der Eingabe
+      XE = XP;
+      if nargout > 1, XED = XPD;   end
+      if nargout > 2, XEDD = XPDD; end
+      for i = 1:size(XE,1)
+        if nargin == 2
+          XE(i,:) = R.xP2xE(XE(i,:)');
+        elseif nargin == 3 
+          [XE(i,:),XED(i,:)] = R.xP2xE(XP(i,:)',XPD(i,:)');
+        else
+          [XE(i,:),XED(i,:),XEDD(i,:)] = R.xP2xE(XP(i,:)',XPD(i,:)',XPDD(i,:)');
+        end
       end
     end
   end

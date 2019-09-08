@@ -18,7 +18,7 @@
 % * Die IK-Berechnung ist aktuell nur ohne Kompilierung möglich, was sehr
 %   lange dauert
 % 
-% Beispielsystem: Hexapod: Basis-Kreis 0.5, Plattform-Kreis 0.2
+% Beispielsystem: Hexapod: Basis-Kreis 0.5, Plattform-Kreis 0.2 (Radius)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-06
 % (C) Institut für Mechatronische Systeme, Universität Hannover

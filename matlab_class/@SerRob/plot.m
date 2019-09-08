@@ -11,6 +11,8 @@
 %   mode
 %     1: Strichmodell mit stilisierten Gelenken (Zylinder, Quader)
 %     2: CAD-Modell des Roboters aus hinterlegten STL-Dateien der Körper
+%     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)
+%     4: Darstellung der Körper mit Entwurfsparametern (z.B. Zylinder)
 %   straight (nur aktiv, wenn `mode` auf 1 (Strichmodell)
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
@@ -62,8 +64,8 @@ v = Rob.MDH.v;
 O_xyz_ges = squeeze(T_c_W(1:3,4,:));
 plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
-%% Gelenke zeichnen
-if s.mode == 1
+%% Gelenke zeichnen (als Zylinder oder Quader)
+if any(s.mode == [1 3 4])
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -78,6 +80,7 @@ if s.mode == 1
   % Gelenke als Objekte. TODO: An Größe des Roboters anpassen
   gd = 0.04; % Durchmesser der Zylinder und Quader
   gh = 0.15; % Höhe
+  
   % Anmerkungen:
   % * Gelenk i bewegt Körper i
   % * Gelenkachse i ist z-Achse des Körper-KS i (MDH-Notation)
@@ -86,6 +89,17 @@ if s.mode == 1
     % mu: 2=PKM-aktiv, 1=seriell-aktiv, 0=seriell-passiv
     cc = colors{Rob.MDH.mu(i)+1};
 
+    if s.mode == 4
+      % Passe zu zeichnendes Gelenk von der Größe her an
+      if Rob.DesPar.seg_type(i+1) == 1
+        % Das Gelenk sollte etwas größer sein als das skizzierte Segment
+        gh = max(Rob.DesPar.seg_par(i+1,2)*2, gh);
+        gd = gh/4; % Gleiche Proportion des Gelenks
+      else
+        error('Noch nicht definiert');
+      end
+    end
+    
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
     r_W_Oi = T_c_W(1:3,4,i+1);
     % Gelenk so verschieben, dass es bei d-Verschiebung (z-Achse) in der
@@ -99,39 +113,149 @@ if s.mode == 1
       d = Rob.MDH.d(i);
     end
     r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
-    % T_c_W(1:3,4,Rob.MDH.v(i)+1);
-    r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
-    
+
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
+      % Drehgelenke werden so auf der z-Achse verschoben, dass sie in der
+      % Mitte zwischen den beiden KS sind (ist dann übersichtlicher)
+      r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
       r_W_P1 = r_W_Gi + R_W_i*[0;0;-gh/2];
       r_W_P2 = r_W_Gi + R_W_i*[0;0; gh/2];
       drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
         'FaceAlpha', 0.3, 'FaceColor', 'w')
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
-      % Eckpunkte des Quaders definieren
-      r_W_Q1 = r_W_Gi + R_W_i*[-gd/2; -gd/2; -gh/2];
-      r_W_Q1Q2 = R_W_i*[gd;0;0];
-      r_W_Q1Q3 = R_W_i*[0;gd;0];
-      r_W_Q1Q4 = R_W_i*[0;0;gh];
-      plot_cube2(r_W_Q1, r_W_Q1Q2, r_W_Q1Q3, r_W_Q1Q4, cc);
+      if Rob.MDH.a(i) ~= 0
+        % Schubgelenke werden nicht auf der Achse verschoben, wenn es einen
+        % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
+        % auf dem Quader befestigt ist
+        r_W_Gi = r_W_Oi;
+      else
+        % Bei der normalen Kinematik-Skizze wird das Schubgelenk auch in
+        % die Mitte zwischen die KS gesetzt
+        r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
+      end
+      cubpar_c = r_W_Gi; % Mittelpunkt des Quaders
+      cubpar_l = [gd; gd; gh]; % Dimension des Quaders
+      cubpar_a = 180/pi*r2eulzyx(R_W_i); % Orientierung des Quaders
+      drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
     else
       continue % kein Gelenk
     end
   end
 end
+%% Trägheitsellipsen zeichnen
+if s.mode == 3
+  for i = 1:Rob.NL
+    if any(isnan([Rob.DynPar.Icges(i,:), Rob.DynPar.mges(i), Rob.DynPar.rSges(i,:)]))
+      continue % Nur plotten, wenn Dynamikparameter gegeben sind.
+    end
+    if any(eig(inertiavector2matrix(Rob.DynPar.Icges(i,:))) < 0)
+      continue
+    end
+    inertia_ellipsoid( ...
+      inertiavector2matrix(Rob.DynPar.Icges(i,:)), ...
+      Rob.DynPar.mges(i)/2700, ... % Dichte von Aluminium zur Skalierung der Größe
+      Rob.DynPar.rSges(i,:), ...
+      T_c_W(:,:,i));
+  end
+end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
-if s.mode == 1
-  if s.straight % if Rob.NQJ ~= Rob.NJ
+if any(s.mode == [3 4]) || s.mode == 1 && s.straight
     % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
     % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
     for i = 1:Rob.NJ
       j = v(i)+1; % Körper-Index (Vorgänger)
       T1 = T_c_W(:,:,j);
       T2 = T_c_W(:,:,i+1);
-      plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-        'LineWidth',4,'Color','k')
-    end
-  else
+      if s.mode == 1 && s.straight
+        % Als Linie zeichnen
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',4,'Color','k')
+      elseif s.mode == 3 && s.straight
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',1,'Color','k')
+      elseif s.mode == 4
+        if Rob.MDH.sigma(i) == 0 % Drehgelenk
+          % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+          % Bei Drehgelenken wird das aktuelle Gelenk direkt mit dem
+          % vorherigen verbunden
+          if Rob.DesPar.seg_type(i) == 1
+            drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+              'EdgeAlpha', 0.1); 
+          else
+            error('Segmenttyp ist nicht definiert');
+          end
+        else % Schubgelenk
+          % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
+          % berücksichtigt.
+          % Transformation zu Anfangs- und Endlage des Schubgelenkes
+          T_qmin = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
+          T_qmax = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
+
+          if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
+            % Zeichne Linearführung als Quader
+            cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2; % Mittelpunkt des Quaders
+            cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
+            cubpar_a = 180/pi*r2eulzyx(T_qmin(1:3,1:3)); % Orientierung des Quaders
+            drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
+            % Normales Segment zum Start der Linearführung
+            if Rob.DesPar.seg_type(i) == 1
+              if Rob.qlim(i,2)*Rob.qlim(i,2)< 0 % Führung liegt auf der Höhe
+                % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
+                drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+                  'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                  'EdgeAlpha', 0.1);
+              else
+                % Keine senkrechte Verbindung (Schiene fängt woanders an)
+                if Rob.qlim(i,2) < 0 % Schiene liegt komplett "links" vom KS. Gehe zum Endpunkt
+                  drawCylinder([T1(1:3,4)', T_qmax(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                    'EdgeAlpha', 0.1);
+                else % Schiene liegt "rechts" vom KS. Gehe zum Startpunkt
+                  drawCylinder([T1(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                    'EdgeAlpha', 0.1);
+                end
+              end
+            end
+          else % Schubgelenk ist Hubzylinder
+            % Großer Zylinder, muss so lang sein wie maximaler Hub.
+            T_grozylstart = T_qmin * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            drawCylinder([T_grozylstart(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 1 0], ...
+              'EdgeAlpha', 0.1);
+            % Kleinerer Zylinder, der herauskommt (aber so lang ist, wie
+            % der maximale Hub)
+            T_klezylstart = T2 * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            drawCylinder([T_klezylstart(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/3], ...
+              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 0 0], ...
+              'EdgeAlpha', 0.1);
+            % Normales Segment zum Start des Hubzylinders.
+            if Rob.DesPar.seg_type(i) == 1
+              if Rob.qlim(i,2) > 2*Rob.qlim(i,1) && Rob.qlim(i,2) > 0 % Zylinder liegt auf der Höhe des KS
+                % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
+                drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+                  'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                  'EdgeAlpha', 0.1);
+              else
+                % Keine senkrechte Verbindung (Zylinder fängt woanders an)
+                if Rob.qlim(i,2) < 0 % Großer Zylinder liegt komplett "links" (von x-Achse schauend)
+                  drawCylinder([T1(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                    'EdgeAlpha', 0.1);
+                else % Großer Zylinder liegt komplett "rechts"
+                  drawCylinder([T1(1:3,4)', T_grozylstart(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                    'EdgeAlpha', 0.1);
+                end
+              end
+            end
+          end
+        end
+      end
+    end % for i = 1:Rob.NJ
+end
+if ~s.straight && all(s.mode ~= [2 4])
     q = Rob.jointvar(qJ);
     for i = 1:Rob.NJ
       j = v(i)+1;
@@ -159,11 +283,17 @@ if s.mode == 1
         if abs(T1(1:3,4)-T2(1:3,4)) < 1e-10
           continue % nicht zeichnen, wenn keine Veränderung
         end
-        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-          'LineWidth',4,'Color','k')
+        if s.mode == 1
+          % Strichmodell: Dicke Linie zeichnen
+          plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+            'LineWidth',4,'Color','k');
+        elseif s.mode == 3
+          % Trägheitsellipsen: Dünnere Linie zeichnen
+          plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+            'LineWidth',1,'Color','k');
+        end
       end
     end
-  end
 end
 
 %% CAD-Modelle zeichnen
@@ -206,9 +336,23 @@ end
   
 %% Verbindung zum Endeffektor
 T_W_N = T_c_W(:,:,Rob.I_EElink+1);
-[~,T_W_E] = Rob.fkineEE(qJ);
-plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
-  'LineWidth',4,'Color','k')
+T_W_E = T_W_N*Rob.T_N_E;
+if s.mode == 1
+  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+    'LineWidth',4,'Color','k')
+elseif s.mode == 3
+  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+    'LineWidth',1,'Color','k')  
+elseif s.mode == 4
+  % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+  if Rob.DesPar.seg_type(i+1) == 1
+    drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
+      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+      'EdgeAlpha', 0.1); 
+  else
+    error('Segmenttyp ist nicht definiert');
+  end
+end
 
 %% Koordinatensysteme
 for i = 1:size(T_c_W,3)

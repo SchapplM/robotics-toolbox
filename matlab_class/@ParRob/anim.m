@@ -120,6 +120,15 @@ for i=1:size(Q,1)
   grid on;
   if ~isempty(s_anim.gif_name) || ~isempty(s_anim.avi_name)
     f=getframe(gcf);
+    if ~isempty(s_anim.avi_name)
+      % Zuschneiden auf Mod32 für anschließende Kompression
+      res_tmp = size(f.cdata);
+      res_crop = floor(res_tmp(1:2)/32)*32;
+      crop_begin = ceil((res_tmp(1:2)-res_crop(1:2))/2);
+      crop_end = floor((res_tmp(1:2)-res_crop(1:2))/2);
+      f.cdata = f.cdata((1+crop_begin(1)):(res_tmp(1)-crop_end(1)), ...
+                        (1+crop_begin(2)):(res_tmp(2)-crop_end(2)), :);
+    end
   end
   % Create a colormap for the first frame. For the rest of the frames,
   % use the same colormap
