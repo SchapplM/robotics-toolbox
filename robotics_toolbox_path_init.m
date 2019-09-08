@@ -19,3 +19,6 @@ addpath(fullfile(this_tb_path, 'mechanics'));
 addpath(fullfile(this_tb_path, 'regressor'));
 addpath(fullfile(this_tb_path, 'transformation'));
 addpath(fullfile(this_tb_path, 'matlab_class'));
+
+% Abhängigkeiten kompilieren
+mex_script_dependencies('ParRob', true);
