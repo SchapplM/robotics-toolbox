@@ -1,7 +1,7 @@
 % Beispiel-Skript für Delta-Roboter
 % * Erstellung des Modells
 % * Betrachtung der Freiheitsgrade anhand der PKM-Jacobi-Matrix
-% * Inverse Kinematik für Kartesische Trajektorie
+% * Inverse Kinematik für kartesische Trajektorie
 % 
 % TODO: Bei der IK klappt eine Achse manchmal um und die Bewegung sieht
 % komisch aus. Das liegt an der Normalisierung des Winkels in
@@ -46,8 +46,8 @@ RS.update_mdh([0.3; 0.5]);
 RS.qlim = repmat([-2*pi, 2*pi], RS.NQJ, 1);
 %% Klasse für PKM erstellen
 RP = ParRob('Delta');
-RP = RP.create_symmetric_robot(3, RS, 0.2, 0.15);
-RP = RP.initialize();
+RP.create_symmetric_robot(3, RS, 0.2, 0.15);
+RP.initialize();
 
 X0 = [0.1;0.05;-0.7; pi; 0; 0];
 % EE-FG setzen: Technische EE-FG der PKM, Aufgaben-EE-FG, FG aller

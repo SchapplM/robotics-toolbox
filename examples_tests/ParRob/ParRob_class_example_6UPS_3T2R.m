@@ -51,7 +51,7 @@ if ~use_parrob
   RS.fill_fcn_handles(true, true); % kompilierte Funktionen verwenden
   % RS.mex_dep(true)
   RP = ParRob('P6RRPRRR14V3A1');
-  RP = RP.create_symmetric_robot(6, RS, 0.5, 0.2);
+  RP.create_symmetric_robot(6, RS, 0.5, 0.2);
   RP.initialize();
   % Schubgelenke sind aktuiert
   I_qa = false(36,1);

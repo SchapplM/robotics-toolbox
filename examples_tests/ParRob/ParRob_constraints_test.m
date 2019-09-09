@@ -61,7 +61,7 @@ for NNN = RobotNames
   
   % Aufbau einer Symmetrischen PKM
   RP = ParRob(PName);
-  RP = RP.create_symmetric_robot(N_LEG, RS, 0.5, 0.2);
+  RP.create_symmetric_robot(N_LEG, RS, 0.5, 0.2);
   
   RP.initialize();
   X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
