@@ -53,6 +53,7 @@ if use_parrob
     return
   end
   RP = parroblib_create_robot_class('P6RRPRRR14V3A1', 0.5, 0.2);
+  RP.fill_fcn_handles(true, true);
 end
 
 %% Grenzen für die Gelenkpositionen setzen
@@ -64,12 +65,13 @@ for i = 1:RP.NLEG
   % Begrenze die Länge der Schubgelenke
   RP.Leg(i).qlim(3,:) = [0.4, 0.7];
 end
-
+qlim_pkm = cat(1, RP.Leg.qlim);
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X = [ [0.15;0.05;0.5]; [10;-10;5]*pi/180 ];
 for i = 1:10 % Mehrere Versuche für "gute" Pose
-  q0 = -0.5+rand(36,1); % Startwerte für numerische IK (zwischen -0.5 und 0.5 rad)
+  % Startwerte für numerische IK
+  q0 = qlim_pkm(:,1)+rand(36,1).*(qlim_pkm(:,2)-qlim_pkm(:,1));
   q0(RP.I_qa) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
 
   % Inverse Kinematik auf zwei Arten berechnen
@@ -81,7 +83,7 @@ for i = 1:10 % Mehrere Versuche für "gute" Pose
     warning('Start-Konfiguration ist umgeklappt mit Methode 1.');
   end
 
-  [q, Phis] = RP.invkin_ser(X, rand(36,1));
+  [q, Phis] = RP.invkin_ser(X, q0);
   if any(abs(Phis) > 1e-6)
     error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
   end

@@ -14,7 +14,9 @@
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function files_missing = fill_fcn_handles(R, mex, compile_missing)
-
+if nargin < 2
+  mex = false;
+end
 if nargin < 3
   compile_missing = false;
 end
@@ -57,7 +59,7 @@ for i = 1:length(R.all_fcn_hdl)
       mdlname_j = mdlname_A0;
     end
     
-    if nargin == 1 || mex == 0
+    if ~mex == 0
       robfcnname = sprintf('%s_%s', mdlname_j, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname_j, fcnname_tmp);
@@ -79,4 +81,9 @@ for i = 1:length(R.all_fcn_hdl)
     eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
   end
   R.extfcn_available(i) = ~missing_i;
+end
+
+% Stelle auch mex-Funktionen für die Beinketten ein
+for i = 1:R.NLEG
+  R.Leg(i).fill_fcn_handles(mex, compile_missing);
 end
