@@ -33,7 +33,7 @@ if ~use_parrob
   RS = serroblib_create_robot_class(SName);
   RS.fill_fcn_handles(true, true);
   % RS.mex_dep(true)
-  RP = ParRob('P6RRPRRR14V3A1');
+  RP = ParRob('P6RRPRRR14V3G1P1A1');
   RP.create_symmetric_robot(6, RS, 0.5, 0.2);
   RP.initialize();
   % Schubgelenke sind aktuiert
@@ -42,7 +42,7 @@ if ~use_parrob
   RP.update_actuation(I_qa);
   % Benutze PKM-Bibliothek für gespeicherte Funktionen
   if ~isempty(which('parroblib_path_init.m'))
-    parroblib_addtopath({'P6RRPRRR14V3A1'});
+    parroblib_addtopath({'P6RRPRRR14V3G1P1A1'});
   end
   RP.fill_fcn_handles();
 end
@@ -52,7 +52,7 @@ if use_parrob
     warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
     return
   end
-  RP = parroblib_create_robot_class('P6RRPRRR14V3A1', 0.5, 0.2);
+RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
 end
 
