@@ -86,7 +86,11 @@ for i = 1:length(R.all_fcn_hdl)
   R.extfcn_available(i) = ~missing_i;
 end
 
-% Stelle auch mex-Funktionen für die Beinketten ein
-for i = 1:R.NLEG
-  R.Leg(i).fill_fcn_handles(mex, compile_missing);
+% Stelle auch mex-Funktionen für die Beinketten ein, falls das für die PKM
+% explizit gefordert wurde. Der Aufruf ohne Argument soll die Beinketten
+% nicht ändern.
+if nargin > 1
+  for i = 1:R.NLEG
+    R.Leg(i).fill_fcn_handles(mex, compile_missing);
+  end
 end
