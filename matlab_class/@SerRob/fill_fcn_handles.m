@@ -11,7 +11,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function R = fill_fcn_handles(R, mex, compile_missing)
+function fill_fcn_handles(R, mex, compile_missing)
 
 if nargin < 3
   compile_missing = false;
