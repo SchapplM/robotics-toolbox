@@ -218,7 +218,8 @@ classdef ParRob < matlab.mixin.Copyable
         else
           % Korrekturmatrix (symbolische Jacobi bezieht sich auf
           % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
-          T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+          % Hier Bezug auf EE-Euler-Winkel-Geschwindigkeit (nicht: Plattform)
+          T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
           Jinv_qD_xD = Jinv_qD_sD*T;
         end
       else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
@@ -497,7 +498,9 @@ classdef ParRob < matlab.mixin.Copyable
       for i = 1:R.NLEG
         qJ(:,i) = q(R.I1J_LEG(i):(R.I1J_LEG(i)+NLEGJ_NC-1));
       end
-      xred = x(R.I_EE); % TODO: Es muss zwischen EE- und Plattform-Koordinaten unterschieden werden.
+      % Hier wird nicht zwischen EE- und Plattform-Koordinaten
+      % unterschieden. Bzgl der EE-FG sollten sie gleich sein.
+      xred = x(R.I_EE);
       koppelP = R.r_P_B_all';
       if ~R.issym
         legFrame = NaN(R.NLEG, 3);

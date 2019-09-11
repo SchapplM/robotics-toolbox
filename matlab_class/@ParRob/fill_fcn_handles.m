@@ -62,7 +62,7 @@ for i = 1:length(R.all_fcn_hdl)
       mdlname_j = mdlname_A0;
     end
     
-    if ~mex == 0
+    if mex == 0
       robfcnname = sprintf('%s_%s', mdlname_j, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname_j, fcnname_tmp);
