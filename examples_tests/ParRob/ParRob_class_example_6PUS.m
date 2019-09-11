@@ -14,7 +14,7 @@ clc
 RS = serroblib_create_robot_class('S6PRRRRR6V2');%Name_DB3
 RS.fill_fcn_handles(false);
 % ParRob-Klasse für PKM erstellen
-ParRob('P6PRRRRR6V2G1P1A1');
+RP = ParRob('P6PRRRRR6V2G1P1A1');
 RP.create_symmetric_robot(6, RS, 1.0, 0.3);
 RP.initialize();
 
