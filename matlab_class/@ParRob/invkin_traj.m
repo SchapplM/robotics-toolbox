@@ -27,6 +27,9 @@
 %   Trajektorie von Gelenkgeschwindigkeiten
 % QDD
 %   Trajektorie von Gelenkbeschleunigungen
+% Jinv_ges
+%   Inverse PKM-Jacobi-Matrix für alle Bahnpunkte (spaltenweise in Zeile)
+%   (Jacobi zwischen Antriebsgeschwindigkeit qDa und EE-geschwindigkeit xDE
 % 
 % Siehe auch: SerRob/invkin_traj
 
@@ -39,7 +42,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Q, QD, QDD, Phi] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, Phi, Jinv_ges] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
@@ -70,6 +73,7 @@ Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
+Jinv_ges = NaN(nt, sum(I_EE)*sum(Rob.I_qa));
 
 qk0 = q0;
 for k = 1:nt
@@ -103,7 +107,7 @@ for k = 1:nt
   qD_k = J_x_inv * xD_k(I_EE);
   
   % Gelenk-Beschleunigung berechnen
-  % TODO: Das ist noch falsch. Jacobi-Zeitableitung fehlt nocht
+  % TODO: Das ist noch falsch. Jacobi-Zeitableitung fehlt noch
   qDD_k = J_x_inv * xDD_k(I_EE);
 
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
@@ -118,6 +122,8 @@ for k = 1:nt
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
   Phi(k,:) = Phi_k;
+  J_qa_x = J_x_inv(Rob.I_qa,:);
+  Jinv_ges(k,:) = J_qa_x(:);
   if s.debug
     if max(abs(Phi_k)) > 1e-3
       warning('Phi zu groß');
