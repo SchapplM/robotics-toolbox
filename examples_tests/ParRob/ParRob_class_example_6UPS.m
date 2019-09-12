@@ -52,10 +52,20 @@ if use_parrob
     warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
     return
   end
-RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
+  RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
 end
 
+%% Plattform-Konfiguration verändern
+% Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
+% singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
+d_Paar = RP.DesPar.platform_par(1)/2;
+for i = 1:3 % Paare von Koppelpunkten durchgehen
+  rM = rotz(2*pi/3*(i-1))*[RP.DesPar.platform_par(1);0;0]; % Mittelpunkt des Punktepaares
+  for j = 1:2 % Beide Punkte des Paares durchgehen
+    RP.r_P_B_all(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
+  end
+end
 %% Grenzen für die Gelenkpositionen setzen
 % Dadurch wird die Schrittweite bei der inversen Kinematik begrenzt (auf 5%
 % der Spannbreite der Gelenkgrenzen) und die Konfiguration klappt nicht um.
@@ -141,18 +151,21 @@ G_d = G_q(:,RP.I_qd);
 % Jacobi-Matrix zur Berechnung der abhängigen Gelenke und EE-Koordinaten
 G_dx = [G_d, G_x];
 
-fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik: %d/%d\n', ...
-  RP.mdlname, rank(G_q), RP.NJ);
-fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ...
-  RP.mdlname, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
+fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik: %d/%d (Kondition %1.1f)\n', ...
+  RP.mdlname, rank(G_q), RP.NJ, cond(G_q));
+fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d (Kondition %1.1e)\n', ...
+  RP.mdlname, rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd), cond(G_dx));
 fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
   RP.mdlname, rank(G_a), sum(RP.I_EE));
+
+Jinv_num_voll = -inv(G_q) * G_x;
+Jinv_num = Jinv_num_voll(RP.I_qa,:);
+fprintf('%s: Rang der inversen PKM-Jacobi: %d/%d (Kondition %1.1e)\n', ...
+  RP.mdlname, rank(Jinv_num, 1e-6), sum(RP.I_qa), cond(Jinv_num));
 
 % Inverse Jacobi-Matrix aus symbolischer Berechnung (mit Funktion aus HybrDyn)
 if ~isempty(which('parroblib_path_init.m'))
   Jinv_sym = RP.jacobi_qa_x(q, X);
-  Jinv_num_voll = -inv(G_q) * G_x;
-  Jinv_num = Jinv_num_voll(RP.I_qa,:);
   test_Jinv = Jinv_sym - Jinv_num;
   if max(abs(test_Jinv(:))) > 1e-10
     error('Inverse Jacobi-Matrix stimmt nicht zwischen numerischer und symbolischer Berechnung überein');
