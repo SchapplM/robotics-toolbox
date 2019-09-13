@@ -588,7 +588,7 @@ classdef ParRob < matlab.mixin.Copyable
       % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
       % Ausgabe:
       % mpv: Dynamik-Minimalparametervektor
-      if isempty(R.dynparconvfcnhdl)
+      if ~R.extfcn_available(10)
         % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
         mpv = [];
       else
