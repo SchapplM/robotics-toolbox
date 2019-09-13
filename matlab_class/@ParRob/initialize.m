@@ -4,7 +4,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
-function R = initialize(R)
+function initialize(R)
 
 NLEG = R.NLEG;
 

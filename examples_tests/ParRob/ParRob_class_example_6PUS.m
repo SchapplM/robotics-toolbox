@@ -14,6 +14,9 @@ respath = fullfile(rob_path, 'examples_tests', 'results');
 RS = serroblib_create_robot_class('S6PRRRRR6V2');
 RS.fill_fcn_handles(false);
 % ParRob-Klasse für PKM erstellen
+if ~isempty(which('parroblib_path_init.m'))
+  parroblib_addtopath({'P6PRRRRR6V2G1P1A1'});
+end
 RP = ParRob('P6PRRRRR6V2G1P1A1');
 RP.create_symmetric_robot(6, RS, 1.0, 0.3);
 RP.initialize();
@@ -57,9 +60,6 @@ for i = 1:RP.NLEG
   RP.Leg(i).update_EE(zeros(3,1),zeros(3,1));
 end
 
-if ~isempty(which('parroblib_path_init.m'))
-    parroblib_addtopath({'P6PRRRRR6V2G1P1A1'});
-end
 RP.fill_fcn_handles();
 
 %% Grenzen für die Gelenkpositionen setzen

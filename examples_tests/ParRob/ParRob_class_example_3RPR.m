@@ -40,6 +40,9 @@ RS.update_mdh(pkin);
 
 %% Klasse für PKM erstellen
 RS.I_EE = logical([1 1 0 0 0 1]); % Für IK der Beinketten mit invkin_ser
+if ~isempty(which('parroblib_path_init.m'))
+  parroblib_addtopath({'P3RPR1G1P1A2'});
+end
 RP = ParRob('P3RPR1G1P1A2');
 RP.create_symmetric_robot(3, RS, 1, 0.3);
 RP.initialize();
@@ -49,9 +52,6 @@ I_qa = false(RP.NJ,1);
 I_qa(2:3:RP.NJ) = true;
 RP.update_actuation(I_qa);
 
-if ~isempty(which('parroblib_path_init.m'))
-  parroblib_addtopath({'P3RPR1G1P1A2'});
-end
 RP.fill_fcn_handles();
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
@@ -99,11 +99,14 @@ fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ..
 fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
   RP.mdlname, rank(G_a), sum(RP.I_EE));
 
+Jinv_num_voll = -inv(G_q) * G_x;
+Jinv_num = Jinv_num_voll(RP.I_qa,:);
+fprintf('%s: Rang der inversen PKM-Jacobi: %d/%d (Kondition %1.1e)\n', ...
+  RP.mdlname, rank(Jinv_num, 1e-6), sum(RP.I_qa), cond(Jinv_num));
+
 % Inverse Jacobi-Matrix aus symbolischer Berechnung (mit Funktion aus HybrDyn)
 if ~isempty(which('parroblib_path_init.m'))
   Jinv_sym = RP.jacobi_qa_x(q, X);
-  Jinv_num_voll = -inv(G_q) * G_x;
-  Jinv_num = Jinv_num_voll(RP.I_qa,:);
   test_Jinv = Jinv_sym - Jinv_num;
   if max(abs(test_Jinv(:))) > 1e-10
     error('Inverse Jacobi-Matrix stimmt nicht zwischen numerischer und symbolischer Berechnung überein');
