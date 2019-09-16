@@ -20,5 +20,7 @@ addpath(fullfile(this_tb_path, 'regressor'));
 addpath(fullfile(this_tb_path, 'transformation'));
 addpath(fullfile(this_tb_path, 'matlab_class'));
 
+mkdirs(fullfile(this_tb_path, 'examples_tests', 'results'));
+
 % Abhängigkeiten kompilieren
 mex_script_dependencies('ParRob', true);
