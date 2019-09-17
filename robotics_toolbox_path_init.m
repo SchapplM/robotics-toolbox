@@ -20,7 +20,7 @@ addpath(fullfile(this_tb_path, 'regressor'));
 addpath(fullfile(this_tb_path, 'transformation'));
 addpath(fullfile(this_tb_path, 'matlab_class'));
 
-% Ergebnis-Ordner für Skripte erstellen
+% Ergebnis-Ordner für Ausgabe der Test-Skripte erstellen
 mkdirs(fullfile(this_tb_path, 'examples_tests', 'results'));
 
 % Abhängigkeiten kompilieren

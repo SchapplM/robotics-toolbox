@@ -16,9 +16,9 @@ use_mex = true;
 %% PKM initialisieren
 % SerRob-Klassen für Beinketten generieren
 RS1 = serroblib_create_robot_class('S5PRRRR2');%yz
-RS1.fill_fcn_handles(use_mex, false);
+RS1.fill_fcn_handles(use_mex, true);
 RS2 = serroblib_create_robot_class('S6PRRRRR6');
-RS2.fill_fcn_handles(use_mex, false);
+RS2.fill_fcn_handles(use_mex, true);
 
 % ParRob-Klasse für PKM erstellen
 RP = ParRob('Isoglide5_3T2R_mod');
@@ -82,8 +82,8 @@ for j = 1:1%RP.NLEG
   R_W_O = T_W_O(1:3,1:3);
   R_W_EE = T_W_EE(1:3,1:3);
   R_O_E = R_W_O' * R_W_EE;
-  eul_OE = rotm2eul(R_O_E','XYZ')';
-  eul_WE = rotm2eul(R_W_EE','XYZ')';
+  eul_OE = r2eulxyz(R_O_E');
+  eul_WE = r2eulxyz(R_W_EE');
   RP.Leg(j).update_EE([], eul_WE);
   I_EE_Max = I_EE_Max & RP.Leg(j).I_EE;
 end
