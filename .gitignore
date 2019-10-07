@@ -9,5 +9,6 @@ slprj
 *.mat
 *.mdl.r*
 *.orig
+*.bak
 codegen
 matlab_tools_path
