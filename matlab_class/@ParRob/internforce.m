@@ -46,7 +46,8 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Die externe Kraft verursacht zusammen mit den Antriebskräften das
   % Bewegungsverhalten (q,qD,qDD) der Beinkette
   FB_j_0 = (J_j_0') \ (tau_j - tau_m_j);
-
+  w_B(:,j) = FB_j_0;
+  
   % Berechne die Schnittkräfte im Bein.
   % Modell-Annahme: Bein ist freistehende serielle Kette, an der vorne die
   % Schnittkraft mit der Plattform als externe Kraft angreift.
@@ -61,18 +62,18 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des
   % Gelenk-FG
   W_j_l = W_j_l_ext - W_j_l_int;
-
+  w_all_linkframe(:,:,j) = W_j_l;
+  
   % Schnittkräfte wieder in Basis-KS zurückrechnen (sind vorher im
   % Körper-KS)
+  if nargout <= 3
+    continue
+  end
   Tc_j_0j = RP.Leg(j).fkine(q_j);
   W_j_0 = W_j_l*NaN;
   for k = 1:size(W_j_l,2)
     R_0j_l = Tc_j_0j(1:3,1:3,k);
     W_j_0(:,k) = rotate_wrench(W_j_l(:,k), R_0_0j*R_0j_l);
   end
-
-  % Abspeichern der Ergebnisse
-  w_B(:,j) = FB_j_0;
-  w_all_linkframe(:,:,j) = W_j_l;
   w_all_baseframe(:,:,j) = W_j_0;
 end
