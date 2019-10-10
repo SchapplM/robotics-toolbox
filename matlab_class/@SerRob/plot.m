@@ -20,6 +20,9 @@
 %   jointcolors
 %     'serial': Klasse entspricht einzelnem seriellem/hybridem Roboter
 %     'parallel': Klassen entspricht Beinkette einer PKM
+%   bodies
+%     Enthält eine Liste der Körper, für die die CAD-Modelle gezeichnet
+%     werden sollen (Standard: alle). Konvention: Basis = 0.
 % 
 % Ausgabe:
 % hdl
@@ -40,6 +43,7 @@ s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ... % Linien gerade setzen oder entlang der MDH-Parameter
              'ks', [1, Rob.NJ+2], ... % nur Basis- und EE-KS
+             'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
              'jointcolors', 'serial'); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -61,8 +65,8 @@ end
 v = Rob.MDH.v;
 
 %% Gelenke als Punkte zeichnen
-O_xyz_ges = squeeze(T_c_W(1:3,4,:));
-plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
+% O_xyz_ges = squeeze(T_c_W(1:3,4,:));
+% plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
 if any(s.mode == [1 3 4])
@@ -147,6 +151,9 @@ if s.mode == 3
   for i = 1:Rob.NL
     if any(isnan([Rob.DynPar.Icges(i,:), Rob.DynPar.mges(i), Rob.DynPar.rSges(i,:)]))
       continue % Nur plotten, wenn Dynamikparameter gegeben sind.
+    end
+    if ~any(s.bodies == i-1)
+      continue % Dieser Körper soll nicht gezeichnet werden
     end
     if any(eig(inertiavector2matrix(Rob.DynPar.Icges(i,:))) < 0)
       continue
@@ -300,6 +307,9 @@ end
 if s.mode == 2 && ~isempty(Rob.CADstruct)
   hdl = NaN(length(Rob.CADstruct.link),1);
   for j = 1:length(Rob.CADstruct.link)
+    if ~any(s.bodies == Rob.CADstruct.link(j))
+      continue % Dieser Körper soll nicht gezeichnet werden
+    end
     % Körper-KS in Welt-Koordinaten
     T_W_bmdh = T_c_W(:,:,Rob.CADstruct.link(j)+1);
     % Transformation vom Körper-KS zum CAD-KS
