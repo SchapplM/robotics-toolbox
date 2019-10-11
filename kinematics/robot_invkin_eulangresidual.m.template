@@ -83,7 +83,7 @@ delta_qlim = qmax - qmin;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-q = q0;
+q = q0; %#ok<NASGU> % Zuweisung notwendig für mex
 
 if any(wn ~= 0)
   nsoptim = true;
@@ -145,7 +145,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(2)*hdq';
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
-      delta_q_N = (eye(NQJ) - pinv(Jdk)* Jdk) * v;
+      delta_q_N(:) = (eye(NQJ) - pinv(Jdk)* Jdk) * v; % "(:)" notwendig für mex
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
@@ -210,10 +210,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     break;
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
-  q0 = qmin + rand(NQJ,1).*(qmax-qmin);
+  q0(:) = qmin + rand(NQJ,1).*(qmax-qmin); % "(:)" notwendig für mex
 end
 q = q1;
 if s.normalize
   sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren
 end
+
