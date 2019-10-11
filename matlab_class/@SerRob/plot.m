@@ -44,6 +44,7 @@ s_std = struct( ...
              'straight', 1, ... % Linien gerade setzen oder entlang der MDH-Parameter
              'ks', [1, Rob.NJ+2], ... % nur Basis- und EE-KS
              'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
+             'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
              'jointcolors', 'serial'); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -69,7 +70,7 @@ v = Rob.MDH.v;
 % plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
-if any(s.mode == [1 3 4])
+if ~s.only_bodies && any(s.mode == [1 3 4])
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -166,7 +167,7 @@ if s.mode == 3
   end
 end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
-if any(s.mode == [3 4]) || s.mode == 1 && s.straight
+if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
     % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
     % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
     for i = 1:Rob.NJ
@@ -262,7 +263,7 @@ if any(s.mode == [3 4]) || s.mode == 1 && s.straight
       end
     end % for i = 1:Rob.NJ
 end
-if ~s.straight && all(s.mode ~= [2 4])
+if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4])
     q = Rob.jointvar(qJ);
     for i = 1:Rob.NJ
       j = v(i)+1;
@@ -345,25 +346,26 @@ end
 
   
 %% Verbindung zum Endeffektor
-T_W_N = T_c_W(:,:,Rob.I_EElink+1);
-T_W_E = T_W_N*Rob.T_N_E;
-if s.mode == 1
-  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
-    'LineWidth',4,'Color','k')
-elseif s.mode == 3
-  plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
-    'LineWidth',1,'Color','k')  
-elseif s.mode == 4
-  % Als Zylinder entsprechend der Entwurfsparameter zeichnen
-  if Rob.DesPar.seg_type(i+1) == 1
-    drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
-      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-      'EdgeAlpha', 0.1); 
-  else
-    error('Segmenttyp ist nicht definiert');
+if ~s.only_bodies
+  T_W_N = T_c_W(:,:,Rob.I_EElink+1);
+  T_W_E = T_W_N*Rob.T_N_E;
+  if s.mode == 1
+    plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+      'LineWidth',4,'Color','k')
+  elseif s.mode == 3
+    plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
+      'LineWidth',1,'Color','k')  
+  elseif s.mode == 4
+    % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+    if Rob.DesPar.seg_type(i+1) == 1
+      drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
+        'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+        'EdgeAlpha', 0.1); 
+    else
+      error('Segmenttyp ist nicht definiert');
+    end
   end
 end
-
 %% Koordinatensysteme
 for i = 1:size(T_c_W,3)
   if ~any(s.ks == i)
