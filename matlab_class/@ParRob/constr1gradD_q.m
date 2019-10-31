@@ -12,7 +12,10 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
-% 
+% qD [Nx1]
+%  Velocity of the  Gelenkwinkel aller serieller Beinketten der PKM
+%xDE [N x1]
+%   Velocity of the Platform Coordinate based on the orientation and rotation
 % Ausgabe:
 % Phi_q_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
@@ -44,8 +47,8 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tq_red,Phi_tq]=Rob.constr1gradD_tq(q,qD);
-[Phi_rq_red,Phi_rq]=Rob.constr1gradD_rq(q,qD, xE ,xDE);
+[Phi_tq_red,Phi_tq]=Rob.constr1gradD_tq(q,qD); % calling of the differentiation of the translational kinematic constraints
+[Phi_rq_red,Phi_rq]=Rob.constr1gradD_rq(q,qD, xE ,xDE); % calling of the differentiation of the rotational kinematic constraints
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art

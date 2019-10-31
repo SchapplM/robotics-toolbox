@@ -18,6 +18,8 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
+%% No need change in the code 
+
 function [Phi_x_red, Phi_x] = constr1gradD_tt(Rob)
 
 %% Initialisierung

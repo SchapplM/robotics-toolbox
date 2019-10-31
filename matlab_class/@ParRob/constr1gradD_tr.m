@@ -2,8 +2,11 @@
 % Rotation ausgedrückt in XYZ-Euler-Winkeln
 % 
 % Eingabe:
+% Eingabe:
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%xDE [6 x1]
+%   Velocity of the Platform Coordinate based on the orientation and rotation
 % 
 % Ausgabe:
 % Phix_phi_red
@@ -54,7 +57,7 @@ for i = 1:NLEG
   r_E_E_Bi = T_P_E(1:3,1:3)' * (-r_P_P_E + r_P_P_Bi);
   Jw = euljac(phi, Rob.phiconv_W_E);
   omega  = Jw * xDE(4:6) ;
-  RD_0_E =  R_0_E * skew(omega);
+  RD_0_E =  R_0_E * skew(omega); % differentiation of the rotation matrix
 
   
   % Auf vorhandene Koordinaten reduzieren:

@@ -12,7 +12,10 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
-% 
+% qD [Nx1]
+%  Velocity of the  Gelenkwinkel aller serieller Beinketten der PKM
+%xDE [N x1]
+%   Velocity of the Platform Coordinate based on the orientation and rotation
 % Ausgabe:
 % Phi_x_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
@@ -42,9 +45,11 @@ assert(isreal(xE) && all(size(xDE) == [6 1]), ...
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tt_red,Phi_tt]=Rob.constr1gradD_tt();
+%%% calling of the differentiation of the  kinematic constraint of the
+%%% platform can be found in Modelling sets of Euler angles
+[Phi_tt_red,Phi_tt]=Rob.constr1gradD_tt(); 
 [Phi_tr_red,Phi_tr]=Rob.constr1gradD_tr(xE,xDE);
-[Phi_rt_red,Phi_rt]=Rob.constr1grad_rt();
+[Phi_rt_red,Phi_rt]=Rob.constr1grad_rt(); % no need change in the code 
 [Phi_rr_red,Phi_rr]=Rob.constr1gradD_rr(q,qD,xE,xDE );
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art

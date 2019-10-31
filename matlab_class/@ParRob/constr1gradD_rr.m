@@ -61,7 +61,7 @@ R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E); % the p
 
 
 
-K1 = 1 ;
+%K1 = 1 ;
 % the dPidRb1 is for the value 0rd(xr)
 for iLeg = 1:NLEG
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
@@ -136,13 +136,13 @@ for iLeg = 1:NLEG
   J2 = J1+2;
   Phipphi(J1:J2,:) = Phi_phi_i_GradxD;
   
-  % Ausgabe mit reduzierter Dimension
+   % Ausgabe mit reduzierter Dimension
+%  
+%   K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1;
+%   Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.Leg(iLeg).I_EE_Task(4:6),Rob.I_EE(4:6));
+%   K1 = K2+1;
   
-  K2 = K1+sum(Rob.Leg(iLeg).I_EE_Task(4:6))-1;
-  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.Leg(iLeg).I_EE_Task(4:6),Rob.I_EE(4:6));
-  K1 = K2+1;
-  
-%   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-%   K2 = K1+sum(Rob.I_EE(4:6))-1;
-%   Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.Leg(iLeg).I_EE(4:6),Rob.I_EE(4:6));
+  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
+  K2 = K1+sum(Rob.I_EE(4:6))-1;
+  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.Leg(iLeg).I_EE(4:6),Rob.I_EE(4:6));
 end

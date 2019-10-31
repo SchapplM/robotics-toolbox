@@ -13,6 +13,10 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% qD [Nx1]
+%  Velocity of the  Gelenkwinkel aller serieller Beinketten der PKM
+%xDE [N x1]
+%   Velocity of the Platform Coordinate based on the orientation and rotation
 % 
 % Ausgabe:
 % Phi_q_red
@@ -43,10 +47,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1gradD_rq: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr1gradD_rq: xDE muss 6x1 sein');
-% assert(all(size(rpy) == [3 1]) && isreal(rpy), ...
-%   'ParRob/constr1gradD_rq: rpy angles have to be [3x1] (double)'); 
-% assert(all(size(rpyD) == [3 1]) && isreal(rpyD), ...
-%   'ParRob/constr1gradD_rq: rpy angles time derivatives have to be [3x1] (double)'); 
+
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
@@ -71,8 +72,8 @@ R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);  % euler winkel im rotation matrix co
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
-  qs = q(IJ_i); % Gelenkwinkel dieser Kette
-  qds= qD(IJ_i);
+  qs = q(IJ_i); % coordinates of the joint coordinate for the serial chain
+  qds= qD(IJ_i); % velocity of the joint coordinate for the serial chain 
   
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;  % to calculate the ableitung of the third term
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);  % first the angle of the individual leg has been calulated and then the angle is converted into rotational matrix
@@ -80,7 +81,7 @@ for iLeg = 1:NLEG
   % Kinematik, Definitionen
   T_0i_Bi = Rob.Leg(iLeg).fkineEE(qs);
   R_0i_E_q = T_0i_Bi(1:3,1:3) * R_P_E;
-  R_0_E_q = R_0_0i * R_0i_E_q;  %  is calculation of R_0i_E_qD possible ?
+  R_0_E_q = R_0_0i * R_0i_E_q;  %
   
   R_Bi_P  = eye(3,3) ;
   %omegajr   = Rob.Leg(iLeg).jacobiw(qs)* qds ;

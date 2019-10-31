@@ -8,7 +8,8 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
-% 
+% qD [Nx1]
+%  Velocity of the  Gelenkwinkel aller serieller Beinketten der PKM
 % Ausgabe:
 % Phi_q_legs_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
@@ -54,6 +55,8 @@ end
 %% Berechnung
 % Berechnung aus dem translatorischen Teil der Jacobi-Matrix der seriellen
 % Beinketten 
+% here only the jacobi matrix is differentiated, and the answer of this
+% function can be obtained
 for i = 1:NLEG
   IJ_i = Rob.I1J_LEG(i):Rob.I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
@@ -62,7 +65,7 @@ for i = 1:NLEG
   phi_0_Ai = Rob.Leg(i).phi_W_0;  % phi_W_0 is a empty matrix
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(i).phiconv_W_0);
   
-  J0i_i_trans = Rob.Leg(i).jacobitD(qs,qv);
+  J0i_i_trans = Rob.Leg(i).jacobitD(qs,qv);% differntiation of the jacobi matrix
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
   if ~Rob.issym
