@@ -137,6 +137,8 @@ if any(abs(x_test(~RP.I_EE)) > 1e-10) % Genauigkeit hier ist abhängig von Zwang
   error('Rotationskoordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt')
 end
 
+
+
 %% Trajektorie bestimmen
 % Start in Grundstellung
 k=1; XE = X0';

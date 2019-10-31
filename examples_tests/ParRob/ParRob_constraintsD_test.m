@@ -72,8 +72,7 @@ for NNN = RobotNames
   xE = X + [[1; 5; 1]; [1; 1; 1]*pi/180];
  % xE = [ [0;0;0]; [0.5;0.5;0.5]*pi/180 ];
   xE(:,~RP.I_EE) = 0;
- % xDE =  ones(6,1) ;
-  xDE  = xE ;
+  xDE =  rand(6,1) ;
   phiP = xE(4:6);
   phiD = xDE(4:6);
   
@@ -100,10 +99,10 @@ for NNN = RobotNames
   J = - G_q \ G_x;
   qD  = J*xE(RP.I_EE);
   %qD = rand(RP.NJ,1);
-  n = 100;
-  Q_test = ones(n, RP.NJ);
-  X_test = ones(n, 6);
-  XD_test = ones(n,6);
+  n = 2;
+  Q_test = rand(n, RP.NJ);
+  X_test = rand(n, 6);
+  XD_test = rand(n,6);
   X_test(:,~RP.I_EE) = 0;
   XD_test(:,~RP.I_EE) = 0;
   %% Alle Funktionen einmal aufrufen
@@ -113,21 +112,21 @@ for NNN = RobotNames
   RP.fkine_platform(xE);
 
   RP.constr1(q, xE);
-  RP.constr1D(q, qD, xE,xDE);
+  RP.constr1D(q, qD, xE, xDE);
   RP.constr1_trans(q, xE);
-  RP.constr1D_trans(q, xE,xDE);
+  RP.constr1D_trans(q, qD, xE, xDE);
   RP.constr1_rot(q, xE);
-  RP.constr1D_rot(q, qD, xE,xDE);
+  RP.constr1D_rot(q, qD, xE, xDE);
   RP.constr1grad_q(q, xE);
-  RP.constr1gradD_q(q, qD, xE,xDE);
+  RP.constr1gradD_q(q, qD, xE, xDE);
   RP.constr1grad_tq(q);
   RP.constr1gradD_tq(q,qD);
   RP.constr1grad_rq(q, xE);
-  RP.constr1gradD_rq( q,qD,xE,xDE);
+  RP.constr1gradD_rq( q, qD, xE, xDE);
   RP.constr1gradD_tt();
-  RP.constr1gradD_tr(xE,xDE);
-  RP.constr1grad_x(q,xE);
-  RP.constr1gradD_x(q,qD,xE,xDE);
+  RP.constr1gradD_tr(xE, xDE);
+  RP.constr1grad_x(q, xE);
+  RP.constr1gradD_x(q, qD, xE, xDE);
   
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', PName);
 
@@ -142,16 +141,11 @@ for NNN = RobotNames
       q0 = Q_test(i,:)';
       x0 = X_test(i,:)';
       xD0= 0*XD_test(i,:)';
-      
-
 
       % Zwangsbedingungen und -gradienten für q0/x0 berechnen
       [~,Phi1_0] = RP.constr1(q0, x0);
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
-      
-
-      
       
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
@@ -166,62 +160,57 @@ for NNN = RobotNames
         qD0 = dq/dt;%  this is for calculating the value of q1dot as mentioned in the notebook
 %         % to prevent confusion creating qd1 but has the same value as qd0
  %       qD1 = dt\dq;
-        abey = q1- q0;
        % J0 = - Phi1dq_0 \ Phi1dx_0 ;
         xD0 = zeros(6,1);% J0'*qD0;
         
-     
-        
-         % Calculation of the differentiated term of the above gradient  
-      [~,Phi1D_0_q] = RP.constr1D(q0,qD0, x0,xD0);   % qD0
-      [~,Phi1Ddq_0_q] = RP.constr1gradD_q(q0, qD0, x0,xD0);
-      [~,Phi1Ddx_0_q] = RP.constr1gradD_x(q0, qD0, x0,xD0);
-    
-         
+        % Calculation of the differentiated term of the above gradient  
+        [~,Phi1D_0_q] = RP.constr1D(q0,qD0, x0,xD0);   % qD0
+        [~,Phi1Ddq_0_q] = RP.constr1gradD_q(q0, qD0, x0,xD0);
+        [~,Phi1Ddx_0_q] = RP.constr1gradD_x(q0, qD0, x0,xD0);
 
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
-       [~,Phi1_1_q] = RP.constr1(q1, x0);
-       [~,Phi1dq_1_q] = RP.constr1grad_q(q1, x0);
-       [~,Phi1dx_1_q] = RP.constr1grad_x(q1, x0);
-       
+        [~,Phi1_1_q] = RP.constr1(q1, x0);
+        [~,Phi1dq_1_q] = RP.constr1grad_q(q1, x0);
+        [~,Phi1dx_1_q] = RP.constr1grad_x(q1, x0);
        
 %         J1  =  - Phi1dq_1_q \ Phi1dx_1_q ;
 %         xd1 = J1' * qD1 ;
         
-        
-         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
-          % qD0 value remains constant for all q values 
-          % q1 = q0 + dq   q2 = q1 + dq   qdo = dq/dt dq and dt is constant
+        % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
+        % qD0 value remains constant for all q values 
+        % q1 = q0 + dq   q2 = q1 + dq   qdo = dq/dt dq and dt is constant
         [~,Phi1D_1_q] = RP.constr1D(q1, qD0 ,x0 ,xD0 );
-       
-      
-          
+
         %Phi1_1_q_test = Phi1_0 + Phi1D_0_q*dt;
         
         
         %  Subtraction of constr terms 
 
-       %Phi1dif_q =  (Phi1_1_q - Phi1_0)/dt ;
-       Phi1difdq_q =  (Phi1dq_1_q - Phi1dq_0)/dt ;
-       Phi1difdx_q =  (Phi1dx_1_q - Phi1dx_0)/dt ;
-        
-      
-      
-        
-        
+        Phi1dif_q =  (Phi1_1_q - Phi1_0)/dt ;
+        Phi1difdq_q =  (Phi1dq_1_q - Phi1dq_0)/dt ;
+        Phi1difdx_q =  (Phi1dx_1_q - Phi1dx_0)/dt ;
+
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
         
-        %test1 = Phi1dif_q - Phi1D_0_q;    % for constr1D vs constr1 q                        
+        test1 = Phi1dif_q - Phi1D_0_q;    % for constr1D vs constr1 q                        
         test2 = abs(Phi1difdq_q - Phi1Ddq_0_q) ;%for constr1gradD_q vs constr1grad_q
         test3 = abs(Phi1difdx_q - Phi1Ddx_0_q);% for constr1gradD_x vs constr1grad_x
         %test4 = Phi1_1_q_test - Phi1_1_q;
         
-         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
+        % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
         %Phi1D_1_g = Phi1D_0_q + Phi1Ddq_0_q*dq;
         %test7 = Phi1D_1_q - Phi1D_1_g;   % [~,Phi1D_1_q] = RP.constr1D(q1, qD1 ,x0 ,xd1 );     
-       
+        if any(abs(test1(:)) > 5e-2)
+          fprintf('Fehler translatorischer Teil:\n');
+          disp(test1(RP.I_constr_t)');
+          fprintf('Fehler rotatorischer Teil:\n');
+          disp(test1(RP.I_constr_r)');
+          error('constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)');
+        end
+        continue
+        
 %          if any(abs(test2(:)) > 5e-2)
 %            error('constr1gradD_q stimmt nicht gegen constr1grad_q (Differenzenquotient)');
 %          end
@@ -247,9 +236,9 @@ for NNN = RobotNames
         RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test2) > 8e10*eps(1+max(abs(Phi1dq_1_q))); % Absoluter Fehler über Toleranz
-%         if any( I_relerr(:) & I_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-%           error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
-%         end
+        if any( I_relerr(:) & I_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
+        end
         
         
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
@@ -281,47 +270,37 @@ for NNN = RobotNames
 %         xD0 =  dt\dx;
        
         qD0 = zeros(RP.NJ,1);%J0'\xD0 ;   % this qdo is for x coordinates
-        
-        
 
         % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
-       [~,Phi1_1_x] = RP.constr1(q0, x1);
-       [~,Phi1dq_1_x] = RP.constr1grad_q(q0, x1);
-       [~,Phi1dx_1_x] = RP.constr1grad_x(q0, x1);
-       
+        [~,Phi1_1_x] = RP.constr1(q0, x1);
+        [~,Phi1dq_1_x] = RP.constr1grad_q(q0, x1);
+        [~,Phi1dx_1_x] = RP.constr1grad_x(q0, x1);
        
         J1  =  - Phi1dq_1_x \ Phi1dx_1_x ;
 %         qD0 = J1'\xD1;  % this qd1 is also for the differentiation of the x coordinates based on ZB
-        
-        
+
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
-          % qD0 value remains constant for all q values 
-          % q1 = q0 + dq   q2 = q1 + dq   qdo = dq/dt dq and dt is constant
+        % qD0 value remains constant for all q values 
+        % q1 = q0 + dq   q2 = q1 + dq   qdo = dq/dt dq and dt is constant
         [~,Phi1D_1_x] = RP.constr1D(q0, qD0 ,x1 ,xD0 );
+
+        % Calculation of the differentiated term of the above gradient  
+        [~,Phi1D_0_x] = RP.constr1D(q0, qD0, x0,xD0);
+        [~,Phi1Ddq_0_x] = RP.constr1gradD_q(q0, qD0, x0,xD0);
+        [~,Phi1Ddx_0_x] = RP.constr1gradD_x(q0, qD0, x0,xD0);
+       
+
+        %  Subtraction of constr terms 
         
-       
-       
-         % Calculation of the differentiated term of the above gradient  
-       [~,Phi1D_0_x] = RP.constr1D(q0, qD0, x0,xD0);
-       [~,Phi1Ddq_0_x] = RP.constr1gradD_q(q0, qD0, x0,xD0);
-       [~,Phi1Ddx_0_x] = RP.constr1gradD_x(q0, qD0, x0,xD0);
-       
-       
-       
-        
-        
-          %  Subtraction of constr terms 
-        
-       %Phi1dif_x =  dt\(Phi1_1_x - Phi1_0) ;
-       Phi1difdq_x =  dt\(Phi1dq_1_x - Phi1dq_0) ;
-       Phi1difdx_x =  dt\(Phi1dx_1_x - Phi1dx_0) ;
-        
-       
-       
+        Phi1dif_x =  (Phi1_1_x - Phi1_0)/dt ;
+        Phi1difdq_x =  (Phi1dq_1_x - Phi1dq_0)/dt ;
+        Phi1difdx_x =  (Phi1dx_1_x - Phi1dx_0)/dt ;
+
          % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
+
         
-        %test4 = Phi1dif_x - Phi1D_0_x;    % for constr1D vs constr1 q                        
+        test1 = Phi1dif_x - Phi1D_0_x;    % for constr1D vs constr1 q                        
         test3 = Phi1difdq_x - Phi1Ddq_0_x; %for constr1gradD_q vs constr1grad_q
         test4 = Phi1difdx_x - Phi1Ddx_0_x;% for constr1gradD_x vs constr1grad_x
         
@@ -331,16 +310,22 @@ for NNN = RobotNames
         %Phi1D_1_g = Phi1D_0_x + Phi1Ddx_0_x*dx;
         %test8 = Phi1D_1_x - Phi1D_1_g;
         
-        
-       
+
         % Vielfache von 2*Pi entfernen (Rotationsfehler von 2*Pi ist kein
         % "Fehler" sondern nur in der Darstellung begründet)
         %test4(abs(abs(test4)-2*pi) < 1e-3 ) = 0;
         test3(abs(abs(test3)-2*pi) < 1e-3 ) = 0;
         test4(abs(abs(test4)-2*pi) < 1e-3 ) = 0;
        % test8(abs(abs(test8)-2*pi) < 1e-3 ) = 0;
-        
-        
+
+        if any(abs(test1(:)) > 5e-2)
+          fprintf('Fehler translatorischer Teil:\n');
+          disp(test1(RP.I_constr_t)');
+          fprintf('Fehler rotatorischer Teil:\n');
+          disp(test1(RP.I_constr_r)');
+          error('constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)');
+        end
+        continue
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
         % the below test is for test 2
@@ -355,8 +340,7 @@ for NNN = RobotNames
 %         if any( I_relerr(:) & I_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
 %           error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
 %         end
-        
-        
+
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
         % the below test is for test 3
@@ -386,9 +370,6 @@ for NNN = RobotNames
         
       end
     end
-    fprintf('%s: Konsistenz der Zwangsbedingungs-Gradienten erfolgreich getestet für %s-Euler-Winkel.\n', PName, eulstr);
+    fprintf('%s: Konsistenz der Zeitableitung der Zwangsbedingungs-Gradienten erfolgreich getestet für %s-Euler-Winkel.\n', PName, eulstr);
   end
- 
-  
-  
 end
