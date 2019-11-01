@@ -1,4 +1,4 @@
-% Ableitung der zyz-Euler-Winkel nach der daraus berechneten Rotationsmatrix und der Zeit
+% Ableitung der Euler-Winkel nach der daraus berechneten Rotationsmatrix und der Zeit
 %
 % Eingabe:
 % R [3x3]:
@@ -11,7 +11,8 @@
 %
 % Ausgabe:
 % GradMatD [3x9]:
-%   Gradientenmatrix: Ableitung der Euler-Winkel nach der (spaltenweise gestapelten) Rotationsmatrix nochmals abgeleitet nach der Zeit
+%   Gradientenmatrix: Ableitung der Euler-Winkel nach der (spaltenweise
+%   gestapelten) Rotationsmatrix nochmals abgeleitet nach der Zeit
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-07
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
