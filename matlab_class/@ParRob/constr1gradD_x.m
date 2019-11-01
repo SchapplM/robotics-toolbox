@@ -1,7 +1,5 @@
-% Ableitung der kinematischen Zwangsbedingungen nach den EE-Koordinaten
-% Bezeichnungen: 
-% * Jacobi-Matrix der direkten Kinematik, 
-% * geometrische Matrix der direkten Kinematik
+% Ableitung der kinematischen Zwangsbedingungen nach den EE-Koordinaten und
+% Ableitung dieser (Gradienten-)Matrix nach der Zeit
 % 
 % Variante 1:
 % * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
@@ -10,23 +8,26 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
-% qD [Nx1]
-%  Velocity of the  Gelenkwinkel aller serieller Beinketten der PKM
-%xDE [N x1]
-%   Velocity of the Platform Coordinate based on the orientation and rotation
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% 
 % Ausgabe:
 % Phi_x_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi_x [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Siehe auch: constr1grad_x
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut für mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_x_red, Phi_x] = constr1gradD_x(Rob, q, qD , xE ,xDE )
+function [PhiD_x_red, PhiD_x] = constr1gradD_x(Rob, q, qD, xE, xDE )
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -37,37 +38,33 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1gradD_x: xE muss 6x1 sein');
 assert(isreal(xE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr1gradD_x: xDE muss 6x1 sein');
-% assert(all(size(rpy) == [3 1]) && isreal(rpy), ...
-%   'ParRob/constr1gradD_rq: rpy angles have to be [3x1] (double)'); 
-% assert(all(size(rpyD) == [3 1]) && isreal(rpyD), ...
-%   'ParRob/constr1gradD_rq: rpy angles time derivatives have to be [3x1] (double)'); 
 
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 %%% calling of the differentiation of the  kinematic constraint of the
 %%% platform can be found in Modelling sets of Euler angles
-[Phi_tt_red,Phi_tt]=Rob.constr1gradD_tt(); 
-[Phi_tr_red,Phi_tr]=Rob.constr1gradD_tr(xE,xDE);
-[Phi_rt_red,Phi_rt]=Rob.constr1grad_rt(); % no need change in the code 
-[Phi_rr_red,Phi_rr]=Rob.constr1gradD_rr(q,qD,xE,xDE );
+[PhiD_tt_red,PhiD_tt]=Rob.constr1gradD_tt(); 
+[PhiD_tr_red,PhiD_tr]=Rob.constr1gradD_tr(xE, xDE);
+[PhiD_rt_red,PhiD_rt]=Rob.constr1grad_rt(); % Term und Ableitung Null.
+[PhiD_rr_red,PhiD_rr]=Rob.constr1gradD_rr(q, qD, xE, xDE);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
-dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
-dim_Px_red=[size(Phi_tt_red,1)+size(Phi_rt_red,1), size(Phi_tt_red,2)+size(Phi_tr_red,2)];
+dim_Px =   [size(PhiD_tt,    1)+size(PhiD_rt,    1), size(PhiD_tt,    2)+size(PhiD_tr,    2)];
+dim_Px_red=[size(PhiD_tt_red,1)+size(PhiD_rt_red,1), size(PhiD_tt_red,2)+size(PhiD_tr_red,2)];
 if ~Rob.issym
-  Phi_x_red = NaN(dim_Px_red);
-  Phi_x =     NaN(dim_Px);
+  PhiD_x_red = NaN(dim_Px_red);
+  PhiD_x =     NaN(dim_Px);
 else
-  Phi_x_red = sym('xx', dim_Px_red);
-  Phi_x_red(:)=0;
-  Phi_x = sym('xx',     dim_Px);
-  Phi_x(:)=0;
+  PhiD_x_red = sym('xx', dim_Px_red);
+  PhiD_x_red(:)=0;
+  PhiD_x = sym('xx',     dim_Px);
+  PhiD_x(:)=0;
 end
 
 %% Belegung der Ausgabe
-Phi_x_red(Rob.I_constr_t_red,:) = [Phi_tt_red,Phi_tr_red];
-Phi_x_red(Rob.I_constr_r_red,:) = [Phi_rt_red,Phi_rr_red];
-Phi_x(Rob.I_constr_t,:) = [Phi_tt, Phi_tr];
-Phi_x(Rob.I_constr_r,:) = [Phi_rt, Phi_rr];
+PhiD_x_red(Rob.I_constr_t_red,:) = [PhiD_tt_red,PhiD_tr_red];
+PhiD_x_red(Rob.I_constr_r_red,:) = [PhiD_rt_red,PhiD_rr_red];
+PhiD_x(Rob.I_constr_t,:) = [PhiD_tt, PhiD_tr];
+PhiD_x(Rob.I_constr_r,:) = [PhiD_rt, PhiD_rr];

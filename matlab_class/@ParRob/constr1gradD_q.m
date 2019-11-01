@@ -22,6 +22,8 @@
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi_q [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Siehe auch: constr1grad_q
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
