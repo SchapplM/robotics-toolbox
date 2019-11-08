@@ -196,7 +196,7 @@ classdef ParRob < matlab.mixin.Copyable
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function Jinv_qD_xD = jacobi_qa_x(R, q, xE)
+    function [Jinv_qD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -206,7 +206,7 @@ classdef ParRob < matlab.mixin.Copyable
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
       
-      if R.extfcn_available(1)
+      if R.extfcn_available(1) && nargout ~= 2
         % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
         xP = R.xE2xP(xE);
         [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
@@ -228,6 +228,24 @@ classdef ParRob < matlab.mixin.Copyable
         Jinv_num_voll = -G_q \ G_x;
         Jinv_qD_xD = Jinv_num_voll(R.I_qa,:);
       end
+    end
+    function [JinvD_qD_xD,JinvD_num_voll] = jacobiD_qa_x(R, q, qD, xE, xED)
+      % Zeitableitung der analytischen Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % qD: Gelenkgeschwindigkeit
+      % xE: EE-Koordinaten (6x1) (nicht: Plattform-Koordinaten) (im Basis-KS)
+      % xED: EE-Geschwindigkeit (6x1)
+      %
+      % Ausgabe:
+      % JinvD: Zeitableitung der inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
+      % Plattform-Geschw. mit Euler-Zeitableitung)
+      G_q = R.constr1grad_q(q, xE);
+      G_x = R.constr1grad_x(q, xE);
+      GD_q = R.constr1gradD_q(q, qD, xE, xED); % differentiation of the kinematic constraints of joint coordinate can be found in [Do Thanh]
+      GD_x = R.constr1gradD_x(q, qD, xE, xED); %% differentiation of the kinematic constraints of platform  coordinate can be found in [Do Thanh]
+      JinvD_num_voll = G_q\GD_q/G_q*G_x - G_q\GD_x;
+      JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
       % Inverse Dynamik bezogen auf Plattformkoordinaten
@@ -290,7 +308,7 @@ classdef ParRob < matlab.mixin.Copyable
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
-      % Mx: Massenmatrix
+      % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
       [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
@@ -309,7 +327,7 @@ classdef ParRob < matlab.mixin.Copyable
       % xPD: Plattform-Geschwindigkeit (im Basis-KS)
       %
       % Ausgabe:
-      % Mx: Massenmatrix
+      % Mx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
