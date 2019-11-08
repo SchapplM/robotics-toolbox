@@ -17,7 +17,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function MM_reg = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp(phi_base)
+function [MM_reg, MM_reg_nonsym] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp(phi_base)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(3,1)}
@@ -78,3 +78,10 @@ t50 = t75 * t53;
 t49 = t51 * t87;
 t1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, t66 + t65 + t69; 0, 0, 0, 0, 0, 0, 0, 0, 0, (-t61 * t71 + t62 * t73 - t90) * t76; 0, 0, 0, 0, 0, 0, 0, 0, 0, t61 ^ 2 + t62 ^ 2 + t67 * t70; 0, 0, 0, 0, 0, 0, 0, 0, 0, (-t63 * t71 + t64 * t73 + t84) * t76; 0, 0, 0, 0, 0, 0, 0, 0, 0, -t72 * t70 * t74 + t61 * t63 + t62 * t64; 0, 0, 0, 0, 0, 0, 0, 0, 0, t63 ^ 2 + t64 ^ 2 + t68 * t70; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, t61 * t75 - t70 * t92, -t62 * t75 - t70 * t91, (-t61 * t73 - t62 * t71) * t76, 0; 0, 0, 0, 0, 0, 0, t63 * t75 + t70 * t86, -t64 * t75 + t70 * t85, (-t63 * t73 - t64 * t71) * t76, 0; t66, t70 * t73 * t95, 0.2e1 * t73 * t81, t65, t81 * t95, t69, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, -t94, t55, t54 + t79, 0; 0, 0, 0, 0, 0, 0, t56 * t89, -t57 * t89, t62 * t56 - t61 * t57, 0; 0, 0, 0, 0, 0, 0, -t56 * t83, t57 * t83, t64 * t56 - t63 * t57, 0; t57 * t87, t54 - t79, t55, -t56 * t93, t94, 0, 0, 0, 0, 0; t57 ^ 2, 0.2e1 * t57 * t56, 0, t56 ^ 2, 0, 0, 0, 0, 0, 0; 0, 0, 0, 0, 0, 0, -t78 + t82, t50 - t77, -t49 + t80, 0; 0, 0, 0, 0, 0, 0, -t51 * t89 + t61 * t60, -t53 * t89 - t62 * t60, -t62 * t51 - t61 * t53, 0; 0, 0, 0, 0, 0, 0, t51 * t83 + t63 * t60, t53 * t83 - t64 * t60, -t64 * t51 - t63 * t53, 0; t53 * t87, -t49 - t80, t50 + t77, t51 * t93, -t78 - t82, t75 * t60, 0, 0, 0, 0; t57 * t53, -t57 * t51 + t53 * t56, t57 * t60, -t56 * t51, t56 * t60, 0, 0, 0, 0, 0; t53 ^ 2, t53 * t96, 0.2e1 * t53 * t60, t51 ^ 2, t60 * t96, t60 ^ 2, 0, 0, 0, 0;];
 MM_reg  = t1;
+%% Additional Output of Matrix stored non-symmetric
+% The matrix with duplicate entries can be helpful if transformations into
+% Cartesian moments lead to a non-symmetric inertia matrix.
+if nargout == 2
+  % Indices: A=vec2symmat(1:21); A(:);
+  MM_reg_nonsym = MM_reg([1 2 4 7 11 16 2 3 5 8 12 17 4 5 6 9 13 18 7 8 9 10 14 19 11 12 13 14 15 20 16 17 18 19 20 21], :);
+end

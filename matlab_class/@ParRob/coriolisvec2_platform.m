@@ -11,7 +11,10 @@
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
-% Cred_Fs: Coriolis-Kräfte (bezogen auf Endeffektor-Plattform der PKM)
+% Cred_Fs
+%   Coriolis-Kräfte (bezogen auf Endeffektor-Plattform der PKM)
+% Cred_Fs_reg
+%   Regressormatrix zur Coriolis-Kraft
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
@@ -23,7 +26,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Cred_Fs = coriolisvec2_platform(Rob, q, qD, xE, xDE)
+function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -48,6 +51,9 @@ if Rob.issym
 end
 % Variable zum Speichern der vollständigen Coriolis-Kräfte (Subsysteme)
 C_full = NaN(NJ+NLEG,1);
+if nargout == 2
+  C_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+end
 %% Projektionsmatrizen
 G_q = Rob.constr1grad_q(q, xE);
 G_x = Rob.constr1grad_x(q, xE);
@@ -63,13 +69,13 @@ R1D =  [JinvD',zeros(NLEG)']'; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode==2
-  Fc1 = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
+  Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
 else
-  tauc_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp(xE(4:6), xDE);
+  Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp(xE(4:6), xDE);
   delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
-  Fc1 = tauc_reg(:,Rob.I_platform_dynpar) * delta;
+  Fc_plf = Fc_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end
-Fc = Fc1(Rob.I_EE);
+Fc_plf_red = Fc_plf(Rob.I_EE);
 %% Berechnung der Projektion
 % Coriolis-Komponente aller Beinketten berechnen [DT09]/(6)
 for i = 1:NLEG
@@ -80,18 +86,46 @@ for i = 1:NLEG
     cq_leg = cq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
   C_full((i-1)*NLEG+1:NLEG*i) = cq_leg;
+  if nargout == 2
+    C_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = cq_leg_reg;
+  end
 end
-C_full(NJ+1:end) = Fc; % Coriolis-Kraft der Plattform
-  
+% Corioliskomponente für Plattform eintragen
+C_full(NJ+1:end) = Fc_plf_red; % Coriolis-Kraft der Plattform
+if nargout == 2
+  C_full_reg(NJ+1:end,end-sum(Rob.I_platform_dynpar)+1:end) = Fc_plf_reg(Rob.I_EE,Rob.I_platform_dynpar);
+end
 % Massenmatrix-Komponenten aller Subsysteme
-[~, M_plf] = Rob.inertia2_platform(q ,xE) ;
+if nargout == 1
+  [~, M_full] = Rob.inertia2_platform(q, xE);
+else % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
+  [~, M_full, ~, M_full_reg] = Rob.inertia2_platform(q, xE);
+end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der
 % EE-Koordinaten)
-Cred_Fx  = transpose(R1)* C_full +  transpose(R1)*M_plf*R1D*xDE(Rob.I_EE) ;% formula of the reduced coriolis matrix can be found in [Do Thanh]
+Cred_Fx = R1'* C_full + R1' * M_full * R1D * xDE(Rob.I_EE);
+if nargout == 2
+  % Erster Summand der vorherigen Gleichung (direkt Spaltenweise auf
+  % Regressor-Matrix anwendbar)
+  Cred_Fx_reg = R1' * C_full_reg;
+  % Zweiter Summand: Führe Projektion für jeden Dynamikparameter einzeln
+  % aus
+  for jj = 1:length(Rob.DynPar.mpv_n1s)
+    % Volle Massenmatrix aller Subsysteme bezogen auf diesen Parameter `jj`
+    M_full_jj = reshape(M_full_reg(:,:,jj), size(M_full));
+    % Projektion wie oben
+    Cred_regadd = R1' * M_full_jj * R1D * xDE(Rob.I_EE);
+    Cred_Fx_reg(:,jj) = Cred_Fx_reg(:,jj) + Cred_regadd;
+  end
+end
 
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)
 Tw = euljac(xE(4:6), Rob.phiconv_W_E);
 H = [eye(3), zeros(3,3); zeros(3,3), Tw];
 Cred_Fs = H(Rob.I_EE,Rob.I_EE)'\Cred_Fx;
+if nargout == 2
+  % Ausführung der Transformation spaltenweise für alle Dynamikparameter
+  Cred_Fs_reg = H(Rob.I_EE,Rob.I_EE)' \  Cred_Fx_reg;
+end
