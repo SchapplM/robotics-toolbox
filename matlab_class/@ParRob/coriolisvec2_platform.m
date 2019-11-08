@@ -1,4 +1,4 @@
-% Fuction for calculating the reduced coriolis matrix  form from Do Thanh
+% Berechnung der Plattform-Kräfte aufgrund von Flieh- und Coriolis-Kräften
 %
 % Eingabe:
 % q [Nx1]

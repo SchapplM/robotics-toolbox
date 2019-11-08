@@ -1,4 +1,4 @@
-% Fuction for calculating the reduced inertia  form from Do Thanh
+% Berechnung der PKM-Massenmatrix (bezogen auf Plattform-Koordinaten x)
 %
 % Eingabe:
 % q [Nx1]
@@ -11,12 +11,15 @@
 %   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
 % 
 % Ausgabe:
-% Mred_xD
+% Mred_Fs
 %   Massenmatrix (bezogen auf EE-Koordinaten der PKM)
+%   Wird die Matrix mit Plattform-Beschleunigungen (x-Koordinaten, keine
+%   Winkelbeschleunigung) multipliziert, entstehen kartesische Kräfte und
+%   Momente im Basis-KS)
 % M_full
 %   Vollständige Massenmatrix der PKM (für alle Subsysteme, Kräfte und
 %   Beschleunigungenin x-Koordinaten)
-% Mredvec_xD_reg
+% Mredvec_Fs_reg
 %   Regressormatrix zur ersten Ausgabe (Mred_xD). Matrix wird dafür 2D
 %   gestapelt (Zeilen sind Massenmatrix-Elemente, Spalten sind Parameter)
 % M_full_reg
@@ -34,7 +37,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Mred_xD, M_full, Mredvec_xD_reg, M_full_reg] = inertia2_platform(Rob, q, xE, Jinv)
+function [Mred_Fs, M_full, Mredvec_Fs_reg, M_full_reg] = inertia2_platform(Rob, q, xE, Jinv)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -122,11 +125,11 @@ end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente (Zeilen der Massenmatrix) liegen noch bezogen auf die
 % Euler-Winkel vor (entsprechend der EE-Koordinaten)
-Mred_sD = R1' * M_full * R1;
+Mred_Fx = R1' * M_full * R1;
 if nargout >= 3
   % Matrix-Operation für Massenmatrix mit der Regressor-Matrix
   % nachvollziehen
-  Mred_sD_reg = NaN(size(Mred_sD,1), size(Mred_sD,2), length(Rob.DynPar.mpv_n1s));
+  Mred_sD_reg = NaN(size(Mred_Fx,1), size(Mred_Fx,2), length(Rob.DynPar.mpv_n1s));
   for jj = 1:length(Rob.DynPar.mpv_n1s)
     Mred_sD_reg(:,:,jj) = transpose(R1) * M_full_reg(:,:,jj) * R1;
   end
@@ -135,14 +138,14 @@ end
 % Roboters)
 Tw = euljac(xE(4:6), Rob.phiconv_W_E);
 H = [eye(3), zeros(3,3); zeros(3,3), Tw];
-Mred_xD = H(Rob.I_EE,Rob.I_EE)'\ Mred_sD;
+Mred_Fs = H(Rob.I_EE,Rob.I_EE)'\ Mred_Fx;
 if nargout >= 3
   % Matrix-Operation für Massenmatrix mit der Regressor-Matrix
   % nachvollziehen
-  Mred_xD_reg = NaN(size(Mred_xD,1), size(Mred_xD,2), length(Rob.DynPar.mpv_n1s));
+  Mred_Fs_reg = NaN(size(Mred_Fs,1), size(Mred_Fs,2), length(Rob.DynPar.mpv_n1s));
   for jj = 1:length(Rob.DynPar.mpv_n1s)
-    Mred_xD_reg(:,:,jj) = H(Rob.I_EE,Rob.I_EE)'\ Mred_sD_reg(:,:,jj);
+    Mred_Fs_reg(:,:,jj) = H(Rob.I_EE,Rob.I_EE)'\ Mred_sD_reg(:,:,jj);
   end
   % Regressor-Matrix wieder als Vektor schreiben
-  Mredvec_xD_reg = reshape(Mred_xD_reg, size(Mred_xD_reg,1)*size(Mred_xD_reg,2), length(Rob.DynPar.mpv_n1s));
+  Mredvec_Fs_reg = reshape(Mred_Fs_reg, size(Mred_Fs_reg,1)*size(Mred_Fs_reg,2), length(Rob.DynPar.mpv_n1s));
 end
