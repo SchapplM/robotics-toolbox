@@ -42,7 +42,7 @@ if Rob.issym
   error('Nicht implementiert')
 end
 % Variable zum Speichern der vollständigen Gravitations-Kräfte (Subsysteme)
-G_plf = NaN(NJ+NLEG,1);
+G_full = NaN(NJ+NLEG,1);
 
 %% Projektionsmatrizen
 % Gradientenmatrix der vollständigen Zwangsbedingungen
@@ -57,28 +57,30 @@ R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
   gtau1  =rigidbody_gravloadB_floatb_eulxyz_slag_vp2(xE(4:6), g, m_P, mrS_P) ;
-  gtau_P   = gtau1(Rob.I_EE);
-else % TODO: Noch nicht implementiert
-  error('Regressor noch nicht implementiert');
-  % TODO: Code aus Sriram2019_S876 anpassen
-  testset = pkm_example_fullparallel_parroblib_test_setting(Rob) ;
-  delta  = testset.delta ;
-  tau = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp(xE(4:6), g);
-  gtau_P = tau * delta ;
+else
+  taug_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp(xE(4:6), g);
+  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  gtau1 = taug_reg(:,Rob.I_platform_dynpar) * delta;
 end
-
+gtau_P = gtau1(Rob.I_EE);
 %% Berechnung der Projektion
 % Gravitations-Komponente aller Beinketten berechnen [DT09]/(6)
 for i = 1:NLEG
   q_i = q(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  G_plf((i-1)*NLEG+1:NLEG*i) = Rob.Leg(i).gravload(q_i);
+  if Rob.DynPar.mode == 2
+    gq_leg = Rob.Leg(i).gravload(q_i);
+  else
+    [~,gq_leg_reg] = Rob.Leg(i).gravload(q_i);
+    gq_leg = gq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
+  end
+  G_full((i-1)*NLEG+1:NLEG*i) = gq_leg;
 end
-G_plf(NJ+1:end) = gtau_P; % Gravitationskraft der Plattform
+G_full(NJ+1:end) = gtau_P; % Gravitationskraft der Plattform
   
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der
 % EE-Koordinaten)
-gred_Fx = transpose(R1)* G_plf;
+gred_Fx = transpose(R1)* G_full;
 
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)

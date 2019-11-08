@@ -47,7 +47,7 @@ if Rob.issym
   error('Nicht implementiert')
 end
 % Variable zum Speichern der vollständigen Coriolis-Kräfte (Subsysteme)
-C_plf = NaN(NJ+NLEG,1);
+C_full = NaN(NJ+NLEG,1);
 %% Projektionsmatrizen
 G_q = Rob.constr1grad_q(q, xE);
 G_x = Rob.constr1grad_x(q, xE);
@@ -64,28 +64,31 @@ R1D =  [JinvD',zeros(NLEG)']'; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode==2
   Fc1 = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
-  Fc  = Fc1(Rob.I_EE) ;
 else
-  error('Regressor noch nicht implementiert');
-  testset = pkm_example_fullparallel_parroblib_test_setting(Rob) ;
-  delta = testset.delta ;
   tauc_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp(xE(4:6), xDE);
-  Fc  =  tauc_reg * delta ;
+  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  Fc1 = tauc_reg(:,Rob.I_platform_dynpar) * delta;
 end
-
+Fc = Fc1(Rob.I_EE);
 %% Berechnung der Projektion
 % Coriolis-Komponente aller Beinketten berechnen [DT09]/(6)
-for n = 1:NLEG
-  C_plf((n-1)*NLEG+1:NLEG*n) = Rob.Leg(n).corvec(q(Rob.I1J_LEG(n):Rob.I2J_LEG(n)),qD(Rob.I1J_LEG(n):Rob.I2J_LEG(n))); % coriolis matrix for the joint coordinate
+for i = 1:NLEG
+  if Rob.DynPar.mode == 2
+    cq_leg = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+  else
+    [~,cq_leg_reg] = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+    cq_leg = cq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
+  end
+  C_full((i-1)*NLEG+1:NLEG*i) = cq_leg;
 end
-C_plf(NJ+1:end) = Fc; % Coriolis-Kraft der Plattform
+C_full(NJ+1:end) = Fc; % Coriolis-Kraft der Plattform
   
 % Massenmatrix-Komponenten aller Subsysteme
 [~, M_plf] = Rob.inertia2_platform(q ,xE) ;
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der
 % EE-Koordinaten)
-Cred_Fx  = transpose(R1)* C_plf +  transpose(R1)*M_plf*R1D*xDE(Rob.I_EE) ;% formula of the reduced coriolis matrix can be found in [Do Thanh]
+Cred_Fx  = transpose(R1)* C_full +  transpose(R1)*M_plf*R1D*xDE(Rob.I_EE) ;% formula of the reduced coriolis matrix can be found in [Do Thanh]
 
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)

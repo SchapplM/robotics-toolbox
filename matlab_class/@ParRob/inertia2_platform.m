@@ -10,7 +10,7 @@
 % Ausgabe:
 % Mred_xD
 %   Massenmatrix (bezogen auf EE-Koordinaten der PKM)
-% M_plf
+% M_full
 %   Vollständige Massenmatrix der PKM (für alle Subsysteme, Kräfte und
 %   Beschleunigungenin x-Koordinaten)
 
@@ -24,7 +24,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Mred_xD, M_plf] = inertia2_platform(Rob, q, xE)
+function [Mred_xD, M_full] = inertia2_platform(Rob, q, xE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -45,7 +45,7 @@ if Rob.issym
 end
 
 % Variable zum Speichern der vollständigen Massenmatrix (Subsysteme)
-M_plf  = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
+M_full  = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
 
 %% Projektionsmatrizen
 % Gradientenmatrix der vollständigen Zwangsbedingungen
@@ -58,31 +58,36 @@ K1 = eye ((NLEG+1)*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattf
 R1 = K1  * [ J1',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
-
 if Rob.DynPar.mode == 2
-  Mtmp =  rigidbody_inertiaB_floatb_eulxyz_slag_vp2(xE(4:6), m_P, mrSges, Ifges);
-  M1 = Mtmp (Rob.I_EE, Rob.I_EE); % code for the selection of degree of freedom 
-  M = M1;   % for Do Thanh approach 
+  Mtmp = rigidbody_inertiaB_floatb_eulxyz_slag_vp2(xE(4:6), m_P, mrSges, Ifges);
 else
-  error('Regressor noch nicht implementiert');
-  testset = pkm_example_fullparallel_parroblib_test_setting(Rob) ;
+  % Regressor-Matrix für allgemeine Starrkörper
   MM_reg = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp(xE(4:6));
-  delta  = testset.delta ;
-  Mvec_slag    =  MM_reg * delta ;
-  M = vec2symmat(Mvec_slag);  % for Do thanh regreesor dynamic form 
-end
   
+  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  Mvec_slag = MM_reg(:,Rob.I_platform_dynpar) * delta;
+  Mtmp = vec2symmat(Mvec_slag);
+end
+% TODO: Erzeuge einen Gesamt-Regressor
+M_plf_red = Mtmp (Rob.I_EE, Rob.I_EE); % code for the selection of degree of freedom
 %% Berechnung der Projektion
 % Massenmatrix aller Beinketten berechnen
 for i = 1:NLEG
-  M_plf((i-1)*NLEG+1:NLEG*i,1:NJ+NLEG) =   [zeros(NLEG,(NLEG*(i-1))) ,Rob.Leg(i).inertia(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i))),zeros(NLEG,NJ -(NLEG*(i-1)))];
+  if Rob.DynPar.mode == 2
+    Mq_Leg = Rob.Leg(i).inertia(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+  else
+    [~,Mq_Leg_reg] = Rob.Leg(i).inertia(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+    Mvec_Leg = Mq_Leg_reg * Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
+    Mq_Leg = vec2symmat(Mvec_Leg);
+  end
+  M_full((i-1)*NLEG+1:NLEG*i,1:NJ+NLEG) =   [zeros(NLEG,(NLEG*(i-1))),Mq_Leg, zeros(NLEG,NJ -(NLEG*(i-1)))];
 end
-M_plf(NJ+1:end,1:NJ+NLEG) = [zeros(NLEG,NJ),M];% Massenmatrix der Plattform
-  
+M_full(NJ+1:end,1:NJ+NLEG) = [zeros(NLEG,NJ),M_plf_red];% Massenmatrix der Plattform
+
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente (Zeilen der Massenmatrix) liegen noch bezogen auf die
 % Euler-Winkel vor (entsprechend der EE-Koordinaten)
-Mred_sD = transpose(R1)* M_plf * R1;
+Mred_sD = transpose(R1)* M_full * R1;
 
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)

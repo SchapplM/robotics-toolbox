@@ -79,6 +79,7 @@ classdef ParRob < matlab.mixin.Copyable
       I_constr_red % Indizes der reduzierten ZB in allen ZB
       I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
       I_constr_r_red % ...                       (rotatorisch)
+      I_platform_dynpar % Auswahlvektor für Dynamikparameter der Plattform
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
@@ -132,6 +133,7 @@ classdef ParRob < matlab.mixin.Copyable
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'}};
       R.extfcn_available = false(length(R.all_fcn_hdl),1);
+      R.I_platform_dynpar = true(1,10);
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
@@ -264,7 +266,7 @@ classdef ParRob < matlab.mixin.Copyable
           R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
-          R.DynPar.mpv);
+          R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -291,13 +293,13 @@ classdef ParRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Mx: Massenmatrix
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
         Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+          R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 4
         Mx = R.inertia_x_fcnhdl4(xPred, qJ, legFrame, koppelP, pkin, ...
-          R.DynPar.mpv);
+          R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -309,13 +311,13 @@ classdef ParRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
-          R.DynPar.mges, R.DynPar.mrSges);
+          R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:));
       elseif R.DynPar.mode == 4
         Fgx = R.gravload_x_fcnhdl4(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
-          R.DynPar.mpv);
+          R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -329,13 +331,13 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Mx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
       xPDred = xPD(R.I_EE);
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
         Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+          R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 4
         Fcx = R.coriolisvec_x_fcnhdl4(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
-          R.DynPar.mpv);
+          R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -488,8 +490,23 @@ classdef ParRob < matlab.mixin.Copyable
         i_red = i_red + nPhi;
         ii_tred = ii_tred + nPhi;
       end
+      % Speichere einen Index-Vektor aus, mit dem die für die PKM-Dynamik
+      % relevanten Dynamikparameter der Plattform gewählt werden
+      % Dies dient zur Reduzierung des Dynamik-Parametervektors
+      % Reihenfolge der vollständigen Parameter:
+      % (XX, XY, XZ, YY, YZ, ZZ, MX, MY, MZ, M)
+      if R.phiconv_W_E == 2
+        % Andere Konventionen als XYZ noch nicht implementiert
+        if all(R.I_EE == [1 1 0 0 0 1]) || all(R.I_EE == [1 1 1 0 0 1])
+          R.I_platform_dynpar = logical([0 0 0 0 0 1 1 1 0 1]);
+        elseif all(R.I_EE == [1 1 1 0 0 0])
+          R.I_platform_dynpar = logical([0 0 0 0 0 0 1 1 0 1]);
+        elseif all(R.I_EE == [1 1 1 1 1 1])
+          R.I_platform_dynpar = logical([1 1 1 1 1 1 1 1 1 1]);
+        end
+      end
     end
-    function [qJ, xred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, x)
+    function [qJ, xred, pkin, koppelP, legFrame, I_dynpar] = convert_parameter_class2toolbox(R, q, x)
       % Wandle die PKM-Parameter vom Format der Matlab-Klasse ins
       % Toolbox-Format (HybrDyn)
       % Eingabe:
@@ -529,6 +546,7 @@ classdef ParRob < matlab.mixin.Copyable
       for i = 1:R.NLEG
         legFrame(i,:) = R.Leg(i).phi_W_0;
       end
+      I_dynpar = [1:R.NQJ_LEG_bc,length(R.DynPar.mges)];
     end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
@@ -538,20 +556,24 @@ classdef ParRob < matlab.mixin.Copyable
       % rSges: Schwerpunktskoordinaten aller Robotersegmente (bezogen auf
       % jeweiliges Körper-KS)
       % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
-      if length(mges) ~= R.NQJ_LEG_bc+1
-        error('Es müssen Dynamikparameter für %d Körper übergeben werden', R.NQJ_LEG_bc+1);
+      
+      % Prüfung der Eingabe: Dynamik-Parameter für alle Segmente der
+      % Beinkette und für die Plattform. Annahme: Kinematisch symmetrischer
+      % Roboter
+      if length(mges) ~= (R.Leg(1).NL-1)+1
+        error('Es müssen Dynamikparameter für %d Körper übergeben werden', (R.Leg(1).NL-1)+1);
       end
         
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
-      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      [mpv_num, mpv_sym] = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
       
       % Aktualisiere die gespeicherten Dynamikparameter aller Beinketten
       for i = 1:R.NLEG
-        m_Leg = [0; mges(1:end-1); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,1)];
-        rSges_Leg = [zeros(1,3); rSges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,3)];
-        Icges_Leg = [zeros(1,6); Icges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
+        m_Leg = [0; mges(1:end-1);];
+        rSges_Leg = [zeros(1,3); rSges(1:end-1,:);];
+        Icges_Leg = [zeros(1,6); Icges(1:end-1,:);];
         R.Leg(i).update_dynpar1(m_Leg, rSges_Leg, Icges_Leg);
       end
       % Parameter für PKM belegen
@@ -560,7 +582,8 @@ classdef ParRob < matlab.mixin.Copyable
       R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
-      R.DynPar.mpv    = mpv;
+      R.DynPar.mpv_sym= mpv_sym;
+      R.DynPar.mpv_n1s= mpv_num;
     end
     function update_dynpar2(R, mges, mrSges, Ifges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
@@ -570,19 +593,23 @@ classdef ParRob < matlab.mixin.Copyable
       % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert
       % mit Masse (bezogen auf jeweiliges Körper-KS)
       % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf Ursprung)
-      if length(mges) ~= R.NQJ_LEG_bc+1
-        error('Es müssen Dynamikparameter für %d Körper übergeben werden', R.NQJ_LEG_bc+1);
+      
+      % Prüfung der Eingabe: Dynamik-Parameter für alle Segmente der
+      % Beinkette und für die Plattform. Annahme: Kinematisch symmetrischer
+      % Roboter
+      if length(mges) ~= (R.Leg(1).NL-1)+1
+        error('Es müssen Dynamikparameter für %d Körper übergeben werden', (R.Leg(1).NL-1)+1);
       end
         
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
-      mpv = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      [mpv_num, mpv_sym] = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
       
       % Aktualisiere die gespeicherten Dynamikparameter aller Beinketten
       for i = 1:R.NLEG
-        m_Leg = [0; mges(1:end-1); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,1)];
-        mrSges_Leg = [zeros(1,3); mrSges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,3)];
-        Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:); zeros(R.Leg(i).NL-1-R.NQJ_LEG_bc,6)];
+        m_Leg = [0; mges(1:end-1)];
+        mrSges_Leg = [zeros(1,3); mrSges(1:end-1,:)];
+        Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:)];
         R.Leg(i).update_dynpar2(m_Leg, mrSges_Leg, Ifges_Leg);
       end
       
@@ -595,10 +622,11 @@ classdef ParRob < matlab.mixin.Copyable
       R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
-      R.DynPar.mpv    = mpv;
+      R.DynPar.mpv_sym= mpv_sym;
+      R.DynPar.mpv_n1s= mpv_num;
     end
     
-    function mpv = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
+    function [mpv_num, mpv_sym] = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
       % Konvertiere die Dynamikparameter zum Minimalparametervektor
       % Eingabe:
       % mges: Massen aller Robotersegmente (inkl Basis)
@@ -606,12 +634,37 @@ classdef ParRob < matlab.mixin.Copyable
       % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
       % Ausgabe:
       % mpv: Dynamik-Minimalparametervektor
+      
+      % MPV für symbolisch generierten Code: Annahme ist, dass hinter den
+      % Koppelgelenken keine Segmente mit Masseneigenschaften sind
       if ~R.extfcn_available(10)
         % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
-        mpv = [];
+        mpv_sym = [];
       else
-        mpv = R.dynparconvfcnhdl(R.Leg(1).pkin, mges, mrSges, Ifges, R.r_P_B_all');
+        I = [1:R.NQJ_LEG_bc,R.Leg(1).NJ+1];
+        mges_sym = mges(I);
+        mrSges_sym = mrSges(I,:);
+        Ifges_sym = Ifges(I,:);
+        if any(mges(R.NQJ_LEG_bc+1:end-1) ~= 0)
+          % Parameter sind nicht für symbolisch generierten Code zulässig
+          mpv_sym = [];
+        else
+          mpv_sym = R.dynparconvfcnhdl(R.Leg(1).pkin, mges_sym, mrSges_sym, Ifges_sym, R.r_P_B_all');
+        end
       end
+      
+      % MPV für numerischen Ansatz der inversen Dynamik
+      % Dynamik-Parameter der Plattform (vollständig). TODO: Anpassung an
+      % reduzierte FG je nach EE
+      % Khalil-Notation: Reihenfolge (XX, XY, XZ, YY, YZ, ZZ, MX, MY, MZ, M)
+      pv2_platform = [Ifges(end,[1 4 5 2 6 3])'; mrSges(end,:)'; mges(end)'];
+      % Dynamik-Parameter der (identischen) Beinketten. Basis-Segment Null.
+      mges_leg = [0;mges(1:end-1)]; 
+      mrSges_leg = [zeros(1,3); mrSges(1:end-1,:)]; 
+      Ifges_leg = [zeros(1,6); Ifges(1:end-1,:)];
+      mpv_leg = R.Leg(1).dynpar_convert_par2_mpv(mges_leg, mrSges_leg, Ifges_leg);
+      mpv_num = [mpv_leg; pv2_platform(R.I_platform_dynpar)];
+      % TODO: Behandlung des Falls eines nicht symmetrischen Roboters
     end
     function update_gravity(R, g_world)
       % Aktualisiere den Gravitationsvektor für den Roboter
