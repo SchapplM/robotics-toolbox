@@ -9,6 +9,11 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% Jinv [N x Nx] (optional zur Rechenersparnis)
+%   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
+%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
+% JinvD [N x Nx] (optional zur Rechenersparnis)
+%   Zeitableitung von Jinv
 % 
 % Ausgabe:
 % Cred_Fs
@@ -26,7 +31,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE)
+function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -37,7 +42,14 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/coriolisvec2_platform: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/coriolisvec2_platform: xDE muss 6x1 sein');
-
+if nargin >= 6
+  assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
+    'ParRob/coriolisvec2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
+end
+if nargin == 7
+  assert(isreal(JinvD) && all(size(JinvD) == [Rob.NJ sum(Rob.I_EE)]), ...
+    'ParRob/coriolisvec2_platform: JinvD muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
+end
 % Dynamik-Parameter der Endeffektor-Plattform
 m_P = Rob.DynPar.mges(end);
 mrS_P = Rob.DynPar.mrSges(end,:);
@@ -55,16 +67,20 @@ if nargout == 2
   C_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
 end
 %% Projektionsmatrizen
-G_q = Rob.constr1grad_q(q, xE);
-G_x = Rob.constr1grad_x(q, xE);
-G_qd = Rob.constr1gradD_q(q, qD, xE, xDE);
-G_xd = Rob.constr1gradD_x(q, qD, xE, xDE);
-Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
-
+if nargin < 7
+  G_q = Rob.constr1grad_q(q, xE);
+  G_x = Rob.constr1grad_x(q, xE);
+  Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
+end
+if nargin < 7
+  G_qd = Rob.constr1gradD_q(q, qD, xE, xDE);
+  G_xd = Rob.constr1gradD_x(q, qD, xE, xDE);
+  JinvD = G_q\G_qd/G_q*G_x - G_q\G_xd; % Siehe: ParRob/jacobiD_qa_x
+end
 K1 = eye ((NLEG+1)*NLEG  );% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
 
-JinvD = G_q\G_qd/G_q*G_x - G_q\G_xd; % Siehe: ParRob/jacobiD_qa_x
+
 R1D =  [JinvD',zeros(NLEG)']'; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
@@ -97,9 +113,9 @@ if nargout == 2
 end
 % Massenmatrix-Komponenten aller Subsysteme
 if nargout == 1
-  [~, M_full] = Rob.inertia2_platform(q, xE);
+  [~, M_full] = Rob.inertia2_platform(q, xE, Jinv);
 else % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
-  [~, M_full, ~, M_full_reg] = Rob.inertia2_platform(q, xE);
+  [~, M_full, ~, M_full_reg] = Rob.inertia2_platform(q, xE, Jinv);
 end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der

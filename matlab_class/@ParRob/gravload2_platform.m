@@ -7,6 +7,9 @@
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (nicht:
 %   Plattform-Pose xP)
+% Jinv [N x Nx] (optional zur Rechenersparnis)
+%   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
+%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
 % 
 % Ausgabe:
 % gred_Fs
@@ -25,14 +28,17 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [gred_Fs, gred_Fs_reg] = gravload2_platform(Rob, q, xE)
+function [gred_Fs, gred_Fs_reg] = gravload2_platform(Rob, q, xE, Jinv)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/gravload2_platform: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/gravload2_platform: xE muss 6x1 sein');
-
+if nargin == 4
+  assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
+    'ParRob/gravload2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
+end
 g = Rob.gravity;
 % Dynamik-Parameter der Endeffektor-Plattform
 m_P = Rob.DynPar.mges(end);
@@ -50,12 +56,13 @@ if nargout == 2
   G_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
 end
 %% Projektionsmatrizen
-% Gradientenmatrix der vollständigen Zwangsbedingungen
-G_q = Rob.constr1grad_q(q, xE);
-G_x = Rob.constr1grad_x(q, xE);
-% Inverse Jacobi-Matrix
-Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
-
+if nargin < 4
+  % Gradientenmatrix der vollständigen Zwangsbedingungen
+  G_q = Rob.constr1grad_q(q, xE);
+  G_x = Rob.constr1grad_x(q, xE);
+  % Inverse Jacobi-Matrix
+  Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
+end
 K1 = eye ((NLEG+1)*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
 
