@@ -260,10 +260,10 @@ classdef ParRob < matlab.mixin.Copyable
       % Fx: Kraft auf Plattform aus Inverser Dynamik
       xPDred = xPD(R.I_EE);
       xPDDred = xPDD(R.I_EE);
-      [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
         Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+          R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
