@@ -72,13 +72,13 @@ yminmax(2) = yminmax(2)+0.05*yw;
 zw = abs(zminmax(2)-zminmax(1));
 % Grenzen größer Null setzen (gleich Null bei planaren Systemen)
 if all(xminmax == 0)
-  xminmax = [-0.1, 0.1];
+  xminmax = [-0.1, 0.1]+mean(xminmax);
 end
 if all(yminmax == 0)
-  yminmax = [-0.1, 0.1];
+  yminmax = [-0.1, 0.1]+mean(yminmax);
 end
 if all(zminmax == 0)
-  zminmax = [-0.1, 0.1];
+  zminmax = [-0.1, 0.1]+mean(zminmax);
 end
 % Achsgrenzen setzen
 xminmax(1) = xminmax(1)-0.05*xw;
