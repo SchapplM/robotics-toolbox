@@ -33,7 +33,7 @@ if ~use_parrob
   RS = serroblib_create_robot_class(SName);
   RS.fill_fcn_handles(true, true);
   % RS.mex_dep(true)
-  RP = ParRob('P6RRPRRR14V3G1P1A1');
+  RP = ParRob('P6RRPRRR14V3G1P3A1');
   RP.create_symmetric_robot(6, RS, 0.5, 0.2);
   RP.initialize();
   % Schubgelenke sind aktuiert
@@ -42,7 +42,7 @@ if ~use_parrob
   RP.update_actuation(I_qa);
   % Benutze PKM-Bibliothek für gespeicherte Funktionen
   if ~isempty(which('parroblib_path_init.m'))
-    parroblib_addtopath({'P6RRPRRR14V3G1P1A1'});
+    parroblib_addtopath({'P6RRPRRR14V3G1P3A1'});
   end
   RP.fill_fcn_handles();
 end
@@ -52,20 +52,14 @@ if use_parrob
     warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
     return
   end
-  RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
+  RP = parroblib_create_robot_class('P6RRPRRR14V3G1P3A1', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
 end
 
 %% Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
 % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
-d_Paar = RP.DesPar.platform_par(1)/2;
-for i = 1:3 % Paare von Koppelpunkten durchgehen
-  rM = rotz(2*pi/3*(i-1))*[RP.DesPar.platform_par(1);0;0]; % Mittelpunkt des Punktepaares
-  for j = 1:2 % Beide Punkte des Paares durchgehen
-    RP.r_P_B_all(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
-  end
-end
+RP.align_platform_coupling(3, [0.2;0.1]);
 %% Grenzen für die Gelenkpositionen setzen
 % Dadurch wird die Schrittweite bei der inversen Kinematik begrenzt (auf 5%
 % der Spannbreite der Gelenkgrenzen) und die Konfiguration klappt nicht um.
@@ -131,7 +125,7 @@ for i = 1:RP.NLEG
   % Setze Segmente als Hohlzylinder mit Radius 50mm
   RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
 end
-RP.DesPar.platform_par(2) = 5e-3;
+RP.DesPar.platform_par(3) = 5e-3;
 
 xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);

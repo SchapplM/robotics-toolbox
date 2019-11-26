@@ -122,6 +122,17 @@ if s.mode == 4
       drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
         'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.0, 'EdgeAlpha', 0.3)
     end
+  elseif Rob.DesPar.platform_method == 3
+    h = Rob.DesPar.platform_par(3); % Dicke der Polygon-Platte
+    % Polygon-Punkte zusammenstellen und zeichnen
+    if h > 0
+      for jj = 1:2
+        pts = squeeze(Tc_Pges_W(1:4,4,end-Rob.NLEG-1:end-2));
+        pts2 = [pts+Tc_Pges_W(:,:,end-1)*[0;0;+(-1)^jj*h/2;0]];
+        hdl=fillPolygon3d(pts2', 'm');
+        set(hdl, 'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 1.0, 'EdgeAlpha', 0.3)
+      end
+    end
   else
     error('Methode für platform_method nicht implementiert');
   end

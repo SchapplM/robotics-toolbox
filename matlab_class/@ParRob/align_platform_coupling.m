@@ -24,7 +24,7 @@ else
   r_P_P_Bi_ges(:)=0;
 end
 Rob.DesPar.platform_method = uint8(method);
-Rob.DesPar.platform_par = [param;0];
+Rob.DesPar.platform_par = [param;0]; % Der letzte Parameter ist die Stärke der Platte des Ersatzmodells
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
 % Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
@@ -48,5 +48,20 @@ if method == 1
     assume(r_P_P_Bi_ges, 'real');
     warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
   end
-  Rob.r_P_B_all = r_P_P_Bi_ges;
+elseif method == 3
+  % Methode 3: Paarweise angeordnet, z-Achse nach oben
+  if Rob.NLEG ~= 6
+    error('Methode %d ist nur für 6 Beine definiert', method);
+  end
+  r_PB = param(1); % Radius des Mittelpunktes der einzelnen Kreispaare
+  d_Paar = param(2); % Abstand der Gelenkpaare voneinander
+  for i = 1:3 % Paare von Koppelpunkten durchgehen
+    rM = rotz(2*pi/3*(i-1))*[r_PB;0;0]; % Mittelpunkt des Punktepaares
+    for j = 1:2 % Beide Punkte des Paares durchgehen
+      r_P_P_Bi_ges(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
+    end
+  end
+else
+  error('Methode nicht implementiert');
 end
+Rob.r_P_B_all = r_P_P_Bi_ges;
