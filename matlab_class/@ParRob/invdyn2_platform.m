@@ -33,15 +33,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [F, F_reg] = invdyn2_platform(Rob, q, qD, qDD, xE, xDE, xDDE, Jinv, JinvD)
+function [F, F_reg] = invdyn2_platform(Rob, q, qD, xE, xDE, xDDE, Jinv, JinvD)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/invdyn2_platform: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
   'ParRob/invdyn2_platform: qD muss %dx1 sein', Rob.NJ);
-assert(isreal(qDD) && all(size(qDD) == [Rob.NJ 1]), ...
-  'ParRob/invdyn2_platform: qDD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/invdyn2_platform: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
@@ -63,9 +61,9 @@ if nargin < 9
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
 if nargin < 9
-  G_qd = Rob.constr1gradD_q(q, qD, xE, xDE);
-  G_xd = Rob.constr1gradD_x(q, qD, xE, xDE);
-  JinvD = G_q\G_qd/G_q*G_x - G_q\G_xd; % Siehe: ParRob/jacobiD_qa_x
+  G_qD = Rob.constr1gradD_q(q, qD, xE, xDE);
+  G_xD = Rob.constr1gradD_x(q, qD, xE, xDE);
+  JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 end
 %% Funktionsaufrufe
 if nargout == 1

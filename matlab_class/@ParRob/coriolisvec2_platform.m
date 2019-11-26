@@ -73,9 +73,9 @@ if nargin < 7
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
 if nargin < 7
-  G_qd = Rob.constr1gradD_q(q, qD, xE, xDE);
-  G_xd = Rob.constr1gradD_x(q, qD, xE, xDE);
-  JinvD = G_q\G_qd/G_q*G_x - G_q\G_xd; % Siehe: ParRob/jacobiD_qa_x
+  G_qD = Rob.constr1gradD_q(q, qD, xE, xDE);
+  G_xD = Rob.constr1gradD_x(q, qD, xE, xDE);
+  JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 end
 K1 = eye ((NLEG+1)*NLEG  );% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
