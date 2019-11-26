@@ -29,6 +29,7 @@ Rob.DesPar.platform_par = [param;0]; % Der letzte Parameter ist die Stärke der 
 % Verbindung der Punkte)
 % Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
 if method == 1
+  n_pf_par = 1;
   r_PB = param(1);
   
   for i = 1:NLEG
@@ -49,6 +50,7 @@ if method == 1
     warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
   end
 elseif method == 3
+  n_pf_par = 2;
   % Methode 3: Paarweise angeordnet, z-Achse nach oben
   if Rob.NLEG ~= 6
     error('Methode %d ist nur für 6 Beine definiert', method);
@@ -63,5 +65,8 @@ elseif method == 3
   end
 else
   error('Methode nicht implementiert');
+end
+if length(param) ~= n_pf_par
+  error('Anzahl der eingegebenen Parameter stimmte gar nicht');
 end
 Rob.r_P_B_all = r_P_P_Bi_ges;

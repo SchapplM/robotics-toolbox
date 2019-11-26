@@ -27,6 +27,7 @@ end
 Rob.DesPar.base_method = uint8(method);
 Rob.DesPar.base_par = param;
 if method == 1
+  n_base_par = 1;
   % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
   % Verbindung der Punkte)
   % Parameter: Abstand (Radius des Plattform-Kreises)
@@ -59,6 +60,7 @@ if method == 1
     Rob.Leg(i).update_base();
   end
 elseif method == 4
+  n_base_par = 3;
   % Methode 4: Paarweise angeordnet als Pyramide (Tetraeder)
   % Parameter: Abstand der Grundlinien vom Mittelpunkt, Abstand der
   % Paarweisen Fußpunkte, Steigung
@@ -87,5 +89,7 @@ elseif method == 4
 else
   error('Methode nicht implementiert');
 end
-
+if length(param) ~= n_base_par
+  error('Anzahl der eingegebenen Parameter stimmte gar nicht');
+end
 Rob.r_0_A_all = r_0_0_Ai_ges;
