@@ -29,7 +29,10 @@
 %   Trajektorie von Gelenkbeschleunigungen
 % Jinv_ges
 %   Inverse PKM-Jacobi-Matrix für alle Bahnpunkte (spaltenweise in Zeile)
-%   (Jacobi zwischen Antriebsgeschwindigkeit qDa und EE-geschwindigkeit xDE
+%   (Jacobi zwischen allen Gelenkgeschwindigkeiten qD und EE-geschwindigkeit xDE)
+%   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
+% JinvD_ges
+%   Zeitableitung von Jinv_ges
 % 
 % Siehe auch: SerRob/invkin_traj
 
@@ -42,7 +45,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Q, QD, QDD, Phi, Jinv_ges] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
@@ -73,7 +76,8 @@ Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
-Jinv_ges = NaN(nt, sum(I_EE)*sum(Rob.I_qa));
+Jinv_ges = NaN(nt, sum(I_EE)*length(Rob.I_qa));
+JinvD_ges = zeros(nt, sum(I_EE)*length(Rob.I_qa));
 
 qk0 = q0;
 for k = 1:nt
@@ -107,9 +111,15 @@ for k = 1:nt
   qD_k = J_x_inv * xD_k(I_EE);
   
   % Gelenk-Beschleunigung berechnen
-  % TODO: Das ist noch falsch. Jacobi-Zeitableitung fehlt noch
-  qDD_k = J_x_inv * xDD_k(I_EE);
-
+  if ~dof_3T2R
+    Phi_qD = Rob.constr1gradD_q(q_k, qD_k, x_k, xD_k);
+    Phi_xD = Rob.constr1gradD_x(q_k, qD_k, x_k, xD_k);
+    JD_x_inv = Phi_q\Phi_qD/Phi_q*Phi_x - Phi_q\Phi_xD; % Siehe: ParRob/jacobiD_qa_x
+    qDD_k = J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE);
+  else
+    % TODO: Das ist noch falsch. Jacobi-Zeitableitung fehlt noch
+    qDD_k = J_x_inv * xDD_k(I_EE);
+  end
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   if k < nt
@@ -122,8 +132,12 @@ for k = 1:nt
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
   Phi(k,:) = Phi_k;
-  J_qa_x = J_x_inv(Rob.I_qa,:);
-  Jinv_ges(k,:) = J_qa_x(:);
+  if nargout >= 5
+    Jinv_ges(k,:) = J_x_inv(:);
+  end
+  if nargout >= 6
+    JinvD_ges(k,:) = JD_x_inv(:);
+  end
   if s.debug
     if max(abs(Phi_k)) > 1e-3
       warning('Phi zu groß');
