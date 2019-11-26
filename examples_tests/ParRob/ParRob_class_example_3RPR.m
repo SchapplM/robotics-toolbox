@@ -21,7 +21,7 @@ if isempty(which('serroblib_path_init.m'))
   return
 end
 
-% Typ des seriellen Roboters auswählen (Drei Drehgelenke)
+% Typ des seriellen Roboters auswählen (Dreh+Schub+Dreh)
 SName='S3RPR1';
 
 % Instanz der Roboterklasse erstellen
