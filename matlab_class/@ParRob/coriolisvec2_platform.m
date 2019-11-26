@@ -14,6 +14,15 @@
 %   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
 % JinvD [N x Nx] (optional zur Rechenersparnis)
 %   Zeitableitung von Jinv
+% M_full (optional zur Rechenersparnis)
+%   Vollständige Massenmatrix der PKM (für alle Subsysteme, Kräfte und
+%   Beschleunigungen in x-Koordinaten)
+%   Siehe auch: ParRob/inertia2_platform_full
+% M_full_reg (optional zur Rechenersparnis)
+%   Regressormatrix zur zweiten Ausgabe (M_full). Matrix wird 3D gestapelt.
+%   (Dimension 1 und 2 sind die ursprüngliche Massenmatrix, Dim. 3 sind die
+%   Dynamikparameter 
+%   Siehe auch: ParRob/inertia2_platform_full
 % 
 % Ausgabe:
 % Cred_Fs
@@ -31,7 +40,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD)
+function [Cred_Fs, Cred_Fs_reg, M_full, M_full_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD, M_full, M_full_reg)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -79,8 +88,6 @@ if nargin < 7
 end
 K1 = eye ((NLEG+1)*NLEG  );% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
-
-
 R1D =  [JinvD',zeros(NLEG)']'; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
@@ -112,10 +119,11 @@ if nargout == 2
   C_full_reg(NJ+1:end,end-sum(Rob.I_platform_dynpar)+1:end) = Fc_plf_reg(Rob.I_EE,Rob.I_platform_dynpar);
 end
 % Massenmatrix-Komponenten aller Subsysteme
-if nargout == 1
-  [~, M_full] = Rob.inertia2_platform(q, xE, Jinv);
-else % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
-  [~, M_full, ~, M_full_reg] = Rob.inertia2_platform(q, xE, Jinv);
+if nargout == 1 && nargin < 8
+  [M_full] = Rob.inertia2_platform_full(q, xE, Jinv);
+elseif nargout == 2 && nargin < 9
+  % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
+  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xE, Jinv);
 end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der

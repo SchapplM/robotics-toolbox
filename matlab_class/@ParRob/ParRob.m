@@ -286,6 +286,27 @@ classdef ParRob < matlab.mixin.Copyable
         Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
+    function Fx_traj = invdyn2_platform_traj(R, Q, QD, XE, XED, XEDD, Jinv_ges, JinvD_ges)
+      % Vektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % XE: Endeffektor-Koordinaten (Trajektorie)
+      % XED: Endeffektor-Geschwindigkeit (Trajektorie)
+      % XEDD: Endeffektor-Beschleunigung (Trajektorie)
+      % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (siehe jacobi_qa_x)
+      % JinvD_ges: Zeitableitung von Jinv_ges. Siehe jacobiD_qa_x.
+      %
+      % Ausgabe:
+      % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      for i = 1:size(Q,1)
+        Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
+        JinvD_full = reshape(JinvD_ges(i,:), R.NJ, sum(R.I_EE));
+        Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+      end
+    end
     function Mx = inertia_platform(R, q, xP)
       % Massenmatrix bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
