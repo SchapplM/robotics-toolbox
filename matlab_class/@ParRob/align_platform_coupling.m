@@ -24,7 +24,13 @@ else
   r_P_P_Bi_ges(:)=0;
 end
 Rob.DesPar.platform_method = uint8(method);
-Rob.DesPar.platform_par = [param;0]; % Der letzte Parameter ist die Stärke der Platte des Ersatzmodells
+% Parameter in Klasse abspeichern. Der letzte Parameter ist die Stärke der
+% Platte des Ersatzmodells.
+if length(Rob.DesPar.platform_par) == length(param)
+  Rob.DesPar.platform_par = [param; 0];
+else
+  Rob.DesPar.platform_par(1:length(param)) = param; 
+end
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
 % Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
