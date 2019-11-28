@@ -16,7 +16,7 @@
 %   straight (nur aktiv, wenn `mode` auf 1 (Strichmodell)
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
-%     DH-Parameter a und d (Verschiebung in x- und z-Richtung)
+%        DH-Parameter a und d (Verschiebung in x- und z-Richtung)
 %   jointcolors
 %     'serial': Klasse entspricht einzelnem seriellem/hybridem Roboter
 %     'parallel': Klassen entspricht Beinkette einer PKM
@@ -120,9 +120,15 @@ if ~s.only_bodies && any(s.mode == [1 3 4])
     r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
 
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
-      % Drehgelenke werden so auf der z-Achse verschoben, dass sie in der
-      % Mitte zwischen den beiden KS sind (ist dann übersichtlicher)
-      r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
+      if ~s.straight
+        % Gelenke werden so auf der z-Achse verschoben, dass sie in der
+        % Mitte zwischen den beiden KS sind (ist dann übersichtlicher)
+        r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
+      else
+        % Gelenk direkt im Gelenk-KS zeichnen. Bei schräger Verbindung
+        % steht das Gelenk sonst in der Luft.
+        r_W_Gi = r_W_Oi;
+      end
       r_W_P1 = r_W_Gi + R_W_i*[0;0;-gh/2];
       r_W_P2 = r_W_Gi + R_W_i*[0;0; gh/2];
       drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
@@ -131,7 +137,11 @@ if ~s.only_bodies && any(s.mode == [1 3 4])
       if i<=Rob.NJ && Rob.MDH.a(i+1) ~= 0
         % Schubgelenke werden nicht auf der Achse verschoben, wenn es einen
         % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
-        % auf dem Quader befestigt ist
+        % auf dem Quader befestigt ist.
+        r_W_Gi = r_W_Oi;
+      elseif s.straight
+        % Bei schräger Verbindung muss das Gelenk direkt im Gelenk-KS
+        % gezeichnet werden
         r_W_Gi = r_W_Oi;
       else
         % Bei der normalen Kinematik-Skizze wird das Schubgelenk auch in
