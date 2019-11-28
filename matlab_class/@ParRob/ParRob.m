@@ -115,10 +115,10 @@ classdef ParRob < matlab.mixin.Copyable
       R.T_W_0 = eye(4);
       R.gravity = [0;0;-9.81];
       R.DesPar = struct(...
-        'base_method', uint8(0), ... % Modellierungsart Gestell (1=Kreis)
-        'base_par', 0, ... % Parameter dafür (Radius)
-        'platform_method', uint8(0), ... % Modellierungsart Plattform (1=Kreisscheibe)
-        'platform_par', zeros(1,2)); % Parameter dafür (Radius, Stärke)
+        'base_method', uint8(0), ... % Modellierungsart Gestell siehe align_base_coupling.m
+        'base_par', 0, ... % Parameter dafür (Radius,...)
+        'platform_method', uint8(0), ... % Modellierungsart Plattform siehe align_platform_coupling.m
+        'platform_par', zeros(1,2)); % Parameter dafür (Radius, ..., Stärke)
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...

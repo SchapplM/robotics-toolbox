@@ -21,29 +21,14 @@ RP = ParRob('P6PRRRRR6V2G4P1A1');
 RP.create_symmetric_robot(6, RS, 1.0, 0.3);
 RP.initialize();
 
-% Basis KS einstellen: Erst gruppenweise so einstellen, dass Beinkette in
-% die Mitte zeigt (gruppenweise 120°-Schritte). Dann 60° nach unten -> Bein
-% zeigt 30° nach oben
-RP.Leg(1).update_base( [0.8338;0.3701;0], r2eulxyz(rotz(2*pi/3)*rotx(-pi/3)));
-RP.Leg(2).update_base( [0.6838;0.6299;0], r2eulxyz(rotz(2*pi/3)*rotx(-pi/3)));
-d_middle1 = norm((RP.Leg(1).T_W_0(1:3,4)+RP.Leg(2).T_W_0(1:3,4))/2);
-RP.Leg(3).update_base( [-0.6838;0.6299;0], r2eulxyz(rotz(4*pi/3)*rotx(-pi/3)));
-RP.Leg(4).update_base( [-0.8338;0.3701;0], r2eulxyz(rotz(4*pi/3)*rotx(-pi/3)));
-d_middle2 = norm((RP.Leg(3).T_W_0(1:3,4)+RP.Leg(4).T_W_0(1:3,4))/2);
-RP.Leg(5).update_base( [-0.15;-d_middle1;0], r2eulxyz(rotx(-pi/3)));
-RP.Leg(6).update_base( [0.15;-d_middle1;0], r2eulxyz(rotx(-pi/3)));
-d_middle3 = norm((RP.Leg(5).T_W_0(1:3,4)+RP.Leg(6).T_W_0(1:3,4))/2);
-d_Paar = norm(RP.Leg(5).T_W_0(1:3,4) - RP.Leg(6).T_W_0(1:3,4));
+% Basis KS einstellen: Gruppenweise für bessere Konditionierung der Jacobi
+RP.align_base_coupling(4, [0.8;0.3;pi/3]);
 
 % Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
-% singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
-for i = 1:3 % Paare von Koppelpunkten durchgehen
-  rM = rotz(2*pi/3*(i-1))*[RP.DesPar.platform_par(1);0;0]; % Mittelpunkt des Punktepaares
-  for j = 1:2 % Beide Punkte des Paares durchgehen
-    RP.r_P_B_all(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
-  end
-end
+% nicht singulär (Jacobi der direkten Kinematik), wenn die Basis
+% Pyramidenförmig ist. Daher normale Kreis-Anordnung der Plattform
+RP.align_platform_coupling(1, 0.2);
 
 % Kinematikparameter einstellen
 pkin_6_PUS = zeros(length(RP.Leg(1).pkin),1); % Namen, siehe RP.Leg(1).pkin_names
@@ -126,7 +111,7 @@ for i = 1:RP.NLEG
   % Setze Segmente als Hohlzylinder mit Radius 100mm
   RP.Leg(i).DesPar.seg_par=repmat([5e-3,100e-3],RP.Leg(i).NL,1);
 end
-RP.DesPar.platform_par(2) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
+RP.DesPar.platform_par(3) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
 
 xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
