@@ -66,7 +66,7 @@ if nargin < 4
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
 K1 = eye ((NLEG+1)*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
-R1 = K1  * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
+R1 = K1  * [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Massenmatrix des vollständigen Systems (alle Subsysteme)
 % Ausgelagert in andere Funktion, da Term auch für Coriolis-Kräfte benötigt
@@ -86,7 +86,7 @@ if nargout == 2
   % nachvollziehen
   Mred_sD_reg = NaN(size(Mred_Fx,1), size(Mred_Fx,2), length(Rob.DynPar.mpv_n1s));
   for jj = 1:length(Rob.DynPar.mpv_n1s)
-    Mred_sD_reg(:,:,jj) = transpose(R1) * M_full_reg(:,:,jj) * R1;
+    Mred_sD_reg(:,:,jj) = R1' * M_full_reg(:,:,jj) * R1;
   end
 end
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des

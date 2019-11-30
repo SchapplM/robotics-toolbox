@@ -53,6 +53,7 @@ classdef SerRob < matlab.mixin.Copyable
     pkin_gen % Vektor der Kinematikparameter des allgemeinen Modells
     pkin_names % Namen der Kinematikparameter
     pkin_types % Typ der Kinematikparameter; siehe get_pkin_parameter_type()
+    pkin_jointnumber % Gelenknummer des Kinematikparameters; siehe get_pkin_parameter_type()
     DynPar % Struktur mit Dynamikparametern (Masse, Schwerpunkt, Trägheit)
     DesPar % Struktur mit Entwurfsparameter (Segmentgeometrie, Motorauswahl, ...)
     Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
@@ -170,7 +171,7 @@ classdef SerRob < matlab.mixin.Copyable
         % MDH-Paramter, damit die verschiedenen Parameter konsistent sind.
         R.update_mdh(R.pkin)
       end
-      R.pkin_types = R.get_pkin_parameter_type();
+      [R.pkin_types, R.pkin_jointnumber] = R.get_pkin_parameter_type();
       R.DynPar = struct('mges',   NaN(R.NL,1), ...
                         'rSges',  NaN(R.NL,3), 'Icges', NaN(R.NL,6), ...
                         'mrSges', NaN(R.NL,3), 'Ifges', NaN(R.NL,6), ...

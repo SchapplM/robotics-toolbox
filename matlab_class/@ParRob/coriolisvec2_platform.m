@@ -86,9 +86,9 @@ if nargin < 7
   G_xD = Rob.constr1gradD_x(q, qD, xE, xDE);
   JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 end
-K1 = eye ((NLEG+1)*NLEG  );% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
-R1 = K1 * [ Jinv',eye(NLEG)']'; % Projektionsmatrix, [DT09]/(15)
-R1D =  [JinvD',zeros(NLEG)']'; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
+K1 = eye ((NLEG+1)*NLEG);% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
+R1 = K1 * [Jinv;eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
+R1D =  [JinvD; zeros(NLEG)]; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode==2

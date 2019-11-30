@@ -12,14 +12,17 @@
 %   5 theta
 %   6 d
 %   7 offset (TODO: Noch nicht implementiert)
+% jointnumber
+%   Nummer des Gelenks in der MDH-Tabelle, das der Parameter beschreibt
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
-function types = get_pkin_parameter_type(Rob)
+function [types, jointnumber] = get_pkin_parameter_type(Rob)
 
 % Funktion initialisieren
 mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', Rob.mdlname));
+pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', Rob.mdlname));
 
 % Prüfe die Parameter nacheinander, indem NaN eingesetzt wird
 pkin = NaN(6, length(Rob.pkin_gen));
@@ -46,3 +49,20 @@ types = zeros(size(pkin_var,2),1);
 for i = 1:6
   types(isnan(pkin_var(i,:))) = uint8(i);
 end
+
+% Erkenne Gelenknummer durch einsetzen von NaN in pkin und Prüfung der
+% MDH-Variablen
+jointnumber = zeros(length(Rob.pkin),1);
+if ~strcmp(Rob.mdlname, Rob.mdlname_var)
+  var2gen_hdl = eval(sprintf('@%s_pkin_var2gen', Rob.mdlname_var));
+else
+  var2gen_hdl = @(p)(p); % Kein Varianten-Modell: Keine Änderung der Par.
+end
+for i = 1:length(Rob.pkin)
+  pkin_test = zeros(length(Rob.pkin),1);
+  pkin_test(i) = NaN;
+  m=zeros(Rob.NJ,7);
+  [m(:,1),m(:,2),m(:,3),m(:,4),m(:,5),m(:,6),m(:,7)]=pkin2mdh_hdl(var2gen_hdl(pkin_test));
+  jointnumber(i) = find(isnan(sum(m,2)));
+end
+
