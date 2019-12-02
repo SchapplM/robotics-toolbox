@@ -63,6 +63,12 @@ for i = 1:length(Rob.pkin)
   pkin_test(i) = NaN;
   m=zeros(Rob.NJ,7);
   [m(:,1),m(:,2),m(:,3),m(:,4),m(:,5),m(:,6),m(:,7)]=pkin2mdh_hdl(var2gen_hdl(pkin_test));
-  jointnumber(i) = find(isnan(sum(m,2)));
+  I = find(isnan(sum(m,2)));
+  if ~isempty(I)
+    jointnumber(i) = I;
+  else
+    % Der Kinematik-Parameter hat keinen Einfluss (evtl Dummy-Parameter bei
+    % Ketten wie UPS, die keine Parameter haben)
+  end
 end
 
