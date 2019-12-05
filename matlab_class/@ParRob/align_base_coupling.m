@@ -59,7 +59,7 @@ if method == 1
     % Transformationsmatrizen aus den geänderten Euler-Winkeln generieren
     Rob.Leg(i).update_base();
   end
-elseif method == 4
+elseif method == 8
   n_base_par = 3;
   % Methode 4: Paarweise angeordnet als Pyramide (Tetraeder)
   % Parameter: Abstand der Grundlinien vom Mittelpunkt, Abstand der

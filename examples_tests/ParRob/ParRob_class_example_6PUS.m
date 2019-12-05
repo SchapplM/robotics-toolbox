@@ -15,14 +15,14 @@ RS = serroblib_create_robot_class('S6PRRRRR6V2');
 RS.fill_fcn_handles(false);
 % ParRob-Klasse für PKM erstellen
 if ~isempty(which('parroblib_path_init.m'))
-  parroblib_addtopath({'P6PRRRRR6V2G4P1A1'});
+  parroblib_addtopath({'P6PRRRRR6V2G8P1A1'});
 end
-RP = ParRob('P6PRRRRR6V2G4P1A1');
+RP = ParRob('P6PRRRRR6V2G8P1A1');
 RP.create_symmetric_robot(6, RS, 1.0, 0.3);
 RP.initialize();
 
 % Basis KS einstellen: Gruppenweise für bessere Konditionierung der Jacobi
-RP.align_base_coupling(4, [0.8;0.3;pi/3]);
+RP.align_base_coupling(8, [0.8;0.3;pi/3]);
 
 % Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
