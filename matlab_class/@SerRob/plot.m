@@ -134,7 +134,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4])
       drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
         'FaceAlpha', 0.3, 'FaceColor', 'w')
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
-      if i<=Rob.NJ && Rob.MDH.a(i+1) ~= 0
+      if i<Rob.NJ && Rob.MDH.a(i+1) ~= 0
         % Schubgelenke werden nicht auf der Achse verschoben, wenn es einen
         % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
         % auf dem Quader befestigt ist.

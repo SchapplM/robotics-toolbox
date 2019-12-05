@@ -101,21 +101,21 @@ s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 
 RP.plot( q0, X0, s_plot );
 
 %% Dynamik-Parameter
-m = zeros(4,1);
-rSges = zeros(4,3);
-Icges = zeros(4,6);
+mges = zeros(size(RP.DynPar.mges));
+rSges = zeros(size(RP.DynPar.rSges));
+Icges = zeros(size(RP.DynPar.Icges));
 % Erstes Beinsegment (Stab vor Schubgelenk)
-m(2) = 0.5;
+mges(2) = 0.5;
 Icges(3,1:3) = 0.1*ones(3,1);
 % Letztes Beinsegment (Stab nach Schubgelenk)
-m(3) = 0.5;
+mges(3) = 0.5;
 Icges(3,1:3) = 0.1*ones(3,1);
 % Plattform
-m(4) = 1;
-Icges(4,1:2) = 0.1;
-Icges(4,3) = 0.5;
+mges(end) = 1;
+Icges(end,1:2) = 0.1;
+Icges(end,3) = 0.5;
 % Dynamik-Parameter in Roboter-Klasse aktualisieren
-RP.update_dynpar1(m, rSges, Icges);
+RP.update_dynpar1(mges, rSges, Icges);
 
 %% Dynamik berechnen
 Fp_t = NaN(nt, 6); % Plattform-Kräfte
@@ -296,7 +296,7 @@ for i = 1:nt
   
   % Test-Bereich. Der folgende Test funktioniert nur, wenn die Beine
   % masselos sind. Dann müssen die Beine die volle Plattform-Masse tragen
-  if all(m(1:end-1) == 0) && all(all(rSges(1:end-1,:)==0)) && all(all(Icges(1:end-1,:)))
+  if all(mges(1:end-1) == 0) && all(all(rSges(1:end-1,:)==0)) && all(all(Icges(1:end-1,:)))
     test_FB = Fx_sumB + tauX;
     if max(abs(test_FB)) > 1e-8
       error('Kraftsumme Beine-Plattform stimmt nicht');

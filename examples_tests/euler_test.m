@@ -235,7 +235,7 @@ for i_conv = uint8(1:N)
     end
     % Zeitableitung des Tests auf Einheitsmatrix von oben: Produktregel
     test_ABD = AD_sym*B_1 + A_1*BD_sym;
-    if max(abs(test_ABD(:))) > 1e10*eps(1+max(abs(AD_sym(:)))) % Schwellwert ca. 1e-6 für normale Werte
+    if max(abs(test_ABD(:))) > 1e11*eps(1+max(abs(AD_sym(:)))) % Schwellwert ca. 1e-5 für normale Werte
       error('Transformationsmatrix eul%sD_diff_rotmat stimmt nicht gegen eul%s_diff_rotmat', eulstr, eulstr);
     end
   end
