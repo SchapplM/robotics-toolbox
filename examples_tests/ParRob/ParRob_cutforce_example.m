@@ -4,6 +4,8 @@
 % * Berechnung inverse Dynamik, Antriebs- und Schnittkräfte
 % * Prüfe energetische Konsistenz für die Umrechnung Antriebe/Plattform
 % * Zeichne Auswertungsbilder zur Prüfung der Plausibilität
+% 
+% Siehe auch: ParRob_class_example_6UPS.m
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -19,10 +21,10 @@ rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
 
 %% Definiere Roboter
-RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A0', 0.5, 0.2);
+RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
 % Beinketten und PKM mit kompilierten Funktionen
 RP.fill_fcn_handles(true, true);
-% Aktuierung festlegen
+% Aktuierung nochmal festlegen
 II_qai = [3 3 3 3 3 3];
 I_qa = false(RP.NJ,1);
 for k = 1:RP.NLEG
@@ -32,13 +34,8 @@ RP.update_actuation(I_qa);
 %% Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
 % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
-d_Paar = RP.DesPar.platform_par(1)/2;
-for i = 1:3 % Paare von Koppelpunkten durchgehen
-  rM = rotz(2*pi/3*(i-1))*[RP.DesPar.platform_par(1);0;0]; % Mittelpunkt des Punktepaares
-  for j = 1:2 % Beide Punkte des Paares durchgehen
-    RP.r_P_B_all(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
-  end
-end
+RP.align_platform_coupling(3, [0.2;0.1]);
+
 %% Beispieltrajektorie definieren
 X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];
 % Trajektorie mit beliebigen Bewegungen der Plattform

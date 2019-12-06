@@ -31,3 +31,4 @@ ParRob_class_example_PRRRR_4PRRRRR
 ParRob_class_example_Gogu_3T2R
 ParRob_cutforce_example
 ParRob_constraints_test
+ParRob_constraintsD_test
