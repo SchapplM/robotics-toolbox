@@ -23,6 +23,9 @@
 %   bodies
 %     Enthält eine Liste der Körper, für die die CAD-Modelle gezeichnet
 %     werden sollen (Standard: alle). Konvention: Basis = 0.
+%   nojoints
+%     0: Gelenke werden gezeichnet (Zylinder/Quader) [standard]
+%     1: Keine Gelenke zeichnen, nur Segmente
 % 
 % Ausgabe:
 % hdl
@@ -45,7 +48,8 @@ s_std = struct( ...
              'ks', [1, Rob.NJ+2], ... % nur Basis- und EE-KS
              'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
              'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
-             'jointcolors', 'serial'); 
+             'jointcolors', 'serial', ... % Farben für die Gelenke
+             'nojoints', false); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -70,7 +74,7 @@ v = Rob.MDH.v;
 % plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
-if ~s.only_bodies && any(s.mode == [1 3 4])
+if ~s.only_bodies && any(s.mode == [1 3 4]) && ~s.nojoints
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
