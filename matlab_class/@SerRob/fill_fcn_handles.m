@@ -46,10 +46,11 @@ for i = 1:length(R.all_fcn_hdl)
       continue
     end
     
-    if ~isempty(which(robfcnname)) || j == length(ca)
+    if ~isempty(which(robfcnname))
       % Speichere das Funktions-Handle in der Roboterklasse
-      % Falls keine Datei gefunden wurde, nehme das Handle für die letzte
-      % Dateioption
+      % Falls keine Datei gefunden wurde, lasse das Handle leer. Es wird so
+      % oder so zum Fehler kommen. Bei einem leeren Handle kann die
+      % nicht-Existenz der m-Datei besser geprüft werden.
       eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
       break;
     end
