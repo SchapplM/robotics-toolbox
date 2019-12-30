@@ -16,7 +16,8 @@
 %   Gravitationskräfte (bezogen auf EE-Koordinaten der PKM; Kräfte und
 %   Momente in kartesischen Koordinaten, bezogen auf Basis-KS)
 % gred_Fs_reg
-%   Regressormatrix zur Gravitationskraft
+%   Regressormatrix zur Gravitationskraft.
+%   Das zweite Ausgabeargument ist nur zulässig, wenn DynPar.mode=4 ist.
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
@@ -68,9 +69,9 @@ R1 = K1 * [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
-  Fg_plf = rigidbody_gravloadB_floatb_eulxyz_slag_vp2(xE(4:6), g, m_P, mrS_P) ;
+  Fg_plf = rigidbody_gravloadB_floatb_eulxyz_slag_vp2_mex(xE(4:6), g, m_P, mrS_P) ;
 else
-  Fg_plf_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp(xE(4:6), g);
+  Fg_plf_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), g);
   delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   Fg_plf = Fg_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end

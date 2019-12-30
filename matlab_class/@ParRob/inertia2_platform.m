@@ -27,7 +27,8 @@
 %   Momente im Basis-KS)
 % Mredvec_Fs_reg
 %   Regressormatrix zur ersten Ausgabe (Mred_xD). Matrix wird dafür 2D
-%   gestapelt (Zeilen sind Massenmatrix-Elemente, Spalten sind Parameter)
+%   gestapelt (Zeilen sind Massenmatrix-Elemente, Spalten sind Parameter).
+%   Das zweite Ausgabeargument ist nur zulässig, wenn DynPar.mode=4 ist.
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
