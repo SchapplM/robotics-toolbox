@@ -64,11 +64,15 @@ for i = 1:length(Rob.pkin)
   m=zeros(Rob.NJ,7);
   [m(:,1),m(:,2),m(:,3),m(:,4),m(:,5),m(:,6),m(:,7)]=pkin2mdh_hdl(var2gen_hdl(pkin_test));
   I = find(isnan(sum(m,2)));
-  if ~isempty(I)
+  if length(I) == 1
     jointnumber(i) = I;
+  elseif length(I) > 1
+    % Kinematik-Parameter beeinflusst mehrere DH-Parameter. Kann bei
+    % hybriden Robotern auftreten, oder wenn mehrere Längen auf gleichen
+    % symbolischen Wert gesetzt werden. Lasse Wert auf NaN.
   else
     % Der Kinematik-Parameter hat keinen Einfluss (evtl Dummy-Parameter bei
-    % Ketten wie UPS, die keine Parameter haben)
+    % Ketten wie UPS, die keine Parameter haben). Lasse Wert auf NaN.
   end
 end
 
