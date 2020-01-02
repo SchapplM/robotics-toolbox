@@ -32,3 +32,5 @@ ParRob_class_example_Gogu_3T2R
 ParRob_cutforce_example
 ParRob_constraints_test
 ParRob_constraintsD_test
+ParRob_mdltest_invdyn_energy_consistency
+ParRob_mdltest_invdyn_compare_sym_vs_num
