@@ -6,6 +6,10 @@
 % * Zeichne Auswertungsbilder zur Prüfung der Plausibilität
 % 
 % Siehe auch: ParRob_class_example_6UPS.m
+%
+% Quellen: 
+% [AbdellatifHei2009] Computational efficient inverse dynamics of 6-DOF fully
+% parallel manipulators by using the Lagrangian formalism
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -153,6 +157,7 @@ for i = 1:nt
   % Berechne Dynamik in Plattform-Koordinaten (unabhängig von Aktuierung)
   tauX = RP.invdyn_platform(q,x,xD,xDD);
   % Projiziere die Dynamik in die Koordinaten der Antriebsgelenke
+  % [AbdellatifHei2009], Text nach Gl. (37)
   tauA = (Jinv_sym') \ tauX;
   % Speichern der Daten
   Fp_t(i,:) = tauX;
