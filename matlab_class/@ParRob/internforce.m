@@ -66,7 +66,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
   
   % Schnittkräfte wieder in Basis-KS zurückrechnen (sind vorher im
   % Körper-KS)
-  if nargout <= 3
+  if nargout < 3
     continue
   end
   Tc_j_0j = RP.Leg(j).fkine(q_j);

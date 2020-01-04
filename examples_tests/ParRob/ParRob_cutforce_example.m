@@ -291,7 +291,7 @@ for i = 1:nt
       error('Schnittkräfte in Gelenken (Gelenk-KS) stimmen nicht mit Klassenmethode überein');
     end
     test_wj = W_j_0 - cf_w_all_baseframe(:,:,j);
-    if max(abs(test_wj(:))) > 1e-10
+    if max(abs(test_wj(:))) > 1e-10 || any(isnan(test_wj(:)))
       error('Schnittkräfte in Gelenken (Basis-KS) stimmen nicht mit Klassenmethode überein');
     end
   end
