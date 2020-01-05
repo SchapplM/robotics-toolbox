@@ -19,7 +19,8 @@
 % M_full_reg
 %   Regressormatrix zur zweiten Ausgabe (M_full). Matrix wird 3D gestapelt.
 %   (Dimension 1 und 2 sind die ursprüngliche Massenmatrix, Dim. 3 sind die
-%   Dynamikparameter   
+%   Dynamikparameter.
+%   Das zweite Ausgabeargument ist nur zulässig, wenn DynPar.mode=4 ist
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
@@ -62,12 +63,12 @@ end
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
-  M_plf_full = rigidbody_inertiaB_floatb_eulxyz_slag_vp2(xE(4:6), m_P, mrSges, Ifges);
+  M_plf_full = rigidbody_inertiaB_floatb_eulxyz_slag_vp2_mex(xE(4:6), m_P, mrSges, Ifges);
 else
   % Regressor-Matrix für allgemeine Starrkörper (nutze nicht-symmetrische
   % Form der Ausgabe, obwohl die Matrix symm. ist. Macht Rechnung unten
   % einfacher.
-  [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp(xE(4:6));
+  [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6));
   delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   Mvec_plf = Mvec_plf_reg(:,Rob.I_platform_dynpar) * delta;
   M_plf_full = reshape(Mvec_plf, 6, 6);

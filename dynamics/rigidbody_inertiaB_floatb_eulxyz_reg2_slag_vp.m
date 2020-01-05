@@ -10,6 +10,9 @@
 % MM_reg [(6*7/2)x(1*10)]
 %   inertial parameter regressor of base floating base inertia matrix
 %   (only lower left triangular matrix (including diagonal) due to symmetry
+% MM_reg_nonsym
+%   Like above, but full matrix without leaving out upper right triangular
+%   matrix. This can be useful for later transformations.
 
 % Quelle: HybrDyn-Toolbox
 % Datum: 2019-08-21 13:58

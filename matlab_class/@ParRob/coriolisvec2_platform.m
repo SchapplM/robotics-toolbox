@@ -27,8 +27,10 @@
 % Ausgabe:
 % Cred_Fs
 %   Coriolis-Kräfte (bezogen auf Endeffektor-Plattform der PKM)
+%   Das zweite Ausgabeargument ist nur zulässig, wenn DynPar.mode=4 ist
 % Cred_Fs_reg
 %   Regressormatrix zur Coriolis-Kraft
+%   Das zweite Ausgabeargument ist nur zulässig, wenn DynPar.mode=4 ist
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
@@ -40,7 +42,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Cred_Fs, Cred_Fs_reg, M_full, M_full_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD, M_full, M_full_reg)
+function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD, M_full, M_full_reg)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -92,9 +94,9 @@ R1D =  [JinvD; zeros(NLEG)]; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode==2
-  Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
+  Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2_mex(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
 else
-  Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp(xE(4:6), xDE);
+  Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), xDE);
   delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   Fc_plf = Fc_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end
