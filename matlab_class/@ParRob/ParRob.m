@@ -300,7 +300,7 @@ classdef ParRob < matlab.mixin.Copyable
       Jinv_qaD_xD = Jinv(Rob.I_qa,:);
       % Jacobi-Matrix auf Winkelgeschwindigkeiten beziehen. Siehe ParRob/jacobi_qa_x
       if size(Jinv_qaD_xD,2) == 6
-        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6)', Rob.phiconv_W_E)];
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), Rob.phiconv_W_E)];
         Jinv_qaD_sD = Jinv_qaD_xD / T;
       else
         % Nehme an, dass keine räumliche Drehung vorliegt. TODO: Fall 3T2R
