@@ -29,6 +29,8 @@
 
 %   Quellen
 %   [Rob1] Robotik 1 Skript
+%   [SchapplerTapOrt2019] Exploiting Dynamics Parameter Linearity for Design Optimization in
+%   Combined Structural and Dimensional Robot Synthesis
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-08
 % (C) Institut für mechatronische Systeme, Universität Hannover
@@ -870,6 +872,7 @@ classdef SerRob < matlab.mixin.Copyable
       %
       % Ausgabe:
       % TAUq: Inverse Dynamik (als Zeitreihe)
+      % Siehe auch: [SchapplerTapOrt2019]
       if R.DynPar.mode == 4
         TAUq = R.invdyntrajfcnhdl6(RV, R.DynPar.mpv);
       else
@@ -932,7 +935,7 @@ classdef SerRob < matlab.mixin.Copyable
       Jg_C = robot_tree_jacobig_cutforce_m(Tc0_stack, R.MDH.v, uint8(link_index), r_i_i_C);
       W_ext = reshape(Jg_C' * F_ext, 6, R.NL);
     end
-    function W_traj = internforce_traj(R, Q, QD, QDD)
+    function [W_traj, W_traj_reg] = internforce_traj(R, Q, QD, QDD)
       % Interne Schnittkräfte
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
@@ -943,14 +946,37 @@ classdef SerRob < matlab.mixin.Copyable
       % W_traj: Kraft und Moment in allen Gelenken, als Zeitreihe
       %         Jede Zeile ein Zeitschritt; erst alle Kräfte, dann alle Momente
       W_traj = NaN(size(Q,1), R.NL*6);
+      if nargout == 2
+        W_traj_reg = NaN(size(Q,1), (R.NL*6)*R.NL*10);
+      end
       for i = 1:size(Q,1)
-        w_i = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)');
+        if nargout == 2
+          [w_i, w_i_reg] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)');
+          W_traj_reg(i,:) = w_i_reg(:);
+        else
+          w_i = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)');
+        end
         f_i_i_ges = w_i(1:3,:);
         n_i_i_ges = w_i(4:end,:);
         W_traj(i,:) = [f_i_i_ges(:); n_i_i_ges(:)];
       end
     end
-
+    function W_traj = internforce3_traj(R, W_traj_reg)
+      % Interne Schnittkräfte als Trajektorie (Zeit als Zeilen)
+      % Unterscheidet sich gegenüber internforce_traj durch die Eingabe der
+      % Regressormatrizen als gestapelte Vektoren
+      % Eingabe:
+      % W_traj_reg: Regressormatrizen (als Zeitreihe). Aus internforce_traj
+      %
+      % Ausgabe:
+      % W_traj: Kraft und Moment in allen Gelenken, als Zeitreihe
+      % Siehe auch: [SchapplerTapOrt2019]
+      W_traj = NaN(size(W_traj_reg,1), R.NL*6);
+      for i = 1:size(W_traj_reg,1)
+        W_reg_i = reshape(W_traj_reg(i,:), R.NL*6, length(R.DynPar.ipv_floatb));
+        W_traj(i,:) = W_reg_i*R.DynPar.ipv_floatb;
+      end
+    end
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
       % Eingabe:
