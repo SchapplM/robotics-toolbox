@@ -157,7 +157,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       Mx2 = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)');
       Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)');
       Gx2 = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)');
-      Fx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
+      Fx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
       Mx1 = RP.inertia_platform(Q_test(i,:)', X_test(i,:)');
       Cx1 = RP.coriolisvec_platform(Q_test(i,:)', X_test(i,:)', XD_test(i,:)');
       Gx1 = RP.gravload_platform(Q_test(i,:)', X_test(i,:)');
@@ -166,6 +166,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       test_C = Cx2 - Cx1;
       test_G = Gx2 - Gx1;
       test_F = Fx2 - Fx1;
+      test_F_sum = Mx2*XDD_test(i,RP.I_EE)'+Cx2+Gx2-Fx2;
       fail = false;
       if any(abs(test_M(:)) > 1e-10)
         warning('Massenmatrix stimmt nicht');fail = true;
@@ -176,7 +177,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       if any(abs(test_G(:)) > 1e-10)
         warning('Gravitations-Terme stimmen nicht');fail = true;
       end
-      if any(abs(test_F(:)) > 1e-10)
+      if any(abs(test_F(:)) > 1e-10) || any(abs(test_F_sum(:)) > 1e-10)
         warning('Inversdynamik-Terme (gesamt) stimmen nicht');fail = true;
       end
       % Prüfe Aufruf mit gegebener Jacobi-Matrix (sollte schneller sein)
@@ -211,7 +212,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         if any(abs(test_Creg(:)) > 1e-10)
           error('Coriolis-Kraft-Regressor stimmt nicht');
         end
-        [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)', 0*XDD_test(i,:)');
+        [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
         test_Freg = Fx2_reg*RP.DynPar.mpv_n1s - Fx2;
         if any(abs(test_Freg(:)) > 1e-10)
           error('Inversdynamik-Kraft-Regressor stimmt nicht');
