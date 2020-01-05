@@ -5,8 +5,6 @@
 % Input:
 % phi_base [3x1]
 %   Base orientation in world frame. Expressed with XYZ-Euler angles
-% r_base [3x1]
-%   Base position in world frame
 % xD_base [6x1]
 %   time derivative of r_base and phi_base
 % pkin [1x1]
