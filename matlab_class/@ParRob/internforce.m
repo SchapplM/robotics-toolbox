@@ -33,8 +33,11 @@ for j = 1:RP.NLEG % Für alle Beinketten
   q_j = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
+  % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
+  W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
   % Gelenkmomente aufgrund interner Dynamik
-  tau_j = RP.Leg(j).invdyn(q_j, qD_j, qDD_j);
+  tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
+          (RP.Leg(j).MDH.sigma==1) .* W_j_l_int(3, 2:end)';
   % Antriebsmomente dieses Beins (passive sind Null)
   tau_m_j = zeros(RP.Leg(j).NQJ,1);
   tau_m_j(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j))) = tauA(j); % TODO: Aktuell nur ein Antrieb pro Bein
@@ -55,8 +58,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
   F_B_j_0j = rotate_wrench(FB_j_0, R_0_0j');
   % Schnittkräfte des Beins im Bein-KS berechnen ("l"=Linkframe)
   W_j_l_ext = RP.Leg(j).internforce_ext(q_j, F_B_j_0j, RP.Leg(j).NL-1, zeros(3,1));
-  % Schnittkräfte aufgrund der internen Kräfte
-  W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
+  % Schnittkräfte aufgrund der internen Kräfte `W_j_l_int` oben berechnet
 
   % Gesamte Schnittkräfte: Differenz entspricht Schnittkraft im Gelenk.
   % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des

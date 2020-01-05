@@ -408,6 +408,30 @@ classdef ParRob < matlab.mixin.Copyable
       end
       U_ges = U_plattform + sum(U_legs);
     end
+    function FLeg0_t = internforce_traj(R, Q, QD, QDD, TAU)
+      % Vektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
+      % TAU: Antriebskräfte
+      %
+      % Ausgabe:
+      % FLeg0_t: Schnittkräfte und -momente (Inverse Dynamik, als Zeitreihe)
+      % Indizes: 1: Einträge für Kraft und Moment in allen Segmenten
+      %          2: Beinketten
+      %          3: Zeit
+      FLeg0_t = NaN(R.NLEG, 6*R.Leg(1).NL, size(Q,1)); % Schnittkräfte in allen Gelenken (Basis-KS)
+      for i = 1:size(Q,1)
+        [~,~,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+        for j = 1:R.NLEG
+          W_j_0 = cf_w_all_baseframe(:,:,j);
+          W_j_0_stack = [reshape(W_j_0(1:3,:), 3*R.Leg(1).NL, 1); ... % erst alle Kräfte
+                         reshape(W_j_0(4:6,:), 3*R.Leg(1).NL, 1)]; % dann alle Momente
+          FLeg0_t(j,:,i) = W_j_0_stack;
+        end
+      end
+    end
     function update_mdh_legs(R, pkin)
       % Aktualisiere die Kinematik-Parameter aller Beinketten
       % Nehme eine symmetrische PKM an
