@@ -899,20 +899,14 @@ classdef SerRob < matlab.mixin.Copyable
       % W: Kraft und Moment in allen Gelenken (Zeilen: fx,fy,fz,mx,my,mz;
       %    Spalten: Basis, Robotergelenke)
       % W_reg: Regressormatrix (bezogen auf Inertialparameter-Vektor mit Basis)
-      if R.DynPar.mode == 2
-        f_i_i_ges = R.intforcefcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
-        n_i_i_ges = R.intforcemcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
-          R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
-        if nargout == 2
-          f_reg = R.intforcefregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
-          m_reg = R.intforcemregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
-          W_reg = [f_reg; m_reg];
-        end
-      elseif R.DynPar.mode == 4 || R.DynPar.mode == 6
-        error('Methode internforce funktioniert nicht für Minimalparameter-Regressorform');
-      else
-        error('Methode internforce für Modus %d noch nicht implementiert', R.DynPar.mode);
+      f_i_i_ges = R.intforcefcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      n_i_i_ges = R.intforcemcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, ...
+        R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
+      if nargout == 2
+        f_reg = R.intforcefregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
+        m_reg = R.intforcemregfcnhdl(q, qD, qDD, R.gravity, R.pkin_gen);
+        W_reg = [f_reg; m_reg];
       end
       W = [f_i_i_ges; n_i_i_ges];
     end
