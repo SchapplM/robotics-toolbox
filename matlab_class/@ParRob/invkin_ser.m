@@ -67,6 +67,7 @@ s.Phir_tol = s.Phir_tol/2;
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
+Phi = Phi_ser;
 q = q0;
 % Tc_Pges = Rob.fkine_platform(xE_soll);
 r_P_P_B_ges = Rob.r_P_B_all;
@@ -95,6 +96,10 @@ for i = 1:Rob.NLEG
   [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
   
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
+    if any(isnan(Phi_i))
+      warning('Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich');
+      return
+    end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
     % anderen Beinketten vor.
     [~,T_0_Bi] = Rob.Leg(i).fkineEE(q_i);
