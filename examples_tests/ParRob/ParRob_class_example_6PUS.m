@@ -1,4 +1,5 @@
 % Roboterklasse für 6PUS-PKM testen
+% TODO: Plot korrigieren
 
 % Zilin He (Masterarbeit bei Moritz Schappler), 2019-06
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de
@@ -111,7 +112,7 @@ for i = 1:RP.NLEG
   % Setze Segmente als Hohlzylinder mit Radius 100mm
   RP.Leg(i).DesPar.seg_par=repmat([5e-3,100e-3],RP.Leg(i).NL,1);
 end
-RP.DesPar.platform_par(3) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
+RP.DesPar.platform_par(end) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
 
 xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
