@@ -248,8 +248,8 @@ classdef ParRob < matlab.mixin.Copyable
       % Plattform-Geschw. mit Euler-Zeitableitung)
       G_q = R.constr1grad_q(q, xE);
       G_x = R.constr1grad_x(q, xE);
-      GD_q = R.constr1gradD_q(q, qD, xE, xED); % differentiation of the kinematic constraints of joint coordinate can be found in [Do Thanh]
-      GD_x = R.constr1gradD_x(q, qD, xE, xED); %% differentiation of the kinematic constraints of platform  coordinate can be found in [Do Thanh]
+      GD_q = R.constr1gradD_q(q, qD, xE, xED);
+      GD_x = R.constr1gradD_x(q, qD, xE, xED);
       JinvD_num_voll = G_q\GD_q/G_q*G_x - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
@@ -275,26 +275,26 @@ classdef ParRob < matlab.mixin.Copyable
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
     end
-    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, xE, xDE, xDDE, Jinv, JinvD)
+    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xE, xDE, xDDE, Jinv)
       % Berechne Antriebskraft aufgrund der Effekte der inversen Dynamik
       % Eingabe:
       % q: Gelenkkoordinaten
       % qD: Gelenkgeschwindigkeiten
+      % qDD: Gelenkbeschleunigungen
       % xE: Endeffektor-Koordinaten
       % xDE: Endeffektor-Geschwindigkeit
       % xDDE: Endeffektor-Beschleunigung
       % Jinv: Inverse Jacobi-Matrix (bezogen auf EE-Koordinaten und alle
       % Gelenke). Siehe ParRob/jacobi_qa_x
-      % JinvD: Zeitableitung von Jinv. Siehe 
       %
       % Ausgabe:
       % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
       % Fa_reg: Regressor-Matrix der Kraft
       % Inversdynamik-Kräfte in Endeffektor-Koordinaten berechnen
       if nargout == 1
-        Fx = Rob.invdyn2_platform(q, qD, xE, xDE, xDDE, Jinv, JinvD);
+        Fx = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
       else
-        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, xE, xDE, xDDE, Jinv, JinvD);
+        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
       end
       % Umrechnen der vollständigen inversen Jacobi
       Jinv_qaD_xD = Jinv(Rob.I_qa,:);
@@ -329,17 +329,17 @@ classdef ParRob < matlab.mixin.Copyable
         Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
-    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, XE, XED, XEDD, Jinv_ges, JinvD_ges)
+    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
       % Inverse Dynamik in Endeffektor-Koordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
       % XE: Endeffektor-Koordinaten (Trajektorie)
       % XED: Endeffektor-Geschwindigkeit (Trajektorie)
       % XEDD: Endeffektor-Beschleunigung (Trajektorie)
       % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (siehe jacobi_qa_x)
-      % JinvD_ges: Zeitableitung von Jinv_ges. Siehe jacobiD_qa_x.
       %
       % Ausgabe:
       % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
@@ -350,26 +350,27 @@ classdef ParRob < matlab.mixin.Copyable
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
-        JinvD_full = reshape(JinvD_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
-          Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', QDD(i,:)', ...
+            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
         else
-          [Fx_traj(i,:), Fx_traj_reg_i] = R.invdyn2_platform(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          [Fx_traj(i,:), Fx_traj_reg_i] = R.invdyn2_platform(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
           Fx_traj_reg(i,:) = Fx_traj_reg_i(:);
         end
       end
     end
-    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, XE, XED, XEDD, Jinv_ges, JinvD_ges)
+    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
       % Inverse Dynamik in Antriebskoordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
       % XE: Endeffektor-Koordinaten (Trajektorie)
       % XED: Endeffektor-Geschwindigkeit (Trajektorie)
       % XEDD: Endeffektor-Beschleunigung (Trajektorie)
       % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (siehe jacobi_qa_x)
-      % JinvD_ges: Zeitableitung von Jinv_ges. Siehe jacobiD_qa_x.
       %
       % Ausgabe:
       % Fa_traj: Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
@@ -380,11 +381,12 @@ classdef ParRob < matlab.mixin.Copyable
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
-        JinvD_full = reshape(JinvD_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
-          Fa_traj(i,:) = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          Fa_traj(i,:) = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', QDD(i,:)', ...
+            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
         else
-          [Fa_traj(i,:), Fa_traj_reg_i] = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          [Fa_traj(i,:), Fa_traj_reg_i] = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
           Fa_traj_reg(i,:) = Fa_traj_reg_i(:);
         end
       end
