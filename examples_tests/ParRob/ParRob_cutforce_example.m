@@ -512,3 +512,65 @@ xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
 fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_cutforce_6UPS_traj.gif'));
 fprintf('Test für 6UPS beendet\n');
+
+save(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
+%% Debug: Vergleich verschiedener Implementierungen mit Parameterlinearer Form
+% load(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
+% Optional: Berechne Klassenmethode mit anderen Dynamik-Parametern
+% mges(1:end-1) = 0;
+% mges(5) = 1;
+% mges(end) = 0;
+% Icges(:,1:end-1) = 0;
+% RP.update_dynpar1(mges, rSges, Icges);
+% Setze Modus auf Inertialparameter-Regressor, damit es funktioniert
+RP.DynPar.mode = 3;
+for j = 1:RP.NLEG
+  RP.Leg(j).DynPar.mode = 3;
+end
+
+% Daten aus Trajektorie nochmal durchgehen
+for i=1:size(Q_t,1)
+  % Initialisierung
+  q = Q_t(i,:)';
+  qD = QD_t(i,:)';
+  qDD = QDD_t(i,:)';
+  x = X_t(i,:)';
+  xD = XD_t(i,:)';
+  xDD = XDD_t(i,:)';
+  [~,Jinv_num_voll] = RP.jacobi_qa_x(q,x);
+  tauA = RP.invdyn2_actjoint(q, qD, qDD, x,xD,xDD,Jinv_num_voll);
+
+  % Schnittkräfte mit Klassen-Methoden (Parameterlinear und normal)
+  [cf_w_B, cf_w_all_linkframe, cf_w_all_baseframe] = RP.internforce(q, qD, qDD, tauA);
+  [cf_w_B_reg, cf_w_all_linkframe_reg, cf_w_all_baseframe_reg] = RP.internforce_regmat(q, qD, qDD, x,xD,xDD,Jinv_num_voll);
+  % Prüfe Implementierung des Koppelpunkt-Schnittkraft-Regressors
+  cf_w_B_fromreg = reshape(cf_w_B_reg*RP.DynPar.ipv_n1s, 6, RP.NLEG);
+  test_cf_w_B = cf_w_B - cf_w_B_fromreg;
+  if any(abs(test_cf_w_B(:)) > 1e-8)
+    error('Schnittkraft in Plattform-Koppelgelenken stimmt nicht');
+  end
+  % Teste Implementierung der Schnittkraft in Körper-KS
+  cf_w_all_linkframe_fromreg = RP.internforce3(cf_w_all_linkframe_reg);
+  test_cf_w_all_linkframe = cf_w_all_linkframe_fromreg - cf_w_all_linkframe;
+  if any(abs(test_cf_w_all_linkframe(:)) > 1e-8)
+    error('Gesamtheit der Schnittkräfte (in Körper-KS) stimmt nicht');
+  end
+  % Teste Implementierung der Schnittkraft im PKM-Basis-KS
+  cf_w_all_baseframe_fromreg = RP.internforce3(cf_w_all_baseframe_reg);
+  test_cf_w_all_baseframe = cf_w_all_baseframe_fromreg - cf_w_all_baseframe;
+  if any(abs(test_cf_w_all_baseframe(:)) > 1e-8)
+    error('Gesamtheit der Schnittkräfte (in Basis-KS) stimmt nicht');
+  end
+end
+% Trajektorien-Funktion testen
+I = 1:size(Q_t,1);
+[FLegl_t, FLeg0_t] = RP.internforce_traj(Q_t(I,:), QD_t(I,:), QDD_t(I,:), TAUa_t(I,:));
+[Regmatl_traj, Regmat0_traj] = RP.internforce_regmat_traj(Q_t(I,:), QD_t(I,:), QDD_t(I,:), X_t(I,:), XD_t(I,:), XDD_t(I,:));
+% Schnittkräfte wieder aus Regressor-Trajektorie erzeugen und dann vergleichen
+FLegl_t_fromreg = RP.internforce3_traj(Regmatl_traj);
+FLeg0_t_fromreg = RP.internforce3_traj(Regmat0_traj);
+test_FLeg0_t = FLeg0_t - FLeg0_t_fromreg;
+test_FLegl_t = FLegl_t - FLegl_t_fromreg;
+if any(abs(test_FLeg0_t(:)) > 1e-8) || any(abs(test_FLegl_t(:)) > 1e-8)
+  error('Trajektorie der Schnittkräfte stimmt nicht mit verschiedenen Berechnungen');
+end

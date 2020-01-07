@@ -23,7 +23,8 @@
 %   (enthalten alle dynamischen Effekte: Grav., Coriolis, Beschleunigung)
 %   Die Momente sind kartesische Momente bezogen auf das Basis-KS der PKM.
 % Fs_reg
-%   Regressormatrix zur Invers-Dynamik-Kraft
+%   Regressormatrix zur Invers-Dynamik-Kraft. Bezogen auf in DynPar.mode
+%   gewählte Regressorform
 
 % Quelle:
 % [DT09] Do Thanh, T. et al: On the inverse dynamics problem of general
@@ -69,7 +70,13 @@ end
 % Variable zum Speichern der vollständigen Dynamik-Kräfte (Subsysteme)
 Tau_full = NaN(NJ+NLEG,1);
 if nargout == 2
-  Tau_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  if Rob.DynPar.mode == 3
+    Tau_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.ipv_n1s));
+  elseif Rob.DynPar.mode == 4
+    Tau_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  else
+    error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
+  end
 end
 %% Projektionsmatrizen
 if nargin < 9
@@ -86,7 +93,7 @@ if Rob.DynPar.mode == 2
   F_plf = rigidbody_invdynB_floatb_eulxyz_slag_vp2_mex(xE(4:6), xDE, xDDE, g, m_P, mrS_P, If_P);
 else
   F_plf_reg = rigidbody_invdynB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), xDE, xDDE, g);
-  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end); % unabhängig von gewählter Berechnung verfügbar
   F_plf = F_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end
 F_plf_red = F_plf(Rob.I_EE);
@@ -99,7 +106,12 @@ for i = 1:NLEG
   qDD_i = qDD(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   if Rob.DynPar.mode == 2
     tauq_leg = Rob.Leg(i).invdyn(q_i, qD_i, qDD_i);
+  elseif Rob.DynPar.mode == 3
+    % Regressorform mit Inertialparametern
+    [~,tauq_leg_reg] = Rob.Leg(i).invdyn(q_i, qD_i, qDD_i);
+    tauq_leg = tauq_leg_reg*Rob.DynPar.ipv_n1s(1:end-sum(Rob.I_platform_dynpar));
   else
+    % Regressorform mit Minimalparametern
     [~,tauq_leg_reg] = Rob.Leg(i).invdyn(q_i, qD_i, qDD_i);
     tauq_leg = tauq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end

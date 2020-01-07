@@ -83,8 +83,10 @@ end
 % Beinkette möglich, auch für virtuelle Segmente in und hinter
 % Kugelgelenken (Koppelgelenken).
 NL_symPKM = R.Leg(1).NL-1+1;
-R.DynPar = struct('mges',   NaN(NL_symPKM,1), ...
-                  'rSges',  NaN(NL_symPKM,3), 'Icges', NaN(NL_symPKM,6), ...
-                  'mrSges', NaN(NL_symPKM,3), 'Ifges', NaN(NL_symPKM,6), ...
-                  'mpv_n1s', [], 'mpv_sym', [], ...
-                  'mode', 2);
+R.DynPar = struct('mges',   NaN(NL_symPKM,1), ... % Massen
+                  'rSges',  NaN(NL_symPKM,3), 'Icges', NaN(NL_symPKM,6), ... % Baryzentrische Parameter
+                  'mrSges', NaN(NL_symPKM,3), 'Ifges', NaN(NL_symPKM,6), ... % Inertial-Parameter
+                  'mpv_n1s', [], ...  % Minimalparameter-Dynamikvektor für numerische Dynamikberechnung
+                  'ipv_n1s', [], ...  % Inertialparameter-Vektor für numerische Berechnung der Schnittkräfte
+                  'mpv_sym', [], ...  % Minimalparameter-Dynamikvektor für symbolische Berechnung
+                  'mode', 2); % Standard-Modus: Inertialparameter

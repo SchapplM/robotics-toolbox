@@ -72,7 +72,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
     continue
   end
   Tc_j_0j = RP.Leg(j).fkine(q_j);
-  W_j_0 = W_j_l*NaN;
+  W_j_0 = NaN(size(W_j_l));
   for k = 1:size(W_j_l,2)
     R_0j_l = Tc_j_0j(1:3,1:3,k);
     W_j_0(:,k) = rotate_wrench(W_j_l(:,k), R_0_0j*R_0j_l);
