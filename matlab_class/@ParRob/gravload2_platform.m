@@ -54,7 +54,13 @@ end
 % Variable zum Speichern der vollständigen Gravitations-Kräfte (Subsysteme)
 G_full = NaN(NJ+NLEG,1);
 if nargout == 2
-  G_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  if Rob.DynPar.mode == 3
+    G_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.ipv_n1s));
+  elseif Rob.DynPar.mode == 4
+    G_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  else
+    error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
+  end
 end
 %% Projektionsmatrizen
 if nargin < 4
@@ -82,7 +88,12 @@ for i = 1:NLEG
   q_i = q(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   if Rob.DynPar.mode == 2
     gq_leg = Rob.Leg(i).gravload(q_i);
+  elseif Rob.DynPar.mode == 3
+    % Regressorform mit Inertialparametern
+    [~,gq_leg_reg] = Rob.Leg(i).gravload(q_i);
+    gq_leg = gq_leg_reg*Rob.DynPar.ipv_n1s(1:end-sum(Rob.I_platform_dynpar));
   else
+    % Regressorform mit Minimalparametern
     [~,gq_leg_reg] = Rob.Leg(i).gravload(q_i);
     gq_leg = gq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end

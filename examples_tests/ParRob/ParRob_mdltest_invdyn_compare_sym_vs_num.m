@@ -8,7 +8,7 @@ clear
 
 %% Benutzereingaben
 usr_only_check_symvsnum = true;
-usr_DynParMode = 4;
+usr_DynParMode = 3;
 
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
@@ -47,7 +47,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       fprintf('Keine symbolisch generierten Dynamik-Funktionen verfügbar. Kein Test Sym vs Num möglich.\n');
       continue
     end
-    if any(contains(files_missing, 'para_pf_mdp')) && usr_DynParMode == 4
+    if any(contains(files_missing, 'para_pf_mdp')) && any(usr_DynParMode == [3,4])
       fprintf('Regressor-Form soll getestet werden, aber Funktion nicht vorhanden\n');
       continue
     end
@@ -186,34 +186,39 @@ for i_FG = 1:size(EEFG_Ges,1)
       Gx2 = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)', Jinv);
       
       % Prüfe Regressor-Form
-      if usr_DynParMode == 4
+      if usr_DynParMode == 3 || usr_DynParMode == 4
+        if usr_DynParMode == 3 % Inertialparameter-Vektor
+          dpv = RP.DynPar.ipv_n1s;
+        else % Minimalparameter-Vektor
+          dpv = RP.DynPar.mpv_n1s;
+        end
         [Gx2,Gx2_reg] = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)');
-        test_Greg = Gx2_reg*RP.DynPar.mpv_n1s - Gx2;
+        test_Greg = Gx2_reg*dpv - Gx2;
         if any(abs(test_Greg(:)) > 1e-10)
           error('Gravitationskraft-Regressor stimmt nicht');
         end
         [M_full,M_full_reg] = RP.inertia2_platform_full(Q_test(i,:)', X_test(i,:)');
         [Mx2,Mx2_reg] = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)');
-        Mx_reg_vec = Mx2_reg*RP.DynPar.mpv_n1s;
+        Mx_reg_vec = Mx2_reg*dpv;
         test_Mreg = reshape(Mx_reg_vec, sum(RP.I_EE), sum(RP.I_EE)) - Mx2;
         if any(abs(test_Mreg(:)) > 1e-10)
           error('Massenmatrix-Regressor stimmt nicht');
         end
         M_full_regtest = zeros(size(M_full));
-        for jj = 1:length(RP.DynPar.mpv_n1s)
-          M_full_regtest = M_full_regtest + M_full_reg(:,:,jj) .* RP.DynPar.mpv_n1s(jj);
+        for jj = 1:length(dpv)
+          M_full_regtest = M_full_regtest + M_full_reg(:,:,jj) .* dpv(jj);
         end
         test_Mreg_full = M_full_regtest - M_full;
         if any(abs(test_Mreg_full(:)) > 1e-10)
           error('Massenmatrix-Regressor (vollständige Jacobi vor Projektion) stimmt nicht');
         end
         [Cx2,Cx2_reg] = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)') ;
-        test_Creg = Cx2_reg*RP.DynPar.mpv_n1s - Cx2;
+        test_Creg = Cx2_reg*dpv - Cx2;
         if any(abs(test_Creg(:)) > 1e-10)
           error('Coriolis-Kraft-Regressor stimmt nicht');
         end
         [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
-        test_Freg = Fx2_reg*RP.DynPar.mpv_n1s - Fx2;
+        test_Freg = Fx2_reg*dpv - Fx2;
         if any(abs(test_Freg(:)) > 1e-10)
           error('Inversdynamik-Kraft-Regressor stimmt nicht');
         end
@@ -238,12 +243,12 @@ for i_FG = 1:size(EEFG_Ges,1)
     else
       robot_list_fail = [robot_list_fail(:)', {PNameA}];
     end
-    if usr_DynParMode == 4
+    if usr_DynParMode == 3 || usr_DynParMode == 4
       % Prüfe Rang der Informationsmatrix
       fprintf(['%s: Die Informationsmatrix der Inversen Dynamik hat Rang %d. \nBei ', ...
         '%d Dynamikparametern der PKM gibt es also %d zu viel. \nSymbolisch ', ...
-        'wurden %d Parameter bestimmt\n'], PNameA, rank(Information_matrix), length(RP.DynPar.mpv_n1s), ...
-        length(RP.DynPar.mpv_n1s)-rank(Information_matrix),length(RP.DynPar.mpv_sym));
+        'wurden %d Parameter bestimmt\n'], PNameA, rank(Information_matrix), length(dpv), ...
+        length(dpv)-rank(Information_matrix),length(dpv));
     end
   end
   fprintf('Dynamik in symbolischer und numerischer Form für %d/%d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...

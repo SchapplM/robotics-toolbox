@@ -58,7 +58,13 @@ end
 % Variable zum Speichern der vollständigen Massenmatrix (Subsysteme)
 M_full = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
 if nargout == 2 % Ausgabe der Regressormatrizen
-  M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.mpv_n1s));
+  if Rob.DynPar.mode == 3
+    M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.ipv_n1s));
+  elseif Rob.DynPar.mode == 4
+    M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.mpv_n1s));
+  else
+    error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
+  end
 end
 
 %% Starrkörper-Dynamik der Plattform
@@ -69,7 +75,11 @@ else
   % Form der Ausgabe, obwohl die Matrix symm. ist. Macht Rechnung unten
   % einfacher.
   [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6));
-  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  if Rob.DynPar.mode == 3
+    delta = Rob.DynPar.ipv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  else
+    delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  end
   Mvec_plf = Mvec_plf_reg(:,Rob.I_platform_dynpar) * delta;
   M_plf_full = reshape(Mvec_plf, 6, 6);
 end
@@ -83,7 +93,17 @@ for i = 1:NLEG
     Mq_Leg = Rob.Leg(i).inertia(q_i);
   else
     [~,Mvec_Leg_reg] = Rob.Leg(i).inertia(q_i);
-    Mvec_Leg = Mvec_Leg_reg * Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
+    if Rob.DynPar.mode == 3
+      % Regressorform mit Inertialparametern
+      Mvec_Leg = Mvec_Leg_reg * Rob.DynPar.ipv_n1s(1:end-sum(Rob.I_platform_dynpar));
+    else
+      % Regressorform mit Minimalparametern
+      if Rob.DynPar.mode == 3
+        Mvec_Leg = Mvec_Leg_reg * Rob.DynPar.ipv_n1s(1:end-sum(Rob.I_platform_dynpar));
+      else
+        Mvec_Leg = Mvec_Leg_reg * Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
+      end
+    end
     Mq_Leg = vec2symmat(Mvec_Leg);
   end
   M_full((i-1)*NLEG+1:NLEG*i,1:NJ+NLEG) = [zeros(NLEG,(NLEG*(i-1))),Mq_Leg, zeros(NLEG,NJ -(NLEG*(i-1)))];
@@ -100,7 +120,7 @@ if nargout == 2 % Ausgabe der Regressormatrizen
   % Wiederhole die gleiche Zuweisung, aber für alle Dynamikparameter
   % einzeln (die Spalten in der Starrkörper-Regressormatrix sind andere als
   % in der PKM-Massenmatrix, daher andere Indizes).
-  jj = length(Rob.DynPar.mpv_n1s)-sum(Rob.I_platform_dynpar);
+  jj = size(M_full_reg,3)-sum(Rob.I_platform_dynpar);
   for kk = find(Rob.I_platform_dynpar) % Index über Dynamikparameter des allgemeinen Starrkörpers (für Plattform)
     jj = jj + 1; % Index in den Dynamikparametern der PKM
     M_plf_full_jj = reshape(Mvec_plf_reg(:,kk), 6, 6);

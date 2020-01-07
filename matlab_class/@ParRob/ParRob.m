@@ -268,7 +268,7 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -430,7 +430,9 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
+        % Benutze immer Modus 4 (Minimalparameter), auch wenn Inertial-
+        % parameter velangt ist
         Mx = R.inertia_x_fcnhdl4(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -448,7 +450,7 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fgx = R.gravload_x_fcnhdl4(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -468,7 +470,7 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fcx = R.coriolisvec_x_fcnhdl4(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
