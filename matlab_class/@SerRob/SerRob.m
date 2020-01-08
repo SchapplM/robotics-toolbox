@@ -861,7 +861,9 @@ classdef SerRob < matlab.mixin.Copyable
       if R.DynPar.mode == 4
         TAUq = R.invdyntrajfcnhdl4(Q, QD, QDD, R.gravity, R.pkin_gen, R.DynPar.mpv);
       else
-        error('Methode invdyn2_traj für Modus %d noch nicht implementiert', R.DynPar.mode);
+        % Benutze Schleife über die Zeit aus Klassenmethode statt eigener
+        % Funktion für InvDyn-Trajektorie
+        TAUq = R.invdyn_traj(Q, QD, QDD);
       end
     end
     function TAUq = invdyn3_traj(R, RV)
@@ -959,6 +961,7 @@ classdef SerRob < matlab.mixin.Copyable
       % Ausgabe:
       % W_traj: Kraft und Moment in allen Gelenken, als Zeitreihe
       %         Jede Zeile ein Zeitschritt; erst alle Kräfte, dann alle Momente
+      % W_traj_reg: Regressormatrix zu W_traj
       W_traj = NaN(size(Q,1), R.NL*6);
       if nargout == 2
         W_traj_reg = NaN(size(Q,1), (R.NL*6)*R.NL*10);
@@ -1234,6 +1237,7 @@ function update_dynpar2(R, mges, mrSges, Ifges)
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
       R.DynPar.ipv_floatb = PV2floatb;
+      R.DynPar.ipv    = PV2floatb(11:end);
       R.DynPar.mpv    = mpv;
     end
 
