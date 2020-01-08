@@ -346,7 +346,11 @@ classdef ParRob < matlab.mixin.Copyable
       % Fx_traj_reg: Regressormatrizen von Fx_traj (als Zeitreihe)
       Fx_traj = NaN(size(Q,1),sum(R.I_EE));
       if nargout == 2
-        Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.mpv_n1s));
+        if R.DynPar.mode == 3
+          Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.ipv_n1s));
+        else
+          Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.mpv_n1s));
+        end
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
@@ -377,7 +381,11 @@ classdef ParRob < matlab.mixin.Copyable
       % Fa_traj_reg: Regressormatrizen von Fa_traj (als Zeitreihe)
       Fa_traj = NaN(size(Q,1),sum(R.I_qa));
       if nargout == 2
-        Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.mpv_n1s));
+        if R.DynPar.mode == 3
+          Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.ipv_n1s));
+        else
+          Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.mpv_n1s));
+        end
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
@@ -400,9 +408,16 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Fx_traj: Inverse Dynamik (als Zeitreihe)
       Fx_traj = NaN(size(Fx_traj_reg,1),sum(R.I_EE));
+      if R.DynPar.mode == 3
+        ndimpar = length(R.DynPar.ipv_n1s);
+        dpv = R.DynPar.ipv_n1s;
+      else
+        ndimpar = length(R.DynPar.mpv_n1s);
+        dpv = R.DynPar.mpv_n1s;
+      end
       for i = 1:size(Fx_traj_reg,1)
-        Fx_traj_reg_i = reshape(Fx_traj_reg(i,:), sum(R.I_EE), length(R.DynPar.mpv_n1s));
-        Fx_traj(i,:) = Fx_traj_reg_i*R.DynPar.mpv_n1s;
+        Fx_traj_reg_i = reshape(Fx_traj_reg(i,:), sum(R.I_EE), ndimpar);
+        Fx_traj(i,:) = Fx_traj_reg_i*dpv;
       end
     end
     function Fa_traj = invdyn3_actjoint_traj(R, Fa_traj_reg)
@@ -414,9 +429,16 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Fa_traj: Inverse Dynamik (als Zeitreihe)
       Fa_traj = NaN(size(Fa_traj_reg,1),sum(R.I_qa));
+      if R.DynPar.mode == 3
+        ndimpar = length(R.DynPar.ipv_n1s);
+        dpv = R.DynPar.ipv_n1s;
+      else
+        ndimpar = length(R.DynPar.mpv_n1s);
+        dpv = R.DynPar.mpv_n1s;
+      end
       for i = 1:size(Fa_traj_reg,1)
-        Fa_traj_reg_i = reshape(Fa_traj_reg(i,:), sum(R.I_qa), length(R.DynPar.mpv_n1s));
-        Fa_traj(i,:) = Fa_traj_reg_i*R.DynPar.mpv_n1s;
+        Fa_traj_reg_i = reshape(Fa_traj_reg(i,:), sum(R.I_qa), ndimpar);
+        Fa_traj(i,:) = Fa_traj_reg_i*dpv;
       end
     end
     function Mx = inertia_platform(R, q, xP)
