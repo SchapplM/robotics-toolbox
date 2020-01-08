@@ -51,9 +51,9 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/invdyn2_platform: xDE muss 6x1 sein');
 assert(isreal(xDDE) && all(size(xDDE) == [6 1]), ...
   'ParRob/invdyn2_platform: xDDE muss 6x1 sein');
-if nargin >= 8
+if nargin == 8
   assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
-    'ParRob/coriolisvec2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
+    'ParRob/invdyn2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
 end
 g = Rob.gravity;
 % Dynamik-Parameter der Endeffektor-Plattform
@@ -79,7 +79,7 @@ if nargout == 2
   end
 end
 %% Projektionsmatrizen
-if nargin < 9
+if nargin < 8
   G_q = Rob.constr1grad_q(q, xE);
   G_x = Rob.constr1grad_x(q, xE);
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
