@@ -63,17 +63,22 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Modell-Annahme: Bein ist freistehende serielle Kette, an der vorne die
   % Schnittkraft mit der Plattform als externe Kraft angreift.
   % Kraft in Bein-Basis-KS umrechnen
-  W_j_l_ext_reg = NaN(size(W_j_l_int_reg));
   Jg_C = RP.Leg(j).jacobig_cutforce(q_j, RP.Leg(j).NL-1, zeros(3,1));
-  for i = 1:size(FB_j_0_reg, 2)
-    F_B_j_0j_reg_i = rotate_wrench(FB_j_0_reg(:,i), R_0_0j');
-    % Schnittkräfte des Beins im Bein-KS berechnen ("l"=Linkframe)
-    W_j_l_ext_reg_i = reshape(Jg_C'*F_B_j_0j_reg_i, 6, RP.Leg(j).NL);
-    f = W_j_l_ext_reg_i(1:3,:);
-    m = W_j_l_ext_reg_i(4:6,:);
-    W_j_l_ext_reg(:,i) = [f(:); m(:)];
-  end
-
+  FB_j_0j_reg = [R_0_0j'*FB_j_0_reg(1:3,:); R_0_0j'*FB_j_0_reg(4:6,:)]; % Spaltenweise für alle Dynamikparameter
+  % Schnittkräfte des Beins im Bein-KS berechnen ("l"=Linkframe)
+  W_j_l_ext_reg_tmp = Jg_C'*FB_j_0j_reg; % Reihenfolge: Alle Kraft-Momenten-Vektoren aller Beinkette
+  % Umrechnung der Reihenfolge von Kräften und Momenten ins Ausgabeformat
+  f_j_l_ext_reg = NaN(3*RP.Leg(1).NL, length(RP.DynPar.ipv_n1s));
+  m_j_l_ext_reg = f_j_l_ext_reg;
+  % Erst alle Kräfte ...
+  f_j_l_ext_reg(1:3:end,:) = W_j_l_ext_reg_tmp(1:6:end,:);
+  f_j_l_ext_reg(2:3:end,:) = W_j_l_ext_reg_tmp(2:6:end,:);
+  f_j_l_ext_reg(3:3:end,:) = W_j_l_ext_reg_tmp(3:6:end,:);
+  % ... dann alle Momente
+  m_j_l_ext_reg(1:3:end,:) = W_j_l_ext_reg_tmp(4:6:end,:);
+  m_j_l_ext_reg(2:3:end,:) = W_j_l_ext_reg_tmp(5:6:end,:);
+  m_j_l_ext_reg(3:3:end,:) = W_j_l_ext_reg_tmp(6:6:end,:);
+  W_j_l_ext_reg = [f_j_l_ext_reg;m_j_l_ext_reg];
   % Schnittkräfte aufgrund der internen Kräfte `W_j_l_int_reg` oben berechnet
   % Gesamte Schnittkräfte: Differenz entspricht Schnittkraft im Gelenk.
   % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des
