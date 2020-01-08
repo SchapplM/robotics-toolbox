@@ -83,7 +83,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Gesamte Schnittkräfte: Differenz entspricht Schnittkraft im Gelenk.
   % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des
   % Gelenk-FG
-  W_j_l_reg = W_j_l_ext_reg - W_j_l_int_reg;
+  W_j_l_reg = -W_j_l_ext_reg + W_j_l_int_reg;
   % Ergebnisse für diese Beinkette eintragen
   sblock = size(W_j_l_reg,1);
   w_all_linkframe_reg(1+sblock*(j-1):sblock*j,:) = W_j_l_reg;

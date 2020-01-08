@@ -240,7 +240,7 @@ for i = 1:nt
     % Gesamte Schnittkräfte: Differenz entspricht Schnittkraft im Gelenk.
     % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des
     % Gelenk-FG
-    W_j_l = W_j_l_ext - W_j_l_int;
+    W_j_l = - W_j_l_ext + W_j_l_int;
     % Schnittkräfte wieder in Basis-KS zurückrechnen (sind vorher im
     % Körper-KS)
     W_j_0 = W_j_l*NaN;
@@ -266,7 +266,7 @@ for i = 1:nt
         tau_m_j_from_W(k-1) = W_j_l(3,k);
       end
     end
-    test_taum = tau_m_j + tau_m_j_from_W;
+    test_taum = tau_m_j - tau_m_j_from_W;
     if any( abs(test_taum) > 1e4*max(eps(1+abs(tau_m_j))) )
       error('Schnittkräfte in den Gelenken stimmen nicht mit Antriebskräften der Beinkette überein');
     end
@@ -574,3 +574,4 @@ test_FLegl_t = FLegl_t - FLegl_t_fromreg;
 if any(abs(test_FLeg0_t(:)) > 1e-8) || any(abs(test_FLegl_t(:)) > 1e-8)
   error('Trajektorie der Schnittkräfte stimmt nicht mit verschiedenen Berechnungen');
 end
+fprintf('Trajektorien-Funktionen für Schnittkräfte und deren Regressor-Matrizen getestet\n');
