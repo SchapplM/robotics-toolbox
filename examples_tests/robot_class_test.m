@@ -12,25 +12,25 @@ addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'ParRob'));
 
 %% Serielle Roboter
-SerRob_constraints_test
-SerRob_IK_test
-SerRob_class_example_SCARA
-SerRob_class_example_Palettierer
-SerRob_class_example_LBR
-SerRob_class_example_Industrieroboter
+SerRob_constraints_test; close all;
+SerRob_IK_test; close all;
+SerRob_class_example_SCARA; close all;
+SerRob_class_example_Palettierer; close all;
+SerRob_class_example_LBR; close all;
+SerRob_class_example_Industrieroboter; close all;
 
 %% Parallele Roboter
-ParRob_class_example_3RPR
-ParRob_class_example_3RRR
-ParRob_class_example_6UPS
-ParRob_class_example_6UPS_3T2R
-ParRob_class_example_Delta
-ParRob_class_example_6PUS
-ParRob_class_example_Gogu_3T1R
-ParRob_class_example_PRRRR_4PRRRRR
-ParRob_class_example_Gogu_3T2R
-ParRob_cutforce_example
-ParRob_constraints_test
-ParRob_constraintsD_test
-ParRob_mdltest_invdyn_energy_consistency
-ParRob_mdltest_invdyn_compare_sym_vs_num
+ParRob_class_example_3RPR; close all;
+ParRob_class_example_3RRR; close all;
+ParRob_class_example_6UPS; close all;
+ParRob_class_example_6UPS_3T2R; close all;
+ParRob_class_example_Delta; close all;
+ParRob_class_example_6PUS; close all;
+ParRob_class_example_Gogu_3T1R; close all;
+ParRob_class_example_PRRRR_4PRRRRR; close all;
+ParRob_class_example_Gogu_3T2R; close all;
+ParRob_cutforce_example; close all;
+ParRob_constraints_test; close all;
+ParRob_constraintsD_test; close all;
+ParRob_mdltest_invdyn_energy_consistency; close all;
+ParRob_mdltest_invdyn_compare_sym_vs_num; close all;

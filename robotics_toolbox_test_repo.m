@@ -16,33 +16,33 @@ addpath(fullfile(this_repo_path, 'examples_tests', 'contact_models'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 
 %% Transformationen
-angvec_test
-quaternion_test
-euler_test
-rotvec_test
+angvec_test; close all;
+quaternion_test; close all;
+euler_test; close all;
+rotvec_test; close all;
 
 %% Impedanzregler
-lbr4p_joint_impctrl_test_start
+lbr4p_joint_impctrl_test_start; close all;
 
 %% Integration von Rotationsdarstellungen
-rotation_integration_comparison
+rotation_integration_comparison; close all;
 
 %% Dynamik
-rigid_body_dynamics_test
+rigid_body_dynamics_test; close all;
 
 %% Orientierungsregler
-rotation_controllers_energy_test_start
-rotation_controllers_test_start
+rotation_controllers_energy_test_start; close all;
+rotation_controllers_test_start; close all;
 
 %% Kontaktmodelle
-HuntCrossley_LuGre_1DOF_example
+HuntCrossley_LuGre_1DOF_example; close all;
 sim('example_hunt_crossley_bouncing_ball', 'StopTime', '10', 'SimulationMode', 'normal');
 
 %% Matlab-Klasse
-robot_class_test
+robot_class_test; close all;
 
 %% Alle Funktionen kompilieren
-robotics_toolbox_compile_test;
+robotics_toolbox_compile_test; close all;
 
 %% Ende
 clc
