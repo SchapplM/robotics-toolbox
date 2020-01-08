@@ -88,7 +88,7 @@ for j = 1:1%RP.NLEG
   I_EE_Max = I_EE_Max & RP.Leg(j).I_EE;
 end
 if (I_EE & I_EE_Max) ~= I_EE
-  error('unm�gliche EE_FG')
+  error('unmögliche EE_FG')
 end
 
 I_EE_Legs = [RP.Leg(1).I_EE;RP.Leg(2).I_EE;RP.Leg(3).I_EE;RP.Leg(4).I_EE;RP.Leg(5).I_EE];
