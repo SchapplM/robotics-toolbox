@@ -1,9 +1,9 @@
 % Kinematische Zwangsbedingungen zwischen Ist- und Soll-Konfiguration
-% Vollständige Rotations- und Translationskomponenten
+% VollstÃ¤ndige Rotations- und Translationskomponenten
 % Variante 3: Andere Implementierung als Variante 2:
-% * Implementierung mit Führungs-Beinkette und Folge-Beinketten
+% * Implementierung mit FÃ¼hrungs-Beinkette und Folge-Beinketten
 % * Translation mit Vektor 0-E statt A-B (im Gegensatz zu Var. 1)
-% * Absolute Rotation ausgedrückt bspw. in XYZ-Euler-Winkeln
+% * Absolute Rotation ausgedrÃ¼ckt bspw. in XYZ-Euler-Winkeln
 %   (statt XYZ wird die Konvention aus `phiconv_W_E` genommen)
 % * Rotationsfehler mit Orientierungsfehler ZYX-Rotation um festes KS
 %   (Linksmultiplikation)
@@ -12,19 +12,19 @@
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Endeffektorpose des Roboters bezÃ¼glich des Basis-KS
 % 
 % Ausgabe:
 % Phi_red
 %   Reduzierte kinematische Zwangsbedingungen (siehe folgendes)
 %   Die Reduktion folgt aus der Klassenvariablen I_EE
 % Phi [6x1]
-%   Kinematische Zwangsbedingungen des Roboters: Maß für den Positions- und
+%   Kinematische Zwangsbedingungen des Roboters: MaÃŸ fÃ¼r den Positions- und
 %   Orientierungsfehler zwischen Ist-Pose aus gegebenen Gelenkwinkeln q und
 %   Soll-Pose aus gegebenen EE-Koordinaten x
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut fÃ¼r Mechatronische Systeme, UniversitÃ¤t Hannover
 
 function [Phi_red, Phi] = constr3(R, q, xE)
 

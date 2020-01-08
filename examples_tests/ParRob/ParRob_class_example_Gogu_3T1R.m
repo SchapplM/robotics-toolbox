@@ -241,7 +241,7 @@ for testcase = 1:5
     error('Noch nicht implementiert');
   end
   %% Teste FG der Beinketten
-  % LJN: beurteilen ob eingegebene I_EE m�glich
+  % LJN: beurteilen ob eingegebene I_EE möglich
   I_EE_Max = ones(1,6);
   for i = 1:RP.NLEG
     I_EE_Max = I_EE_Max & RP.Leg(i).I_EE;

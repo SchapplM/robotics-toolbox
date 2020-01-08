@@ -73,7 +73,7 @@ I_qa_Typ2(1) = 1;
 I_qa = [I_qa_Typ1,I_qa_Typ2,I_qa_Typ2,I_qa_Typ2,I_qa_Typ2];
 RP.update_actuation(I_qa);
 %% Prüfen, ob EE-FG der Beinkette korrekt sind
-% LJN: beurteilen ob eingegebene I_EE m�glich
+% LJN: beurteilen ob eingegebene I_EE möglich
 I_EE_Max = ones(1,6);
 for j = 1:1%RP.NLEG
   [T_O, T_W] = RP.Leg(j).fkine(zeros(RP.I2J_LEG(j)-RP.I1J_LEG(j)+1,1));

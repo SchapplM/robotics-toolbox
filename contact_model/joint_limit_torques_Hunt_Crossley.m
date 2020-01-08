@@ -24,7 +24,7 @@
 % contact between a rolling sphere and a compliant ground plane (2010)
 % [SunBai14] Y. Sun Z.F. Bai, J. Chen. Effects of contact force model on dynamics charac-
 % teristics of mechanical system with revolute clearance joints. Transactions of
-% Mechanical Engineering, 38(M2):375–388, 2014.
+% Mechanical Engineering, 38(M2):375-388, 2014.
 
 % Niclas Miller, miller@irt.uni-hannover.de
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2015-06

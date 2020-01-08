@@ -29,7 +29,7 @@
 % an assistive Exoskeleton Arm (2015), Masterarbeit
 % [SunBai14] Y. Sun Z.F. Bai, J. Chen. Effects of contact force model on dynamics charac-
 % teristics of mechanical system with revolute clearance joints. Transactions of
-% Mechanical Engineering, 38(M2):375–388, 2014.
+% Mechanical Engineering, 38(M2):375-388, 2014.
  
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2015-06
 % (c) Institut fuer Regelungstechnik, Universitaet Hannover
