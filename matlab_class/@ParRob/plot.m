@@ -128,9 +128,9 @@ if s.mode == 4
     if h > 0
       for jj = 1:2
         pts = squeeze(Tc_Pges_W(1:4,4,end-Rob.NLEG-1:end-2));
-        pts2 = [pts+Tc_Pges_W(:,:,end-1)*[0;0;+(-1)^jj*h/2;0]];
+        pts2 = pts + Tc_Pges_W(:,:,end-1)*[0;0;+(-1)^jj*h/2;0];
         hdl=fillPolygon3d(pts2', 'm');
-        set(hdl, 'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 1.0, 'EdgeAlpha', 0.3)
+        set(hdl, 'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3)
       end
     end
   else
