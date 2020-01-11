@@ -77,6 +77,7 @@ classdef SerRob < matlab.mixin.Copyable
     mdlname % Name des Robotermodells, das in den Matlab-Funktionen benutzt wird.
     mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
     CADstruct % Struktur mit Daten zu CAD-Modellen
+    islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -298,6 +299,7 @@ classdef SerRob < matlab.mixin.Copyable
         warning('Funktion %s ist nicht aktuell', char(structkinpar_hdl));
         R.pkin_names = cell(1,length(R.pkin));
       end
+      R.islegchain = false;
     end
     
     function mex_dep(R, force)
