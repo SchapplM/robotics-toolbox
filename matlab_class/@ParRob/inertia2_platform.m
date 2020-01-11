@@ -85,8 +85,8 @@ Mred_Fx = R1' * M_full * R1;
 if nargout == 2
   % Matrix-Operation für Massenmatrix mit der Regressor-Matrix
   % nachvollziehen
-  Mred_sD_reg = NaN(size(Mred_Fx,1), size(Mred_Fx,2), length(Rob.DynPar.mpv_n1s));
-  for jj = 1:length(Rob.DynPar.mpv_n1s)
+  Mred_sD_reg = NaN(size(Mred_Fx,1), size(Mred_Fx,2), size(M_full_reg,3));
+  for jj = 1:size(M_full_reg,3)
     Mred_sD_reg(:,:,jj) = R1' * M_full_reg(:,:,jj) * R1;
   end
 end
@@ -98,10 +98,10 @@ Mred_Fs = H(Rob.I_EE,Rob.I_EE)'\ Mred_Fx;
 if nargout == 2
   % Matrix-Operation für Massenmatrix mit der Regressor-Matrix
   % nachvollziehen
-  Mred_Fs_reg = NaN(size(Mred_Fs,1), size(Mred_Fs,2), length(Rob.DynPar.mpv_n1s));
-  for jj = 1:length(Rob.DynPar.mpv_n1s)
+  Mred_Fs_reg = NaN(size(Mred_Fs,1), size(Mred_Fs,2), size(M_full_reg,3));
+  for jj = 1:size(M_full_reg,3)
     Mred_Fs_reg(:,:,jj) = H(Rob.I_EE,Rob.I_EE)'\ Mred_sD_reg(:,:,jj);
   end
   % Regressor-Matrix wieder als Vektor schreiben
-  Mredvec_Fs_reg = reshape(Mred_Fs_reg, size(Mred_Fs_reg,1)*size(Mred_Fs_reg,2), length(Rob.DynPar.mpv_n1s));
+  Mredvec_Fs_reg = reshape(Mred_Fs_reg, size(Mred_Fs_reg,1)*size(Mred_Fs_reg,2), size(M_full_reg,3));
 end

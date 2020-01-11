@@ -75,7 +75,13 @@ end
 % Variable zum Speichern der vollständigen Coriolis-Kräfte (Subsysteme)
 C_full = NaN(NJ+NLEG,1);
 if nargout == 2
-  C_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  if Rob.DynPar.mode == 3
+    C_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.ipv_n1s));
+  elseif Rob.DynPar.mode == 4
+    C_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+  else
+    error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
+  end
 end
 %% Projektionsmatrizen
 if nargin < 7
@@ -97,7 +103,11 @@ if Rob.DynPar.mode==2
   Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2_mex(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
 else
   Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), xDE);
-  delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  if Rob.DynPar.mode == 3
+    delta = Rob.DynPar.ipv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  else
+    delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+  end
   Fc_plf = Fc_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end
 Fc_plf_red = Fc_plf(Rob.I_EE);
@@ -106,7 +116,12 @@ Fc_plf_red = Fc_plf(Rob.I_EE);
 for i = 1:NLEG
   if Rob.DynPar.mode == 2
     cq_leg = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+  elseif Rob.DynPar.mode == 3
+    % Regressorform mit Inertialparametern
+    [~,cq_leg_reg] = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+    cq_leg = cq_leg_reg*Rob.DynPar.ipv_n1s(1:end-sum(Rob.I_platform_dynpar));
   else
+    % Regressorform mit Minimalparametern
     [~,cq_leg_reg] = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
     cq_leg = cq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
@@ -137,7 +152,7 @@ if nargout == 2
   Cred_Fx_reg = R1' * C_full_reg;
   % Zweiter Summand: Führe Projektion für jeden Dynamikparameter einzeln
   % aus
-  for jj = 1:length(Rob.DynPar.mpv_n1s)
+  for jj = 1:size(C_full_reg,2)
     % Volle Massenmatrix aller Subsysteme bezogen auf diesen Parameter `jj`
     M_full_jj = reshape(M_full_reg(:,:,jj), size(M_full));
     % Projektion wie oben

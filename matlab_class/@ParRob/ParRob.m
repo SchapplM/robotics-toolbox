@@ -28,7 +28,7 @@
 %   1: Dynamik-Parameter bezogen auf Schwerpunkt m,rS,Ic (baryzentrisch)
 %      (noch nicht implementiert)
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
-%   3: Dynamik-Parametervektor (ohne Minimierung); nicht implementiert
+%   3: Dynamik-Parametervektor (ohne Minimierung);
 %   4: Dynamik-Minimalparametervektor
 % 
 % Siehe auch: SerRob.m (SerRob-Klasse)
@@ -248,8 +248,8 @@ classdef ParRob < matlab.mixin.Copyable
       % Plattform-Geschw. mit Euler-Zeitableitung)
       G_q = R.constr1grad_q(q, xE);
       G_x = R.constr1grad_x(q, xE);
-      GD_q = R.constr1gradD_q(q, qD, xE, xED); % differentiation of the kinematic constraints of joint coordinate can be found in [Do Thanh]
-      GD_x = R.constr1gradD_x(q, qD, xE, xED); %% differentiation of the kinematic constraints of platform  coordinate can be found in [Do Thanh]
+      GD_q = R.constr1gradD_q(q, qD, xE, xED);
+      GD_x = R.constr1gradD_x(q, qD, xE, xED);
       JinvD_num_voll = G_q\GD_q/G_q*G_x - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
@@ -268,33 +268,33 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
     end
-    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, xE, xDE, xDDE, Jinv, JinvD)
+    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xE, xDE, xDDE, Jinv)
       % Berechne Antriebskraft aufgrund der Effekte der inversen Dynamik
       % Eingabe:
       % q: Gelenkkoordinaten
       % qD: Gelenkgeschwindigkeiten
+      % qDD: Gelenkbeschleunigungen
       % xE: Endeffektor-Koordinaten
       % xDE: Endeffektor-Geschwindigkeit
       % xDDE: Endeffektor-Beschleunigung
       % Jinv: Inverse Jacobi-Matrix (bezogen auf EE-Koordinaten und alle
       % Gelenke). Siehe ParRob/jacobi_qa_x
-      % JinvD: Zeitableitung von Jinv. Siehe 
       %
       % Ausgabe:
       % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
       % Fa_reg: Regressor-Matrix der Kraft
       % Inversdynamik-Kräfte in Endeffektor-Koordinaten berechnen
       if nargout == 1
-        Fx = Rob.invdyn2_platform(q, qD, xE, xDE, xDDE, Jinv, JinvD);
+        Fx = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
       else
-        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, xE, xDE, xDDE, Jinv, JinvD);
+        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
       end
       % Umrechnen der vollständigen inversen Jacobi
       Jinv_qaD_xD = Jinv(Rob.I_qa,:);
@@ -329,62 +329,72 @@ classdef ParRob < matlab.mixin.Copyable
         Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
-    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, XE, XED, XEDD, Jinv_ges, JinvD_ges)
+    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
       % Inverse Dynamik in Endeffektor-Koordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
       % XE: Endeffektor-Koordinaten (Trajektorie)
       % XED: Endeffektor-Geschwindigkeit (Trajektorie)
       % XEDD: Endeffektor-Beschleunigung (Trajektorie)
       % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (siehe jacobi_qa_x)
-      % JinvD_ges: Zeitableitung von Jinv_ges. Siehe jacobiD_qa_x.
       %
       % Ausgabe:
       % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
       % Fx_traj_reg: Regressormatrizen von Fx_traj (als Zeitreihe)
       Fx_traj = NaN(size(Q,1),sum(R.I_EE));
       if nargout == 2
-        Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.mpv_n1s));
+        if R.DynPar.mode == 3
+          Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.ipv_n1s));
+        else
+          Fx_traj_reg = NaN(size(Q,1),sum(R.I_EE)*length(R.DynPar.mpv_n1s));
+        end
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
-        JinvD_full = reshape(JinvD_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
-          Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', QDD(i,:)', ...
+            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
         else
-          [Fx_traj(i,:), Fx_traj_reg_i] = R.invdyn2_platform(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          [Fx_traj(i,:), Fx_traj_reg_i] = R.invdyn2_platform(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
           Fx_traj_reg(i,:) = Fx_traj_reg_i(:);
         end
       end
     end
-    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, XE, XED, XEDD, Jinv_ges, JinvD_ges)
+    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
       % Inverse Dynamik in Antriebskoordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
       % XE: Endeffektor-Koordinaten (Trajektorie)
       % XED: Endeffektor-Geschwindigkeit (Trajektorie)
       % XEDD: Endeffektor-Beschleunigung (Trajektorie)
       % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (siehe jacobi_qa_x)
-      % JinvD_ges: Zeitableitung von Jinv_ges. Siehe jacobiD_qa_x.
       %
       % Ausgabe:
       % Fa_traj: Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
       % Fa_traj_reg: Regressormatrizen von Fa_traj (als Zeitreihe)
       Fa_traj = NaN(size(Q,1),sum(R.I_qa));
       if nargout == 2
-        Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.mpv_n1s));
+        if R.DynPar.mode == 3
+          Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.ipv_n1s));
+        else
+          Fa_traj_reg = NaN(size(Q,1),sum(R.I_qa)*length(R.DynPar.mpv_n1s));
+        end
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
-        JinvD_full = reshape(JinvD_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
-          Fa_traj(i,:) = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          Fa_traj(i,:) = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', QDD(i,:)', ...
+            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
         else
-          [Fa_traj(i,:), Fa_traj_reg_i] = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full, JinvD_full);
+          [Fa_traj(i,:), Fa_traj_reg_i] = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
           Fa_traj_reg(i,:) = Fa_traj_reg_i(:);
         end
       end
@@ -398,9 +408,16 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Fx_traj: Inverse Dynamik (als Zeitreihe)
       Fx_traj = NaN(size(Fx_traj_reg,1),sum(R.I_EE));
+      if R.DynPar.mode == 3
+        ndimpar = length(R.DynPar.ipv_n1s);
+        dpv = R.DynPar.ipv_n1s;
+      else
+        ndimpar = length(R.DynPar.mpv_n1s);
+        dpv = R.DynPar.mpv_n1s;
+      end
       for i = 1:size(Fx_traj_reg,1)
-        Fx_traj_reg_i = reshape(Fx_traj_reg(i,:), sum(R.I_EE), length(R.DynPar.mpv_n1s));
-        Fx_traj(i,:) = Fx_traj_reg_i*R.DynPar.mpv_n1s;
+        Fx_traj_reg_i = reshape(Fx_traj_reg(i,:), sum(R.I_EE), ndimpar);
+        Fx_traj(i,:) = Fx_traj_reg_i*dpv;
       end
     end
     function Fa_traj = invdyn3_actjoint_traj(R, Fa_traj_reg)
@@ -412,9 +429,16 @@ classdef ParRob < matlab.mixin.Copyable
       % Ausgabe:
       % Fa_traj: Inverse Dynamik (als Zeitreihe)
       Fa_traj = NaN(size(Fa_traj_reg,1),sum(R.I_qa));
+      if R.DynPar.mode == 3
+        ndimpar = length(R.DynPar.ipv_n1s);
+        dpv = R.DynPar.ipv_n1s;
+      else
+        ndimpar = length(R.DynPar.mpv_n1s);
+        dpv = R.DynPar.mpv_n1s;
+      end
       for i = 1:size(Fa_traj_reg,1)
-        Fa_traj_reg_i = reshape(Fa_traj_reg(i,:), sum(R.I_qa), length(R.DynPar.mpv_n1s));
-        Fa_traj(i,:) = Fa_traj_reg_i*R.DynPar.mpv_n1s;
+        Fa_traj_reg_i = reshape(Fa_traj_reg(i,:), sum(R.I_qa), ndimpar);
+        Fa_traj(i,:) = Fa_traj_reg_i*dpv;
       end
     end
     function Mx = inertia_platform(R, q, xP)
@@ -428,7 +452,9 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
+        % Benutze immer Modus 4 (Minimalparameter), auch wenn Inertial-
+        % parameter velangt ist
         Mx = R.inertia_x_fcnhdl4(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -446,7 +472,7 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fgx = R.gravload_x_fcnhdl4(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -466,7 +492,7 @@ classdef ParRob < matlab.mixin.Copyable
       if R.DynPar.mode == 2
         Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
         Fcx = R.coriolisvec_x_fcnhdl4(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
       else
@@ -517,9 +543,66 @@ classdef ParRob < matlab.mixin.Copyable
         U_legs(i) = R.Leg(i).epot(q(I));
       end
       U_ges = U_plattform + sum(U_legs);
+    end   
+    function w_all = internforce3(R, Fintreg)
+      % Berechne interne Schnittkräfte basierend auf gegebenem Regressor
+      % Eingabe
+      % Fintreg: Regressor der Schnittkräfte, aus internforce_regmat
+      % (egal, ob w_all_linkframe_reg oder w_all_baseframe_reg)
+      % 
+      % Ausgabe:
+      % Fint: Alle Schnittkräfte und -momente
+      % Indizes: Wie ParRob.internforce
+      % 1: Kräfte, dann Momente (immer 6 Einträge)
+      % 2: Segmente der Beine
+      % 3: Einzelne Beinketten der PKM
+      w_all = NaN(6, R.Leg(1).NL, R.NLEG);
+      w_all_stack = Fintreg * R.DynPar.ipv_n1s;
+      for i = 1:R.NLEG
+        w_all_stack_i = w_all_stack(6*R.Leg(1).NL*(i-1)+1 : R.Leg(1).NL*6*i);
+        w_all(:,:,i) = [reshape(w_all_stack_i(1:R.Leg(1).NL*3), 3, R.Leg(1).NL); ...
+                        reshape(w_all_stack_i(R.Leg(1).NL*3+1:end), 3, R.Leg(1).NL)];
+      end
     end
-    function FLeg0_t = internforce_traj(R, Q, QD, QDD, TAU)
-      % Vektor der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+    function [Regmatl_traj, Regmat0_traj] = internforce_regmat_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
+      % Zeitreihe der Schnittkraft-Dynamik-Regressor-Matrix (Trajektorie)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigungen (Trajektorie)
+      % XE: Endeffektor-Koordinaten (Trajektorie)
+      % XED: Endeffektor-Geschwindigkeit (Trajektorie)
+      % XEDD: Endeffektor-Beschleunigung (Trajektorie)
+      % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (siehe jacobi_qa_x)
+      %
+      % Ausgabe:
+      % Regmatl_traj: Regressormatrizen (als Zeitreihe; zeilenweise)
+      % (bezogen auf Schnittkräfte im Körper-KS)
+      % Regmat0_traj: Bezogen auf Schnittkräfte im PKM-Basis-KS
+      Regmatl_traj = NaN(size(Q,1), 6*R.Leg(1).NL*R.NLEG*length(R.DynPar.ipv_n1s));
+      if nargout == 2
+        Regmat0_traj = Regmatl_traj;
+      end
+      for i = 1:size(Q,1)
+        if nargin < 8
+          [~,Jinv_full] = R.jacobi_qa_x(Q(i,:)', XE(i,:)');
+        else
+          Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
+        end
+        if nargout == 2
+          [~, w_all_linkframe_reg, w_all_baseframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+          Regmat0_traj(i,:) = w_all_baseframe_reg(:);
+        else
+          [~, w_all_linkframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+        end
+        Regmatl_traj(i,:) = w_all_linkframe_reg(:);
+      end
+    end
+    function [FLegl_t, FLeg0_t] = internforce_traj(R, Q, QD, QDD, TAU)
+      % Schnittkräfte der inversen Dynamik als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
@@ -527,18 +610,58 @@ classdef ParRob < matlab.mixin.Copyable
       % TAU: Antriebskräfte
       %
       % Ausgabe:
-      % FLeg0_t: Schnittkräfte und -momente (Inverse Dynamik, als Zeitreihe)
+      % FLegl_t: Schnittkräfte und -momente (Inverse Dynamik, als Zeitreihe)
       % Indizes: 1: Einträge für Kraft und Moment in allen Segmenten
       %          2: Beinketten
       %          3: Zeit
-      FLeg0_t = NaN(R.NLEG, 6*R.Leg(1).NL, size(Q,1)); % Schnittkräfte in allen Gelenken (Basis-KS)
+      % FLeg0_t: Genauso, aber Schnittkräfte nicht im Körper-KS, sondern im
+      % PKM-Basis-KS angegeben
+      
+      % Initialisierung
+      FLegl_t = NaN(R.NLEG, 6*R.Leg(1).NL, size(Q,1));
+      if nargout == 2
+        FLeg0_t = FLegl_t;
+      end
       for i = 1:size(Q,1)
-        [~,~,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+        if nargout == 2 % vollständiger Aufruf (mehr Berechnungen)
+          [~,cf_w_all_linkframe,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+        else % einfacher Aufruf
+          [~,cf_w_all_linkframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+        end
         for j = 1:R.NLEG
-          W_j_0 = cf_w_all_baseframe(:,:,j);
-          W_j_0_stack = [reshape(W_j_0(1:3,:), 3*R.Leg(1).NL, 1); ... % erst alle Kräfte
-                         reshape(W_j_0(4:6,:), 3*R.Leg(1).NL, 1)]; % dann alle Momente
-          FLeg0_t(j,:,i) = W_j_0_stack;
+          W_j_l = cf_w_all_linkframe(:,:,j);
+          W_j_l_stack = [reshape(W_j_l(1:3,:), 3*R.Leg(1).NL, 1); ... % erst alle Kräfte
+                         reshape(W_j_l(4:6,:), 3*R.Leg(1).NL, 1)]; % dann alle Momente
+          FLegl_t(j,:,i) = W_j_l_stack;
+          if nargout == 2
+            W_j_0 = cf_w_all_baseframe(:,:,j);
+            W_j_0_stack = [reshape(W_j_0(1:3,:), 3*R.Leg(1).NL, 1); ... % erst alle Kräfte
+                           reshape(W_j_0(4:6,:), 3*R.Leg(1).NL, 1)]; % dann alle Momente
+            FLeg0_t(j,:,i) = W_j_0_stack;
+          end
+        end
+      end
+    end
+    function FLeg0_t = internforce3_traj(R, Regmat_traj)
+      % Schnittkräfte der inversen Dynamik als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Fintreg_traj: Regressor der Schnittkräfte, aus internforce_regmat
+      %               (Zeitschritte als Zeilen)
+      % 
+      % Ausgabe:
+      % FLeg0_t: Alle Schnittkräfte und -momente
+      % Indizes: Wie in ParRob.internforce3
+      FLeg0_t = NaN(R.NLEG, 6*R.Leg(1).NL, size(Regmat_traj,1)); % Schnittkräfte in allen Gelenken (Basis-KS)
+      for i = 1:size(Regmat_traj,1)
+        w_all_linkframe_reg_i = reshape(Regmat_traj(i,:), ...
+          6*R.Leg(1).NL*R.NLEG, length(R.DynPar.ipv_n1s));
+        cf_w_all_linkframe = R.internforce3(w_all_linkframe_reg_i);
+        for j = 1:R.NLEG
+          % Umrechnung in anderes Format
+          W_j_l = cf_w_all_linkframe(:,:,j);
+          W_j_l_stack = [reshape(W_j_l(1:3,:), 3*R.Leg(1).NL, 1); ... % erst alle Kräfte
+                         reshape(W_j_l(4:6,:), 3*R.Leg(1).NL, 1)]; % dann alle Momente
+          FLeg0_t(j,:,i) = W_j_l_stack;
         end
       end
     end
@@ -731,6 +854,9 @@ classdef ParRob < matlab.mixin.Copyable
         Icges_Leg = [zeros(1,6); Icges(1:end-1,:);];
         R.Leg(i).update_dynpar1(m_Leg, rSges_Leg, Icges_Leg);
       end
+      % Inertialparameter der PKM bestimmen
+      ipv_num = R.dynpar_get_inertial_parameter_vector(mges, mrSges, Ifges);
+      
       % Parameter für PKM belegen
       R.DynPar.mges   = mges;
       R.DynPar.rSges  = rSges;
@@ -739,6 +865,7 @@ classdef ParRob < matlab.mixin.Copyable
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv_sym= mpv_sym;
       R.DynPar.mpv_n1s= mpv_num;
+      R.DynPar.ipv_n1s= ipv_num;
     end
     function update_dynpar2(R, mges, mrSges, Ifges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
@@ -767,6 +894,8 @@ classdef ParRob < matlab.mixin.Copyable
         Ifges_Leg = [zeros(1,6); Ifges(1:end-1,:)];
         R.Leg(i).update_dynpar2(m_Leg, mrSges_Leg, Ifges_Leg);
       end
+      % Inertialparameter der PKM bestimmen
+      ipv_num = R.dynpar_get_inertial_parameter_vector(mges, mrSges, Ifges);
       
       % Umwandlung in baryzentrische Parameter
       [rSges, Icges] = inertial_parameters_convert_par2_par1(mrSges, Ifges, mges);
@@ -779,12 +908,28 @@ classdef ParRob < matlab.mixin.Copyable
       R.DynPar.Ifges  = Ifges;
       R.DynPar.mpv_sym= mpv_sym;
       R.DynPar.mpv_n1s= mpv_num;
+      R.DynPar.ipv_n1s= ipv_num;
     end
-    
+    function ipv_num = dynpar_get_inertial_parameter_vector(R, mges, mrSges, Ifges)
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
+      % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert mit Massen
+      % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
+      %
+      % Ausgabe:
+      % ipv_num: Inertial-Parameter (vollständig) der PKM
+      %
+      % Annahme: Die Dynamikparameter der Beinketten wurden in Leg-Klasse
+      % eingetragen
+      ipv_leg = R.Leg(1).DynPar.ipv;
+      % Siehe dynpar_convert_par2_mpv
+      ipv_platform = [Ifges(end,[1 4 5 2 6 3])'; mrSges(end,:)'; mges(end)'];
+      ipv_num = [ipv_leg; ipv_platform(R.I_platform_dynpar)];
+    end
     function [mpv_num, mpv_sym] = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
       % Konvertiere die Dynamikparameter zum Minimalparametervektor
       % Eingabe:
-      % mges: Massen aller Robotersegmente (inkl Basis)
+      % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
       % mrSges: Schwerpunktskoordinaten aller Robotersegmente multipliziert mit Massen
       % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
       % Ausgabe:
