@@ -62,6 +62,7 @@ classdef SerRob < matlab.mixin.Copyable
     r_W_0 % Position der Basis im Welt-KS
     phi_W_0 % Orientierung des Basis-KS im Welt-KS (ausgedrückt in Euler-Winkeln)
     T_W_0 % Homogene Transformationsmatrix zwischen Welt- und Basis-KS des Roboters
+    T_0_W % Inverse von T_W_0
     T_N_E % Homogene Transformationsmatrix zwischen 
     r_N_E % Position des Endeffektors im Körper-KS
     phi_N_E % Orientierung des EE-KS im Körper-KS (ausgedrückt in Euler-Winkeln)
@@ -202,7 +203,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.T_N_E = eye(4);
       R.r_W_0 = zeros(3,1);
       R.phi_W_0 = zeros(3,1);
-      R.T_W_0 = eye(4);
+      R.T_W_0 = eye(4); R.T_0_W = eye(4);
       R.phiconv_N_E = uint8(2); % Euler-XYZ
       R.phiconv_W_E = uint8(2); % Euler-XYZ
       R.phiconv_W_0 = uint8(2); % Euler-XYZ
@@ -1028,6 +1029,8 @@ classdef SerRob < matlab.mixin.Copyable
         R.phiconv_N_E = phiconv_W_0;
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
+      % Speichere die Inverse. Wird für ParRob-IK häufig benötigt.
+      R.T_0_W = invtr(R.T_W_0);
     end
     function pkin = update_pkin(R)
       % Aktualisiere die Variable pkin aus den gespeicherten MDH-Parametern
