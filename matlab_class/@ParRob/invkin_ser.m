@@ -12,7 +12,7 @@
 %   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Identisch mit
-%   Feldern aus SerRob/invkin.md
+%   Feldern aus SerRob/invkin.m
 % 
 % Ausgabe:
 % q [Nx1]
@@ -83,12 +83,12 @@ for i = 1:Rob.NLEG
 
   % Initialisierung
   q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  T_0_0i = Rob.Leg(i).T_W_0;
+  T_0i_0 = Rob.Leg(i).T_0_W;
 
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
   % Dafür wird die IK berechnet und dieser Wert wird übergeben
   r_P_Bi_P = -r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
-  T_0i_E = invtr(T_0_0i) * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
+  T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
   s.T_N_E = Rob.Leg(i).T_N_E * transl(r_P_Bi_P) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
@@ -110,9 +110,12 @@ for i = 1:Rob.NLEG
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
 end
-
+Phi = Phi_ser;
+return
 %% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
-if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
+% Diese Rechnung ist zu zeitaufwändig und muss im Bedarfsfall manuell
+% durchgeführt werden
+if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) %#ok<UNRCH>
   Phi = Rob.constr3(q, xE_soll);
 else
   Phi = Rob.constr1(q, xE_soll);

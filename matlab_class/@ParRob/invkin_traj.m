@@ -49,6 +49,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = invkin_traj(Rob, X, XD, XDD, T
 
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
+  'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 1, ...  % 1=Seriell, 2=PKM
   'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
@@ -64,11 +65,27 @@ for f = fields(s_std)'
 end
 dof_3T2R = false;
 mode_IK = s.mode_IK;
+
 I_EE = Rob.I_EE;
 if all(s.I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
   I_EE = s.I_EE;
 end
+
+
+if nargout == 6
+  % Wenn jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
+  % vollständige Formel für die Beschleunigung benutzt werden
+  simplify_acc = true;
+else
+  % Benutze vollständige Formel entsprechend Einstellungsparameter
+  simplify_acc = s.simplify_acc;
+end
+if dof_3T2R
+  % Für den Fall 3T2R ist die Jacobi-Zeitableitung nicht implementiert
+  simplify_acc = true;
+end
+
 nt = length(T);
 
 
@@ -111,15 +128,22 @@ for k = 1:nt
   qD_k = J_x_inv * xD_k(I_EE);
   
   % Gelenk-Beschleunigung berechnen
-  if ~dof_3T2R
-    Phi_qD = Rob.constr1gradD_q(q_k, qD_k, x_k, xD_k);
-    Phi_xD = Rob.constr1gradD_x(q_k, qD_k, x_k, xD_k);
-    JD_x_inv = Phi_q\Phi_qD/Phi_q*Phi_x - Phi_q\Phi_xD; % Siehe: ParRob/jacobiD_qa_x
-    qDD_k = J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE);
-  else
-    % TODO: Das ist noch falsch. Jacobi-Zeitableitung fehlt noch
+  if simplify_acc
+    % Vereinfachte Formel ohne Jacobi-Zeitableitung (ist meistens nicht
+    % relevant)
     qDD_k = J_x_inv * xDD_k(I_EE);
+  else
+    if ~dof_3T2R
+      Phi_qD = Rob.constr1gradD_q(q_k, qD_k, x_k, xD_k);
+      Phi_xD = Rob.constr1gradD_x(q_k, qD_k, x_k, xD_k);
+      JD_x_inv = Phi_q\Phi_qD/Phi_q*Phi_x - Phi_q\Phi_xD; % Siehe: ParRob/jacobiD_qa_x
+    else
+      % Fall nicht implementiert (s.o.)
+    end
+    % Vollständige Formel mit Jacobi-Zeitableitung
+    qDD_k = J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE);
   end
+
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   if k < nt
