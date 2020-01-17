@@ -16,6 +16,7 @@
 % 
 % Quellen:
 % Aufzeichnungen Schappler, 9.5.19
+% [KhalilGue2004] Inverse and direct dynamic modeling of Gough-Stewart robots
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -48,6 +49,8 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Kraft, mit der die Plattform auf die Beinketten drückt (PKM-Basis-KS)
   % Die externe Kraft verursacht zusammen mit den Antriebskräften das
   % Bewegungsverhalten (q,qD,qDD) der Beinkette
+  % [KhalilGue2004], Gl. 20-21; dort steht das f_ext auf der anderen Seite.
+  % Daher andere Vorzeichen
   FB_j_0 = (J_j_0') \ (tau_j - tau_m_j);
   w_B(:,j) = FB_j_0;
   

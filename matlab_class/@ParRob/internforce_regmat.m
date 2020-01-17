@@ -16,6 +16,7 @@
 % 
 % Quellen:
 % Aufzeichnungen Schappler, 9.5.19
+% [KhalilGue2004] Inverse and direct dynamic modeling of Gough-Stewart robots
 %
 % Siehe auch: ParRob/internforce (dort gleicher Rechenweg. Hier nur
 % spaltenweise Berechnung für Regressor-Matrix)
@@ -56,6 +57,8 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Kraft, mit der die Plattform auf die Beinketten drückt (PKM-Basis-KS)
   % Die externe Kraft verursacht zusammen mit den Antriebskräften das
   % Bewegungsverhalten (q,qD,qDD) der Beinkette
+  % [KhalilGue2004], Gl. 20-21; dort steht das f_ext auf der anderen Seite.
+  % Daher andere Vorzeichen
   FB_j_0_reg = (J_j_0') \ (tau_j_reg - tau_m_j_reg); % Anwendung für jede Regressor-Spalte einzeln
   w_B_reg(1+(j-1)*6:j*6,:) = FB_j_0_reg;
   
