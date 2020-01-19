@@ -122,7 +122,7 @@ figure(2); clf; hold on; grid on;% Bild der Entwurfsparameter
 for i = 1:RP.NLEG
   % Setze Schubgelenke als Hubzylinder
   RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 5;
-  % Setze Segmente als Hohlzylinder mit Radius 50mm
+  % Setze Segmente als Hohlzylinder mit Durchmesser 50mm
   RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
 end
 RP.DesPar.platform_par(3) = 5e-3;

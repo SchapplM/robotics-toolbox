@@ -109,7 +109,7 @@ figure(2); clf; hold on; grid on;% Bild der Entwurfsparameter
 for i = 1:RP.NLEG
   % Setze Schubgelenke als Linearachsen mit Führungsschiene
   RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 4;
-  % Setze Segmente als Hohlzylinder mit Radius 100mm
+  % Setze Segmente als Hohlzylinder mit Durchmesser 100mm
   RP.Leg(i).DesPar.seg_par=repmat([5e-3,100e-3],RP.Leg(i).NL,1);
 end
 RP.DesPar.platform_par(end) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
