@@ -190,6 +190,7 @@ classdef SerRob < matlab.mixin.Copyable
                         'mode', 2);
       R.update_dynpar1();
       R.DesPar = struct(...
+        'material', [2.7E3, 72e9, 27e9, 300e6], ... % Dichte, E-Modul, Schubmodul, Dehngrenze für Alu-Legierung AlCu4PbMgMn
         'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
         'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
         'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes (aus Datenbank)
