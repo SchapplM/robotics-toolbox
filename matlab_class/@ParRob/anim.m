@@ -93,6 +93,7 @@ if ~isempty(s_anim.avi_name)
   open(v)
 end
 %% Trajektorie durchgehen und Roboter für jeden Zeitpunkt neu zeichnen
+i_break = NaN;
 for i=1:size(Q,1)
   if i > 1
     for c = get(gca, 'children')'
@@ -137,7 +138,15 @@ for i=1:size(Q,1)
       % Initialisierung
       mov = uint8(zeros(size(f.cdata, 1), size(f.cdata, 2), 1, size(Q,1)));
       [mov(:,:,1, i), map] = rgb2ind(f.cdata, 256, 'nodither');
+      % Speichere Auflösung ab
+      res_1 = size(f.cdata);
     else
+      if any(size(f.cdata)~=res_1)
+        warning('Auflösung des aktuellen Bildes passt nicht zu der des ersten');
+        % Wahrscheinlich Durch Benutzer händisch verändert oder Fehler
+        i_break = i-1;
+        break;
+      end
       mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
     end
   end
@@ -149,7 +158,10 @@ for i=1:size(Q,1)
   end
   drawnow();
 end
-
+% Verkürzen des Videos bei Fehler
+if ~isnan(i_break)
+  mov = mov(:,:,1,1:i_break);
+end
 %% Create GIF and AVI files
 if ~isempty(s_anim.gif_name)
   imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
