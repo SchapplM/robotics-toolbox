@@ -73,6 +73,7 @@ function [Q, QD, QDD, PHI] = %RN%_invkin_traj(X, XD, XDD, T, q0, s)
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
 %$cgargs           'n_max', 1000,
+%$cgargs        'rng_seed', NaN,
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
 %$cgargs     'retry_limit', 100)}
@@ -136,5 +137,4 @@ for k = 1:nt
   QDD(k,:) = qDD_k;
   PHI(k,:) = Phi_k;
 end
-
 

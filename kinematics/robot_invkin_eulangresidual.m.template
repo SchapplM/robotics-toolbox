@@ -47,6 +47,7 @@ function [q, Phi] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
 %$cgargs           'n_max', 1000,
+%$cgargs        'rng_seed', NaN,
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
 %$cgargs     'retry_limit', 100)}
@@ -210,6 +211,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     break;
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
+  if rr == 0 && ~isnan(s.rng_seed)
+    rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
+  end
   q0(:) = qmin + rand(NQJ,1).*(qmax-qmin); % "(:)" notwendig für mex
 end
 q = q1;

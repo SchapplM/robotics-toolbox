@@ -595,6 +595,7 @@ classdef SerRob < matlab.mixin.Copyable
                  'normalize', true, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
                  'n_max', 1000, ... % Maximale Anzahl Iterationen
+                 'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
                  'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
                  'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
                  'retry_limit', 100); % Anzahl der Neuversuche);
@@ -610,7 +611,7 @@ classdef SerRob < matlab.mixin.Copyable
           end
         end
       end
-      % Funktionsaufruf
+      % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       [q, Phi] = R.invkinfcnhdl(x, q0, s);
     end
     function [Q,QD,QDD,PHI] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
@@ -654,6 +655,7 @@ classdef SerRob < matlab.mixin.Copyable
                  'normalize', true, ... % Normalisieren auf +/- 180°
                  'n_min', 0, ... % Minimale Anzahl Iterationen
                  'n_max', 1000, ... % Maximale Anzahl Iterationen
+                 'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
                  'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
                  'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
                  'retry_limit', 100); % Anzahl der Neuversuche
@@ -666,7 +668,7 @@ classdef SerRob < matlab.mixin.Copyable
           end
         end
       end
-      % Funktionsaufruf
+      % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function [T, Treg] = ekin(R, q, qD)
