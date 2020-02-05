@@ -33,8 +33,10 @@ else
 end
 % Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
 % Verbindung der Punkte)
+% Methode 2: X-Achse nach oben, Z-Achse tangential 
+% Methode 3: X-Achse nach oben, Z-Achse zu Mitte
 % Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
-if method == 1
+if method <= 3
   n_pf_par = 1;
   r_PB = param(1);
   
@@ -45,8 +47,15 @@ if method == 1
       beta_i = 2*pi/NLEG*(i-1);
     end
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
-
-    Rob.Leg(i).update_EE();
+    r_Ni_Ei = [0;0;0];
+    if method == 1
+        phi_Ni_Ei = [0*pi/180;0*pi/180;-pi/2-beta_i];
+    elseif method == 2
+        phi_Ni_Ei = [pi/2-beta_i;pi/2;0];
+    elseif method == 3
+        phi_Ni_Ei = [pi/2;0;-beta_i-pi/2];
+    end
+    Rob.Leg(i).update_EE(r_Ni_Ei,phi_Ni_Ei);
   end
   if Rob.issym
     % Annahme über symbolische Variablen, damit die späteren assert-Befehle
@@ -55,7 +64,7 @@ if method == 1
     assume(r_P_P_Bi_ges, 'real');
     warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
   end
-elseif method == 3
+elseif method > 3 && method <= 6
   n_pf_par = 2;
   % Methode 3: Paarweise angeordnet, z-Achse nach oben
   if Rob.NLEG ~= 6
@@ -65,8 +74,18 @@ elseif method == 3
   d_Paar = param(2); % Abstand der Gelenkpaare voneinander
   for i = 1:3 % Paare von Koppelpunkten durchgehen
     rM = rotz(2*pi/3*(i-1))*[r_PB;0;0]; % Mittelpunkt des Punktepaares
+    beta_i = 2*pi/3*(i-1);
     for j = 1:2 % Beide Punkte des Paares durchgehen
       r_P_P_Bi_ges(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
+      r_Ni_Ei = [0;0;0];
+      if method == 4
+        phi_Ni_Ei = [0*pi/180;0*pi/180;-pi/2-beta_i];
+      elseif method == 5
+          phi_Ni_Ei = [pi/2-beta_i;pi/2;0];
+      elseif method == 6
+          phi_Ni_Ei = [pi/2;0;-beta_i-pi/2];
+      end
+      Rob.Leg(j+2*(i-1)).update_EE(r_Ni_Ei,phi_Ni_Ei);
     end
   end
 else
