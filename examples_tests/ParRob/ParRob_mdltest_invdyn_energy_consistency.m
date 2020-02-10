@@ -89,6 +89,9 @@ for i_FG = [1 4]%1:size(EEFG_Ges,1)
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
       cds_start
+      resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
+      resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', 1, PName));
+      load(resfile, 'RobotOptRes');
       if isempty(Structures) || RobotOptRes.fval > 1000
         % Die Methode valid_act nimmt die erstbeste bestimmbare Kinematik.
         % Die Wahl der aktuierten Gelenke muss nicht zu vollem Rang führen.
