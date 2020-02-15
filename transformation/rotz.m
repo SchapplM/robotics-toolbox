@@ -1,37 +1,25 @@
-%ROTZ Rotation about Z axis
-%
-%	R = ROTZ(theta)
-%
-% Returns a 3x3 rotation matrix representing a rotation of theta 
-% about the Z axis.
-%
-% See also: ROTX, ROTY, ROTVEC.
+% Elementarrotation um die z-Achse
+% 
+% Eingabe:
+% gamma [1x1]
+%   Drehwinkel
+% 
+% Ausgabe:
+% R [3x3] / SO(3)
+%   Rotationsmatrix
 
-% Copyright (C) 1993-2008, by Peter I. Corke
-%
-% This file is part of The Robotics Toolbox for Matlab (RTB).
-% 
-% RTB is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
-% (at your option) any later version.
-% 
-% RTB is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
-% 
-% You should have received a copy of the GNU Leser General Public License
-% along with RTB.  If not, see <http://www.gnu.org/licenses/>.
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function r = rotz(t)
+function R = rotz(gamma)
 %#codegen
 %$cgargs {zeros(1,1)}
-assert(isreal(t) && all(size(t) == [1 1]), ...
-  'Rotation angles t has to be [1x1] (double)');
+assert(isreal(gamma) && all(size(gamma) == [1 1]), ...
+  'Rotation angles gamma has to be [1x1] (double)');
 
-	ct = cos(t);
-	st = sin(t);
-	r =    [ct	-st	0
-		st	ct	0
-		0	0	1];
+% Quelle: Skript Robotik I (WS 2015/16), Ortmaier, Uni Hannover, S. 16
+cgamma = cos(gamma);
+sgamma = sin(gamma);
+R =    [cgamma	-sgamma	0
+        sgamma	cgamma	0
+        0       0       1];

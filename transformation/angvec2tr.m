@@ -1,42 +1,25 @@
-%ANGVEC2TR Convert angle and vector orientation to a homogeneous transform
-%
-% T = ANGVEC2TR(THETA, V) is a homogeneous transform matrix equivalent to a 
-% rotation of THETA about the vector V.
-%
-% Note::
-% - The translational part is zero.
-%
-% See also EUL2TR, RPY2TR, ANGVEC2R.
-
-
-
-% Copyright (C) 1993-2014, by Peter I. Corke
-%
-% This file is part of The Robotics Toolbox for MATLAB (RTB).
+% Homogene Transformationsmatrix Rotations aus Achse-Winkel-Darstellung
 % 
-% RTB is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
-% (at your option) any later version.
+% Eingabe:
+% theta [1x1]
+%   Drehwinkel
+% u [3x1]
+%   Drehachse
 % 
-% RTB is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
-% 
-% You should have received a copy of the GNU Leser General Public License
-% along with RTB.  If not, see <http://www.gnu.org/licenses/>.
-%
-% http://www.petercorke.com
+% Ausgabe:
+% T [3x3]
+%   Homogene Transformationsmatrix
 
-function T = angvec2tr(theta, k)
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function T = angvec2tr(theta, u)
 
 %% Init
 %#codegen
 %$cgargs {zeros(1,1),zeros(3,1)}
 assert(isreal(theta) && all(size(theta) == [1 1]));   
-assert(isreal(k) && all(size(k) == [3 1]));  
+assert(isreal(u) && all(size(u) == [3 1]));  
 
-%% Calculation
-
-    T = r2t( angvec2r(theta, k) );
+%% Funktionsaufruf
+T = [angvec2r(theta, u), [0;0;0]; [0 0 0 1]];

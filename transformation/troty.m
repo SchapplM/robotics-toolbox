@@ -1,35 +1,16 @@
-%TROTY Rotation about Y axis
-%
-% T = TROTY(THETA) is a homogeneous transformation (4x4) representing a rotation 
-% of THETA radians about the y-axis.
-%
-% T = TROTY(THETA, 'deg') as above but THETA is in degrees.
-%
-% Notes::
-% - Translational component is zero.
-%
-% See also ROTY, TROTX, TROTZ, TROT2.
-
-
-
-% Copyright (C) 1993-2014, by Peter I. Corke
-%
-% This file is part of The Robotics Toolbox for MATLAB (RTB).
+% Homogene Transformationsmatrix mit Elementarrotation um die y-Achse
 % 
-% RTB is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
-% (at your option) any later version.
+% Eingabe:
+% beta [1x1]
+%   Drehwinkel
 % 
-% RTB is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
-% 
-% You should have received a copy of the GNU Leser General Public License
-% along with RTB.  If not, see <http://www.gnu.org/licenses/>.
-%
-% http://www.petercorke.com
+% Ausgabe:
+% T [4x4] / SE(3)
+%   Homogene Transformationsmatrix
 
-function T = troty(t)
-	T =    [roty(t) [0 0 0]'; 0 0 0 1];
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function T = troty(beta)
+% Quelle: Skript Robotik I (WS 2015/16), Ortmaier, Uni Hannover, Gl. 2.25
+T = [roty(beta) [0; 0; 0]; 0 0 0 1];
