@@ -13,4 +13,4 @@
 
 function T = trotz(gamma)
 % Quelle: Skript Robotik I (WS 2015/16), Ortmaier, Uni Hannover, Gl. 2.25
-T = [roty(gamma) [0; 0; 0]; 0 0 0 1];
+T = [rotz(gamma) [0; 0; 0]; 0 0 0 1];
