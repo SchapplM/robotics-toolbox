@@ -28,13 +28,10 @@ for i = 1:n
   R_rotvec_i = rotvec2r(rotvec_i);
   
   if any( abs( R_rotvec_i(:) - R_i(:) ) > 1e-10 )
-    
-  [theta, n] = r2angvec(R_i)
-  rotvec = n' * theta;
-  
-  k = rotvec / theta; % Einheitsvektor, um den rotiert wird
-  R = angvec2r(theta, k');
-    
+    [theta, n] = r2angvec(R_i)
+    rotvec = n' * theta;
+    k = rotvec / theta; % Einheitsvektor, um den rotiert wird
+    R = angvec2r(theta, k');
     error('i = %d. Umrechnung rotvec2r/r2rotvec stimmt nicht', i);
   end
 end
