@@ -39,6 +39,7 @@ else
 end
 
 phi = xE(4:6); % Euler-Winkel
+Jw = euljac(phi, Rob.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
 R_0_E = eul2r(phi, Rob.phiconv_W_E);
 r_P_B_all = Rob.r_P_B_all;
 T_P_E = Rob.T_P_E;
@@ -49,8 +50,7 @@ for i = 1:NLEG
   % translatorischer Anteil
   r_P_P_Bi = r_P_B_all(:,i);
   r_E_E_Bi = T_P_E(1:3,1:3)' * (-r_P_P_E + r_P_P_Bi);
-  Jw = euljac(phi, Rob.phiconv_W_E);
-  
+
   % Auf vorhandene Koordinaten reduzieren:
   % Auswahl [1 2 3]: x-y-z-Komponenten der translatorischen Zwangsbedingungen
   % Auswahl [1 2 3]: phix, phiy, phiz (z.B. für XYZ-Euler-Winkel)
