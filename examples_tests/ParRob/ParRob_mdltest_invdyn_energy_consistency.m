@@ -404,7 +404,7 @@ for i_FG = [1 4]%1:size(EEFG_Ges,1)
       if i == 1
         I_test = 1;
       else
-        I_test = floor(Ip_end*0.20):floor(Ip_end*0.8);
+        I_test = max([floor(Ip_end*0.20);1]):max([floor(Ip_end*0.8);1]);
       end
       E_error = max(abs(E_ges(1:Ip_end,3)-E_ges(1,3)));
       % Nehme den Anteil der dissipierten Energie an der umgesetzten Energie
