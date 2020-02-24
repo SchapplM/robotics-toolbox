@@ -71,10 +71,12 @@ for iLeg = 1:NLEG
   
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_Bi_P = R_P_Bi.';
   
   % Kinematik, Definitionen
   T_0i_Bi = Rob.Leg(iLeg).fkineEE(qs);
-  R_0i_E_q = T_0i_Bi(1:3,1:3) * R_P_E;
+  R_0i_E_q = T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E;
   R_0_E_q = R_0_0i * R_0i_E_q;
   R_Ex_Eq = R_0_E_x' * R_0_E_q; % Argument in [2_SchapplerTapOrt2019a]/(19)
 
@@ -87,7 +89,7 @@ for iLeg = 1:NLEG
   % Transformationen berücksichtigt: N->Bi->E
   % RS.TNE bezieht sich auf den "Endeffektor" der Beinkette, der "Bi" ist.
   % Gl. (B.33)
-  R_Ni_E = Rob.Leg(iLeg).T_N_E(1:3,1:3) * R_P_E;
+  R_Ni_E = Rob.Leg(iLeg).T_N_E(1:3,1:3) * R_Bi_P * R_P_E;
   b11=R_Ni_E(1,1);b12=R_Ni_E(1,2);b13=R_Ni_E(1,3);
   b21=R_Ni_E(2,1);b22=R_Ni_E(2,2);b23=R_Ni_E(2,3);
   b31=R_Ni_E(3,1);b32=R_Ni_E(3,2);b33=R_Ni_E(3,3);

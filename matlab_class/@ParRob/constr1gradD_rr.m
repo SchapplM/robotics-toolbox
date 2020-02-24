@@ -78,10 +78,12 @@ for iLeg = 1:NLEG
   qD_i= qD(IJ_i);
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_Bi_P = R_P_Bi.';
   
   % Definitionen, Laden der Kinematik
   T_0i_Bi = Rob.Leg(iLeg).fkineEE(q_i);
-  R_0i_E_q = T_0i_Bi(1:3,1:3) * R_P_E;
+  R_0i_E_q = T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E;
   R_0_E_q = R_0_0i * R_0i_E_q;
   
   % Rotationsmatrix des Orientierungsfehlers

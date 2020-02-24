@@ -16,6 +16,7 @@ Basis_Abstand = 0.2; % bei Paarweise Methode
 Steigungswinkel = pi/3;
 Plat_Radius = 0.3;
 Plat_Abstand = 0.2;
+Traj_test = true;
 
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
@@ -282,6 +283,40 @@ for base_Coup = 1:8
       title(Fig2_title);
       drawnow
     end
+    
+    if Traj_test
+      % Trajektorie mit beliebigen Bewegungen der Plattform
+      X0 = [ [0.05;-0.05;0.5]; [5;-5;3]*pi/180 ];     
+      XL = [X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
+        X0'+1*[[ 0.0, 0.0, 0.05], [0.0, 0.0, 0.0]*pi/180]; ...
+        X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 5.0]*pi/180]; ...
+        X0'+1*[[ 0.0, 0.05, 0.0], [0.0, 0.0, 0.0]*pi/180]; ...
+        X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 5.0, 0.0]*pi/180]; ...
+        X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, -5.0]*pi/180]; ...
+        X0'+1*[[ 0.05, 0.0, 0.0], [5.0, 0.0, 0.0]*pi/180]; ...
+        X0'+1*[[ -0.05, 0.0, -0.05], [0.0, -5.0, 0.0]*pi/180]; ...
+        X0'+1*[[ 0.0, 0.0, 0.0], [-5.0, 0.0, 0.0 ]*pi/180]];
+      XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
+      [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(XL, 1, 0.1, 0.01, 1e-3, 1e-1);
+      % Inverse Kinematik berechnen
+      q0 = q; % Lösung der IK von oben als Startwert
+      t0 = tic();
+      % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
+      s = struct('Phit_tol', 1e-3, 'Phir_tol', 0.1*pi/180);
+      [q1, Phi_num1] = RP.invkin1(X_t(1,:)', q0, s);
+      if any(abs(Phi_num1) > 1e-2)
+        warning('IK konvergiert nicht');
+      end
+      fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
+      [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+      if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
+          any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
+        error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+      end
+      fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
+        toc(t0), length(t));
+    end
+    
   end
 end
 

@@ -56,7 +56,8 @@ if Rob.issym
 end
 
 % Variable zum Speichern der vollständigen Massenmatrix (Subsysteme)
-M_full = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
+% M_full = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
+M_full = NaN((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG);
 if nargout == 2 % Ausgabe der Regressormatrizen
   if Rob.DynPar.mode == 3
     M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.ipv_n1s));
@@ -106,7 +107,7 @@ for i = 1:NLEG
     end
     Mq_Leg = vec2symmat(Mvec_Leg);
   end
-  M_full((i-1)*NLEG+1:NLEG*i,1:NJ+NLEG) = [zeros(NLEG,(NLEG*(i-1))),Mq_Leg, zeros(NLEG,NJ -(NLEG*(i-1)))];
+  M_full((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NLEG) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg, zeros(Rob.Leg(i).NJ,NJ+NLEG -(Rob.Leg(i).NJ*(i)))];
   if nargout == 2
     for jj = 1:size(Mvec_Leg_reg,2)
       Mq_Leg_reg_jj = vec2symmat(Mvec_Leg_reg(:,jj));

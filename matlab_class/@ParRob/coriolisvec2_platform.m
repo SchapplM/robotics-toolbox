@@ -94,7 +94,7 @@ if nargin < 7
   G_xD = Rob.constr1gradD_x(q, qD, xE, xDE);
   JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 end
-K1 = eye ((NLEG+1)*NLEG);% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
+K1 = eye ((Rob.Leg(1).NL)*NLEG);% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [Jinv;eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 R1D =  [JinvD; zeros(NLEG)]; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
@@ -113,6 +113,7 @@ end
 Fc_plf_red = Fc_plf(Rob.I_EE);
 %% Berechnung der Projektion
 % Coriolis-Komponente aller Beinketten berechnen [DT09]/(6)
+ii = 1;
 for i = 1:NLEG
   if Rob.DynPar.mode == 2
     cq_leg = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
@@ -125,7 +126,8 @@ for i = 1:NLEG
     [~,cq_leg_reg] = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
     cq_leg = cq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
-  C_full((i-1)*NLEG+1:NLEG*i) = cq_leg;
+  C_full(ii:Rob.Leg(i).NJ+ii-1) = cq_leg;
+  ii = ii + Rob.Leg(i).NJ;
   if nargout == 2
     C_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = cq_leg_reg;
   end

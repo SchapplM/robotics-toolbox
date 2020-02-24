@@ -23,6 +23,8 @@ else
   r_P_P_Bi_ges = sym('xx', [3,NLEG]);
   r_P_P_Bi_ges(:)=0;
 end
+phi_P_B_all = NaN(3,NLEG);
+
 Rob.DesPar.platform_method = uint8(method);
 % Parameter in Klasse abspeichern. Der letzte Parameter ist die Stärke der
 % Platte des Ersatzmodells.
@@ -47,15 +49,16 @@ if method <= 3
       beta_i = 2*pi/NLEG*(i-1);
     end
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
-    r_Ni_Ei = [0;0;0];
+    
     if method == 1
-        phi_Ni_Ei = [0*pi/180;0*pi/180;-pi/2-beta_i];
+      phi_P_Bi = [0*pi/180;0*pi/180;pi/2+beta_i];
     elseif method == 2
-        phi_Ni_Ei = [pi/2-beta_i;pi/2;0];
+      phi_P_Bi = [-pi/2;-beta_i;-pi/2];
     elseif method == 3
-        phi_Ni_Ei = [pi/2;0;-beta_i-pi/2];
+      phi_P_Bi = [-pi/2;-pi/2-beta_i;0*pi/180];
     end
-    Rob.Leg(i).update_EE(r_Ni_Ei,phi_Ni_Ei);
+    Rob.Leg(i).update_EE();
+    phi_P_B_all(:,i) =  phi_P_Bi;
   end
   if Rob.issym
     % Annahme über symbolische Variablen, damit die späteren assert-Befehle
@@ -77,15 +80,16 @@ elseif method > 3 && method <= 6
     beta_i = 2*pi/3*(i-1);
     for j = 1:2 % Beide Punkte des Paares durchgehen
       r_P_P_Bi_ges(:,2*(i-1)+j) = rM + rotz(2*pi/3*(i-1))*[0;d_Paar/2*(-1)^j;0];
-      r_Ni_Ei = [0;0;0];
+      
       if method == 4
-        phi_Ni_Ei = [0*pi/180;0*pi/180;-pi/2-beta_i];
+        phi_P_Bi = [0*pi/180;0*pi/180;pi/2+beta_i];
       elseif method == 5
-          phi_Ni_Ei = [pi/2-beta_i;pi/2;0];
+        phi_P_Bi = [-pi/2;-beta_i;-pi/2];
       elseif method == 6
-          phi_Ni_Ei = [pi/2;0;-beta_i-pi/2];
+        phi_P_Bi = [-pi/2;-pi/2-beta_i;0*pi/180];
       end
-      Rob.Leg(j+2*(i-1)).update_EE(r_Ni_Ei,phi_Ni_Ei);
+      Rob.Leg(j+2*(i-1)).update_EE();
+      phi_P_B_all(:,j+2*(i-1)) =  phi_P_Bi;
     end
   end
 else
@@ -94,4 +98,11 @@ end
 if length(param) ~= n_pf_par
   error('Anzahl der eingegebenen Parameter stimmte gar nicht');
 end
+if Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)
+  for i = 1:NLEG
+    Rob.Leg(i).I_EE = true(1,6);
+  end
+  Rob.update_EE_FG(Rob.I_EE,Rob.I_EE,repmat(true(1,6), Rob.NLEG,1));
+end
 Rob.r_P_B_all = r_P_P_Bi_ges;
+Rob.phi_P_B_all = phi_P_B_all; % TODO: Das was in phi_Ni_Ei steht jetzt hier rein. Prüfen.

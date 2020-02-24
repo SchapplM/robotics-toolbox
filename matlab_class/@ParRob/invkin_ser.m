@@ -1,10 +1,10 @@
 % Inverse Kinematik für allgemeinen parallelen Roboter
 % Aufruf der Funktion für serielle Roboter. Dadurch Berechnung der IK
-% für alle Beine unabhängig und nicht gleichzeitig.
-% 
+% für alle Beine unabhangig und nicht gleichzeitig.
+%
 % Vorteile: Schnellere Berechnung durch Nutzung kompilierter Funktionen
 % Nachteil: Keine Nullraumoptimierung bei 3T2R
-% 
+%
 % Eingabe:
 % xE_soll [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
@@ -13,16 +13,16 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Identisch mit
 %   Feldern aus SerRob/invkin.m
-% 
+%
 % Ausgabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM als Lösung der IK
 % Phi
 %   Erfüllung der kinematischen Zwangsbedingungen in der
 %   Gelenkkonfiguration q. Ist bei Erfolg ein Null-Vektor
-% 
+%
 % Siehe auch: SerRob/invkin.m
-% 
+%
 % TODO: Wenn die IK für die Beinkette funktioniert, aber dies keiner
 % gültigen IK für die PKM entspricht, wird ein Fehler aufgeworfen.
 % Das müsste noch systematischer abgefangen werden.
@@ -87,14 +87,15 @@ for i = 1:Rob.NLEG
 
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
   % Dafür wird die IK berechnet und dieser Wert wird übergeben
-  r_P_Bi_P = -r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
+  r_P_P_Bi = r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
+  T_P_Bi = [eulxyz2r(Rob.phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];% (P)^T_(Bi)
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
-  s.T_N_E = Rob.Leg(i).T_N_E * transl(r_P_Bi_P) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
+  s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
   % Inverse Kinematik für die serielle Beinkette berechnen
   [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
-  
+
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
       warning('Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich');
@@ -104,7 +105,7 @@ for i = 1:Rob.NLEG
     % anderen Beinketten vor.
     [~,T_0_Bi] = Rob.Leg(i).fkineEE(q_i);
     % Aktualisiere die EE-Transformation auf die resultierend aus Bein 1
-    T_0_E = T_0_Bi * transl(r_P_Bi_P + r_P_P_E);
+    T_0_E = T_0_Bi * invtr(T_P_Bi) * T_P_E;
   end
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;

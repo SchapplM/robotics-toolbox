@@ -71,10 +71,10 @@ for NNN = RobotNames
   % Beinketten. Damit wird geprüft, ob die Funktionen allgemein funktionieren
   for i = 1:RP.NLEG
     RP.Leg(i).update_EE([], rand(3,1));
+    RP.phi_P_B_all(:,i) = rand(3,1);
   end
   RP.update_base(r_W_0, phi_W_0);
   RP.update_EE(r_P_E, phi_P_E, []);
-  
   % EE-FG eintragen. TODO: FG allgemein festlegen
   if RP.NLEG == 3
     RP.update_EE_FG(logical([1 1 0 0 0 1]));
