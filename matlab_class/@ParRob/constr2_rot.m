@@ -56,11 +56,13 @@ for iLeg = 1:NLEG
   % Fußpunkt-Orientierung
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.phiconv_W_0); 
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_Bi_P = R_P_Bi.';
   
   % Differenz-Rotation (z.B. mit XYZ-Euler-Winkel)
   % Kette: 0 -> 0i -> Bi -> E
   % (Bi und P sind gleich orientiert)
-  R_0_E_q = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E;
+  R_0_E_q = R_0_0i * T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E;
   R_Ex_Eq = R_0_E_x' * R_0_E_q;
 
   % [2_SchapplerTapOrt2019a]/(19); Gl. (A.30)

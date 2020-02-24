@@ -85,7 +85,7 @@ if nargin < 8
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
 
-K1 = eye ((NLEG+1)*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
+K1 = eye ((Rob.Leg(1).NL)*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 R1 = K1 * [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
@@ -100,6 +100,7 @@ F_plf_red = F_plf(Rob.I_EE);
 
 %% Berechnung der Projektion
 % Inversdynamik-Komponente aller Beinketten berechnen; analog zu [DT09]/(6)
+ii = 1;
 for i = 1:NLEG
   q_i = q(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   qD_i = qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
@@ -115,7 +116,8 @@ for i = 1:NLEG
     [~,tauq_leg_reg] = Rob.Leg(i).invdyn(q_i, qD_i, qDD_i);
     tauq_leg = tauq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
-  Tau_full((i-1)*NLEG+1:NLEG*i) = tauq_leg;
+  Tau_full(ii:Rob.Leg(i).NJ+ii-1) = tauq_leg;
+  ii = ii + Rob.Leg(i).NJ;
   if nargout == 2
     Tau_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = tauq_leg_reg;
   end

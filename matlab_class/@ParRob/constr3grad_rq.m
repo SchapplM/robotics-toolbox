@@ -78,6 +78,8 @@ for iLeg = 1:NLEG
   
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_Bi_P = R_P_Bi.';
   
   %% (III) Ableitung der Rotationsmatrix nach q
   % Ableitung der Koppel-KS-Rotationsmatrix der aktuellen Beinkette nach
@@ -91,7 +93,7 @@ for iLeg = 1:NLEG
   % Transformationen berücksichtigt: N->Bi->E
   % RS.T_N_E bezieht sich auf den "Endeffektor" der Beinkette, der "Bi" ist.
   % Gl. (B.33)
-  R_Ni_E = Rob.Leg(iLeg).T_N_E(1:3,1:3) * R_P_E;
+  R_Ni_E = Rob.Leg(iLeg).T_N_E(1:3,1:3) * R_Bi_P * R_P_E;
   b11=R_Ni_E(1,1);b12=R_Ni_E(1,2);b13=R_Ni_E(1,3);
   b21=R_Ni_E(2,1);b22=R_Ni_E(2,2);b23=R_Ni_E(2,3);
   b31=R_Ni_E(3,1);b32=R_Ni_E(3,2);b33=R_Ni_E(3,3);
@@ -109,7 +111,7 @@ for iLeg = 1:NLEG
   
   if iLeg == 1 % ZB für Führungskette; entspricht constr2grad_rq.m
     % Kinematik, Definitionen
-    R_0_L_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
+    R_0_L_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
     R_Ex_Eq = R_0_E_x' * R_0_L_q_L;
 
     % Abspeichern der für jede Beinkette berechneten Ableitung für die
@@ -152,7 +154,7 @@ for iLeg = 1:NLEG
     end
     K1 = K2+1;
   elseif iLeg > 1 % ZB für Folgekette
-    R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
+    R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E; 
     % Argument erste Zeile von [2_SchapplerTapOrt2019a]/(38); Gl. D.18, D.21 
     R_Lq_Eq_f = R_0_L_q_L' * R_0_E_q_f;
 

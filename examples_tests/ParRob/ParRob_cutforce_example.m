@@ -38,7 +38,7 @@ RP.update_actuation(I_qa);
 %% Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
 % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
-RP.align_platform_coupling(3, [0.2;0.1]);
+RP.align_platform_coupling(4, [0.2;0.1]);
 
 %% Beispieltrajektorie definieren
 X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];

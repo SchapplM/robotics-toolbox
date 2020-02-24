@@ -27,7 +27,7 @@ mkdirs(respath);
 
 %% Alle Roboter durchgehen
 
-for i_FG = [1 4]%1:size(EEFG_Ges,1)
+for i_FG = 1:size(EEFG_Ges,1)
   ResStat = table();
   num_robots_tested = 0;
   num_robots_success = 0;
@@ -54,7 +54,7 @@ for i_FG = [1 4]%1:size(EEFG_Ges,1)
     Set = cds_settings_defaults(struct('DoF', EE_FG));
     Set.task.Ts = 1e-2;
     Set.task.Tv = 1e-1;
-    Set.task.profile = 0; % Nur Eckpunkte, kein Zeitverlauf mit Geschwindigkeit
+    Set.task.profile = 1; % Zeitverlauf mit Geschwindigkeit
     Set.task.maxangle = 5*pi/180;
     Traj = cds_gen_traj(EE_FG, 1, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.
@@ -359,10 +359,12 @@ for i_FG = [1 4]%1:size(EEFG_Ges,1)
         plot(Tges, PHI_ges2(:, RP.I_constr_t_red), '--');
         grid on; ylabel('Translatorische Zwangsbed.');
         subplot(2,2,4); hold on;
+        if ~isempty(RP.I_constr_r_red)
         plot(Tges, PHI_ges(:, RP.I_constr_r_red));
         set(gca, 'ColorOrderIndex', 1);
         plot(Tges, PHI_ges2(:, RP.I_constr_r_red), '--');
         grid on;ylabel('Rotatorische Zwangsbed.');
+        end
         linkxaxes
         sgtitle(sprintf('%s: Validierung/Test', PName));
         set(4, 'Name', 'Testen', 'NumberTitle', 'off');

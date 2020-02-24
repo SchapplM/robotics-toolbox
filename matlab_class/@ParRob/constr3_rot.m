@@ -55,13 +55,15 @@ for iLeg = 1:NLEG
   % Fußpunkt-Orientierung
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.phiconv_W_0);
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_Bi_P = R_P_Bi.';
   
   % Differenz-Rotation (z.B. mit XYZ-Euler-Winkel)
   % Kette: 0 -> 0i -> Bi -> E
   % (Bi und P sind gleich orientiert)
 
   if iLeg == 1 % Führungskette
-    R_0_E_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
+    R_0_E_q_L = R_0_0i * T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E; % [2_SchapplerTapOrt2019a]/(26)
     % [2_SchapplerTapOrt2019a]/(19; [B] Gl. 16
     R_Ex_Eq = R_0_E_x' * R_0_E_q_L;
     phiL = r2eul(R_Ex_Eq, phiconv_W_E_reci); 
@@ -71,7 +73,7 @@ for iLeg = 1:NLEG
   
   elseif iLeg > 1 % Folge-Kette
     % [2_SchapplerTapOrt2019a]/(27) Term 1
-    R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_P_E; 
+    R_0_E_q_f = R_0_0i * T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E; 
     % [2_SchapplerTapOrt2019a]/(27); [B] Gl. 18
     R_Lq_Eq = R_0_E_q_L' * R_0_E_q_f;
     phif = r2eul(R_Lq_Eq, phiconv_W_E_reci); 

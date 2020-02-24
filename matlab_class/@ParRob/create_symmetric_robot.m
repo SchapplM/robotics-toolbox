@@ -29,7 +29,7 @@ if ~isempty( SerRob )
 end
 
 Rob.NLEG = NLEG;
-
+Rob.initialize();
 % Fußpunkte und Plattform-Koppelpunkte gleichmäßig im Kreis anlegen
 if nargin > 3 && ~isempty(r_0A)
   Rob.align_base_coupling(1, r_0A);

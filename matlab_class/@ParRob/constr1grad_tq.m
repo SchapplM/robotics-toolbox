@@ -80,7 +80,7 @@ for i = 1:NLEG
   I1 = sum(Rob.I_EE(1:3))*(i-1)+1;
   I2 = I1+sum(Rob.I_EE(1:3))-1;
   if ~isempty(Phi_q_legs_red)
-    dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.Leg(i).I_EE(1:3),:);
+    dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.I_EE(1:3),:);
     Phi_q_legs_red(:,IJ_i) = dPhidqJi_red;
   end
 end

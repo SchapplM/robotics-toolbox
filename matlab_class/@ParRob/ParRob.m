@@ -8,7 +8,8 @@
 %        gleichzeitig beziehen können)
 %   * 0: Basis-KS (Inertial-KS des Roboters)
 %   * A: Basis-Koppel-KS der einzelnen Beinketten (auch als "0i" bezeichnet)
-%   * B: Plattform-Koppel-KS der Beinketten. Orientierung identisch mit "P"
+%   * B: Plattform-Koppel-KS der Beinketten. Orientierung abhängig von
+%        gewählter Anordnung der Koppelgelenk-Orientierung.
 %   * P: Plattform-KS des Roboters, an dem der Endeffektor befestigt ist.
 %        Es werden nur parallele Roboter betrachtet, bei denen die
 %        Plattform am Ende aller Beinketten sitzt (also ohne zusätzliches
@@ -51,6 +52,7 @@ classdef ParRob < matlab.mixin.Copyable
       I1L_LEG % Start-Indizes der Segmente der einzelnen Beinketten
       I2L_LEG % End-Indizes der Segmente ..
       r_P_B_all % [3xNLEG] Ortsvektoren der Plattform
+      phi_P_B_all % [3xNLEG] Orientierung der Plattform-Koppel-KS gegen die Plattform.
       r_0_A_all % [3xNLEG]
       MDH % Struktur mit MDH-Parametern für Roboterkinematik (der PKM)
       I_qd % Zähl-Indizes der abhängigen Gelenke in allen Gelenken
