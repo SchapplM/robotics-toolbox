@@ -67,6 +67,7 @@ end
 for i = 1:3
   phi_z = -RP.Leg(i).phi_W_0(2);
   RP.Leg(i).update_EE(zeros(3,1), [pi/2;0;phi_z])
+  RP.phi_P_B_all(:,i) = [0;0;0];% Bei Delta-Roboter muss phi_P_B_all alle null setzen.
 end
 
 % Endeffektor weiter nach unten, damit besser sichtbar. z-Achse nach unten gedreht
