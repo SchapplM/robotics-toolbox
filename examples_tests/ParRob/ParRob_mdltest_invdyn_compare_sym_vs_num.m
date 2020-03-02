@@ -33,12 +33,13 @@ for i_FG = 1:size(EEFG_Ges,1)
   [PNames_Kin, ~] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
   % III = find(strcmp(PNames_Akt, 'P3RRR1G1P1A1'));
   for ii = 1:length(PNames_Kin)
-    PNameA = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist für Dynamik egal)
-    fprintf('Untersuche PKM %s\n', PNameA);
-    paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PNameA));
+    PNameA0 = [PNames_Kin{ii},'A0']; % Nehme nur die erste Aktuierung (ist für Dynamik egal)
+    PNameA1 = [PNames_Kin{ii},'A1'];
+    fprintf('Untersuche PKM %s\n', PNameA0);
+    paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PNameA0));
 
     %% Roboter Initialisieren
-    RP = parroblib_create_robot_class(PNameA, 1, 0.3);
+    RP = parroblib_create_robot_class(PNameA0, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
     files_missing = RP.fill_fcn_handles(true, true);
     if length(files_missing) >= 6 && usr_only_check_symvsnum
@@ -54,7 +55,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     Set = cds_settings_defaults(struct('DoF', EE_FG));
     Set.task.Ts = 1e-2;
     Set.task.Tv = 1e-1;
-    Set.task.profile = 0; % Nur Eckpunkte, kein Zeitverlauf mit Geschwindigkeit
+    Set.task.profile = 1; % Zeitverlauf mit Geschwindigkeit
     Set.task.maxangle = 5*pi/180;
     Traj = cds_gen_traj(EE_FG, 1, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.
@@ -83,13 +84,16 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
       Set.structures.use_parallel_rankdef = 6;
-      Set.structures.whitelist = {PNameA}; % nur diese PKM untersuchen
+      Set.structures.whitelist = {PNameA1}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
       Set.structures.maxnumprismatic = 6; % Für Dynamik-Test egal wie viele Schubgelenke
       Set.general.noprogressfigure = true;
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
       cds_start
+      resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
+      resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', 1, PNameA1));
+      load(resfile, 'RobotOptRes');
       if isempty(Structures) || RobotOptRes.fval > 1000
         % Die Methode valid_act nimmt die erstbeste bestimmbare Kinematik.
         % Die Wahl der aktuierten Gelenke muss nicht zu vollem Rang führen.
@@ -240,15 +244,15 @@ for i_FG = 1:size(EEFG_Ges,1)
     num_robots_tested = num_robots_tested + 1;
     if n_succ == n
       num_robots_success = num_robots_success + 1;
-      robot_list_succ = [robot_list_succ(:)', {PNameA}];
+      robot_list_succ = [robot_list_succ(:)', {PNameA0}];
     else
-      robot_list_fail = [robot_list_fail(:)', {PNameA}];
+      robot_list_fail = [robot_list_fail(:)', {PNameA0}];
     end
     if DynParMode == 3 || DynParMode == 4
       % Prüfe Rang der Informationsmatrix
       fprintf(['%s: Die Informationsmatrix der Inversen Dynamik hat Rang %d. \nBei ', ...
         '%d Dynamikparametern der PKM gibt es also %d zu viel. \nSymbolisch ', ...
-        'wurden %d Parameter bestimmt\n'], PNameA, rank(Information_matrix), length(dpv), ...
+        'wurden %d Parameter bestimmt\n'], PNameA0, rank(Information_matrix), length(dpv), ...
         length(dpv)-rank(Information_matrix),length(dpv));
     end
   end
