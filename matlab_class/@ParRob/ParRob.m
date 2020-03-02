@@ -680,6 +680,8 @@ classdef ParRob < matlab.mixin.Copyable
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:
       % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert)
+      % I_EE_Task [1x6] logical; Belegung der EE-FG der Aufgabe
+      % I_EE_Legs [NLEGx6] EE-FG der einzelnen Beinketten
       R.I_EE = I_EE;
       if nargin < 3
         I_EE_Task = I_EE;

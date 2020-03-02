@@ -98,11 +98,16 @@ end
 if length(param) ~= n_pf_par
   error('Anzahl der eingegebenen Parameter stimmte gar nicht');
 end
-if Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)
-  for i = 1:NLEG
-    Rob.Leg(i).I_EE = true(1,6);
+if ~isempty(Rob.I_EE)
+  % Bei Methode 1 haben alle Beinketten die identischen FG wie die PKM.
+  % Bei den anderen Methoden ist dies nicht so. Daher setzen der vollen FG
+  % für die Beinketten für diese Koppel-Methoden.
+  if Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)
+    for i = 1:NLEG
+      Rob.Leg(i).I_EE = true(1,6);
+    end
+    Rob.update_EE_FG(Rob.I_EE,Rob.I_EE,true(Rob.NLEG,6));
   end
-  Rob.update_EE_FG(Rob.I_EE,Rob.I_EE,repmat(true(1,6), Rob.NLEG,1));
 end
 Rob.r_P_B_all = r_P_P_Bi_ges;
-Rob.phi_P_B_all = phi_P_B_all; % TODO: Das was in phi_Ni_Ei steht jetzt hier rein. Prüfen.
+Rob.phi_P_B_all = phi_P_B_all;

@@ -59,6 +59,7 @@ end
 % EE-KS mit Null-Rotation vorbelegen
 for i = 1:RP.NLEG
   RP.Leg(i).update_EE(zeros(3,1),zeros(3,1));
+  RP.phi_P_B_all(:,i) = [0;0;0];% Bei 3T2R Roboter muss man phi_P_B_all aktuell null setzen
 end
 
 % EE-FG der PKM setzen (für inverse Kinematik)
