@@ -8,7 +8,6 @@ clear
 
 %% Benutzereingaben
 usr_only_check_symvsnum = true;
-usr_DynParMode = 3;
 
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
@@ -20,8 +19,11 @@ rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
 tmpdir_params = fullfile(rob_path, 'examples_tests', 'tmp_ParRob', 'param_dimsynthres');
 mkdirs(tmpdir_params);
-%% Alle Roboter durchgehen
-
+%% Alle Roboter durchgehen (mit allen Dynamik-Modi)
+for DynParMode = 2:4
+% 2 = Inertialparameter (kein Regressor)
+% 3 = Inertialparameter-Regressor
+% 4 = Minimalparameter-Regressor
 for i_FG = 1:size(EEFG_Ges,1)
   num_robots_tested = 0;
   num_robots_success = 0;
@@ -34,11 +36,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     PNameA = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist für Dynamik egal)
     fprintf('Untersuche PKM %s\n', PNameA);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PNameA));
-    %% Temporäres Filtern
-    if contains(PNameA, 'G4')
-      fprintf('PKM aussortiert (nicht implementierte Anordnung)\n');
-      continue
-    end
+
     %% Roboter Initialisieren
     RP = parroblib_create_robot_class(PNameA, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
@@ -47,7 +45,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       fprintf('Keine symbolisch generierten Dynamik-Funktionen verfügbar. Kein Test Sym vs Num möglich.\n');
       continue
     end
-    if any(contains(files_missing, 'para_pf_mdp')) && any(usr_DynParMode == [3,4])
+    if any(contains(files_missing, 'para_pf_mdp')) && any(DynParMode == [3,4])
       fprintf('Regressor-Form soll getestet werden, aber Funktion nicht vorhanden\n');
       continue
     end
@@ -109,8 +107,8 @@ for i_FG = 1:size(EEFG_Ges,1)
     
 
     %% Parameter für Dynamik-Test
-    RP.DynPar.mode = usr_DynParMode;
-    for il = 1:RP.NLEG, RP.Leg(il).DynPar.mode = usr_DynParMode; end
+    RP.DynPar.mode = DynParMode;
+    for il = 1:RP.NLEG, RP.Leg(il).DynPar.mode = DynParMode; end
     mges_PKM = rand(size(RP.DynPar.mges));
     rSges_PKM = rand(size(RP.DynPar.rSges));
     ISges_PKM = rand(size(RP.DynPar.Icges));
@@ -186,8 +184,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       Gx2 = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)', Jinv);
       
       % Prüfe Regressor-Form
-      if usr_DynParMode == 3 || usr_DynParMode == 4
-        if usr_DynParMode == 3 % Inertialparameter-Vektor
+      if DynParMode == 3 || DynParMode == 4
+        if DynParMode == 3 % Inertialparameter-Vektor
           dpv = RP.DynPar.ipv_n1s;
         else % Minimalparameter-Vektor
           dpv = RP.DynPar.mpv_n1s;
@@ -243,7 +241,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     else
       robot_list_fail = [robot_list_fail(:)', {PNameA}];
     end
-    if usr_DynParMode == 3 || usr_DynParMode == 4
+    if DynParMode == 3 || DynParMode == 4
       % Prüfe Rang der Informationsmatrix
       fprintf(['%s: Die Informationsmatrix der Inversen Dynamik hat Rang %d. \nBei ', ...
         '%d Dynamikparametern der PKM gibt es also %d zu viel. \nSymbolisch ', ...
@@ -257,4 +255,5 @@ for i_FG = 1:size(EEFG_Ges,1)
   disp(robot_list_fail(:));
   disp('Übereinstimmung bei folgenden Robotern:');
   disp(robot_list_succ(:));
+end
 end
