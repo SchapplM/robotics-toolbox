@@ -65,6 +65,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       params = load(paramfile_robot);
       q0 = params.q0;
       for il = 1:RP.NLEG, RP.Leg(il).update_mdh(params.pkin); end
+      RP.update_base(params.r_W_0, params.phi_W_0);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       % Prüfe die Lösbarkeit der IK
@@ -98,10 +99,12 @@ for i_FG = 1:size(EEFG_Ges,1)
       end
       % Funktionierende Parameter abspeichern (für nächstes Mal)
       RP = RobotOptRes.R;
+      r_W_0 = RP.r_W_0;
+      phi_W_0 = RP.phi_W_0;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
       q0 = RobotOptRes.q0;
-      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0');
+      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0');
       fprintf('Maßsynthese beendet\n');
     end
     

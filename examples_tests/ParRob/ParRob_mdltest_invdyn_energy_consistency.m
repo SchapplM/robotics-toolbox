@@ -11,6 +11,7 @@ usr_only_check_symvsnum = true;
 usr_plot_figures = true;
 usr_save_figures = true;
 usr_plot_animation = true;
+usr_debug = true;
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 0; ...
@@ -40,11 +41,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
     fprintf('Untersuche PKM %s\n', PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
-    %% Temporäres Filtern
-    if contains(PName, 'G4')
-      fprintf('PKM aussortiert (nicht implementierte Anordnung)\n');
-      continue
-    end
+
     %% Roboter Initialisieren
     RP = parroblib_create_robot_class(PName, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
@@ -65,13 +62,30 @@ for i_FG = 1:size(EEFG_Ges,1)
       params = load(paramfile_robot);
       q0 = params.q0;
       for il = 1:RP.NLEG, RP.Leg(il).update_mdh(params.pkin); end
+      RP.update_base(params.r_W_0, params.phi_W_0);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       % Prüfe die Lösbarkeit der IK
-      [~,Phi]=RP.invkin(Traj.X(1,:)', q0);
+      [q_test,Phi]=RP.invkin_ser(Traj.X(1,:)', q0);
       if all(abs(Phi)<1e-6) && ~any(isnan(Phi))
+        fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
+      else
+        warning('IK mit abgespeicherten Parametern nicht lösbar.');
+        if usr_debug
+          % Erzeuge ein Bild zur Diagnose der Ursache der falschen Kinematik
+          q_test(isnan(q_test)) = q0(isnan(q_test));
+          change_current_figure(10);clf;hold all;
+          xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+          axis auto
+          hold on;grid on;
+          s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
+          RP.plot(q_test, Traj.X(1,:)', s_plot);
+          title(sprintf('%s in Startkonfiguration',PName));
+        end
       end
+    else
+      fprintf('Es gibt keine abgespeicherten Parameter. Führe Maßsynthese durch\n');
     end
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
@@ -101,10 +115,12 @@ for i_FG = 1:size(EEFG_Ges,1)
       end
       % Funktionierende Parameter abspeichern (für nächstes Mal)
       RP = RobotOptRes.R;
+      r_W_0 = RP.r_W_0;
+      phi_W_0 = RP.phi_W_0;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
       q0 = RobotOptRes.q0;
-      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0');
+      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0');
       fprintf('Maßsynthese beendet\n');
     end
 
@@ -444,4 +460,10 @@ for i_FG = 1:size(EEFG_Ges,1)
   disp(robot_list_succ(:));
   disp('Ergebnistabelle für FG:');
   disp(ResStat);
+  fprintf(['Erklärung: \nRelError20_80: maximaler Anteil der dissipierten ', ...
+    'Energie am Gesamt-Leistungsfluss von 20%% bis 80%% der Simulation.\n']);
+  fprintf(['ProzentTraj: Prozentualer Anteil der erfolgreichen Simulation ', ...
+    'an der geplanten Gesamtdauer der Simulation der freien Bewegung.\n']);
+  restabfile = fullfile(respath, sprintf('fdyn_energy_cons_test_DoF_%s.csv', char(48+EE_FG)));
+  writetable(ResStat, restabfile, 'Delimiter', ';');
 end
