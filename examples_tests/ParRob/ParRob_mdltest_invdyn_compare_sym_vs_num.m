@@ -65,7 +65,10 @@ for i_FG = 1:size(EEFG_Ges,1)
     if exist(paramfile_robot, 'file')
       params = load(paramfile_robot);
       q0 = params.q0;
-      for il = 1:RP.NLEG, RP.Leg(il).update_mdh(params.pkin); end
+      for il = 1:RP.NLEG
+        RP.Leg(il).update_mdh(params.pkin); 
+        RP.Leg(il).qlim = params.qlim(RP.I1J_LEG(il):RP.I2J_LEG(il),:);
+      end
       RP.update_base(params.r_W_0, params.phi_W_0);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
@@ -108,7 +111,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
       q0 = RobotOptRes.q0;
-      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0');
+      qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
+      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim');
       fprintf('Maßsynthese beendet\n');
     end
     
