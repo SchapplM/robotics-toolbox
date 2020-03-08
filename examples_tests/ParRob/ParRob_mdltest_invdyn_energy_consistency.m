@@ -36,6 +36,9 @@ for i_FG = 1:size(EEFG_Ges,1)
   robot_list_fail = {};
   EE_FG = EEFG_Ges(i_FG,:);
   [PNames_Kin, ~] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+  if isempty(PNames_Kin)
+    continue % Es gibt keine PKM mit diesen FG.
+  end
 %   III = find(strcmp(PNames_Akt, 'P3PRR1G1P1A1'));
   for ii = 1:length(PNames_Kin) % III%
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
