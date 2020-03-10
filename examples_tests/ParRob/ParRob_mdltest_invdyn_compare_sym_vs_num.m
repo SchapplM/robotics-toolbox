@@ -19,12 +19,16 @@ rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
 tmpdir_params = fullfile(rob_path, 'examples_tests', 'tmp_ParRob', 'param_dimsynthres');
 mkdirs(tmpdir_params);
+% Pfad zum Abspeichern der Ergebnisse
+respath = fullfile(rob_path, 'examples_tests', 'results');
+mkdirs(respath);
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
+for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 for DynParMode = 2:4
-% 2 = Inertialparameter (kein Regressor)
-% 3 = Inertialparameter-Regressor
-% 4 = Minimalparameter-Regressor
-for i_FG = 1:size(EEFG_Ges,1)
+  % 2 = Inertialparameter (kein Regressor)
+  % 3 = Inertialparameter-Regressor
+  % 4 = Minimalparameter-Regressor
+  ResStat = table();
   num_robots_tested = 0;
   num_robots_success = 0;
   robot_list_succ = {};
@@ -86,7 +90,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
-      Set.structures.use_parallel_rankdef = 6;
+      Set.structures.use_parallel_rankdef = 6; % Rangdefizit ist egal
       Set.structures.whitelist = {PNameA1}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
       Set.structures.maxnumprismatic = 6; % Für Dynamik-Test egal wie viele Schubgelenke
@@ -177,17 +181,21 @@ for i_FG = 1:size(EEFG_Ges,1)
       test_F = Fx2 - Fx1;
       test_F_sum = Mx2*XDD_test(i,RP.I_EE)'+Cx2+Gx2-Fx2;
       fail = false;
-      if any(abs(test_M(:)) > 1e-10)
-        warning('Massenmatrix stimmt nicht');fail = true;
+      if any(abs(test_M(:)) > 1e-8)
+        warning('Massenmatrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
+        fail = true;
       end
-      if any(abs(test_C(:)) > 1e-10)
-        warning('Coriolis-Terme stimmen nicht');fail = true;
+      if any(abs(test_C(:)) > 1e-8)
+        warning('Coriolis-Terme stimmen nicht. Max Fehler %1.1e.', max(abs(test_C(:))));
+        fail = true;
       end
-      if any(abs(test_G(:)) > 1e-10)
-        warning('Gravitations-Terme stimmen nicht');fail = true;
+      if any(abs(test_G(:)) > 1e-8)
+        warning('Gravitations-Terme stimmen nicht. Max Fehler %1.1e.', max(abs(test_G(:))));
+        fail = true;
       end
-      if any(abs(test_F(:)) > 1e-10) || any(abs(test_F_sum(:)) > 1e-10)
-        warning('Inversdynamik-Terme (gesamt) stimmen nicht');fail = true;
+      if any(abs(test_F(:)) > 1e-8) || any(abs(test_F_sum(:)) > 1e-8)
+        warning('Inversdynamik-Terme (gesamt) stimmen nicht. Max Fehler %1.1e.', max(abs(test_F(:))));
+        fail = true;
       end
       % Prüfe Aufruf mit gegebener Jacobi-Matrix (sollte schneller sein)
       Mx2 = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)', Jinv);
@@ -203,33 +211,33 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         [Gx2,Gx2_reg] = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)');
         test_Greg = Gx2_reg*dpv - Gx2;
-        if any(abs(test_Greg(:)) > 1e-10)
-          error('Gravitationskraft-Regressor stimmt nicht');
+        if any(abs(test_Greg(:)) > 1e-8)
+          error('Gravitationskraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Greg(:))));
         end
         [M_full,M_full_reg] = RP.inertia2_platform_full(Q_test(i,:)', X_test(i,:)');
         [Mx2,Mx2_reg] = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)');
         Mx_reg_vec = Mx2_reg*dpv;
         test_Mreg = reshape(Mx_reg_vec, sum(RP.I_EE), sum(RP.I_EE)) - Mx2;
-        if any(abs(test_Mreg(:)) > 1e-10)
-          error('Massenmatrix-Regressor stimmt nicht');
+        if any(abs(test_Mreg(:)) > 1e-8)
+          error('Massenmatrix-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Mreg(:))));
         end
         M_full_regtest = zeros(size(M_full));
         for jj = 1:length(dpv)
           M_full_regtest = M_full_regtest + M_full_reg(:,:,jj) .* dpv(jj);
         end
         test_Mreg_full = M_full_regtest - M_full;
-        if any(abs(test_Mreg_full(:)) > 1e-10)
-          error('Massenmatrix-Regressor (vollständige Jacobi vor Projektion) stimmt nicht');
+        if any(abs(test_Mreg_full(:)) > 1e-8)
+          error('Massenmatrix-Regressor (vollständige Jacobi vor Projektion) stimmt nicht. Max Fehler %1.1e.', max(abs(test_Mreg_full(:))));
         end
         [Cx2,Cx2_reg] = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)') ;
         test_Creg = Cx2_reg*dpv - Cx2;
-        if any(abs(test_Creg(:)) > 1e-10)
-          error('Coriolis-Kraft-Regressor stimmt nicht');
+        if any(abs(test_Creg(:)) > 1e-8)
+          error('Coriolis-Kraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Creg(:))));
         end
         [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
         test_Freg = Fx2_reg*dpv - Fx2;
-        if any(abs(test_Freg(:)) > 1e-10)
-          error('Inversdynamik-Kraft-Regressor stimmt nicht');
+        if any(abs(test_Freg(:)) > 1e-8)
+          error('Inversdynamik-Kraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Freg(:))));
         end
         % Fülle eine Informationsmatrix um die Konditionierung der
         % Regressormatrix in einem virtuellen Identifikationsproblem zu
@@ -243,8 +251,8 @@ for i_FG = 1:size(EEFG_Ges,1)
         n_succ = n_succ + 1;
       end
     end
-    fprintf('%d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
-      n_succ+n_fail, n, n_succ, n_fail, n-(n_succ+n_fail));
+    fprintf('%s: %d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
+      PNameA0, n_succ+n_fail, n, n_succ, n_fail, n-(n_succ+n_fail));
     num_robots_tested = num_robots_tested + 1;
     if n_succ == n
       num_robots_success = num_robots_success + 1;
@@ -259,6 +267,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         'wurden %d Parameter bestimmt\n'], PNameA0, rank(Information_matrix), length(dpv), ...
         length(dpv)-rank(Information_matrix),length(dpv));
     end
+    ResStat = [ResStat; {PNameA0, n_succ, n_fail, n}]; %#ok<AGROW>
   end
   fprintf('Dynamik in symbolischer und numerischer Form für %d/%d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...
     num_robots_tested, length(PNames_Kin), disp_array(EE_FG, '%1.0f'), num_robots_success);
@@ -266,5 +275,8 @@ for i_FG = 1:size(EEFG_Ges,1)
   disp(robot_list_fail(:));
   disp('Übereinstimmung bei folgenden Robotern:');
   disp(robot_list_succ(:));
-end
-end
+  ResStat.Properties.VariableNames = {'Name', 'AnzahlErfolg', 'AnzahlFehlschlag', 'AnzahlTests'};
+  restabfile = fullfile(respath, sprintf('ParRob_invdyn_test_DoF_%s_DynParMode%d.csv', char(48+EE_FG), DynParMode));
+  writetable(ResStat, restabfile, 'Delimiter', ';');
+end % DynParMode
+end % EEFG
