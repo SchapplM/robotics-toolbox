@@ -120,7 +120,7 @@ if s.mode == 4
       rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
       % Plattform als Kreisscheibe modellieren
       drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
-        'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.0, 'EdgeAlpha', 0.3)
+        'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3)
     end
   elseif any(Rob.DesPar.platform_method == [4 5 6])
     h = Rob.DesPar.platform_par(3); % Dicke der Polygon-Platte
