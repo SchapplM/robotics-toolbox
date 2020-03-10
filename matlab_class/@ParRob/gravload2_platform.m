@@ -99,10 +99,10 @@ for i = 1:NLEG
     gq_leg = gq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
   G_full(ii:Rob.Leg(i).NJ+ii-1) = gq_leg;
-  ii = ii + Rob.Leg(i).NJ;
   if nargout == 2
-    G_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = gq_leg_reg;
+    G_full_reg(ii:Rob.Leg(i).NJ+ii-1,1:end-sum(Rob.I_platform_dynpar)) = gq_leg_reg;
   end
+  ii = ii + Rob.Leg(i).NJ;
 end
 % Gravitationskomponente für Plattform eintragen
 G_full(NJ+1:end) = Fg_plf_red; % Gravitationskraft der Plattform

@@ -127,10 +127,11 @@ for i = 1:NLEG
     cq_leg = cq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
   C_full(ii:Rob.Leg(i).NJ+ii-1) = cq_leg;
-  ii = ii + Rob.Leg(i).NJ;
+  
   if nargout == 2
-    C_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = cq_leg_reg;
+    C_full_reg(ii:Rob.Leg(i).NJ+ii-1,1:end-sum(Rob.I_platform_dynpar)) = cq_leg_reg;
   end
+  ii = ii + Rob.Leg(i).NJ;
 end
 % Corioliskomponente für Plattform eintragen
 C_full(NJ+1:end) = Fc_plf_red; % Coriolis-Kraft der Plattform

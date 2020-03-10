@@ -60,9 +60,9 @@ end
 M_full = NaN((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG);
 if nargout == 2 % Ausgabe der Regressormatrizen
   if Rob.DynPar.mode == 3
-    M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.ipv_n1s));
+    M_full_reg = zeros((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG, length(Rob.DynPar.ipv_n1s));
   elseif Rob.DynPar.mode == 4
-    M_full_reg = zeros((NLEG+1)*NLEG, (NLEG+1)*NLEG, length(Rob.DynPar.mpv_n1s));
+    M_full_reg = zeros((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG, length(Rob.DynPar.mpv_n1s));
   else
     error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
   end
@@ -111,7 +111,7 @@ for i = 1:NLEG
   if nargout == 2
     for jj = 1:size(Mvec_Leg_reg,2)
       Mq_Leg_reg_jj = vec2symmat(Mvec_Leg_reg(:,jj));
-      M_full_reg((i-1)*NLEG+1:NLEG*i,1:NJ+NLEG,jj) = [zeros(NLEG,(NLEG*(i-1))),Mq_Leg_reg_jj, zeros(NLEG,NJ -(NLEG*(i-1)))];
+      M_full_reg((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NLEG,jj) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg_reg_jj, zeros(Rob.Leg(i).NJ,NJ+NLEG -(Rob.Leg(i).NJ*(i)))];
     end
   end
 end

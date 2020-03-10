@@ -117,10 +117,10 @@ for i = 1:NLEG
     tauq_leg = tauq_leg_reg*Rob.DynPar.mpv_n1s(1:end-sum(Rob.I_platform_dynpar));
   end
   Tau_full(ii:Rob.Leg(i).NJ+ii-1) = tauq_leg;
-  ii = ii + Rob.Leg(i).NJ;
   if nargout == 2
-    Tau_full_reg((i-1)*NLEG+1:NLEG*i,1:end-sum(Rob.I_platform_dynpar)) = tauq_leg_reg;
+    Tau_full_reg(ii:Rob.Leg(i).NJ+ii-1,1:end-sum(Rob.I_platform_dynpar)) = tauq_leg_reg;
   end
+  ii = ii + Rob.Leg(i).NJ;
 end
 % Dynamikkomponente für Plattform eintragen
 Tau_full(NJ+1:end) = F_plf_red; % Dynamik-Kraft der Plattform
