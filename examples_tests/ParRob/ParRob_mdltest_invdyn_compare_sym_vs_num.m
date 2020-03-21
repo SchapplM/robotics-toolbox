@@ -1,4 +1,11 @@
 % Vergleiche die symbolische und numerische Implementierung der Dynamik
+% Benutze unterschiedliche Implementierungen als Verbleich:
+% * Dynamikparameter (inertial, parameterlinear, parameterminimal)
+% * Eingabe mit Jacobi-Matrix aus unterschiedlichen Modellierungen
+%   (Dadurch Validierung der Jacobi-Matrix-Implementierungen)
+% 
+% Ergebnis bei erfolgreichem Durchlauf:
+% * Alle Dynamikmodellierungen sind konsistent
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-11
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -8,7 +15,8 @@ clear
 
 %% Benutzereingaben
 usr_only_check_symvsnum = true;
-
+usr_test_constr4 = true;
+usr_debug = true;
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 0; ...
@@ -22,6 +30,13 @@ mkdirs(tmpdir_params);
 % Pfad zum Abspeichern der Ergebnisse
 respath = fullfile(rob_path, 'examples_tests', 'results');
 mkdirs(respath);
+% Einstellungen für inverse Kinematik
+s = struct( ...
+       'n_min', 25, ... % Minimale Anzahl Iterationen
+       'n_max', 1000, ... % Maximale Anzahl Iterationen
+       'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
+       'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
+
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
 for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 for DynParMode = 2:4
@@ -35,6 +50,10 @@ for DynParMode = 2:4
   robot_list_fail = {};
   EE_FG = EEFG_Ges(i_FG,:);
   [PNames_Kin, ~] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+  if isempty(PNames_Kin)
+    fprintf('Keine Roboter mit FG [%s] in Datenbank\n', disp_array(EE_FG, '%1.0f'));
+    continue
+  end
   % III = find(strcmp(PNames_Akt, 'P3RRR1G1P1A1'));
   for ii = 1:length(PNames_Kin)
     PNameA0 = [PNames_Kin{ii},'A0']; % Nehme nur die erste Aktuierung (ist für Dynamik egal)
@@ -174,7 +193,7 @@ for DynParMode = 2:4
     n_fail = 0;
     for i = 1:n
       % IK für Testkonfiguration berechnen
-      [q,Phi] = RP.invkin(X_test(i,:)', q0);
+      [q,Phi] = RP.invkin_ser(X_test(i,:)', q0, s);
       if any(abs(Phi) > 1e-8) || any(isnan(Phi)), continue; end % IK für diese Pose nicht erfolgreich
       Q_test(i,:) = q;
       [~, Jinv] = RP.jacobi_qa_x(q, X_test(i,:)');
@@ -185,11 +204,13 @@ for DynParMode = 2:4
       % Parameter zufällig setzen
       RP.update_gravity(rand(3,1));
       
-      % Berechne Dynamik-Terme auf zwei Arten
+      % Berechne Dynamik-Terme auf zwei Arten:
+      % numerische Berechnung (Do Thanh, Matlab)
       Mx2 = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)');
       Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)');
       Gx2 = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)');
       Fx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', X_test(i,:)', XD_test(i,:)', XDD_test(i,:)');
+      % symbolische Berechnung (Abdelatif, Maple)
       Mx1 = RP.inertia_platform(Q_test(i,:)', X_test(i,:)');
       Cx1 = RP.coriolisvec_platform(Q_test(i,:)', X_test(i,:)', XD_test(i,:)');
       Gx1 = RP.gravload_platform(Q_test(i,:)', X_test(i,:)');
@@ -217,9 +238,59 @@ for DynParMode = 2:4
         fail = true;
       end
       % Prüfe Aufruf mit gegebener Jacobi-Matrix (sollte schneller sein)
-      Mx2 = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)', Jinv);
-      Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)', Jinv, JinvD);
-      Gx2 = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)', Jinv);
+      Mx2_Jinput = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)', Jinv);
+      Cx2_Jinput = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)', Jinv, JinvD);
+      Gx2_Jinput = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)', Jinv);
+      test_Mx2Jin = Mx2_Jinput - Mx1;
+      test_Cx2Jin = Cx2_Jinput - Cx1;
+      test_Gx2Jin = Gx2_Jinput - Gx1;
+      if any(abs(test_Mx2Jin(:)) > 1e-8)
+        warning('Massenmatrix mit Jacobi-Matrix-Eingabe stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
+        fail = true;
+      end
+      if any(abs(test_Cx2Jin(:)) > 1e-8)
+        warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe  stimmen nicht. Max Fehler %1.1e.', max(abs(test_C(:))));
+        fail = true;
+      end
+      if any(abs(test_Gx2Jin(:)) > 1e-8)
+        warning('Gravitations-Terme mit Jacobi-Matrix-Eingabe  stimmen nicht. Max Fehler %1.1e.', max(abs(test_G(:))));
+        fail = true;
+      end
+      % Teste die Berechnung der Dynamik mit zusätzlicher Jacobi-Matrix-Modellierung
+      if usr_test_constr4
+        % Neue Berechnung der Jacobi-Matrix
+        G4_q = RP.constr4grad_q(Q_test(i,:)');
+        G4_x = RP.constr4grad_x(X_test(i,:)');
+        % GD4_q = RP.constr4gradD_q(Q_test(i,:)', QD_test(i,:)');
+        % GD4_x = RP.constr4gradD_x(X_test(i,:)', XD_test(i,:)');
+        Jinv_4 = -G4_q\G4_x;
+        % JinvD_4 = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+        % Prüfe Jacobi-Matrix-Zeitableitung
+        % test_JD = JinvD - JinvD_4;
+        % if max(abs(test_JD(:))) > 1e-4
+        %   warning('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
+        % end
+        % Dynamik damit berechnen
+        Mx2_J4input = RP.inertia2_platform(Q_test(i,:)' , X_test(i,:)', Jinv_4);
+        % Cx2_J4input = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', X_test(i,:)', XD_test(i,:)', Jinv_4, JinvD_4);
+        Gx2_J4input = RP.gravload2_platform(Q_test(i,:)', X_test(i,:)', Jinv_4);
+        % Testen
+        test_Mx2J4in = Mx2_J4input - Mx1;
+        % test_Cx2J4in = Cx2_J4input - Cx1;
+        test_Gx2J4in = Gx2_J4input - Gx1;
+        if any(abs(test_Mx2J4in(:)) > 1e-8)
+          warning('Massenmatrix mit Jacobi-Matrix-Eingabe (Var. 4) stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
+          fail = true;
+        end
+        % if any(abs(test_Cx2J4in(:)) > 1e-8)
+        %   warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_C(:))));
+        %   fail = true;
+        % end
+        if any(abs(test_Gx2J4in(:)) > 1e-8)
+          warning('Gravitations-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_G(:))));
+          fail = true;
+        end
+      end
       
       % Prüfe Regressor-Form
       if DynParMode == 3 || DynParMode == 4
