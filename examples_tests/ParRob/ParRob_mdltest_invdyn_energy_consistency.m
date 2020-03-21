@@ -56,7 +56,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     Set.task.Tv = 1e-1;
     Set.task.profile = 1; % Zeitverlauf mit Geschwindigkeit
     Set.task.maxangle = 5*pi/180;
-    Traj = cds_gen_traj(EE_FG, 1, Set.task);
+    Traj_W = cds_gen_traj(EE_FG, 1, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.
     % Traj = timestruct_select(Traj, [1, 2]);
     params_success = false;
@@ -71,8 +71,9 @@ for i_FG = 1:size(EEFG_Ges,1)
       RP.update_base(params.r_W_0, params.phi_W_0);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
+      Traj_0 = cds_rotate_traj(Traj_W, RP.T_W_0);
       % Prüfe die Lösbarkeit der IK
-      [q_test,Phi]=RP.invkin_ser(Traj.X(1,:)', q0);
+      [q_test,Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
       if all(abs(Phi)<1e-6) && ~any(isnan(Phi))
         fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
@@ -86,7 +87,7 @@ for i_FG = 1:size(EEFG_Ges,1)
           axis auto
           hold on;grid on;
           s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-          RP.plot(q_test, Traj.X(1,:)', s_plot);
+          RP.plot(q_test, Traj_0.X(1,:)', s_plot);
           title(sprintf('%s in Startkonfiguration',PName));
         end
       end
@@ -108,6 +109,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.general.noprogressfigure = true;
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
+      Traj = Traj_W;
       cds_start
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
       resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', 1, PName));
@@ -129,6 +131,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
       save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim');
       fprintf('Maßsynthese beendet\n');
+      Traj_0 = cds_rotate_traj(Traj_W, RP.T_W_0);
     end
 
     %% Parameter für Dynamik-Test
@@ -140,7 +143,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     %% Dynamik-Test Symbolisch gegen numerisch
     % Test-Konfiguration
     n = 1;
-    X_test = repmat(Traj.X(1,:),n,1) + 1e-10*rand(n,6);
+    X_test = repmat(Traj_0.X(1,:),n,1) + 1e-10*rand(n,6);
 
     Q_test = NaN(n, RP.NJ); QD_test = Q_test; QDD_test = Q_test;
     XD_test = rand(n,6);     XDD_test = rand(n,6);
