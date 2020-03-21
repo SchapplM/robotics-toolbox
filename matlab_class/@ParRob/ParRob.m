@@ -488,7 +488,7 @@ classdef ParRob < matlab.mixin.Copyable
       % xPD: Plattform-Geschwindigkeit (im Basis-KS)
       %
       % Ausgabe:
-      % Mx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
+      % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 2
