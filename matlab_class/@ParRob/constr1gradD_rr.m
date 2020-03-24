@@ -68,7 +68,7 @@ end
 R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E); % the p
 omega_0_Ex  = euljac (xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
-RD_0_E_x =  R_0_E_x * skew(omega_0_Ex);
+RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
 R_Bi_P = eye(3,3);
 
 K1 = 1;
@@ -91,7 +91,7 @@ for iLeg = 1:NLEG
   
   % Ableitungen der Rotationsmatrizen berechnen
   omega_0i_Bi   = Rob.Leg(iLeg).jacobiw(q_i) *qD_i;
-  RD_0i_Bi = T_0i_Bi(1:3,1:3) * skew (omega_0i_Bi);
+  RD_0i_Bi = skew (omega_0i_Bi) * T_0i_Bi(1:3,1:3);
   RD_0_E_q = R_0_0i * RD_0i_Bi * R_Bi_P * R_P_E;
   RD_0x_0q = (R_0_E_q * RD_0_E_x') + (RD_0_E_q * R_0_E_x');
 
