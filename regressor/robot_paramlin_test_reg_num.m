@@ -96,20 +96,32 @@ end
 
 %% Prüfe, ob die symbolische und numerische Berechnung der Permutation übereinstimmt
 % Übereinstimmung der Aufteilung
-Ibsym=any(P1sym'==1);
+Ibsym=any(P1sym'==1); % Welche Parametereinträge sind unabhängig
 Ibnum=any(P1'==1);
-Idsym=any(P2sym'==1);
+Idsym=any(P2sym'==1); % Welche sind abhängig
 Idnum=any(P2'==1);
 if ~all(Ibsym==Ibnum) || ~all(Idsym==Idnum)
-  IIbsym_diff = find((Ibsym~=Ibnum).*Ibsym);
-  IIbnum_diff = find((Ibsym~=Ibnum).*Ibnum);
-  if any(IIbsym_diff)
+  % Unterschiedliche unabhängige Parametereinträge
+  IIbsym_diff = find((Ibsym~=Ibnum).*Ibsym); % ... bezogen auf unabhängige nach symbolischer Herleitung
+  IIbnum_diff = find((Ibsym~=Ibnum).*Ibnum); % ... bezogen auf numerische Herleitung
+  if any(IIbnum_diff)
     fprintf('Dynamikparameter, die unabhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), sum(Ibsym))
+    disp(PV2_Names(IIbnum_diff)');
+  end
+  if any(IIbsym_diff)
+    fprintf('Dynamikparameter, die unabhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
     disp(PV2_Names(IIbsym_diff)');
   end
-  if any(IIbnum_diff)
-    fprintf('Dynamikparameter, die unabhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
-    disp(PV2_Names(IIbnum_diff)');
+  % Unterschiedliche abhängige Einträge
+  IIdsym_diff = find((Idsym~=Idnum).*Idsym); % ... bezogen auf symbolische Herleitung
+  IIdnum_diff = find((Idsym~=Idnum).*Idnum); % ... bezogen auf numerische Herleitung
+  if any(IIdnum_diff)
+    fprintf('Dynamikparameter, die abhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), sum(Ibsym))
+    disp(PV2_Names(IIdnum_diff)');
+  end
+  if any(IIdsym_diff)
+    fprintf('Dynamikparameter, die abhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
+    disp(PV2_Names(IIdsym_diff)');
   end
   error('Die Aufteilung der Inertialparameter in linear abhängige und unabhängige ist zwischen num. und sym. Berechnung unterschiedlich');
 end
@@ -191,7 +203,7 @@ P1 = P_g1(:,1:b);
 P2 = P_g1(:,b+1:end);
 Wb = W_g*P1; % [Sousa2014], Gl. (33),(34)
 test = Wb*XB1 - W_g*PV2;% [Sousa2014], Gl. (35)
-if any(abs(test(:) > 1e-10))
+if any(abs(test(:)) > 1e-10)
   error('Minimalparameterform nach [Gautier1990] stimmt nicht');
 end
 
