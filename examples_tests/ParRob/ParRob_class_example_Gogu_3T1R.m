@@ -61,7 +61,8 @@ for testcase = 1:5
     RP.Leg(1).update_EE([], [0;0;pi/2]);
     RP.Leg(2).update_EE([], [pi/2;0;0]);
     RP.Leg(3).update_EE([], [0;pi/2;0]);
-    I_EE = logical([1 1 1 0 0 0]);   
+    I_EE = logical([1 1 1 0 0 0]); 
+    RP.phi_P_B_all = zeros(3,RP.NLEG);
   elseif testcase == 2
     %% Isoglide4-T3R1; [Gogu2008] S.156
     RobTitles{testcase} = 'Isoglide4-T3R1 ([Gogu2008] S.156)';
