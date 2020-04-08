@@ -3,17 +3,14 @@
 
 % 
 % Getestet:
-% kinematischen Zwangsbedingungen:
-% * constr1..., ...
 % Gradienten der Zwangsbedingungen
-% * constr1grad..., ...
+% * constr1gradD..., constr4gradD..., ...
 % Diese Funktionen sind die Grundlage für die inverse Dynamik (insbesondere
 % Coriolis-Kräfte)
 % Die rotatorischen Zwangsbedingungen können für unterschiedliche
 % Euler-Winkel-Konventionen aufgestellt werden. Hier werden alle getestet.
 % 
 % Siehe auch: ParRob_constraints_test.m
-
 
 % SA Rajesh Sriram (Studienarbeit bei Moritz Schappler)
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
@@ -24,7 +21,7 @@ clc
 
 % Beispielsysteme
 % Entsprechen 6UPS, 4xSCARA, 3RRR, 3RPR
-RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P3RRR1', 'P3RPR1'}; % 
+RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P3RRR1', 'P3RPR1'};
 
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
@@ -44,6 +41,10 @@ phi_W_0 = [20; 40; 50]*pi/180;
 for NNN = RobotNames
   %% PKM initialisieren
   PName = NNN{1};
+  if use_IK && ~strcmp(PName, 'P6RRPRRR14')
+    continue % gesetzte Annahmen funktionieren nur bei 3T3R
+  end
+  
   N_LEG = str2double(PName(2));
   SName = sprintf('S%d%s',N_LEG,PName(3:end));
   fprintf('Starte Untersuchung für %s\n', PName);
@@ -73,7 +74,6 @@ for NNN = RobotNames
   RP.initialize();
   X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
   xE = X + [[0.1; 0.05; 0]; [1; 1; 1]*pi/180];
- % xE = [ [0;0;0]; [0.5;0.5;0.5]*pi/180 ];
   xE(:,~RP.I_EE) = 0;
   xDE =  rand(6,1) ;
   
@@ -87,12 +87,7 @@ for NNN = RobotNames
   RP.update_base(r_W_0, phi_W_0);
   RP.update_EE(r_P_E, phi_P_E, []);
   
-  % Debug: Basis-Ausrichtung aller Beinketten genauso wie PKM-Basis setzen
-  for i = 1:RP.NLEG
-    RP.Leg(i).update_base([], rand(3,1));
-  end
-  
-  % EE-FG eintragen. TODO: FG allgemein festlegen
+  % EE-FG eintragen.
   if RP.NLEG == 3
     RP.update_EE_FG(logical([1 1 0 0 0 1]));
   elseif RP.NLEG == 4
@@ -167,36 +162,38 @@ for NNN = RobotNames
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
       for testcase = 1:2
-        if testcase == 1
+        if testcase == 1 % Gelenkvariablen verändern
           id_loop_length = length(q0);
-        else
+        else % EE-Koordinaten verändern
           id_loop_length = 6;
         end
-        for id = 1:id_loop_length
+        for id = id_loop_length+1 % 1:
           %% Initialisierung der Test-Variablen
           if testcase == 1
             if use_IK, break; end % Teste erstmal nur den x-Zusammenhang
             qD0 = zeros(length(q0),1);
-            qD0(id) = 0.1;
+            if id <= id_loop_length
+              qD0(id) = 1; % Zum Debuggen: Nur einen Eintrag auf 1 setzen
+            else
+              qD0 = 2*(0.5-rand(length(qD0),1)); % alle Einträge irgendwie setzen
+            end
             % Neue Koordinaten q1 durch Verschiebung in einer Komponente
-            dt = 1e-3;
+            dt = 1e-6;
             q1 = q0 + qD0*dt; % Geschwindigkeit aus entspricht linksseitigem Differenzenquotient
-    %         if ~use_IK
-              xD0 = zeros(6,1); % Hier gibt es nur eine Änderung der Gelenkwinkel
-    %         else
-    %           % Damit die IK erfüllt wird, werden die Plattform-Geschw. in
-    %           % Abhängigkeit des variierten Gelenkwinkels eingesetzt
-    %           G_a = Phi1dq_0(:,id)
-    %           G_p = 
-    %         end
+            xD0 = zeros(6,1); % Hier gibt es nur eine Änderung der Gelenkwinkel
             % Indizes zum Debuggen
             legnum = find(RP.I1J_LEG>=id,1);
             II = RP.I1constr(legnum):RP.I2constr(legnum);
             JJ = RP.I1J_LEG(legnum):RP.I2J_LEG(legnum);
           else
             xD0 = zeros(6,1);
-            xD0(id) = 1;
-            dt = 1e-3;
+            if id <= id_loop_length
+              xD0(id) = 1; % Zum Debuggen: Nur einen Eintrag auf 1 setzen
+            else
+              xD0 = 2*(0.5-rand(length(xD0),1)); % alle Einträge irgendwie setzen
+            end
+            xD0(~RP.I_EE) = 0;
+            dt = 1e-6;
 
             if ~use_IK
               qD0 = zeros(length(q0),1); % Hier gibt es nur eine Änderung der Gelenkwinkel
@@ -214,7 +211,10 @@ for NNN = RobotNames
           end
           % Neue Koordinaten x1 durch Verschiebung in einer Komponente
           x1 = x0 + xD0*dt;
-          
+          if use_IK
+            % Nachkorrektur der Gelenkwinkel
+            [q1, Phi_korr1] = RP.invkin_ser(x1, q0, s);
+          end
           %% Berechne Zeitableitungen aus symbolischer Form und Differenzengleichung
           % Calculation of the differentiated term of the above gradient  
           [~,Phi1D_0] = RP.constr1D(q0, qD0, x0, xD0);
@@ -245,9 +245,6 @@ for NNN = RobotNames
           test2 = Phi1difdq - Phi1Ddq_0 ;%for constr1gradD_q vs constr1grad_q
           test3 = Phi1difdx - Phi1Ddx_0;% for constr1gradD_x vs constr1grad_x
 
-          % Debug: Rotatorische ZB-Komponenten nicht prüfen
-          % test3(RP.I_constr_r,:) = NaN;
-          
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient) 
           if any(abs(test1(:)) > 10e-2)
@@ -257,27 +254,27 @@ for NNN = RobotNames
             disp(test1(RP.I_constr_r)');
             warning('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
           end
+          % Sehr kleine Einträge zu Null setzen (sonst kann der relative
+          % Fehler unendlich werden)
+          Phi1Ddq_0(abs(Phi1Ddq_0(:))<1e-12) = 0;
 
           % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
           % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
-          RelErr  = Phi1Ddq_0./Phi1difdq - 1 ;
+          RelErr  = Phi1Ddq_0./Phi1difdq - 1;
           RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
           % Fehler für Translatorisch und Rotatorisch getrennt berechnen
-          I_tq_relerr = abs(RelErr(RP.I_constr_t,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_tq_abserr = abs(test2(RP.I_constr_t,:)) > 8e10*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_tq_relerr = abs(RelErr(RP.I_constr_t,:)) > 10e-2; % Indizes mit Fehler größer 5%
+          I_tq_abserr = abs(test2(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_tq_relerr(:) & I_tq_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             disp(test2(II,JJ));
             error('%s: constr1gradD_tq stimmt nicht gegen constr1grad_tq', PName);
           end
           
-          % TODO: Der rotatorische Teil funktioniert noch nicht.
           I_rq_relerr = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_rq_abserr = abs(test2(RP.I_constr_r,:)) > 8e10*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_rq_abserr = abs(test2(RP.I_constr_r,:)) > 1e10*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_rq_relerr(:) & I_rq_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            % disp(test2(II,JJ));
-            % TODO: Schwellwerte so formulieren, dass Test erfolgreich (und
-            % plausibel)
-%             warning('%s: constr1gradD_rq stimmt nicht gegen constr1grad_rq', PName);
+            disp(test2(II,JJ));
+            error('%s: constr1gradD_rq stimmt nicht gegen constr1grad_rq', PName);
           end
         
           % Sehr kleine Einträge zu Null setzen (sonst kann der relative
@@ -290,22 +287,17 @@ for NNN = RobotNames
           RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
           RelErr(isinf(RelErr)) = 0; % Bezugsgröße Null geht nicht
           % Prüfe die Komponenten der Matrix einzeln
-          I_tr_relerr = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 1%
-          I_tr_abserr = abs(test3(RP.I_constr_t,4:6)) > 1e13*eps(1+max(abs(Phi1dx_1(:)))); % erlaubt ca. 4e-3
+          I_tr_relerr = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tr_abserr = abs(test3(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:)))); % erlaubt ca. 4e-5
           if any( I_tr_relerr(:) & I_tr_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr1gradD_tr stimmt nicht gegen constr1grad_tr', PName);
           end
-          
-          % TODO: Der Test für den rotatorischen Teil der Matrix wird noch
-          % nicht erfüllt. Unklar, ob es an der numerischen Ungenauigkeit
-          % liegt oder noch ein Fehler im Code ist.
-          I_rr_relerr = abs(RelErr(RP.I_constr_r,4:6)) > 300e-2;
+
+          I_rr_relerr = abs(RelErr(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:))));
           I_rr_abserr = abs(test3(RP.I_constr_r,4:6)) > 10;
           I_rr_err = I_rr_relerr & I_rr_abserr;
           if any( I_rr_err(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            % TODO: Schwellwerte so formulieren, dass Test erfolgreich (und
-            % plausibel)
-%             warning('%s: constr1gradD_rr stimmt nicht gegen constr1grad_rr', PName);
+            error('%s: constr1gradD_rr stimmt nicht gegen constr1grad_rr', PName);
           end
         end % Schleife für Variation der Elemente von qD oder xD
       end % Schleife über Testfälle (entweder qD oder xD variieren)
