@@ -24,11 +24,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_q_red, Phi_q] = constr4grad_rq(Rob, q)
+function [Phi_q_red, Phi_q] = constr4gradD_rq(Rob, q, qD)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr4grad_rq: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr4gradD_rq: q muss %dx1 sein', Rob.NJ);
+assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
+  'ParRob/constr4gradD_rq: qD muss %dx1 sein', Rob.NJ);
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
@@ -50,12 +52,13 @@ end
 for i = 1:NLEG
   IJ_i = Rob.I1J_LEG(i):Rob.I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
+  qsD = qD(IJ_i); 
   
   phi_0_Ai = Rob.Leg(i).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(i).phiconv_W_0);
   % Geometrische Jacobi-Matrix (Rotations-Teil)
-  J0i_i_rotg = Rob.Leg(i).jacobiw(qs);
-  J_Ai_Bi = R_0_0i*J0i_i_rotg; % Bezug auf das Basis-KS der PKM
+  JD0i_i_rotg = Rob.Leg(i).jacobiwD(qs, qsD);
+  JD_Ai_Bi = R_0_0i*JD0i_i_rotg; % Bezug auf das Basis-KS der PKM
 
   if ~Rob.issym
     dPhidqJi = zeros(3*NLEG,Rob.Leg(i).NQJ);
@@ -68,14 +71,14 @@ for i = 1:NLEG
   end
   
   % Gl. A.10
-  dPhidqJi(3*(i-1)+1:3*(i),:) = J_Ai_Bi;
+  dPhidqJi(3*(i-1)+1:3*(i),:) = JD_Ai_Bi;
   Phi_q(:,IJ_i) = dPhidqJi;
   
   % Eintragen in Ergebnis-Variable
   I1 = sum(Rob.Leg(i).I_EE_Task(4:6))*(i-1)+1;
   I2 = I1+sum(Rob.Leg(i).I_EE_Task(4:6))-1;
   if ~isempty(Phi_q_red)
-    dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.Leg(i).I_EE_Task(4:6),:);
+    dPhidqJi_red(I1:I2,:) = JD_Ai_Bi(Rob.Leg(i).I_EE_Task(4:6),:);
     Phi_q_red(:,IJ_i) = dPhidqJi_red;
   end
 end

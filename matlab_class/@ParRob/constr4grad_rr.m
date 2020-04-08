@@ -41,6 +41,6 @@ for i = 1:NLEG
   phi = -Jw; % Term entspricht direkt dem Vorfaktor der Winkelgeschwindigkeit
   Phi_rr(I1:I1+2,:) = phi;
   
-  J1 = sum(Rob.Leg(i).I_EE(4:6))*(i-1)+1;
-  Phi_rr_red(J1:J1+sum(Rob.I_EE(4:6))-1,:) = phi(Rob.Leg(i).I_EE(4:6), Rob.I_EE(4:6));
+  J1 = sum(Rob.Leg(i).I_EE_Task(4:6))*(i-1)+1;
+  Phi_rr_red(J1:J1+sum(Rob.Leg(i).I_EE_Task(4:6))-1,:) = phi(Rob.Leg(i).I_EE_Task(4:6), Rob.I_EE(4:6));
 end

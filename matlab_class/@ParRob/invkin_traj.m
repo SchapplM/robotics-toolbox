@@ -112,16 +112,10 @@ for k = 1:nt
   end
   % Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R
-    if simplify_acc
-      % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
-      % (effizienter als Euler-Winkel-Zwangsbedingungen)
-      Phi_q = Rob.constr4grad_q(q_k);
-      Phi_x = Rob.constr4grad_x(x_k);
-    else
-      % Die Jacobi-Zeitableitung unten benötigt die Euler-Winkel-ZB
-      Phi_q = Rob.constr1grad_q(q_k, x_k);
-      Phi_x = Rob.constr1grad_x(q_k, x_k);
-    end
+    % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
+    % (effizienter als Euler-Winkel-Zwangsbedingungen)
+    Phi_q = Rob.constr4grad_q(q_k);
+    Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
@@ -142,8 +136,8 @@ for k = 1:nt
     qDD_k = J_x_inv * xDD_k(I_EE);
   else
     if ~dof_3T2R
-      Phi_qD = Rob.constr1gradD_q(q_k, qD_k, x_k, xD_k);
-      Phi_xD = Rob.constr1gradD_x(q_k, qD_k, x_k, xD_k);
+      Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
+      Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\Phi_qD/Phi_q*Phi_x - Phi_q\Phi_xD; % Siehe: ParRob/jacobiD_qa_x
     else
       % Fall nicht implementiert (s.o.)
