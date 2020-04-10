@@ -66,9 +66,11 @@ for f = fields(s_std)'
 end
 
 [~,T_c_W] = Rob.fkine(qJ);
-
 v = Rob.MDH.v;
 
+% Bestimme Gelenkvariablen. Bei hybriden Robotern unterschiedlich zu den
+% Minimalkoordinaten qJ.
+q_JV = Rob.jointvar(qJ);
 %% Gelenke als Punkte zeichnen
 % O_xyz_ges = squeeze(T_c_W(1:3,4,:));
 % plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
@@ -117,7 +119,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4]) && ~s.nojoints
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
       d = Rob.MDH.d(i);
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
-      d = qJ(i) + Rob.MDH.offset(i);
+      d = q_JV(i) + Rob.MDH.offset(i);
     else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
       d = Rob.MDH.d(i);
     end
@@ -211,8 +213,8 @@ if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
           % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
           % berücksichtigt.
           % Transformation zu Anfangs- und Endlage des Schubgelenkes
-          T_qmin = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
-          T_qmax = T2 * transl([0;0;-qJ(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
+          T_qmin = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
+          T_qmax = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
 
           if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
             % Zeichne Linearführung als Quader
@@ -278,7 +280,6 @@ if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
     end % for i = 1:Rob.NJ
 end
 if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4])
-    q = Rob.jointvar(qJ);
     for i = 1:Rob.NJ
       j = v(i)+1;
       % MDH-Transformation in einzelnen Schritten nachrechnen, damit diese
@@ -288,11 +289,11 @@ if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4])
       T_k(:,:,2) = T_k(:,:,1) * trotz(Rob.MDH.beta(i)) * transl([0;0;Rob.MDH.b(i)]);
       T_k(:,:,3) = T_k(:,:,2) * trotx(Rob.MDH.alpha(i)) * transl([Rob.MDH.a(i);0;0]);
       if Rob.MDH.sigma(i) == 0 % Drehgelenk
-        theta = q(i) + Rob.MDH.offset(i);
+        theta = q_JV(i) + Rob.MDH.offset(i);
         d = Rob.MDH.d(i);
       elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
         theta = Rob.MDH.theta(i);
-        d = q(i) + Rob.MDH.offset(i);
+        d = q_JV(i) + Rob.MDH.offset(i);
       else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
         theta = Rob.MDH.theta(i);
         d = Rob.MDH.d(i);
