@@ -130,28 +130,33 @@ for i=1:size(Q,1)
       f.cdata = f.cdata((1+crop_begin(1)):(res_tmp(1)-crop_end(1)), ...
                         (1+crop_begin(2)):(res_tmp(2)-crop_end(2)), :);
     end
-  end
-  % Create a colormap for the first frame. For the rest of the frames,
-  % use the same colormap
-  if ~isempty(s_anim.gif_name)
-    if i == 1
-      % Initialisierung
-      mov = uint8(zeros(size(f.cdata, 1), size(f.cdata, 2), 1, size(Q,1)));
-      [mov(:,:,1, i), map] = rgb2ind(f.cdata, 256, 'nodither');
+    % Prüfe nochmal die Auflösung
+    if i == 1 % Initialisierung:
       % Speichere Auflösung ab
       res_1 = size(f.cdata);
     else
       if any(size(f.cdata)~=res_1)
-        warning('Auflösung des aktuellen Bildes passt nicht zu der des ersten');
+        warning('Auflösung des aktuellen Bildes (%d x %d) passt nicht zu der des ersten (%d x %d)', ...
+          res_1(1), res_1(1), f.cdata(1), f.cdata(2));
         % Wahrscheinlich Durch Benutzer händisch verändert oder Fehler
         i_break = i-1;
         break;
       end
+    end
+  end
+  
+  % Create a colormap for the first frame. For the rest of the frames,
+  % use the same colormap
+  if ~isempty(s_anim.gif_name) % schreibe GIF-Bild
+    if i == 1 % Initialisierung
+      mov = uint8(zeros(size(f.cdata, 1), size(f.cdata, 2), 1, size(Q,1)));
+      [mov(:,:,1, i), map] = rgb2ind(f.cdata, 256, 'nodither');
+    else
       mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
     end
   end
   if ~isempty(s_anim.avi_name)
-     writeVideo(v,f);
+     writeVideo(v,f); % Schreibe Frame des Videos
   end
   if i == 1
     [view1_save,view2_save] = view();
