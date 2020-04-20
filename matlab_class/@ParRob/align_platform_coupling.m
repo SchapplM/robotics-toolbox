@@ -26,19 +26,21 @@ end
 phi_P_B_all = NaN(3,NLEG);
 
 Rob.DesPar.platform_method = uint8(method);
-% Parameter in Klasse abspeichern. Der letzte Parameter ist die Stärke der
-% Platte des Ersatzmodells.
+% Parameter in Klasse abspeichern. Der letzte Parameter in der
+% Klassenvariable ist die Stärke der Platte des Ersatzmodells.
 if length(Rob.DesPar.platform_par) == length(param)
   Rob.DesPar.platform_par = [param; 0];
 else
   Rob.DesPar.platform_par(1:length(param)) = param; 
 end
-% Methode 1: Symmetrische Anordnung im Kreis (entspricht N-Eck bei
-% Verbindung der Punkte)
-% Methode 2: X-Achse nach oben, Z-Achse tangential 
-% Methode 3: X-Achse nach oben, Z-Achse zu Mitte
-% Parameter: Abstand zum Mittelpunkt (Radius der Plattform)
 if method <= 3
+  % Methode 1 bis 3: Symmetrische Anordnung der Plattform-Koppelgelenke im
+  % Kreis (entspricht N-Eck bei Verbindung der Punkte). Das letzte Gelenk
+  % der Beinkette ist entsprechend der Z-Achse ausgerichtet:
+  % Methode 1: Z-Achse nach oben, X-Achse tangential
+  % Methode 2: Z-Achse tangential, X-Achse nach oben
+  % Methode 3: Z-Achse zur Mitte,  X-Achse nach oben
+  % Parameter: Abstand der Gelenke zum Mittelpunkt (Radius der Plattform)
   n_pf_par = 1;
   r_PB = param(1);
   
@@ -68,8 +70,14 @@ if method <= 3
     warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
   end
 elseif method > 3 && method <= 6
+  % Methode 4-6: Plattform-Koppelgelenke paarweise angeordnet (nur für
+  % Hexapod-Strukturen). Ansonsten analog zu Methode 1-3
+  % Methode 4: Z-Achse nach oben, X-Achse tangential
+  % Methode 5: Z-Achse tangential, X-Achse nach oben
+  % Methode 6: Z-Achse zur Mitte, X-Achse tangential
+  % Parameter: (1) Abstand von Mitte zur Linie der Gelenkpaar
+  % (näherungsweise Radius der Plattform, (2) Abstand der Gelenke eines Paares
   n_pf_par = 2;
-  % Methode 3: Paarweise angeordnet, z-Achse nach oben
   if Rob.NLEG ~= 6
     error('Methode %d ist nur für 6 Beine definiert', method);
   end
@@ -93,10 +101,11 @@ elseif method > 3 && method <= 6
     end
   end
 else
-  error('Methode nicht implementiert');
+  error('Plattform-Koppelgelenk-Methode %d nicht implementiert', method);
 end
 if length(param) ~= n_pf_par
-  error('Anzahl der eingegebenen Parameter stimmte gar nicht');
+  error('Anzahl der eingegebenen Parameter (%d) stimmt nicht für die Methode %d (erwartet: %d)', ...
+    length(param), method, n_pf_par);
 end
 if ~isempty(Rob.I_EE)
   % Bei Methode 1 haben alle Beinketten die identischen FG wie die PKM.

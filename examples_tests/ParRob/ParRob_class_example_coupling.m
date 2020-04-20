@@ -65,9 +65,7 @@ for base_Coup = 1:8
     I_qa(1:6:36) = true;
     RP.update_actuation(I_qa);
     RP.fill_fcn_handles();
-    %% Plattform-Konfiguration verändern
-    % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
-    % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
+    %% Gestell- und Plattform-Konfiguration verändern
     if base_Coup <= 3
       base_par = Basis_Radius;
     elseif base_Coup == 4
@@ -77,14 +75,14 @@ for base_Coup = 1:8
     elseif base_Coup == 8
       base_par = [Basis_Radius;Basis_Abstand;Steigungswinkel];
     else
-      error('Basis Orienierungsmethod nicht implementiert')
+      error('Gestell-Orientierungsmethode %d nicht implementiert', base_Coup)
     end
     if plat_Coup <= 3
       plat_par = Plat_Radius;
     elseif plat_Coup <=6
       plat_par = [Plat_Radius;Plat_Abstand];
     else
-      error('koppelpunkt Orienierungsmethod nicht implementiert')
+      error('Plattform-Orientierungsmethode %d nicht implementiert', plat_Coup)
     end
     % Coupling einstellen
     RP.align_base_coupling(base_Coup, base_par);
