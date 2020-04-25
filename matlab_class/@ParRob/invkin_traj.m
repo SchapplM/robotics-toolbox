@@ -74,9 +74,9 @@ end
 
 
 if nargout == 6
-  % Wenn jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
+  % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
   % vollständige Formel für die Beschleunigung benutzt werden
-  simplify_acc = true;
+  simplify_acc = false;
 else
   % Benutze vollständige Formel entsprechend Einstellungsparameter
   simplify_acc = s.simplify_acc;
