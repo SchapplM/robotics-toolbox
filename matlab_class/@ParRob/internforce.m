@@ -45,7 +45,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
   R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
 
   % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
-  J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(1).jacobig(q_j);
+  J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(j).jacobig(q_j);
   % Kraft, mit der die Plattform auf die Beinketten drückt (PKM-Basis-KS)
   % Die externe Kraft verursacht zusammen mit den Antriebskräften das
   % Bewegungsverhalten (q,qD,qDD) der Beinkette

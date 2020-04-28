@@ -41,19 +41,19 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
   [~, W_j_l_int_regleg] = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
   % Regressor-Einträge der Beinkette umrechnen auf PKM-Regressor
-  W_j_l_int_reg = [W_j_l_int_regleg(:,11:end), zeros(6*RP.Leg(1).NL,length(RP.I_platform_dynpar))];
+  W_j_l_int_reg = [W_j_l_int_regleg(:,11:end), zeros(6*RP.Leg(1).NL,sum(RP.I_platform_dynpar))];
   
   I_joints = (RP.Leg(j).MDH.sigma==1) .* (3+(3:3:3*RP.Leg(j).NJ)') + ... % erste Einträge entsprechen Schnittkräften und damit Schubgelenken (z-Komponente)
              (RP.Leg(j).MDH.sigma==0) .* (6+3*RP.Leg(j).NJ+(3:3:3*RP.Leg(j).NJ)'); % 
   % Gelenkmomente aufgrund interner Dynamik
   tau_j_reg = W_j_l_int_reg(I_joints,:);
   % Antriebsmomente dieses Beins (passive sind Null)
-  tau_m_j_reg = zeros( RP.Leg(j).NQJ, RP.Leg(j).NJ*10+length(RP.I_platform_dynpar) ); % erste Spalten für Parameter der Beinkette, letzte für die der Plattform
+  tau_m_j_reg = zeros( RP.Leg(j).NQJ, RP.Leg(j).NJ*10+sum(RP.I_platform_dynpar) ); % erste Spalten für Parameter der Beinkette, letzte für die der Plattform
   tau_m_j_reg(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j)),:) = Fa_reg(j,:); % TODO: Aktuell nur ein Antrieb pro Bein
   R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
 
   % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
-  J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(1).jacobig(q_j);
+  J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(j).jacobig(q_j);
   % Kraft, mit der die Plattform auf die Beinketten drückt (PKM-Basis-KS)
   % Die externe Kraft verursacht zusammen mit den Antriebskräften das
   % Bewegungsverhalten (q,qD,qDD) der Beinkette

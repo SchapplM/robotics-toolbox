@@ -194,7 +194,7 @@ for i = 1:nt
     tau_m_j = zeros(RP.Leg(j).NQJ,1); tau_m_j(II_qai(j)) = tauA(j); % Antriebsmomente dieses Beins (passive sind Null)
     R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
     % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
-    J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(1).jacobig(q_j);
+    J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(j).jacobig(q_j);
     % Kraft, mit der die Plattform auf die Beinketten drückt (PKM-Basis-KS)
     FB_j_0 = (J_j_0') \ (tau_j - tau_m_j);
     % Numerische Fehler abrunden (damit die Plots übersichtlicher sind)
