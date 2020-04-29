@@ -1,0 +1,36 @@
+% Ableitung der Rotationskomponente der kinematischen ZB nach der EE-Position
+% Rotation ausgedrückt in XYZ-Euler-Winkeln
+% 
+% Ausgabe:
+% Phipx_red
+%   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
+% Phipx [3xN]
+%   Ableitung der Rotations-ZB nach der EE-Position. Ausgabe Null, da keine
+%   Einfluss besteht
+%
+% Diese Datei ist identisch mit: ParRob/constr1grad_rt.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+% [A] Aufzeichnungen Schappler vom 21.06.2018
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [Phipx_red, Phipx] = %PN%_constr1grad_rt(s)
+
+%% Coder Information
+%#codegen
+%$cgargs {struct( 'I_EE', true(1,6),
+%$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
+%$cgargs            'NLEG', 0)}
+
+% Die Translation hat keinen Einfluss auf die Rotation
+% Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
+Phipx = zeros(3*s.NLEG,3);
+Phipx_red = zeros(length(s.I_constr_r_red),sum(s.I_EE(1:3)));

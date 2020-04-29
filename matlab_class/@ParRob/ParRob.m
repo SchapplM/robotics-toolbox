@@ -98,6 +98,8 @@ classdef ParRob < matlab.mixin.Copyable
       coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+      invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
+      invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
       all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
       extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
@@ -137,7 +139,9 @@ classdef ParRob < matlab.mixin.Copyable
         {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
-        {'dynparconvfcnhdl', 'minimal_parameter_para'}};
+        {'dynparconvfcnhdl', 'minimal_parameter_para'}...
+        {'invkinfcnhdl', 'invkin'}...
+        {'invkintrajfcnhdl', 'invkin_traj'}};
       R.extfcn_available = false(length(R.all_fcn_hdl),1);
       R.I_platform_dynpar = true(1,10);
     end
@@ -153,6 +157,98 @@ classdef ParRob < matlab.mixin.Copyable
       % q: Gelenkposition
       % Phi: Kinematische Zwangsbedingungen für die Lösung.
       [q, Phi] = R.invkin_ser(xE_soll, q0);
+    end
+    function [q, Phi] = invkin2(R, x, q0, s_in_ser)
+      % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
+      % Die Berechnung erfolgt dadurch etwas schneller als durch die
+      % Klassen-Methode `invkin_ser`, die nur teilweise kompilierbar ist.
+      % Eingabe:
+      % x: EE-Lage (Soll)
+      % q0: Start-Pose
+      % s_in_ser: Parameter s in Seriell-IK
+      % Ausgabe:
+      % q: Gelenkposition
+      % Phi: Residuum
+      % 
+      % Siehe auch: invkin_ser
+      % Alle Einstellungen in Eingabestruktur für Funktion schreiben
+      
+      % Einstellungen für PKM-Parameter zusammenstellen
+      Leg_I_EE_Task = true(R.NLEG,6);
+      Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
+      Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
+      Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
+      Leg_I_EElink = uint8(zeros(R.NLEG,1));
+      Leg_NQJ = zeros(R.NLEG,1);
+      Leg_sigmaJ = zeros(R.Leg(1).NJ,R.NLEG);
+      Leg_qlim = zeros(6,2*R.NLEG);
+      Leg_phiconv_W_E = uint8(zeros(R.NLEG,1));
+      for i = 1:R.NLEG
+        Leg_I_EE_Task(i,:) = R.Leg(i).I_EE_Task;
+        Leg_pkin_gen(i,:) = R.Leg(i).pkin_gen;
+        Leg_I_EElink(i,:) = uint8(R.Leg(i).I_EElink);
+        T_N_E = R.Leg(i).T_N_E;
+        Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
+        Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
+        T_0_W = R.Leg(i).T_0_W;
+        Leg_T_0_W_vec(1:3,i) = r2eulxyz(T_0_W(1:3,1:3));
+        Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
+        Leg_NQJ(i) = R.Leg(i).NQJ;
+        Leg_sigmaJ(:,i) = R.Leg(i).MDH.sigma(R.Leg(i).MDH.mu>=1);
+        Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
+        Leg_phiconv_W_E(i) = R.Leg(i).phiconv_W_E;
+      end
+
+      s_par = struct('r_P_B_all', R.r_P_B_all, ...
+                 'phi_P_B_all', R.phi_P_B_all, ...
+                 'NLEG', R.NLEG, ...
+                 'phiconv_W_E', R.phiconv_W_E, ...
+                 'I1constr_red', R.I1constr_red, ...
+                 'I2constr_red', R.I2constr_red, ...
+                 'T_P_E', R.T_P_E, ...
+                 'I1J_LEG', R.I1J_LEG, ...
+                 'I2J_LEG', R.I2J_LEG, ...
+                 'Leg_I_EE_Task', Leg_I_EE_Task, ...
+                 'Leg_pkin_gen', Leg_pkin_gen, ...
+                 'Leg_T_N_E_vec', Leg_T_N_E_vec, ...
+                 'Leg_T_0_W_vec', Leg_T_0_W_vec, ...
+                 'Leg_I_EElink', Leg_I_EElink, ...               
+                 'I_EE_Task', R.I_EE_Task,...
+                 'Leg_NQJ',Leg_NQJ,...
+                 'Leg_sigmaJ',Leg_sigmaJ,...
+                 'Leg_qlim',Leg_qlim,...
+                 'Leg_phiconv_W_E',Leg_phiconv_W_E);
+      
+      % Einstellungen für IK. Siehe auch: SerRob/invkin2
+      K_def = 0.5*ones(R.Leg(1).NQJ,1);
+      s_ser = struct('reci', true, ...
+                 'K', K_def, ... % Verstärkung
+                 'Kn', 1e-2*ones(R.Leg(1).NQJ,1), ... % Verstärkung
+                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+                 'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+                 'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+                 'normalize', true, ... % Normalisieren auf +/- 180°
+                 'n_min', 0, ... % Minimale Anzahl Iterationen
+                 'n_max', 1000, ... % Maximale Anzahl Iterationen
+                 'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
+                 'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
+                 'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+                 'retry_limit', 100); % Anzahl der Neuversuche);
+      % Alle Standard-Einstellungen in s_ser mit in s_in_ser übergebenen Einstellungen
+      % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
+      % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen.
+      % Für s_par nicht benötigt.
+      if nargin == 4
+        for ff = fields(s_in_ser)'
+          if ~isfield(s_ser, ff{1})
+            error('Feld %s kann nicht übergeben werden');
+          else
+            s_ser.(ff{1}) = s_in_ser.(ff{1});
+          end
+        end
+      end
+      % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
+      [q, Phi] = R.invkinfcnhdl(x, q0, s_par, s_ser);
     end
     function update_actuation(R, I_qa)
       R.I_qa = logical(I_qa); % Index der aktiven (und damit unabhängigen Gelenke)

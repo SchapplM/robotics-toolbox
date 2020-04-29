@@ -60,10 +60,6 @@ if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
   s.reci = true;
 end
 
-% Halbiere die Toleranz, weil durch die Umrechnung auf die EE-Plattform
-% noch ein zusätzlicher Hebelarm den Fehler verstärkt
-s.Phit_tol = s.Phit_tol/2;
-s.Phir_tol = s.Phir_tol/2;
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
@@ -115,7 +111,8 @@ Phi = Phi_ser;
 return
 %% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
 % Diese Rechnung ist zu zeitaufwändig und muss im Bedarfsfall manuell
-% durchgeführt werden
+% durchgeführt werden.
+% Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) %#ok<UNRCH>
   Phi = Rob.constr3(q, xE_soll);
 else

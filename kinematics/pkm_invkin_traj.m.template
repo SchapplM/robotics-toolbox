@@ -1,0 +1,246 @@
+% Inverse Kinematik für allgemeinen Roboter (Komplette Trajektorie)
+% Allgemeine, stark parametrierbare Funktion zum Aufruf mit allen möglichen
+% Einstellungen
+% Iterative Lösung der inversen Kinematik mit inverser Jacobi-Matrix
+% Zusätzlich Nutzung der differentiellen Kinematik für schnellere Konvergenz
+% 
+% Eingabe:
+% XE
+%   Trajektorie von EE-Lagen (Sollwerte)
+% XDE
+%   Trajektorie von EE-Geschwindigkeiten (Sollwerte)
+%   (Die Orientierung wird durch Euler-Winkel-Zeitableitung dargestellt)
+% XDDE
+%   Trajektorie von EE-Beschleunigungen (Sollwerte)
+%   Orientierung bezogen auf Euler-Winkel
+% T
+%   Zeitbasis der Trajektorie (Alle Zeit-Stützstellen)
+% q0
+%   Anfangs-Gelenkwinkel für Algorithmus
+% s
+%   Struktur mit Eingabedaten. Felder, siehe Quelltext.
+% 
+% Ausgabe:
+% Q
+%   Trajektorie von Gelenkpositionen (Lösung der IK)
+% QD
+%   Trajektorie von Gelenkgeschwindigkeiten
+% QDD
+%   Trajektorie von Gelenkbeschleunigungen
+% Jinv_ges
+%   Inverse PKM-Jacobi-Matrix für alle Bahnpunkte (spaltenweise in Zeile)
+%   (Jacobi zwischen allen Gelenkgeschwindigkeiten qD und EE-geschwindigkeit xDE)
+%   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
+% JinvD_ges
+%   Zeitableitung von Jinv_ges
+% 
+% Diese Datei ist identisch mit: ParRob/invkin_traj.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+% TODO: Nullraumbewegung mit Nebenbedingung
+% TODO: Erfolg der IK prüfen
+
+% Quelle:
+% [2] Aufzeichnungen Schappler vom 11.12.2018
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = %PN%_invkin_traj(X, XD, XDD, T, q0, s, s_ser)
+
+%% Coder Information
+%#codegen
+%$cgargs {coder.newtype('double',[inf,6]),coder.newtype('double',[inf,6]),
+%$cgargs  coder.newtype('double',[inf,6]),coder.newtype('double',[inf,1]),
+%$cgargs  zeros(%NJ%,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs       'I_EE_Task', true(1,6),
+%$cgargs    'simplify_acc', false,
+%$cgargs         'mode_IK', 2,
+%$cgargs           'debug', false,
+%$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
+%$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
+%$cgargs    'I1constr_red', zeros(1,%NLEG%),
+%$cgargs    'I2constr_red', zeros(1,%NLEG%),
+%$cgargs      'I_constr_t', coder.newtype('double',[1,inf]),
+%$cgargs      'I_constr_r', coder.newtype('double',[1,inf]),
+%$cgargs            'I_qa', logical(zeros(%NJ%,1)),
+%$cgargs       'r_P_B_all', zeros(3,%NLEG%),
+%$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
+%$cgargs            'NLEG', 0,
+%$cgargs              'NJ', 0,
+%$cgargs     'phiconv_W_E', uint8(2),
+%$cgargs           'T_P_E', zeros(4,4),
+%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
+%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
+%$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
+%$cgargs   'Leg_T_0_W_vec', zeros(6,%NLEG%),
+%$cgargs    'Leg_I_EElink', uint8(zeros(%NLEG%,1)),
+%$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
+%$cgargs         'Leg_NQJ', zeros(%NLEG%,1),
+%$cgargs      'Leg_sigmaJ', zeros(%NQJ%,%NLEG%),
+%$cgargs        'Leg_qlim', zeros(6,2*%NLEG%),
+%$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),struct(
+%$cgargs            'reci', true,
+%$cgargs               'K', zeros(%NQJ%,1),
+%$cgargs              'Kn', zeros(%NQJ%,1),
+%$cgargs              'wn', zeros(2,1),
+%$cgargs       'scale_lim', 0,
+%$cgargs      'maxrelstep', 0.1,
+%$cgargs       'normalize', false,
+%$cgargs           'n_min', 0,
+%$cgargs           'n_max', 1000,
+%$cgargs        'rng_seed', NaN,
+%$cgargs        'Phit_tol', 1.0000e-10,
+%$cgargs        'Phir_tol', 1.0000e-10,
+%$cgargs     'retry_limit', 100)}
+coder.extrinsic('tic');
+coder.extrinsic('toc');
+coder.extrinsic('fprintf');
+
+%% Initialisierung
+
+I_EE = s.I_EE;
+mode_IK = s.mode_IK;
+debug = s.debug;
+s_par = struct('r_P_B_all', s.r_P_B_all,...
+             'phi_P_B_all', s.phi_P_B_all,...
+                    'NLEG', s.NLEG,...
+             'phiconv_W_E', s.phiconv_W_E,...
+            'I1constr_red', s.I1constr_red,...
+            'I2constr_red', s.I2constr_red,...
+                   'T_P_E', s.T_P_E,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+           'Leg_T_0_W_vec', s.Leg_T_0_W_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+               'I_EE_Task', s.I_EE_Task,...
+                 'Leg_NQJ', s.Leg_NQJ,...
+              'Leg_sigmaJ', s.Leg_sigmaJ,...
+                'Leg_qlim', s.Leg_qlim,...
+         'Leg_phiconv_W_E', s.Leg_phiconv_W_E);
+
+s_q = struct(     'I_EE', s.I_EE,...
+          'I_constr_t_red', s.I_constr_t_red,...
+          'I_constr_r_red', s.I_constr_r_red,...
+                    'NLEG', s.NLEG,...
+                      'NJ', s.NJ,...
+            'I_constr_t', s.I_constr_t,...
+            'I_constr_r', s.I_constr_r,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+             'Leg_phi_W_0', s.Leg_phi_W_0,...
+         'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
+                 'Leg_NQJ', s.Leg_NQJ);
+   
+ s_x = struct(     'I_EE', s.I_EE,...
+          'I_constr_t_red', s.I_constr_t_red,...
+          'I_constr_r_red', s.I_constr_r_red,...
+              'I_constr_t', s.I_constr_t,...
+              'I_constr_r', s.I_constr_r,...
+                    'NLEG', s.NLEG,...
+               'r_P_B_all', s.r_P_B_all,...
+             'phiconv_W_E', s.phiconv_W_E,...
+                   'T_P_E', s.T_P_E,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task);
+
+% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
+% Eingabe nicht gesetzt
+
+dof_3T2R = false;
+if all(I_EE == logical([1 1 1 1 1 0]))
+  dof_3T2R = true;
+end
+
+if nargout == 6
+  % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
+  % vollständige Formel für die Beschleunigung benutzt werden
+  simplify_acc = false;
+else
+  % Benutze vollständige Formel entsprechend Einstellungsparameter
+  simplify_acc = s.simplify_acc;
+end
+if dof_3T2R
+  % Für den Fall 3T2R ist die Jacobi-Zeitableitung nicht implementiert
+  simplify_acc = true;
+end
+
+nt = length(T);
+Q = NaN(nt, %NJ%);
+QD = Q;
+QDD = Q;
+Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
+Jinv_ges = NaN(nt, sum(I_EE)*length(s.I_qa));
+JinvD_ges = zeros(nt, sum(I_EE)*length(s.I_qa));
+
+qk0 = q0;
+for k = 1:nt
+  tic();
+  x_k = X(k,:)';
+  xD_k = XD(k,:)';
+  xDD_k = XDD(k,:)';
+
+  [q_k, Phi_k] = %PN%_invkin(x_k, qk0, s_par, s_ser);
+
+  % Gelenk-Geschwindigkeit berechnen
+  % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
+  % (effizienter als Euler-Winkel-Zwangsbedingungen)
+
+  Phi_q = %PN%_constr4grad_q(q_k,s_q);
+  Phi_x = %PN%_constr4grad_x(x_k,s_x);
+  J_x_inv = -Phi_q \ Phi_x;
+
+  qD_k = J_x_inv * xD_k(I_EE);
+  
+  % Gelenk-Beschleunigung berechnen
+  if simplify_acc
+    % Vereinfachte Formel ohne Jacobi-Zeitableitung (ist meistens nicht
+    % relevant)
+    qDD_k = J_x_inv * xDD_k(I_EE);
+    JD_x_inv=zeros(size(J_x_inv)); % Platzhalter
+  else
+    % Jacobi-Zeitableitung
+    Phi_qD = %PN%_constr4gradD_q(q_k, qD_k, s_q);
+    Phi_xD = %PN%_constr4gradD_x(x_k, xD_k, s_x);
+    JD_x_inv = Phi_q\Phi_qD/Phi_q*Phi_x - Phi_q\Phi_xD; % Siehe: ParRob/jacobiD_qa_x
+
+    % Vollständige Formel mit Jacobi-Zeitableitung
+    qDD_k = J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE);
+  end
+
+  % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
+  % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
+  if k < nt
+    dt = T(k+1)-T(k);
+    qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
+  end
+  
+  % Ergebnisse speichern
+  Q(k,:) = q_k;
+  QD(k,:) = qD_k;
+  QDD(k,:) = qDD_k;
+  Phi(k,:) = Phi_k;
+
+  Jinv_ges(k,:) = J_x_inv(:);
+  JinvD_ges(k,:) = JD_x_inv(:);
+
+  if debug
+    if max(abs(Phi_k)) > 1e-3
+      fprintf('Phi zu gross');
+      break;
+    end
+    fprintf('Iteration %d/%d (%1.1f%%). Zeit %1.4f. Geschaetzte Restzeit: %1.1fmin\n',...
+      k, nt, 100*k/nt, toc(),(nt-k)*toc()/60);
+  end
+end

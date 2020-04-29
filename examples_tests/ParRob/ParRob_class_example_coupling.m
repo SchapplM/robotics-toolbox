@@ -307,6 +307,8 @@ for base_Coup = 1:8
       end
       fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
       [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+      % Traj.-IK mit kompilierter Funktion: Geht nur mit parroblib_create_robot
+      % [Q_t, ~, ~, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, [], s);
       if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
           any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
         error('Fehler in Trajektorie zu groß. IK nicht berechenbar');

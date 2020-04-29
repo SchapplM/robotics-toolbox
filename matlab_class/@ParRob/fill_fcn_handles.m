@@ -33,10 +33,11 @@ else
   parrob = true;
   res = tokens{1};
   if isempty(res{4}) % serielle Kette ist keine abgeleitete Variante
-    PName_Kin = ['P', res{1}, res{2}, res{3}, 'G', res{5}, 'P', res{6}];
+    PName_Legs = ['P', res{1}, res{2}, res{3}];
   else % serielle Kette ist eine Variante abgeleitet aus Hauptmodell
-    PName_Kin = ['P', res{1}, res{2}, res{3}, 'V', res{4}, 'G', res{5}, 'P', res{6}];
+    PName_Legs = ['P', res{1}, res{2}, res{3}, 'V', res{4}];
   end
+  PName_Kin = [PName_Legs, 'G', res{5}, 'P', res{6}];
   % Modellvariante ohne Aktuierung, unter dem die Dynamik-Funktionen
   % gespeichert sind.
   mdlname_A0 = [PName_Kin, 'A0'];
@@ -56,12 +57,21 @@ for i = 1:length(R.all_fcn_hdl)
   missing_i = true;
   for j = 2:length(ca) % Gehe alle möglichen Funktionsdateien durch
     fcnname_tmp = ca{j};
+    % Bestimme den Roboternamen-Präfix für jede Funktion separat
     if ~parrob || any(strcmp(Ai_list, ca{j}))
       mdlname_j = mdlname;
     else
       mdlname_j = mdlname_A0;
     end
-    
+    if strcmp(cell2str(ca(2)),'invkin') || strcmp(cell2str(ca(2)),'invkin_traj')
+      % IK-Funktionen: Hier ist die G-/P-Nummer egal (wird durch die
+      % Parameter abgedeckt). Daher auch nicht im Namen enthalten.
+      if parrob % PKM ist aus ParRobLib
+        mdlname_j = PName_Legs;
+      else % nicht aus ParRobLib
+        continue; % es gibt keine IK-Funktionen aus parroblib_create_template_functions
+      end
+    end
     if mex == 0
       robfcnname = sprintf('%s_%s', mdlname_j, fcnname_tmp);
     else

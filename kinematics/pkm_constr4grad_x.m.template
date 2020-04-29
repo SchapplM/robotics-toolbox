@@ -1,0 +1,88 @@
+% Ableitung der kinematischen Zwangsbedingungen nach den EE-Koordinaten
+% Bezeichnungen: 
+% * Jacobi-Matrix der direkten Kinematik, 
+% * geometrische Matrix der direkten Kinematik
+% 
+% Variante 4:
+% * Bezogen auf Winkelgeschwindigkeit des Koppelpunktes Bi
+%   (effektiv werden die Geschw.-ZB nach den Gelenk-Geschw. abgeleitet)
+% 
+% Eingabe:
+% xE [6x1]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% 
+% Ausgabe:
+% Phi_x_red
+%   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
+%   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
+% Phi_x [6xN]
+%   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Diese Datei ist identisch mit: ParRob/constr4grad_x.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+% Quelle:
+% [A] Aufzeichnungen Schappler vom 13.02.2020
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [Phi_x_red, Phi_x] = %PN%_constr4grad_x(xE,s)
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(6,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
+%$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
+%$cgargs      'I_constr_t', coder.newtype('double',[1,inf]),
+%$cgargs      'I_constr_r', coder.newtype('double',[1,inf]),
+%$cgargs            'NLEG', 0,
+%$cgargs       'r_P_B_all', zeros(3,%NLEG%),
+%$cgargs     'phiconv_W_E', uint8(2),
+%$cgargs           'T_P_E', zeros(4,4),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6))}
+
+s1 = struct(        'I_EE', s.I_EE,...
+          'I_constr_t_red', s.I_constr_t_red,...
+                    'NLEG', s.NLEG,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task);
+s2 = struct(        'I_EE', s.I_EE,...
+          'I_constr_t_red', s.I_constr_t_red,...
+                    'NLEG', s.NLEG,...
+               'r_P_B_all', s.r_P_B_all,...
+             'phiconv_W_E', s.phiconv_W_E,...
+                   'T_P_E', s.T_P_E,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task);
+s3 = struct(        'I_EE', s.I_EE,...
+          'I_constr_r_red', s.I_constr_r_red,...
+                    'NLEG', s.NLEG);
+s4 = struct(        'I_EE', s.I_EE,...
+          'I_constr_r_red', s.I_constr_r_red,...
+                    'NLEG', s.NLEG,...
+             'phiconv_W_E', s.phiconv_W_E,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task);
+
+%% Aufruf der Unterfunktionen
+% Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
+% ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
+[Phi_tt_red,Phi_tt]=%PN%_constr1grad_tt(s1); % Für Translation identisch mit ...
+[Phi_tr_red,Phi_tr]=%PN%_constr1grad_tr(xE,s2); % ... Methode 1
+[Phi_rt_red,Phi_rt]=%PN%_constr1grad_rt(s3); % Ist sowieso nur Null, auch bei Methode 4
+[Phi_rr_red,Phi_rr]=%PN%_constr4grad_rr(xE,s4); % Methode 4
+
+%% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
+% Initialisierung mit Fallunterscheidung für symbolische Eingabe
+dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
+dim_Px_red=[size(Phi_tt_red,1)+size(Phi_rt_red,1), size(Phi_tt_red,2)+size(Phi_tr_red,2)];
+
+Phi_x_red = NaN(dim_Px_red);
+Phi_x =     NaN(dim_Px);
+
+
+%% Belegung der Ausgabe
+Phi_x_red(s.I_constr_t_red,:) = [Phi_tt_red,Phi_tr_red];
+Phi_x_red(s.I_constr_r_red,:) = [Phi_rt_red,Phi_rr_red];
+Phi_x(s.I_constr_t,:) = [Phi_tt, Phi_tr];
+Phi_x(s.I_constr_r,:) = [Phi_rt, Phi_rr];

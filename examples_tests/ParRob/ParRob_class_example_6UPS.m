@@ -191,16 +191,37 @@ s = struct('Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
 if any(abs(Phi_num1) > 1e-2)
   warning('IK konvergiert nicht');
 end
+% Traj.-IK mit Standard-Funktion berechnen
 fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 [Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
 end
-fprintf('%1.1fs nach Start. %d Punkte berechnet.\n', ...
-  toc(t0), length(t));
+fprintf('Trajektorien-IK mit Funktion invkin_traj berechnet. Dauer: %1.1fs.\n', ...
+  toc(t0));
 save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));
+% Traj.-IK mit neuer optimierter Funktion berechnen
+t1 = tic();
+s_p = struct('simplify_acc', false,'debug', false);
+RP.fill_fcn_handles(true,true);
+[Q_t2, ~, ~, Phi_t2] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_p ,s);
 
+if any(any(abs(Phi_t2(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
+   any(any(abs(Phi_t2(:,RP.I_constr_r_red)) > s.Phir_tol))
+   error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+end
+fprintf('Trajektorien-IK mit Funktion invkin2_traj berechnet. Dauer: %1.1fs.\n', ...
+  toc(t1));
+% Debug: Vergleich template (invkin2_traj) und normale Funktion (invkin_traj)
+testq = Q_t - Q_t2;
+testp = Phi_t - Phi_t2;
+testq(abs(testq(:))== 2*pi ) = 0;
+testqmax = max(abs(testq(:)));
+testpmax = max(abs(testp(:)));
+if testqmax > 1e-6 || testpmax > 1e-6
+  error('IK-Ergebnis stimmt nicht zwischen Funktionen invkin_traj und invkin2_traj!');
+end
 %% Zeitverlauf der Trajektorie plotten
 figure(4);clf;
 subplot(3,2,sprc2no(3,2,1,1)); hold on;

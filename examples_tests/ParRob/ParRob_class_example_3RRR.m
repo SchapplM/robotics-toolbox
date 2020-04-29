@@ -50,7 +50,7 @@ RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM
 RP.update_base([0.1;0.1;0], [45;30;45]*pi/180);
 RP.update_EE(  [0;0;0.1],   [0;0;45 ]*pi/180);
 
-RP.fill_fcn_handles();
+RP.fill_fcn_handles(true, true); % mex-Funktionen für PKM benutzen. Bei Bedarf erstellen
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X = [ [0.0;0.0;0.1]; [0;0;0]*pi/180 ];
@@ -138,12 +138,12 @@ fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(
 q0 = q; % Lösung der IK von oben als Startwert
 t0 = tic();
 % IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
-s = struct('constr_m', 1, 'Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
+s = struct('Phit_tol', 1e-3, 'Phir_tol', 1*pi/180);
 [q1, Phi_num1] = RP.invkin1(X_t(1,:)', q0, s);
 if any(abs(Phi_num1) > 1e-2)
   warning('IK konvergiert nicht');
 end
-[Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+[Q_t, ~, ~, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, [], s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');

@@ -1,0 +1,102 @@
+% Ableitung der kinematischen Zwangsbedingungen nach den Gelenkwinkeln
+% Bezeichnungen: 
+% * Jacobi-Matrix der inversen Kinematik, 
+% * geometrische Matrix der inversen Kinematik
+% 
+% Variante 4:
+% * Bezogen auf Winkelgeschwindigkeit des Koppelpunktes Bi
+%   (effektiv werden die Geschw.-ZB nach den Gelenk-Geschw. abgeleitet)
+% 
+% Eingabe:
+% q [Nx1]
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% 
+% Ausgabe:
+% Phi_q_red
+%   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
+%   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
+% Phi_q [6xN]
+%   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Diese Datei ist identisch mit: ParRob/constr4gradD_q.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+% Quelle:
+% [A] Aufzeichnungen Schappler vom 13.02.2020
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [Phi_q_red, Phi_q] = %PN%_constr4gradD_q(q, qD, s)
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(%NJ%,1), zeros(%NJ%,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
+%$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
+%$cgargs      'I_constr_t', coder.newtype('double',[1,inf]),
+%$cgargs      'I_constr_r', coder.newtype('double',[1,inf]),
+%$cgargs            'NLEG', 0,
+%$cgargs              'NJ', 0,
+%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
+%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
+%$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
+%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
+%$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
+%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+
+%% Initialisierung
+
+s1 = struct(        'I_EE', s.I_EE,...
+          'I_constr_t_red', s.I_constr_t_red,...
+                    'NLEG', s.NLEG,...
+                      'NJ', s.NJ,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+             'Leg_phi_W_0', s.Leg_phi_W_0,...
+         'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
+                 'Leg_NQJ', s.Leg_NQJ);
+s2 = struct(        'I_EE', s.I_EE,...
+          'I_constr_r_red', s.I_constr_r_red,...
+                    'NLEG', s.NLEG,...
+                      'NJ', s.NJ,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+             'Leg_phi_W_0', s.Leg_phi_W_0,...
+         'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
+                 'Leg_NQJ', s.Leg_NQJ);
+
+%% Aufruf der Unterfunktionen
+% Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
+% ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
+[Phi_tq_red,Phi_tq]=%PN%_constr1gradD_tq(q, qD, s1); % Identisch zu Methode 1
+[Phi_rq_red,Phi_rq]=%PN%_constr4gradD_rq(q, qD, s2); % Methode 4
+
+%% Initialisierung mit Fallunterscheidung für symbolische Eingabe
+% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
+dim_Pq_red=[size(Phi_tq_red,1) + size(Phi_rq_red ,1), size(Phi_rq_red,2)];
+dim_Pq =   [size(Phi_tq,1)     + size(Phi_rq,1),      size(Phi_rq,    2)];
+
+
+Phi_q_red = NaN(dim_Pq_red);
+Phi_q =     NaN(dim_Pq);
+
+
+%% Belegung der Ausgabe
+Phi_q_red(s.I_constr_t_red,:) = Phi_tq_red;
+Phi_q_red(s.I_constr_r_red,:) = Phi_rq_red;
+Phi_q(s.I_constr_t,:) = Phi_tq;
+Phi_q(s.I_constr_r,:) = Phi_rq;

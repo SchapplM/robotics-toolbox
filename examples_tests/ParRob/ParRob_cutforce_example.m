@@ -66,6 +66,7 @@ for i = 1:RP.NLEG
   RP.Leg(i).qlim(3,:) = [0.4, 0.7];
 end
 %% Inverse Kinematik berechnen
+t1=tic();
 for i = 1:10 % Mehrere Versuche für IK. Manchmal funktioniert es nicht.
   q0_ik = 0.5-rand(RP.NJ,1);
   q0_ik(RP.I_qa) = 0.5; % Damit Konfiguration nicht umklappt
@@ -82,16 +83,16 @@ fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', nt);
 % Einstellungen: Versuche Restfehler so klein wie möglich zu bekommen,
 % damit System konsistent ist.
 s = struct( ...
-             'n_min', 100, ... % Minimale Anzahl Iterationen: Damit Fehler kleinstmöglich wird
+             'n_min', 2, ... % Minimale Anzahl Iterationen: Damit Fehler kleinstmöglich wird
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, T, q0, s);
-if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > 1e-8)) || ...
-   any(any(abs(Phi_t(:,RP.I_constr_r_red)) > 1e-8))
+[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, T, q0, [], s);
+if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > 1e-10)) || ...
+   any(any(abs(Phi_t(:,RP.I_constr_r_red)) > 1e-10))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
 end
-fprintf('IK berechnet\n');
+fprintf('IK berechnet. Dauer: %1.1fs\n', toc(t1));
 
 %% Roboter in Startpose plotten
 figure(1);clf;set(1, 'Name', 'Startpose', 'NumberTitle', 'off');
@@ -119,6 +120,7 @@ Icges(end,3) = 0.5;
 RP.update_dynpar1(mges, rSges, Icges);
 
 %% Dynamik berechnen
+t1=tic();
 Fp_t = NaN(nt, 6); % Plattform-Kräfte
 TAUa_t = NaN(nt, sum(RP.I_qa)); % Antriebskräfte
 Det_t = NaN(nt,11); % Verschiedene Determinanten
@@ -305,7 +307,7 @@ for i = 1:nt
     end
   end
 end
-fprintf('Inverse Dynamik berechnet\n');
+fprintf('Inverse Dynamik berechnet. Dauer: %1.1fs\n', toc(t1));
 
 %% Ergebnisse plotten: Zeitverlauf der Plattform-Trajektorie
 figure(8);clf;set(8, 'Name', 'Plattform', 'NumberTitle', 'off');
@@ -515,6 +517,7 @@ fprintf('Test für 6UPS beendet\n');
 
 save(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 %% Debug: Vergleich verschiedener Implementierungen mit Parameterlinearer Form
+t1=tic();
 % load(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 % Optional: Berechne Klassenmethode mit anderen Dynamik-Parametern
 % mges(1:end-1) = 0;
@@ -574,4 +577,4 @@ test_FLegl_t = FLegl_t - FLegl_t_fromreg;
 if any(abs(test_FLeg0_t(:)) > 1e-8) || any(abs(test_FLegl_t(:)) > 1e-8)
   error('Trajektorie der Schnittkräfte stimmt nicht mit verschiedenen Berechnungen');
 end
-fprintf('Trajektorien-Funktionen für Schnittkräfte und deren Regressor-Matrizen getestet\n');
+fprintf('Trajektorien-Funktionen für Schnittkräfte und deren Regressor-Matrizen getestet. Dauer: %1.1fs\n', toc(t1));
