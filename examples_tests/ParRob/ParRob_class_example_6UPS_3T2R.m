@@ -31,7 +31,7 @@ clc
 % Seriell-Roboter-Bibliothek laden. Stellt keinen Unterschied dar.
 use_parrob = false;
 short_traj = false;
-eckpunkte_berechnen = false;
+eckpunkte_berechnen = true;
 
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
@@ -259,9 +259,9 @@ XL = [X0'+1*[[ 0.0, 0.0, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[ 0.0,-0.1, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[-0.1, 0.0, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[ 0.0, 0.05, 0.0], [ 0.0, 0.0, 0.0]]; ...
-      X0'+1*[[ 0.2,-0.1, 0.3], [ 0.3, 0.2, 0.1]]; ...
+      X0'+1*[[ 0.1,-0.1, 0.3], [ 0.3, 0.2, 0.1]]; ...
       X0'+1*[[-0.1, 0.1,-0.1], [-0.2,-0.2,-0.2]]; ...
-      X0'+1*[[ 0.2,-0.1, 0.2], [ 0.2, 0.1, 0.3]]];
+      X0'+1*[[ 0.1,-0.1, 0.2], [ 0.2, 0.1, 0.3]]];
 XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 
 % Berechne IK zu den einzelnen Eckpunkten. Wenn das nicht geht, bringt die
@@ -269,13 +269,16 @@ XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 s_ep = s; % Einstellungen für die Eckpunkte-IK
 s_ep.wn = [0;1e-3]; % Man kann mehr bis an die Ränder gehen
 s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer)
+t0 = tic();
 if eckpunkte_berechnen
   for i = 1:size(XL,1)
+    t1 = tic();
     [q_i, Phi_i] = RP.invkin3(XL(i,:)', qs, s_ep);
     if max(abs(Phi_i)) > 1e-6
       error('Eckpunkt %d geht nicht', i);
     end
-    fprintf('Eckpunkt %d berechnet\n', i);
+    fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs für Punkt. %1.1fs gesamt.\n', ...
+      i, size(XL,1), toc(t1), toc(t0));
   end
 end
 
@@ -305,10 +308,9 @@ s_start.Phir_tol = 1e-14;
 s_start.maxstep_ns = 1e-10; % Nullraumbewegung sollte schon zum Optimum konvergiert sein
 % Berechne IK mit 3T2R
 RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
-warning on
 [q1, Psi_num1] = RP.invkin3(X_t(1,:)', qs, s);
 if any(abs(Psi_num1) > 1e-4)
-  warning('IK konvergiert nicht');
+  error('IK für Anfangs-Konfiguration konvergiert nicht');
 end
 % Normiere die Start-Gelenkwinkel auf Bereich 0 bis 1
 qsnorm = (qs-qlim(:,1)) ./ (qlim(:,2) - qlim(:,1)); % Muss 0.5 sein per Definition 

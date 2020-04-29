@@ -67,11 +67,13 @@ for i = 1:NLEG
  
   T_0i_Bi = Rob.Leg(i).fkineEE(qs);
   R_0i_Bi = T_0i_Bi(1:3,1:3);
+  R_Bi_P = eulxyz2r(Rob.phi_P_B_all(:,i)).';
   R_0_Bi = R_0_0i * R_0i_Bi; 
+  R_0_P = R_0_Bi * R_Bi_P;
   
   r_P_P_Bi = Rob.r_P_B_all(:,i);
   r_P_Bi_P = -  r_P_P_Bi;
-  r_B_E = R_0_Bi * (r_P_Bi_P + Rob.r_P_E);
+  r_B_E = R_0_P * (r_P_Bi_P + Rob.r_P_E);  
   % Umrechnung der vorher auf Koppelpunkt bezogenen Jacobi auf den Endeffektor
   % Siehe dazu adjoint_jacobian.m
   J_0_E = J_Ai_Bi + -skew(r_B_E) * J0_i_rot;

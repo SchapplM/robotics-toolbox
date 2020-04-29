@@ -61,9 +61,10 @@ for iLeg = 1:NLEG
   r_P_P_Bi = Rob.r_P_B_all(:,iLeg);
   R_0i_Bi = T_0i_Bi(1:3,1:3);
   R_0_Bi = R_0_0i * R_0i_Bi;
-  r_0_Bi_P = R_0_Bi * (-r_P_P_Bi);
+  R_Bi_P = eulxyz2r(Rob.phi_P_B_all(:,iLeg)).';
+  r_0_Bi_P = R_0_Bi * R_Bi_P * (-r_P_P_Bi);
   r_0_0_P_q = r_0_0_Ai + r_0_Ai_Bi_q + r_0_Bi_P;
-  r_0_0_E_q = r_0_0_P_q + R_0_Bi * Rob.r_P_E;  % [2_SchapplerTapOrt2019a]/(17)
+  r_0_0_E_q = r_0_0_P_q + R_0_Bi * R_Bi_P * Rob.r_P_E;  % [2_SchapplerTapOrt2019a]/(17)
   
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
