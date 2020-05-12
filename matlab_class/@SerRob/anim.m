@@ -171,7 +171,7 @@ for i=1:size(Q,1)
   drawnow();
 end
 % Verkürzen des Videos bei Fehler
-if ~isnan(i_break)
+if ~isempty(s_anim.gif_name) &&  ~isnan(i_break)
   mov = mov(:,:,1,1:i_break);
 end
 %% Create GIF and AVI files
