@@ -125,6 +125,7 @@ classdef SerRob < matlab.mixin.Copyable
     jacobitDfcnhdl  % Funktions-Handle für Zeitableitung der Translationskomponente
     jacobiwfcnhdl   % Funktions-Handle für Rotationskomponente der geometrischen Jacobi-Matrix
     jacobiwDfcnhdl  % Funktions-Handle für Zeitableitung der Rotationskomponente der geometrischen Jacobi-Matrix
+    jacobigcutfcnhdl% Funktions-Handle für Schnittkraft-Jacobi-Matrix
     invkinfcnhdl    % Funktions-Handle für inverse Kinematik
     invkintrajfcnhdl% Funktions-Handle für inverse Kinematik einer Trajektorie
     jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
@@ -226,6 +227,7 @@ classdef SerRob < matlab.mixin.Copyable
       {'jacobitDfcnhdl', 'jacobiaD_transl_sym_varpar'}, ...
       {'jacobiwfcnhdl', 'jacobig_rot_sym_varpar'}, ...
       {'jacobiwDfcnhdl', 'jacobigD_rot_sym_varpar'}, ...
+      {'jacobigcutfcnhdl', 'jacobig_cutforce_mdh_num'}, ...
       {'invkinfcnhdl', 'invkin_eulangresidual'}, ...
       {'invkintrajfcnhdl', 'invkin_traj'}, ...
       {'ekinfcnhdl2', 'energykin_fixb_slag_vp2'}, ...
@@ -935,13 +937,10 @@ classdef SerRob < matlab.mixin.Copyable
       if R.Type == 1
         error('Nicht für hybride Systeme definiert');
       end
-      Tc0 = R.fkine(q);
-      Tc0_stack = NaN(3*R.NL,4);
-      for ii = 1:R.NL
-          Tc0_stack(3*ii-2:3*ii,:) = Tc0(1:3,:,ii);
-      end
-      % TODO: Durch symbolische Funktion ersetzen
-      Jg_C = robot_tree_jacobig_cutforce_m(Tc0_stack, R.MDH.v, uint8(link_index), r_i_i_C);
+      % Nur Aufruf der spezifischen Funktion. Prüfung auf Existenz kostet
+      % zu viel Leistung. Alternative Berechnung mit
+      % robot_tree_jacobig_cutforce_m ist auch möglich.
+      Jg_C = R.jacobigcutfcnhdl(q, uint8(link_index), r_i_i_C, R.pkin_gen);
     end
     function W_ext = internforce_ext(R, q, F_ext, link_index, r_i_i_C)
       % Interne Schnittkräfte resultierend aus externen Kräften
