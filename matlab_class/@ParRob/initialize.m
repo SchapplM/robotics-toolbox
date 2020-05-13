@@ -9,14 +9,17 @@ function initialize(R)
 NLEG = R.NLEG;
 
 % Gelenkvariablen-Indizes der einzelnen Beinketten (dient zur leichteren
-% Indizierung)
+% Indizierung). Damit wird Anfang und Ende der Gelenkkoordinaten einer
+% Beinkette im Vektor aller Gelenkkoordinaten der PKM gefunden.
 I2=0;
-I1J_LEG = zeros(NLEG,1);
-I2J_LEG = zeros(NLEG,1);
+I1J_LEG = zeros(NLEG,1); % Indizes des Anfangs für alle Beinketten
+I2J_LEG = zeros(NLEG,1); % Indizes der letzten Koordinate
 for i = 1:NLEG
-  NJ_Leg_i = R.Leg(i).NJ;
+  % Benutze Minimalkoordinaten (NQJ) der Beinkette. Keine Berücksichtigung
+  % der passiven Gelenke hybrider Beinketten (in `NJ`)
+  NQJ_Leg_i = R.Leg(i).NQJ; 
   I1 = I2+1;
-  I2 = I1+NJ_Leg_i-1;
+  I2 = I1+NQJ_Leg_i-1;
   
   I1J_LEG(i) = I1;
   I2J_LEG(i) = I2;
@@ -30,8 +33,9 @@ R.NJ = NJ;
 % Körper-KS-Indizes der einzelnen Beinketten (bezogen auf die Ausgabe von
 % fkine)
 I2=0;
-I1L_LEG = zeros(NLEG,1);
-I2L_LEG = zeros(NLEG,1);
+I1L_LEG = zeros(NLEG,1); % Start-Index der Starrkörper der Beinkette in Starrkörpern der PKM
+I2L_LEG = zeros(NLEG,1); % End-Index
+R.NL = 1; % Zähler für Starrkörper der PKM. Basis entspricht 1
 for i = 1:NLEG
   NL_Leg_i = R.Leg(i).NL;
   I1 = I2+1;
@@ -39,15 +43,23 @@ for i = 1:NLEG
   
   I1L_LEG(i) = I1;
   I2L_LEG(i) = I2;
+  
+  R.NL = R.NL + NL_Leg_i-1; % Anzahl der bewegten Körper der Beinkette
 end
 
 R.I1L_LEG = I1L_LEG;
 R.I2L_LEG = I2L_LEG;
 
-% MDH-Parameter sigma für ganzen Roboter
+R.NL = R.NL + 1; % Zusätzlicher Starrkörper für Plattform
+
+% MDH-Parameter sigma für ganzen Roboter: Anzeige für Art der einzelnen
+% Gelenke der Beinketten der PKM (bezieht sich nur auf Minimalkoordinaten
+% der Beingelenke)
 sigma_PKM = zeros(NJ,1);
 for i = 1:NLEG
-  sigma_PKM(I1J_LEG(i):I2J_LEG(i)) = R.Leg(i).MDH.sigma;
+  % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten der Beinkette)
+  sigmaJ = R.Leg(i).MDH.sigma(R.Leg(i).MDH.mu>=1);
+  sigma_PKM(I1J_LEG(i):I2J_LEG(i)) = sigmaJ;
 end
 R.MDH.sigma = sigma_PKM;
 
@@ -55,7 +67,7 @@ R.MDH.sigma = sigma_PKM;
 % Annahme: Immer erstes Gelenk der Beinkette aktiv
 mu_PKM = zeros(NJ,1);
 for i = 1:NLEG
-  mu_PKM(I1J_LEG(i):I2J_LEG(i)) = [1; zeros(R.Leg(i).NJ-1,1)];
+  mu_PKM(I1J_LEG(i):I2J_LEG(i)) = [1; zeros(R.Leg(i).NQJ-1,1)];
 end
 R.update_actuation(mu_PKM)
 

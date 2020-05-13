@@ -29,7 +29,7 @@ function [Tc_ges, Tc_ges_W] = fkine(Rob, q, xE)
 
 Tc_Lges = Rob.fkine_legs(q);
 Tc_Pges = Rob.fkine_platform(xE);
-N_KS_L = Rob.NLEG + Rob.NJ + Rob.NLEG; % Basis-KS für jede Beinkette, alle Körper-KS des Beins und "End-Effektor" der Beine (zusätzliches Schnitt-KS)
+N_KS_L = Rob.NLEG + (Rob.NL-2) + Rob.NLEG; % Basis-KS für jede Beinkette, alle Körper-KS des Beins und "End-Effektor" der Beine (zusätzliches Schnitt-KS)
 N_KS_P = Rob.NLEG + 2; % Plattform-Koppel-KS, Plattform-KS und EE-KS
 N_KS_ges = 1 + N_KS_L + N_KS_P;
 
