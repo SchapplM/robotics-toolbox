@@ -34,3 +34,7 @@ ParRob_constraints_test; close all;
 ParRob_constraintsD_test; close all;
 ParRob_mdltest_invdyn_energy_consistency; close all;
 ParRob_mdltest_invdyn_compare_sym_vs_num; close all;
+
+%% Parallele Roboter mit seriell-hybriden Beinketten
+ParRob_class_example_hybBKplanar; close all;
+ParRob_class_example_hybBKspatial; close all;
