@@ -111,6 +111,7 @@ Leg_T_N_E_vec = s_par.Leg_T_N_E_vec;% 6 x NLEG
 Leg_T_0_W_vec = s_par.Leg_T_0_W_vec;
 Leg_pkin_gen = s_par.Leg_pkin_gen;%(%NLEG%,%NKP%)
 Leg_I_EElink = s_par.Leg_I_EElink;%(%NLEG%,1)
+pkin = zeros(size(Leg_pkin_gen,2),1);
 
 Phi_ser = NaN(I2constr_red(end),1);
 Phi = Phi_ser;
@@ -160,12 +161,12 @@ for i = 1:NLEG
     end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
     % anderen Beinketten vor.
-    Tc_W = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(q_i,Leg_pkin_gen(i,:));
-    for ii = 1:size(Tc_W,3)
-       Leg_T_W_0 = invtr(Leg_T_0_W);
-       Tc_W(:,:,ii) = Leg_T_W_0(:,:,ii) * Tc_W(:,:,ii);
-    end
-    T_0_Bi = Tc_W(:,:,Leg_I_EElink(i)+1)*Leg_T_N_E(:,:,i);
+    pkin = s.pkin;
+    Tc_W = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(q_i, pkin);
+    Tc_W_1 = Tc_W(:,:,Leg_I_EElink(i)+1);
+    Leg_T_W_0 = invtr(Leg_T_0_W);
+    Tc_W_1 = Leg_T_W_0 * Tc_W_1;
+    T_0_Bi = Tc_W_1 * Leg_T_N_E;
     % Aktualisiere die EE-Transformation auf die resultierend aus Bein 1
     T_0_E = T_0_Bi * invtr(T_P_Bi) * T_P_E;
   end

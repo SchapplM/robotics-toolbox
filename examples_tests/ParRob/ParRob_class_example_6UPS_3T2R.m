@@ -31,7 +31,7 @@ clc
 % Seriell-Roboter-Bibliothek laden. Stellt keinen Unterschied dar.
 use_parrob = false;
 short_traj = false;
-eckpunkte_berechnen = true;
+eckpunkte_berechnen = false;
 
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
@@ -81,10 +81,10 @@ for i = 1:RP.NLEG
   % Begrenze die Länge der Schubgelenke
   RP.Leg(i).qlim(3,:) = [0.1, 1.5];
 end
-
+RP.phi_P_B_all = zeros(3,6);
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
-X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];
+X0 = [ [0;0;0.6]; [0;0;0]*pi/180 ];
 for i = 1:10 % Mehrere Versuche für "gute" Pose
   q0 = -0.5+rand(36,1); % Startwerte für numerische IK (zwischen -0.5 und 0.5 rad)
   q0(RP.I_qa) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
@@ -214,7 +214,7 @@ for i = 1:RP.NLEG
 end
 %% Initialisierung Teil 2
 RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
-
+RP.fill_fcn_handles(true,true);
 %% Jacobi-Matrizen auswerten
 
 [G_q_red,G_q_voll] = RP.constr3grad_q(qs, X0);
@@ -259,9 +259,9 @@ XL = [X0'+1*[[ 0.0, 0.0, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[ 0.0,-0.1, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[-0.1, 0.0, 0.0], [ 0.0, 0.0, 0.0]]; ...
       X0'+1*[[ 0.0, 0.05, 0.0], [ 0.0, 0.0, 0.0]]; ...
-      X0'+1*[[ 0.1,-0.1, 0.3], [ 0.3, 0.2, 0.1]]; ...
-      X0'+1*[[-0.1, 0.1,-0.1], [-0.2,-0.2,-0.2]]; ...
-      X0'+1*[[ 0.1,-0.1, 0.2], [ 0.2, 0.1, 0.3]]];
+      X0'+1*[[ 0.15,-0.1, 0.1], [ 0.15, 0.2, 0.1]]; ...
+      X0'+1*[[-0.1, 0.05,-0.1], [-0.1,-0.15,-0.15]]; ...
+      X0'+1*[[ 0.1,-0.1, 0.05], [ 0.2, 0.1, 0.1]]];
 XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 
 % Berechne IK zu den einzelnen Eckpunkten. Wenn das nicht geht, bringt die
@@ -269,16 +269,24 @@ XL = [XL; XL(1,:)]; % Rückfahrt zurück zum Startpunkt.
 s_ep = s; % Einstellungen für die Eckpunkte-IK
 s_ep.wn = [0;1e-3]; % Man kann mehr bis an die Ränder gehen
 s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer)
-t0 = tic();
 if eckpunkte_berechnen
+  t0 = tic();
   for i = 1:size(XL,1)
     t1 = tic();
     [q_i, Phi_i] = RP.invkin3(XL(i,:)', qs, s_ep);
+    fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (Klassen). ', ...
+      i, size(XL,1), toc(t1));
+    t2 = tic();
+    [q_i_debug, Phi_i_debug] = RP.invkin4(XL(i,:)', qs, s_ep);
+    phi_test = Phi_i - Phi_i_debug;
+    if max(abs(phi_test(:))) > 1e-6
+      error('Eckpunkt %d passt tpl mit Klasssen nicht', i);
+    end
     if max(abs(Phi_i)) > 1e-6
       error('Eckpunkt %d geht nicht', i);
     end
-    fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs für Punkt. %1.1fs gesamt.\n', ...
-      i, size(XL,1), toc(t1), toc(t0));
+    fprintf(' Dauer %1.1fs (tpl) für Punkt.\n', ...
+      toc(t2));
   end
 end
 
@@ -308,9 +316,10 @@ s_start.Phir_tol = 1e-14;
 s_start.maxstep_ns = 1e-10; % Nullraumbewegung sollte schon zum Optimum konvergiert sein
 % Berechne IK mit 3T2R
 RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
+warning on
 [q1, Psi_num1] = RP.invkin3(X_t(1,:)', qs, s);
 if any(abs(Psi_num1) > 1e-4)
-  error('IK für Anfangs-Konfiguration konvergiert nicht');
+  warning('IK konvergiert nicht');
 end
 % Normiere die Start-Gelenkwinkel auf Bereich 0 bis 1
 qsnorm = (qs-qlim(:,1)) ./ (qlim(:,2) - qlim(:,1)); % Muss 0.5 sein per Definition 
@@ -347,10 +356,25 @@ end
 s_Traj.mode_IK = 2;
 s_Traj.debug = true;
 fprintf('3T2R Inverse Kinematik (parallel-IK) für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
+t1 = tic();
 [Q2_t, QD2_t, ~, Phi2_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
 if max(abs(Phi2_t(:))) > max(s.Phit_tol,s.Phir_tol)
   % TODO: Trajektorie oder Einstellungen anpassen, damit der Fehler (1e-4) weg geht 
-  warning('Fehler in Trajektorie zu groß. IK nicht berechenbar');
+  warning('Fehler in Trajektorie zu groß. IK nicht berechenbar\n');
+end
+Trajzeit(1) = toc(t1);
+t2 = tic();
+[Q2_t_debug, QD2_t_debug, ~, Phi2_t_debug] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_Traj);
+if max(abs(Phi2_t(:))) > max(s_Traj.Phit_tol,s_Traj.Phir_tol)
+  % TODO: Trajektorie oder Einstellungen anpassen, damit der Fehler (1e-4) weg geht 
+  warning('Fehler in Trajektorie zu groß. IK nicht berechenbar\n');
+end
+Trajzeit(2) = toc(t2);
+fprintf('Trajektorie berechnet. Dauer %1.1fs (Klasse) -- %1.1fs (tpl).\n ', ...
+       Trajzeit(1),Trajzeit(2));
+phi_test = Phi2_t - Phi2_t_debug;
+if max(abs(phi_test(:))) > 1e-6
+  error('Eckpunkt %d passt tpl mit Klasssen nicht', i);
 end
 
 % Berechne Ist-EE-Traj.
@@ -371,7 +395,9 @@ for jj = 1:2
       R_0_Bj = T_Bi(1:3,1:3,j);
       r_0_0_Bj = T_Bi(1:3,4,j);
       r_P_P_Bj = RP.r_P_B_all(:,j);
-      r_0_Bj_P = -R_0_Bj*r_P_P_Bj;
+      R_P_Bi = eulxyz2r(RP.phi_P_B_all(:,j));
+      R_Bi_P = R_P_Bi.';
+      r_0_Bj_P = -R_0_Bj*R_Bi_P*r_P_P_Bj;
       r_0_Ej = r_0_0_Bj + r_0_Bj_P;
       if j == 1
         r_0_E_Legs = r_0_Ej;

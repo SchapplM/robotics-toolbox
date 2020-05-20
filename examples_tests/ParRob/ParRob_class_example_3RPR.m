@@ -146,7 +146,7 @@ s = struct('Phit_tol', 1e-7, 'Phir_tol', 1e-6);
 if any(abs(Phi_num1) > 1e-2)
   warning('IK konvergiert nicht');
 end
-[Q_t, ~, ~, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, [], s);
+[Q_t, ~, ~, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');

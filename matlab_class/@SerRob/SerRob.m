@@ -606,10 +606,10 @@ classdef SerRob < matlab.mixin.Copyable
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
       if nargin == 4
         for f = fields(s_in)'
-          if ~isfield(s, f{1})
-            % error('Feld %s kann nicht übergeben werden');
-          else
+          if isfield(s, f{1})
             s.(f{1}) = s_in.(f{1});
+          else % Fall soll eigentlich nicht vorkommen. Daher Prüfung als zweites
+            error('Feld %s aus s_in kann nicht übergeben werden', f{1});
           end
         end
       end

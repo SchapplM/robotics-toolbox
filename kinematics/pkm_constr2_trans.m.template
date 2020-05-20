@@ -1,0 +1,100 @@
+% Translationskomponente der kinematischen ZB zwischen Ist- und Soll-Konfiguration
+% Variante 2:
+% * Implementierung mit Vektor 0-E statt A-B
+% 
+% Eingabe:
+% q [Nx1]
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% xE [6x1]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% 
+% Ausgabe:
+% Phi_red
+%   Reduzierte kinematische Zwangsbedingungen (siehe folgendes)
+%   Die Reduktion folgt aus der Klassenvariablen I_EE
+% Phi [6Mx1]
+%   Kinematische Zwangsbedingungen des Roboters für alle M Beine: 
+%   Maß für den Positionsfehler zwischen Ist-Pose aus
+%   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
+%
+% Diese Datei ist identisch mit: ParRob/constr2_trans.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+
+% Quellen:
+% [2_SchapplerTapOrt2019a] Schappler, M. et al.: Modeling Parallel Robot
+% Kinematics for 3T2R and 3T3R Tasks using Reciprocal Sets of Euler Angles
+% (Arbeitstitel), Submitted to MDPI Robotics KaRD2, Version of 27.06.2019
+% [A] Aufzeichnungen Schappler vom 15.06.2018
+% [B] Aufzeichnungen Schappler vom 22.06.2018
+
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [Phix_red, Phix] = %PN%_constr2_trans(q, xE, s)
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs            'NLEG', 0,
+%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
+%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs       'r_P_B_all', zeros(3,%NLEG%),
+%$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
+%$cgargs           'T_P_E', zeros(4,4),
+%$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
+%$cgargs   'Leg_T_0_W_vec', zeros(6,%NLEG%),
+%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
+%$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
+
+%% Initialisierung
+
+NLEG = s.NLEG;
+
+Phix = NaN(3*NLEG,1);
+Phix_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
+
+%% Berechnung
+r_0_0_E_x = xE(1:3); % [2_SchapplerTapOrt2019a]/(14)
+
+for iLeg = 1:NLEG
+  % Anteil der ZB-Gleichung der Gelenkkette
+  % Direkte Kinematik der Beinkette
+  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  qs = q(IJ_i); % Gelenkwinkel dieser Kette
+  
+  % Fußpunktkoordinaten
+  Leg_T_0_W = [eulxyz2r(s.Leg_T_0_W_vec(1:3,iLeg)),s.Leg_T_0_W_vec(4:6,iLeg);[0 0 0 1]];
+  Leg_T_W_O = invtr(Leg_T_0_W);
+  r_0_0_Ai = Leg_T_W_O(1:3,4);
+  phi_0_Ai = s.Leg_phi_W_0(:,iLeg);
+  R_0_0i = eul2r(phi_0_Ai, s.Leg_phiconv_W_0(iLeg));
+  
+  Tc_0 = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(qs, s.Leg_pkin_gen(iLeg,:)');
+  Leg_T_N_E = [eulxyz2r(s.Leg_T_N_E_vec(1:3,iLeg)),s.Leg_T_N_E_vec(4:6,iLeg);[0 0 0 1]];
+  T_0i_Bi = Tc_0(:,:,s.Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
+  r_0i_Ai_Bi_q = T_0i_Bi(1:3,4);
+  r_0_Ai_Bi_q = R_0_0i * r_0i_Ai_Bi_q; % Zweiter Term in [2_SchapplerTapOrt2019a]/(17)
+  
+  r_P_E = s.T_P_E(1:3,4);
+  r_P_P_Bi = s.r_P_B_all(:,iLeg);
+  R_0i_Bi = T_0i_Bi(1:3,1:3);
+  R_0_Bi = R_0_0i * R_0i_Bi;
+  R_Bi_P = eulxyz2r(s.phi_P_B_all(:,iLeg)).';
+  r_0_Bi_P = R_0_Bi * R_Bi_P * (-r_P_P_Bi);
+  r_0_0_P_q = r_0_0_Ai + r_0_Ai_Bi_q + r_0_Bi_P;
+  r_0_0_E_q = r_0_0_P_q + R_0_Bi * R_Bi_P * r_P_E;  % [2_SchapplerTapOrt2019a]/(17)
+  
+  J1 = 1+3*(iLeg-1);
+  J2 = J1+2;
+  K1 = 1+sum(s.I_EE(1:3))*(iLeg-1);
+  K2 = K1+sum(s.I_EE(1:3))-1;
+
+  % [2_SchapplerTapOrt2019a]/(16); Gl. (A.23, B.22)
+  Phix(J1:J2,:) = r_0_0_E_q([1 2 3]) - r_0_0_E_x;
+  Phix_red(K1:K2,:) = r_0_0_E_q(s.I_EE(1:3)) - r_0_0_E_x(s.I_EE(1:3));
+end
+

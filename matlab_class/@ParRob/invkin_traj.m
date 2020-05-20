@@ -97,6 +97,48 @@ Jinv_ges = NaN(nt, sum(I_EE)*length(Rob.I_qa));
 JinvD_ges = zeros(nt, sum(I_EE)*length(Rob.I_qa));
 
 qk0 = q0;
+
+% Eingabe s_inv3 struktuieren
+s_inv3= struct(...
+  'K', 0.6*ones(Rob.NJ,1), ... % Verstärkung
+  'Kn', 0.4*ones(Rob.NJ,1), ... % Verstärkung
+  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+  'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
+  'normalize', true, ...
+  'n_min', 0, ... % Minimale Anzahl Iterationen
+  'n_max', 1000, ... % Maximale Anzahl Iterationen
+  'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
+  'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
+  'Phir_tol', 1e-9,... % Toleranz für rotatorischen Fehler
+  'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
+  'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
+  'retry_limit', 100);
+for f = fields(s_inv3)'
+  if isfield(s, f{1})
+    s_inv3.(f{1}) = s.(f{1});
+  end
+end
+
+% Eingabe s_ser struktuieren
+s_ser = struct(...
+  'reci', false, ...
+  'K', 0.5*ones(Rob.NJ,1), ... % Verstärkung
+  'Kn', 1e-2*ones(Rob.NJ,1), ... % Verstärkung
+  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+  'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+  'normalize', true, ... % Normalisieren auf +/- 180°
+  'n_min', 0, ... % Minimale Anzahl Iterationen
+  'n_max', 1000, ... % Maximale Anzahl Iterationen
+  'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
+  'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
+  'Phir_tol', 1e-9, ... % Toleranz für rotatorischen Fehler
+  'retry_limit', 100);
+for f = fields(s_ser)'
+  if isfield(s, f{1})
+    s_ser.(f{1}) = s.(f{1});
+  end
+end
 for k = 1:nt
   tic();
   x_k = X(k,:)';
@@ -105,10 +147,10 @@ for k = 1:nt
   
   if mode_IK == 2
     % 3T2R-Funktion
-    [q_k, Phi_k] = Rob.invkin3(x_k, qk0, s);
-  else
+    [q_k, Phi_k] = Rob.invkin3(x_k, qk0, s_inv3);
+  else    
      % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
-    [q_k, Phi_k] = Rob.invkin_ser(x_k, qk0, s);
+    [q_k, Phi_k] = Rob.invkin_ser(x_k, qk0, s_ser);
   end
   % Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R

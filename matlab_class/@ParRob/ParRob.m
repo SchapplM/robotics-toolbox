@@ -100,6 +100,7 @@ classdef ParRob < matlab.mixin.Copyable
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
       invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
+      invkin3fcnhdl % Funktions-Handle für IK (zu pkm_invkin3_tpl.m.template)
       all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
       extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
@@ -141,7 +142,8 @@ classdef ParRob < matlab.mixin.Copyable
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'}...
         {'invkinfcnhdl', 'invkin'}...
-        {'invkintrajfcnhdl', 'invkin_traj'}};
+        {'invkintrajfcnhdl', 'invkin_traj'},...
+        {'invkin3fcnhdl', 'invkin3'}};
       R.extfcn_available = false(length(R.all_fcn_hdl),1);
       R.I_platform_dynpar = true(1,10);
     end

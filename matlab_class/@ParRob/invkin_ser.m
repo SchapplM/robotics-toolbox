@@ -45,19 +45,30 @@ s_std = struct( ...
              'reci', false, ... % Keine reziproken Winkel für ZB-Def.
              'retry_limit', 100); % Anzahl der Neuversuche
 
-s = s_std;
+if nargin < 4
+  % Keine Einstellungen übergeben. Standard-Einstellungen
+  s = s_std;
+end
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
 % Fehler aufgeworfen werden wg zu vieler Felder
-if nargin >= 4
-  for f = fields(s_in)'
-    if isfield(s_std, f{1})
-      s.(f{1}) = s_in.(f{1});
+if nargin == 4
+  s = s_in;
+  for f = fields(s_std)'
+    if ~isfield(s, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
+      s.(f{1}) = s_std.(f{1});
     end
   end
 end
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
   s.reci = true;
+end
+
+if isfield(s, 'K')
+  K = s.K;
+end
+if isfield(s, 'Kn')
+  Kn = s.Kn;
 end
 
 %% Berechnung der Beinketten-IK
@@ -88,7 +99,13 @@ for i = 1:Rob.NLEG
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
   s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
-
+  
+  if isfield(s, 'K') && length(s.K) ~= Rob.Leg(i).NJ % passt für Eingabe der K mit Dimension [RP.NJ,1]
+    s.K = K(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
+  end
+  if isfield(s, 'Kn') && length(s.Kn) ~= Rob.Leg(i).NJ % passt für Eingabe der Kn mit Dimension [RP.NJ,1]
+    s.Kn = Kn(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
+  end
   % Inverse Kinematik für die serielle Beinkette berechnen
   [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
 

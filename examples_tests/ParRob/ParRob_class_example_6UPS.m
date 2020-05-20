@@ -203,9 +203,11 @@ fprintf('Trajektorien-IK mit Funktion invkin_traj berechnet. Dauer: %1.1fs.\n', 
 save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));
 % Traj.-IK mit neuer optimierter Funktion berechnen
 t1 = tic();
-s_p = struct('simplify_acc', false,'debug', false);
+s_p = s;
+s_p.simplify_acc = false;
+s_p.debug = false;
 RP.fill_fcn_handles(true,true);
-[Q_t2, ~, ~, Phi_t2] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_p ,s);
+[Q_t2, ~, ~, Phi_t2] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_p);
 
 if any(any(abs(Phi_t2(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
    any(any(abs(Phi_t2(:,RP.I_constr_r_red)) > s.Phir_tol))
@@ -219,7 +221,7 @@ testp = Phi_t - Phi_t2;
 testq(abs(testq(:))== 2*pi ) = 0;
 testqmax = max(abs(testq(:)));
 testpmax = max(abs(testp(:)));
-if testqmax > 1e-6 || testpmax > 1e-6
+if testqmax > 1e-6 || testpmax > max(s.Phit_tol,s.Phir_tol)
   error('IK-Ergebnis stimmt nicht zwischen Funktionen invkin_traj und invkin2_traj!');
 end
 %% Zeitverlauf der Trajektorie plotten

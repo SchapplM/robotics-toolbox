@@ -87,7 +87,7 @@ s = struct( ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, T, q0, [], s);
+[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, T, q0, s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > 1e-10)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > 1e-10))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
