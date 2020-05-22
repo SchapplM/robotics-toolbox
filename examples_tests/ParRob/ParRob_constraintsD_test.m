@@ -158,7 +158,8 @@ for NNN = RobotNames
       [~,Phi1_0] = RP.constr1(q0, x0);
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
-      
+      [~,Phi4dq_0] = RP.constr4grad_q(q0);
+      [~,Phi4dx_0] = RP.constr4grad_x(x0);
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
       for testcase = 1:2
@@ -167,7 +168,7 @@ for NNN = RobotNames
         else % EE-Koordinaten verändern
           id_loop_length = 6;
         end
-        for id = id_loop_length+1 % 1:
+        for id = 1:(id_loop_length+1)
           %% Initialisierung der Test-Variablen
           if testcase == 1
             if use_IK, break; end % Teste erstmal nur den x-Zusammenhang
@@ -220,7 +221,7 @@ for NNN = RobotNames
           [~,Phi1D_0] = RP.constr1D(q0, qD0, x0, xD0);
           [~,Phi1Ddq_0] = RP.constr1gradD_q(q0, qD0, x0, xD0);
           [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0);
-
+          [~,Phi4D_0] = RP.constr4D(q0, qD0, x0, xD0); % Geschwindigkeitdifferenz 
           % Zwangsbedingungen und -Matrizen für verschobene Koordinaten q1 berechnen
           [~,Phi1_1] = RP.constr1(q1, x1);
           [~,Phi1dq_1] = RP.constr1grad_q(q1, x1);
@@ -238,13 +239,15 @@ for NNN = RobotNames
           Phi1difdq =  (Phi1dq_1 - Phi1dq_0)/dt ;
           Phi1difdx =  (Phi1dx_1 - Phi1dx_0)/dt ;
 
+          % Zweite Berechnung der Zeitableitung der ZB
+          Phi4D_diff = Phi4dq_0 * qD0 + Phi4dx_0 * xD0;
           %% Vergleiche beide Formen
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient)
           test1 = Phi1dif - Phi1D_0;    % for constr1D vs constr1 q                        
           test2 = Phi1difdq - Phi1Ddq_0 ;%for constr1gradD_q vs constr1grad_q
           test3 = Phi1difdx - Phi1Ddx_0;% for constr1gradD_x vs constr1grad_x
-
+          test4 = Phi4D_diff - Phi4D_0;
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient) 
           if any(abs(test1(:)) > 10e-2)
@@ -253,6 +256,10 @@ for NNN = RobotNames
             fprintf('Fehler rotatorischer Teil:\n');
             disp(test1(RP.I_constr_r)');
             warning('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
+          end
+          
+          if any(abs(test4(:)) > 10e-2)
+             error('%s: constr4D stimmt nicht gegen constr4', PName);
           end
           % Sehr kleine Einträge zu Null setzen (sonst kann der relative
           % Fehler unendlich werden)
