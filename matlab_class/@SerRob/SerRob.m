@@ -35,21 +35,16 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-08
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
-classdef SerRob < matlab.mixin.Copyable
+classdef SerRob < RobBase
 
   properties (Access = public)
     qlim % Minimale und maximale Gelenkkoordinaten q zeilenweise für die Gelenke
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
-
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
-    phiconv_W_0 % Nummer der Basis-Euler-Winkelkonvention
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
-    phiconv_W_E % Winkelkonvention zur Darstellung der EE-Orientierung im Welt-KS mit Euler-Winkeln
     MDH % Struktur mit MDH-Parametern für Roboterkinematik
-    NJ % Anzahl der Gelenke des Roboters
-    NL % Anzahl der Starrkörper des Roboters
     NQJ % Anzahl der Gelenkkoordinaten (abweichend von NJ bei hybriden Strukturen)
     pkin % Vektor der Kinematikparameter
     pkin_gen % Vektor der Kinematikparameter des allgemeinen Modells
@@ -58,11 +53,6 @@ classdef SerRob < matlab.mixin.Copyable
     pkin_jointnumber % Gelenknummer des Kinematikparameters; siehe get_pkin_parameter_type()
     DynPar % Struktur mit Dynamikparametern (Masse, Schwerpunkt, Trägheit)
     DesPar % Struktur mit Entwurfsparameter (Segmentgeometrie, Motorauswahl, ...)
-    Type % Typ des Roboters (0=seriell, 1=hybrid, 2=parallel)
-    r_W_0 % Position der Basis im Welt-KS
-    phi_W_0 % Orientierung des Basis-KS im Welt-KS (ausgedrückt in Euler-Winkeln)
-    T_W_0 % Homogene Transformationsmatrix zwischen Welt- und Basis-KS des Roboters
-    T_0_W % Inverse von T_W_0
     T_N_E % Homogene Transformationsmatrix zwischen 
     r_N_E % Position des Endeffektors im Körper-KS
     phi_N_E % Orientierung des EE-KS im Körper-KS (ausgedrückt in Euler-Winkeln)
@@ -70,9 +60,6 @@ classdef SerRob < matlab.mixin.Copyable
     qunit_sci % wissenschaftliche Einheiten der Gelenkkoordinaten
     qunitmult_eng_sci % Umrechnungsfaktor zwischen beiden Einheitenarten
     tauunit_sci % Name der Einheiten der Gelenkkräfte
-    gravity % Gravitationsvektor ausgedrückt im Basis-KS
-    I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
-    I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EElink % Index des Segmentes, an dem der Endeffektor befestigt ist.
     mdlname % Name des Robotermodells, das in den Matlab-Funktionen benutzt wird.
     mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
@@ -204,16 +191,12 @@ classdef SerRob < matlab.mixin.Copyable
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
       R.T_N_E = eye(4);
-      R.r_W_0 = zeros(3,1);
-      R.phi_W_0 = zeros(3,1);
-      R.T_W_0 = eye(4); R.T_0_W = eye(4);
       R.phiconv_N_E = uint8(2); % Euler-XYZ
-      R.phiconv_W_E = uint8(2); % Euler-XYZ
-      R.phiconv_W_0 = uint8(2); % Euler-XYZ
+
       R.I_EE = true(1,6); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
       R.I_EE_Task = true(1,6); % zunächst alle Aufgaben-FG vorsehen
       R.I_EElink = R.NL-1; % bezogen auf nummerierte Körper (Basis=0)
-      R.gravity = [0;0;-9.81];
+
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
@@ -1197,7 +1180,7 @@ classdef SerRob < matlab.mixin.Copyable
       R.DynPar.mpv    = mpv;
     end
 
-function update_dynpar2(R, mges, mrSges, Ifges)
+    function update_dynpar2(R, mges, mrSges, Ifges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
       % Eingabe:
@@ -1279,14 +1262,6 @@ function update_dynpar2(R, mges, mrSges, Ifges)
       else
         mpv = R.dynparconvfcnhdl(R.pkin_gen, mges, mrSges, Ifges);
       end
-    end
-    function x_W_E = t2x(R, T_W_E)
-      % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten
-      % Eingabe:
-      % T_W_E: Transformationsmatrix zwischen Welt- und EE-KS
-      % 
-      % Ausgabe: Vektor aus Position und Euler-Winkeln
-      x_W_E = [T_W_E(1:3,4); r2eul(T_W_E(1:3,1:3), R.phiconv_W_E)];
     end
     
     function CAD_add(R, filepath, link, T_body_CAD, unit, color)

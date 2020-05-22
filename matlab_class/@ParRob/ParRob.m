@@ -41,12 +41,10 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-classdef ParRob < matlab.mixin.Copyable
+classdef ParRob < RobBase
 
   properties (Access = public)
       NLEG % Anzahl der Beinketten
-      NJ % Anzahl der Gelenkkoordinaten des Roboters (Gelenkkoordinaten aller Beinketten)
-      NL % Anzahl der Starrkörper der PKM insgesamt (inkl. Basis und Plattform)
       I1J_LEG % Start-Indizes der Gelenkwinkel der einzelnen Beine in allen Gelenkwinkeln
       I2J_LEG % End-Indizes er Gelenkwinkel ...
       I1L_LEG % Start-Indizes der Segmente der einzelnen Beinketten
@@ -57,24 +55,15 @@ classdef ParRob < matlab.mixin.Copyable
       MDH % Struktur mit MDH-Parametern für Roboterkinematik (der PKM)
       I_qd % Zähl-Indizes der abhängigen Gelenke in allen Gelenken
       I_qa % Zähl-Indizes der aktiven Gelenke in allen Gelenken
-      I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
-      I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
-      phiconv_W_0 % Nummer der Basis-Euler-Winkelkonvention
       phiconv_P_E % Winkelkonvention der Euler-Winkel vom Plattform-KS zum EE
-      phiconv_W_E % Winkelkonvention zur Darstellung der EE-Orientierung im Welt-KS mit Euler-Winkeln
-      T_W_0 % Homogene Transformationsmatrix zwischen Welt- und Basis-KS des Roboters
-      r_W_0 % Position der Basis im Welt-KS
-      phi_W_0 % Orientierung des Basis-KS im Welt-KS (ausgedrückt in Euler-Winkeln)
       T_P_E % Homogene Transformationsmatrix zwischen Endeffektor-KS und Plattform-KS
       r_P_E % Position des Endeffektors im Plattform-KS
       phi_P_E % Orientierung des EE-KS im Plattform-KS (ausgedrückt in Euler-Winkeln)
-      Type % Typ des Roboters (2=parallel; zur Abgrenzung von SerRob)
       DynPar % Struktur mit Dynamikparatern (Masse, Schwerpunkt, Trägheit)
       DesPar % Struktur mit Entwurfsparameter (Gestell,Plattform)
       mdlname % Name des PKM-Robotermodells, das in den Matlab-Funktionen benutzt wird.
       Leg % Matlab-Klasse SerRob für jede Beinkette
       issym % true für rein symbolische Berechnung
-      gravity % Gravitationsvektor ausgedrückt im Basis-KS des Roboters
       NQJ_LEG_bc % Anzahl relevanter Beingelenke vor Schnittgelenk (von Basis an gezählt) ("bc"="before cut")
       I1constr   % Start-Indizes der Beinketten in allen Zwangsbedingungen
       I2constr   % End-Indizes der Beinketten in allen Zwangsbedingungen
@@ -112,17 +101,11 @@ classdef ParRob < matlab.mixin.Copyable
       R.Type = 2; % Parallel
       R.Leg = [];
       R.MDH = struct('sigma', []);
-      R.phiconv_W_E = uint8(2); % Euler-XYZ
-      R.phiconv_W_0 = uint8(2); % Euler-XYZ
       R.phiconv_P_E = uint8(2); % Euler-XYZ
       R.issym = false;
       R.r_P_E = zeros(3,1);
       R.phi_P_E = zeros(3,1);
       R.T_P_E = eye(4);
-      R.r_W_0 = zeros(3,1);
-      R.phi_W_0 = zeros(3,1);
-      R.T_W_0 = eye(4);
-      R.gravity = [0;0;-9.81];
       R.DesPar = struct(...
         'base_method', uint8(0), ... % Modellierungsart Gestell siehe align_base_coupling.m
         'base_par', 0, ... % Parameter dafür (Radius,...)
@@ -1089,22 +1072,7 @@ classdef ParRob < matlab.mixin.Copyable
         R.Leg(i).gravity = R.Leg(i).T_W_0(1:3,1:3)'*g_base;
       end
     end
-    function x_W_E = t2x(R, T_W_E)
-      % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten
-      % Eingabe:
-      % T_W_E: Transformationsmatrix zwischen Welt- und EE-KS
-      % 
-      % Ausgabe: Vektor aus Position und Euler-Winkeln
-      x_W_E = [T_W_E(1:3,4); r2eul(T_W_E(1:3,1:3), R.phiconv_W_E)];
-    end
-    function T_W_E = x2t(R, x_W_E)
-      % Umwandlung der EE-Lage in eine homogene Transformationsmatrix
-      % Eingabe:
-      % T_W_E: Vektor aus Position und Euler-Winkeln
-      % 
-      % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
-      T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
-    end
+
     function [xP, xPD, xPDD] = xE2xP(R, xE, xED, xEDD)
       % Umrechnung von EE-Lagevektor xE zum Plattform-Lagevektor xP
       % Einige Dynamikfunktionen brauchen nur xP, da xE auf einer
