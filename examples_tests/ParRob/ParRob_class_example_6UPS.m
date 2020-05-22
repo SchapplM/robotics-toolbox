@@ -268,20 +268,3 @@ xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
 fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
 fprintf('Test für 6UPS beendet\n');
-
-%% Teste Umrechnung zwischen Plattform- und EE-Koordinaten
-X_E = X_t;
-XD_E = XD_t;
-XDD_E = XDD_t;
-[X_P, XD_P, XDD_P] = RP.xE2xP_traj(X_E, XD_E, XDD_E);
-% Neuen EE festlegen
-RP.update_EE(rand(3,1),rand(3,1));
-% Geschwindigkeit des neuen EE ausrechnen
-[X_E2, XD_E2, XDD_E2] = RP.xP2xE_traj(X_P, XD_P, XDD_P);
-% Zurückrechnen auf Plattform
-[X_P2, XD_P2, XDD_P2] = RP.xE2xP_traj(X_E2, XD_E2, XDD_E2);
-% Prüfen, ob durch Hin- und Herrechnen ein Fehler passiert ist
-Test=[X_P;XD_P;XDD_P]-[X_P2;XD_P2;XDD_P2];
-if any(abs(Test(:)) > 1e-10)
-  error('Umrechnung Plattform-EE mit xP2xE / xE2xP stimmt nicht');
-end

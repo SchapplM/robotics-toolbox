@@ -11,6 +11,9 @@ this_repo_path = fullfile(fileparts(which('robotics_toolbox_path_init.m')));
 addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'ParRob'));
 
+%% Allgemeine Funktionen
+ParRob_transformations_test; close all;
+
 %% Serielle Roboter
 SerRob_constraints_test; close all;
 SerRob_IK_test; close all;
