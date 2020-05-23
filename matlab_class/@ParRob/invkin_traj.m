@@ -36,7 +36,11 @@
 % JointPos_all
 %   gestapelte Positionen aller Gelenke der PKM für alle Zeitschritte
 %   (Entspricht letzter Spalte aller Transformationsmatrizen aus fkine_legs)
-%   
+%   Reihenfolge: Siehe Ausgabe Tc_stack_PKM aus invkin_ser
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 % 
 % Siehe auch: SerRob/invkin_traj
 
@@ -102,7 +106,7 @@ JinvD_ges = zeros(nt, sum(I_EE)*length(Rob.I_qa));
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (Rob.NL-2+Rob.NLEG)*3);
+JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
 qk0 = q0;
 

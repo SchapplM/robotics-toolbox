@@ -20,6 +20,13 @@
 % Phi
 %   Erfüllung der kinematischen Zwangsbedingungen in der
 %   Gelenkkonfiguration q. Ist bei Erfolg ein Null-Vektor
+% Tc_stack_PKM
+%   Gestapelte Transformationsmatrizen der PKM (ohne 0001-Zeile). Im
+%   Basis-KS. Entspricht mit Abwandlung der Anordnung wie in fkine: 
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 %
 % Siehe auch: SerRob/invkin.m
 %
@@ -74,8 +81,11 @@ end
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((Rob.NL-2+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
-out3_ind1 = 0; % Index für obige Variable
+Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+% Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
+% die Variable und zur Angleichung an Darstellung im Welt-KS.
+Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
+out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
