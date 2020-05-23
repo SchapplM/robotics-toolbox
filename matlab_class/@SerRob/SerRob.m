@@ -65,6 +65,7 @@ classdef SerRob < RobBase
     mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
     CADstruct % Struktur mit Daten zu CAD-Modellen
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
+    collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -286,6 +287,21 @@ classdef SerRob < RobBase
         R.pkin_names = cell(1,length(R.pkin));
       end
       R.islegchain = false;
+      % Struktur der Kollisions-Ersatzkörper. Es können 0, 1 oder mehrere
+      % Ersatzkörper für jeden Starrkörper definiert werden. Die
+      % Ersatzkörper sind auf das Körper-KS bezogen. Möglichkeiten:
+      % * 1 Quader (12 Parameter: Aufpunkt, 3 Kantenvektoren)
+      % * 2 Zylinder (7 Parameter: Punkt 1, Punkt 2, Radius)
+      % * 3 Kapsel (7 Parameter: Punkt 1, Punkt 2, Radius)
+      % * 4 Kugel (4 Parameter: Mittelpunkt, Radius)
+      % * 5 Zylinder als schräge DH-Verbindung (1 Parameter: Radius)
+      % * 6 Kapsel als schräge DH-Verbindung (1 Parameter: Radius)
+      % * 7 Zylinder als gewinkelte DH-Verbindung (entlang a- und d-Parameter)
+      % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
+      R.collbodies = struct( ...
+        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'type', [], ... % nx1 uint8, Art des Ersatzkörpers
+        'params', []); % Parameter des jeweiligen Ersatzkörpers
     end
     
     function mex_dep(R, force)
