@@ -28,6 +28,7 @@ ParRob_class_example_3RRR; close all;
 ParRob_class_example_6UPS; close all;
 ParRob_class_example_6UPS_3T2R; close all;
 ParRob_class_example_Delta; close all;
+ParRob_class_example_3PRRRR_3T0R; close all;
 ParRob_class_example_6PUS; close all;
 ParRob_class_example_Gogu_3T1R; close all;
 ParRob_class_example_PRRRR_4PRRRRR; close all;
