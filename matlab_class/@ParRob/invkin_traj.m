@@ -33,6 +33,14 @@
 %   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
 % JinvD_ges
 %   Zeitableitung von Jinv_ges
+% JointPos_all
+%   gestapelte Positionen aller Gelenke der PKM für alle Zeitschritte
+%   (Entspricht letzter Spalte aller Transformationsmatrizen aus fkine_legs)
+%   Reihenfolge: Siehe Ausgabe Tc_stack_PKM aus invkin_ser
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 % 
 % Siehe auch: SerRob/invkin_traj
 
@@ -45,7 +53,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
@@ -95,6 +103,10 @@ QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 Jinv_ges = NaN(nt, sum(I_EE)*length(Rob.I_qa));
 JinvD_ges = zeros(nt, sum(I_EE)*length(Rob.I_qa));
+% Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
+% Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
+% der Beine angegeben.
+JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
 qk0 = q0;
 
@@ -148,9 +160,9 @@ for k = 1:nt
   if mode_IK == 2
     % 3T2R-Funktion
     [q_k, Phi_k] = Rob.invkin3(x_k, qk0, s_inv3);
-  else    
+  else
      % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
-    [q_k, Phi_k] = Rob.invkin_ser(x_k, qk0, s_ser);
+    [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);
   end
   % Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R
@@ -206,6 +218,7 @@ for k = 1:nt
   if nargout >= 6
     JinvD_ges(k,:) = JD_x_inv(:);
   end
+  JointPos_all(k,:) = Tc_stack_k(:,4);
   if s.debug
     if max(abs(Phi_k)) > 1e-3
       warning('Phi zu groß');

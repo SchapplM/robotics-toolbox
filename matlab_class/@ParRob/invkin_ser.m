@@ -20,6 +20,13 @@
 % Phi
 %   Erfüllung der kinematischen Zwangsbedingungen in der
 %   Gelenkkonfiguration q. Ist bei Erfolg ein Null-Vektor
+% Tc_stack_PKM
+%   Gestapelte Transformationsmatrizen der PKM (ohne 0001-Zeile). Im
+%   Basis-KS. Entspricht mit Abwandlung der Anordnung wie in fkine: 
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 %
 % Siehe auch: SerRob/invkin.m
 %
@@ -30,7 +37,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi] = invkin_ser(Rob, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM] = invkin_ser(Rob, xE_soll, q0, s_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
@@ -71,15 +78,21 @@ if isfield(s, 'Kn')
   Kn = s.Kn;
 end
 
+% Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
+% Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
+% der Beine angegeben.
+Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+% Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
+% die Variable und zur Angleichung an Darstellung im Welt-KS.
+Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
+out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
 Phi = Phi_ser;
 q = q0;
-% Tc_Pges = Rob.fkine_platform(xE_soll);
 r_P_P_B_ges = Rob.r_P_B_all;
 T_P_E = Rob.T_P_E;
-r_P_P_E = T_P_E(1:3,4);
 T_0_E = Rob.x2t(xE_soll);
 % IK für alle Beine einzeln berechnen
 for i = 1:Rob.NLEG
@@ -107,7 +120,7 @@ for i = 1:Rob.NLEG
     s.Kn = Kn(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   end
   % Inverse Kinematik für die serielle Beinkette berechnen
-  [q_i, Phi_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+  [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
 
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
@@ -123,6 +136,20 @@ for i = 1:Rob.NLEG
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
+  if nargout == 3
+    T_0_0i = Rob.Leg(i).T_W_0;
+    % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
+    % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
+    Tc_stack_0 = NaN(3*Rob.Leg(i).NL,4);
+    for kk = 1:Rob.Leg(i).NL
+      Tr_0i_kk = Tc_stack_0i((kk-1)*3+1:kk*3,1:4);
+      T_0_kk = T_0_0i * [Tr_0i_kk;[0 0 0 1]];
+      Tc_stack_0((kk-1)*3+1:kk*3,1:4) = T_0_kk(1:3,:);
+    end
+    % Eintragen in Ergebnis-Variable
+    Tc_stack_PKM(out3_ind1+(1:3*Rob.Leg(i).NL),:) = Tc_stack_0;
+    out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
+  end
 end
 Phi = Phi_ser;
 return

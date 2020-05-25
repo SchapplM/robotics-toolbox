@@ -10,10 +10,13 @@
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 %
 % Ausgabe:
-% q
+% q [%NJ% x 1]
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
+% Tc_stack [(%NJ%+1)*3 x 4]
+%   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
+%   (enthält alle Koordinatensysteme aus direkter Kinematik)
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
@@ -25,7 +28,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
+function [q, Phi, Tc_stack] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 
 %% Coder Information
 %#codegen
@@ -109,25 +112,22 @@ if nsoptim && NQJ <= length(I_IK)
 end
 
 % Ausgabe belegen
-Phi = NaN(length(I_IK),1);
-
 success = false;
 q1 = q0;
+% Fehlermaß für Startwerte
+[Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
-  for jj = 2:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
+  for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
 
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-    % Zwangsbedingungen
-    Phi_voll = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
 
-    %% Reduktion auf betrachtete FG
-    Jdk = Jdk_voll(I_IK,:);
-    Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Normale Invertierung der Jacobi-Matrix der seriellen Kette
@@ -197,9 +197,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
     % Nachverarbeitung der Ergebnisse der Iteration
     q1 = q2;
-
+    
+    % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
+    [Phi_voll, Tc_stack] = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
     % Abbruchbedingungen prüfen
-    if jj > n_min ... % Mindestzahl Iterationen erfüllt
+    if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) < 1e-10) ) % oder die Nullraumoptimierung läuft noch

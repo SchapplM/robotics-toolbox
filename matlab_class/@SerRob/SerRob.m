@@ -65,6 +65,7 @@ classdef SerRob < RobBase
     mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
     CADstruct % Struktur mit Daten zu CAD-Modellen
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
+    collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -286,6 +287,21 @@ classdef SerRob < RobBase
         R.pkin_names = cell(1,length(R.pkin));
       end
       R.islegchain = false;
+      % Struktur der Kollisions-Ersatzkörper. Es können 0, 1 oder mehrere
+      % Ersatzkörper für jeden Starrkörper definiert werden. Die
+      % Ersatzkörper sind auf das Körper-KS bezogen. Möglichkeiten:
+      % * 1 Quader (12 Parameter: Aufpunkt, 3 Kantenvektoren)
+      % * 2 Zylinder (7 Parameter: Punkt 1, Punkt 2, Radius)
+      % * 3 Kapsel (7 Parameter: Punkt 1, Punkt 2, Radius)
+      % * 4 Kugel (4 Parameter: Mittelpunkt, Radius)
+      % * 5 Zylinder als schräge DH-Verbindung (1 Parameter: Radius)
+      % * 6 Kapsel als schräge DH-Verbindung (1 Parameter: Radius)
+      % * 7 Zylinder als gewinkelte DH-Verbindung (entlang a- und d-Parameter)
+      % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
+      R.collbodies = struct( ...
+        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'type', [], ... % nx1 uint8, Art des Ersatzkörpers
+        'params', []); % Parameter des jeweiligen Ersatzkörpers
     end
     
     function mex_dep(R, force)
@@ -542,7 +558,7 @@ classdef SerRob < RobBase
       % Gesamtmatrix
       JaD = [JtD; JeD];
     end
-    function [q, Phi] = invkin2(R, x, q0, s_in)
+    function [q, Phi, Tc_stack0] = invkin2(R, x, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin`, die nicht kompilierbar ist.
@@ -554,6 +570,7 @@ classdef SerRob < RobBase
       % Ausgabe:
       % q: Gelenkposition
       % Phi: Residuum
+      % Tc_stack0: Gestapelte Transformationsmatrizen; siehe SerRob/fkine
       % 
       % Siehe auch: invkin
 
@@ -597,9 +614,9 @@ classdef SerRob < RobBase
         end
       end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
-      [q, Phi] = R.invkinfcnhdl(x, q0, s);
+      [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
     end
-    function [Q,QD,QDD,PHI] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+    function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin_traj`, die nicht kompilierbar ist.
@@ -616,6 +633,7 @@ classdef SerRob < RobBase
       % QD: Gelenkgeschwindigkeiten
       % QDD: Gelenkbeschleunigungen
       % PHI: IK-Fehler (entspricht Zwangsbedingungen)
+      % JointPos_all: Position aller Körper-KS für alle Zeitschritte
       %
       % Siehe auch: invkin2, invkin_traj
       
@@ -654,7 +672,7 @@ classdef SerRob < RobBase
         end
       end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
-      [Q,QD,QDD,PHI] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
+      [Q,QD,QDD,PHI,JointPos_all] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function [T, Treg] = ekin(R, q, qD)
       % Kinetische Energie
