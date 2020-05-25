@@ -220,8 +220,9 @@ ylabel('\Phi_{rot}');
 
 %% Animation
 mkdirs(resdir);
-s_anim = struct( 'avi_name', fullfile(resdir, 'delta_box_traj.avi'));
+s_anim = struct( 'mp4_name', fullfile(resdir, 'delta_box_traj.mp4'));
 figure(9);clf;
+set(9,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));
 grid on;

@@ -298,7 +298,7 @@ zlabel('z [m]');
 view(3);
 title('Simulationsergebnisse LBR4+');
 II = 1:round(length(sl.t)/30):length(sl.t);
-RS.anim( sl.q(II,:), s_anim, s_plot);
+RS.anim( sl.q(II,:), [], s_anim, s_plot);
 
 %% Formatierung
 dockall

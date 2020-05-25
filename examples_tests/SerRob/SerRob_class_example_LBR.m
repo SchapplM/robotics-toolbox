@@ -51,4 +51,4 @@ ylabel('y [m]');
 zlabel('z [m]');
 view(3);
 title('Beispiel-Trajektorie LBR4+');
-RS.anim( Q(1:20:end,:), s_anim, s_plot);
+RS.anim( Q(1:20:end,:), [], s_anim, s_plot);

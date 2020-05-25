@@ -168,7 +168,7 @@ ylabel('y [m]');
 zlabel('z [m]');
 view(3);
 title('Animation der Gelenktrajektorie');
-RS.anim( Q(1:50:end,:), s_anim, s_plot);
+RS.anim( Q(1:50:end,:), [], s_anim, s_plot);
 
 %% Kartesische Trajektorie
 % Würfel-Trajektorie erstellen
@@ -283,4 +283,4 @@ ylabel('y [m]');
 zlabel('z [m]');
 view(3);
 title('Animation der kartesischen Trajektorie');
-RS.anim( Q(1:50:end,:), s_anim, s_plot);
+RS.anim( Q(1:50:end,:), [], s_anim, s_plot);
