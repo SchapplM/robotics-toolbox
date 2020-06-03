@@ -37,7 +37,15 @@ for i_conv = uint8(1:N)
   n = 10000;
   phi_ges = 2*(0.5-rand(n,3))*pi; % Winkel zwischen -pi und pi
   R_ges = NaN(3,3,n);
-
+  % Erzeuge singuläre Konfigurationen. Wenn die Singularität exakt
+  % getroffen wird, funktioniert die Rücktransformation r2eul nicht.
+  phi_ges(9400:9599,2) = 0;
+  phi_ges(9500:9599,2) = 0 + 100*(0.1-rand(100,1))*eps;
+  phi_ges(9600:9799,2) = pi/2;
+  phi_ges(9700:9799,2) = pi/2 + 100*(0.1-rand(100,1))*eps;
+  phi_ges(9800:9999,2) =-pi/2;
+  phi_ges(9900:9999,2) =-pi/2 + 100*(0.1-rand(100,1))*eps;
+  
   for i = 1:n
     phi_i = phi_ges(i,:)';
     R_ges(:,:,i) = eye(3);
@@ -59,21 +67,39 @@ for i_conv = uint8(1:N)
     R_i = R_ges(:,:,i);
     R_sym = eul2r(phi_i, i_conv);
     if any(abs(R_sym(:) - R_i(:)) > 1e-10)
-      error('symbolisch generierte Funktion stimmt nicht');
+      error('symbolisch generierte Funktion eul2r stimmt nicht');
     end
   end
-
+  fprintf('%d Funktion eul%s2r getestet.\n', n, eulstr);
+  
   %% Teste r2eul
+  n_sing = 0;
+  fail_sing = 0;
+  succ_sing = 0;
   for i = 1:n
     R_i = R_ges(:,:,i);
     phi_i = r2eul(R_i, i_conv);
+    % Die Umwandlung funktioniert nicht (exakt) in der Singularität
+    if isinf(cond(euljac(phi_i, i_conv)))
+      n_sing = n_sing+1;
+      is_sing = true;
+    else
+      is_sing = false;
+    end
     R_i_test = eul2r(phi_i, i_conv);
 
     if any( abs( R_i(:)-R_i_test(:) ) > 1e-10 )
-      error('Umrechnung r2eul%s stimmt nicht', eulstr);
+      if is_sing
+        fail_sing = fail_sing+1; % kein Fehler aufwerfen.
+      else
+        error('Umrechnung r2eul%s stimmt nicht', eulstr); % keine Singularität. Muss funktionieren.
+      end
+    elseif is_sing % funktionierend, mit Singularität
+      succ_sing = succ_sing + 1;
     end
   end
-  fprintf('%d Umrechnungen mit r2eul%s getestet\n', n, eulstr);
+  fprintf(['%d Umrechnungen mit r2eul%s getestet. %d davon mit Singularität. ', ...
+    'Davon %d funktionierend, %d nicht.\n'], n, eulstr, n_sing, succ_sing, fail_sing);
   
   %% Aufruf der Gradientenmatrizen zwischen Rotationsmatrizen und Euler-Winkeln
   n_sing = 0;
@@ -156,6 +182,12 @@ for i_conv = uint8(1:N)
     J = euljac(phi_1, i_conv);
     omega_test = J * phiD;
     
+    % Exakt in der Singularität funktioniert es nicht
+    if isinf(cond(J))
+      n_sing = n_sing+1;
+      continue
+    end
+    
     % Vergleiche, ob Winkelgeschwindigkeit auf beiden Wegen gleich ist
     abserr = omega_test - omega;
     relerr = omega_test./omega-1;
@@ -179,7 +211,8 @@ for i_conv = uint8(1:N)
       error('Transformationsmatrix eul%sjacD stimmt nicht mit euljac überein', eulstr);
     end 
   end
-  fprintf('%d Transformationsmatrizen eul%sjac und eul%sjacD getestet\n', n, eulstr, eulstr);
+  fprintf('%d Transformationsmatrizen eul%sjac und eul%sjacD getestet. %d Singularitäten nicht getestet\n', ...
+    n, eulstr, eulstr, n_sing);
   
   %% Teste Zeitableitungen der Euler-Gradientenmatrizen
   % Test: eulD_diff_rotmat, rotmatD_diff_eul
