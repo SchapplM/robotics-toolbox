@@ -290,7 +290,7 @@ classdef SerRob < RobBase
       % Struktur der Kollisions-Ersatzkörper. Es können 0, 1 oder mehrere
       % Ersatzkörper für jeden Starrkörper definiert werden. Die
       % Ersatzkörper sind auf das Körper-KS bezogen. Möglichkeiten:
-      % * 1 Quader (12 Parameter: Aufpunkt, 3 Kantenvektoren)
+      % * 1 Quader (10 Parameter: Aufpunkt, 2 Kantenvektoren, Länge 3. Kante)
       % * 2 Zylinder (7 Parameter: Punkt 1, Punkt 2, Radius)
       % * 3 Kapsel (7 Parameter: Punkt 1, Punkt 2, Radius)
       % * 4 Kugel (4 Parameter: Mittelpunkt, Radius)
@@ -298,6 +298,7 @@ classdef SerRob < RobBase
       % * 6 Kapsel als schräge DH-Verbindung (1 Parameter: Radius)
       % * 7 Zylinder als gewinkelte DH-Verbindung (entlang a- und d-Parameter)
       % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
+      % * 9 Punkt am DH-KS-Ursprung (0 Parameter)
       R.collbodies = struct( ...
         'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers

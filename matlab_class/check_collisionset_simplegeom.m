@@ -38,6 +38,8 @@
 %          Dadurch sehr einfache Prüfung mit AABB-Verfahren möglich. TODO.
 %     * 12 Zylinder im Basis-KS. Störobjekt in der Umgebung
 %          (Gegensatz zu 2)
+%     * 13 Kapsel im Basis-KS. Störobjekt in der Umgebung
+%          (Gegensatz zu 3)
 %   params [M x 10 double]
 %     Parameter für die Kollisionskörper. Je nachdem wie viele Parameter
 %     die obigen Kollisionsgeometrien haben, werden Spalten mit NaN aufgefüllt
@@ -94,12 +96,14 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
   dist_rel = NaN(size(JP, 1), size(cc,1));
   for i = 1:size(cc,1) % Alle vorgemerkten Prüfungen durchgehen
     %% Fall der Kollisionsprüfung festlegen (Vereinfachung in innerster Schleife)
-    if cb.type(cc(i,1)) == 6 && cb.type(cc(i,2)) == 6 % Kapsel+Kapsel
-      collcase = uint8(1);
+    if any(cb.type(cc(i,1)) == [6 13]) && any(cb.type(cc(i,2)) == [6,13])
+      collcase = uint8(1); % Kapsel+Kapsel (egal ob in Basis- oder Körper-KS)
     elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 10 % Punkt+Quader
       collcase = uint8(2);
     elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 12 % Punkt+Zylinder
       collcase = uint8(3);
+    elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 13 % Punkt+Kapsel
+      collcase = uint8(4);
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
     end
@@ -145,6 +149,10 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
           d_min = -max(diff(b2_aabb))/2;
         case 3
           [di, coll_geom, ~, d_min] = collision_cylinder_point(b2_cbparam, b1_cbparam);
+        case 4
+          % Interpretiere den Punkt als Kugel mit Radius Null und nehme die
+          % existierende Funktion für Kapsel+Kugel.
+          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, [b1_cbparam,0.0]);
         otherwise
           error('Fall nicht definiert. Dieser Fehler darf gar nicht auftreten');
       end
@@ -249,6 +257,10 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
     case 12 % Zylinder im Basis-KS
       % Interpretiere Zylinder als Kapsel, da bei schräger Anordnung nicht
       % definiert ist, wo die Kante liegt. Dadurch ist die AABB zu groß
+      aabbdata = sort([b_param(1:3); b_param(4:6)])+...
+                 [-repmat(b_param(1),1,3);+repmat(b_param(1),1,3)];
+      cb_param = b_param(1:7);
+    case 13 % Kapsel im Basis-KS
       aabbdata = sort([b_param(1:3); b_param(4:6)])+...
                  [-repmat(b_param(1),1,3);+repmat(b_param(1),1,3)];
       cb_param = b_param(1:7);
