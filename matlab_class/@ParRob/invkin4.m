@@ -22,7 +22,13 @@
 % Phi
 %   Kinematische Zwangsbedingungen für die Lösung. Bei korrekter Berechnung
 %   muss dieser Wert Null sein.
-%
+% Tc_stack_PKM 
+%   Gestapelte Transformationsmatrizen der PKM. Im Basis-KS.
+%   Entspricht mit Abwandlung der Anordnung wie in fkine: 
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 
 % TODO: Nullraumbewegung mit Nebenbedingung
 % TODO: Erfolg der IK prüfen
@@ -31,7 +37,7 @@
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 
 
-function [q, Phi] = invkin4(R, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM] = invkin4(R, xE_soll, q0, s_in)
 
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 Leg_I_EE_Task = true(R.NLEG,6);
@@ -78,6 +84,7 @@ s = struct('I_EE', R.I_EE,...
     'retry_limit', 100,...
            'NLEG', R.NLEG,...
              'NJ', R.NJ,...
+             'NL', R.NL,...
         'I1J_LEG', R.I1J_LEG,...
         'I2J_LEG', R.I2J_LEG,...
  'I_constr_t_red', R.I_constr_t_red,...
@@ -112,5 +119,8 @@ if nargin >= 3 && ~isempty(s_in)
 end
 %% Funktionsaufruf. 
 % Entspricht robot_invkin_eulangresidual.m.template
-[q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
+if nargout == 3
+  [q, Phi, Tc_stack_PKM] = R.invkin3fcnhdl(xE_soll, q0, s);
+else
+  [q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
 end

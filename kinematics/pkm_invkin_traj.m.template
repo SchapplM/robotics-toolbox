@@ -33,7 +33,10 @@
 %   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
 % JinvD_ges
 %   Zeitableitung von Jinv_ges
-% 
+% JointPos_all
+%   gestapelte Positionen aller Gelenke der PKM für alle Zeitschritte
+%   (Entspricht letzter Spalte aller Transformationsmatrizen aus fkine_legs)
+
 % Diese Datei ist identisch mit: ParRob/invkin_traj.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
 
@@ -47,7 +50,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = %PN%_invkin_traj(X, XD, XDD, T, q0, s, s_ser)
+function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = %PN%_invkin_traj(X, XD, XDD, T, q0, s, s_ser)
 
 %% Coder Information
 %#codegen
@@ -74,6 +77,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges] = %PN%_invkin_traj(X, XD, XDD, T
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs            'NLEG', 0,
 %$cgargs              'NJ', 0,
+%$cgargs              'NL', 0,
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
@@ -117,6 +121,7 @@ debug = s.debug;
 s_par = struct('r_P_B_all', s.r_P_B_all,...
              'phi_P_B_all', s.phi_P_B_all,...
                     'NLEG', s.NLEG,...
+                      'NL', s.NL,...
              'phiconv_W_E', s.phiconv_W_E,...
             'I1constr_red', s.I1constr_red,...
             'I2constr_red', s.I2constr_red,...
@@ -184,6 +189,7 @@ s_tpl = struct( 'I_EE', s.I_EE,...
      'retry_limit', s_ser.retry_limit,...
             'NLEG', s.NLEG,...
               'NJ', s.NJ,...
+              'NL', s.NL,...
          'I1J_LEG', s.I1J_LEG,...
          'I2J_LEG', s.I2J_LEG,...
   'I_constr_t_red', s.I_constr_t_red,...
@@ -263,7 +269,7 @@ QDD = Q;
 Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
 Jinv_ges = NaN(nt, sum(I_EE)*length(s.I_qa));
 JinvD_ges = zeros(nt, sum(I_EE)*length(s.I_qa));
-
+JointPos_all = NaN(nt, (1+s.NL-2+s.NLEG)*3);
 qk0 = q0;
 for k = 1:nt
   tic();
@@ -273,10 +279,10 @@ for k = 1:nt
   
   if mode_IK == 2
     % 3T2R-Funktion
-    [q_k, Phi_k] = %PN%_invkin3(x_k, qk0, s_tpl);
+    [q_k, Phi_k, Tc_stack_k] = %PN%_invkin3(x_k, qk0, s_tpl);
   else
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
-    [q_k, Phi_k] = %PN%_invkin(x_k, qk0, s_par, s_ser);
+    [q_k, Phi_k, Tc_stack_k] = %PN%_invkin(x_k, qk0, s_par, s_ser);
   end
   % Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R
@@ -328,7 +334,7 @@ for k = 1:nt
 
   Jinv_ges(k,:) = J_x_inv(:);
   JinvD_ges(k,:) = JD_x_inv(:);
-
+  JointPos_all(k,:) = Tc_stack_k(:,4);
   if debug
     if max(abs(Phi_k)) > 1e-3
       fprintf('Phi zu gross');

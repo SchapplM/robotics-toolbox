@@ -346,7 +346,9 @@ classdef SerRob < RobBase
       % T: Transformationsmatrizen
       T = R.jtraffcnhdl(q, R.pkin_gen);
     end
-    function [Tc_0, Tc_W] = fkine(R, q)
+
+    
+    function [Tc_0, Tc_W, Tc_stack] = fkine(R, q)
       % Direkte Kinematik vom Inertial-KS zu den Körper-KS
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -354,8 +356,13 @@ classdef SerRob < RobBase
       % Ausgabe:
       % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
       % Tc_W: Bezugssystem ist das Welt-KS
-      Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
-      if nargout == 2
+      % Tc_stack: Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
+      if nargout == 3
+        [Tc_0, Tc_stack] = R.fkinfcnhdl(q, R.pkin_gen);
+      else
+        Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
+      end
+      if nargout >= 2
         Tc_W = Tc_0;
         for i = 1:size(Tc_0,3)
           Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);

@@ -159,7 +159,7 @@ for k = 1:nt
   
   if mode_IK == 2
     % 3T2R-Funktion
-    [q_k, Phi_k] = Rob.invkin3(x_k, qk0, s_inv3);
+    [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
   else
      % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);

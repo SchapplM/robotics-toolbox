@@ -143,7 +143,7 @@ classdef ParRob < RobBase
       % Phi: Kinematische Zwangsbedingungen für die Lösung.
       [q, Phi] = R.invkin_ser(xE_soll, q0);
     end
-    function [q, Phi] = invkin2(R, x, q0, s_in_ser)
+    function [q, Phi, Tc_stack_PKM] = invkin2(R, x, q0, s_in_ser)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch etwas schneller als durch die
       % Klassen-Methode `invkin_ser`, die nur teilweise kompilierbar ist.
@@ -187,6 +187,7 @@ classdef ParRob < RobBase
       s_par = struct('r_P_B_all', R.r_P_B_all, ...
                  'phi_P_B_all', R.phi_P_B_all, ...
                  'NLEG', R.NLEG, ...
+                 'NL', R.NL, ...
                  'phiconv_W_E', R.phiconv_W_E, ...
                  'I1constr_red', R.I1constr_red, ...
                  'I2constr_red', R.I2constr_red, ...
@@ -233,7 +234,11 @@ classdef ParRob < RobBase
         end
       end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
-      [q, Phi] = R.invkinfcnhdl(x, q0, s_par, s_ser);
+      if nargout == 3
+        [q, Phi, Tc_stack_PKM] = R.invkinfcnhdl(x, q0, s_par, s_ser);
+      else 
+        [q, Phi] = R.invkinfcnhdl(x, q0, s_par, s_ser);
+      end
     end
     function update_actuation(R, I_qa)
       R.I_qa = logical(I_qa); % Index der aktiven (und damit unabhängigen Gelenke)

@@ -14,7 +14,14 @@
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
-% 
+% Tc_stack_PKM 
+%   Gestapelte Transformationsmatrizen der PKM. Im Basis-KS.
+%   Entspricht mit Abwandlung der Anordnung wie in fkine:
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
+%
 % Diese Datei ist identisch mit: ParRob/invkin_ser.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
 
@@ -28,7 +35,7 @@
 % Junnan Li, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
+function [q, Phi, Tc_stack_PKM] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 
 
 %% Coder Information
@@ -37,6 +44,7 @@ function [q, Phi] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs            'NLEG', 0,
+%$cgargs              'NL', 0,
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs     'I1constr_red', zeros(1,%NLEG%),
 %$cgargs     'I2constr_red', zeros(1,%NLEG%),
@@ -121,6 +129,14 @@ r_P_P_B_ges = r_P_B_all;
 r_P_P_E = T_P_E(1:3,4);
 T_0_E = [eul2r(xE_soll(4:6), phiconv_W_E), xE_soll(1:3); [0 0 0 1]];
 
+% Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
+% Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
+% der Beine angegeben.
+Tc_stack_PKM = NaN((s_par.NL-1+s_par.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+% Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
+% die Variable und zur Angleichung an Darstellung im Welt-KS.
+Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
+out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 
 for i = 1:NLEG
   % Überschreibe evtl übergebene I_EE für PKM. Das I_EE hier gilt für die Beinkette
@@ -153,7 +169,7 @@ for i = 1:NLEG
   % Eingabe s einstellen
   
 
-  [q_i, Phi_i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
+  [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
   if all(I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
 	    fprintf('Fuehrungsbeinkette konvergiert nicht. Keine weitere Berechnung moeglich');
@@ -173,5 +189,19 @@ for i = 1:NLEG
   % Ergebnisse für dieses Bein abspeichern
   q(I1J_LEG(i):I2J_LEG(i)) = q_i;
   Phi_ser(I1constr_red(i):I2constr_red(i)) = Phi_i;
+  if nargout == 3
+    T_0_0i = invtr(T_0i_0);
+    % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
+    % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
+    Tc_stack_0 = NaN(3*(s_par.Leg_NQJ(i)+1),4);
+    for kk = 1:s_par.Leg_NQJ(i)+1
+      Tr_0i_kk = Tc_stack_0i((kk-1)*3+1:kk*3,1:4);
+      T_0_kk = T_0_0i * [Tr_0i_kk;[0 0 0 1]];
+      Tc_stack_0((kk-1)*3+1:kk*3,1:4) = T_0_kk(1:3,:);
+    end
+    % Eintragen in Ergebnis-Variable
+    Tc_stack_PKM(out3_ind1+(1:3*(s_par.Leg_NQJ(i)+1)),:) = Tc_stack_0;
+    out3_ind1 = out3_ind1 + 3*(s_par.Leg_NQJ(i)+1);
+  end
 end
 Phi = Phi_ser;
