@@ -120,8 +120,10 @@ if ~s.only_bodies && any(s.mode == [1 3 4]) && ~s.nojoints
       d = Rob.MDH.d(i);
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
       d = q_JV(i) + Rob.MDH.offset(i);
-    else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
+    elseif Rob.MDH.sigma(i) == 2 % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
       d = Rob.MDH.d(i);
+    else
+      error('Fall für sigma nicht definiert');
     end
     r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
 
