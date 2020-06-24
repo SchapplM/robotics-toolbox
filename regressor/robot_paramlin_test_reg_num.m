@@ -40,18 +40,30 @@ K_dsym = plin_num_test_struct.K_dsym; % Lineare Zuordnungsmatrix der abhängigen
 MPVsym = plin_num_test_struct.MPV; % Minimalparameter (aus symbolischer Berechnung, zum Vergleich)
 NQ = plin_num_test_struct.NQ; % Anzahl der Freiheitsgrade (allgemein, damit für fixed und floating base funktionierend)
 PV2_Names = plin_num_test_struct.PV2_Names;
+if isfield(plin_num_test_struct, 'qr_tolerance')
+  qr_tolerance = plin_num_test_struct.qr_tolerance;
+else
+  qr_tolerance = NaN;
+end
 n = size(W_g,1)/NQ; % Anzahl der Samples: Geht davon aus, dass ein Dynamik-Regressor übergeben wurde. Ist aber auch später egal.
 
 % [Gautier1990] Gl. (30): Skalierung der Werte der Informationsmatrix
 S = max(abs(W_g(:))) / min(abs(W_g(W_g~=0)));
+W_F = sqrt(sum(W_g(:).^2)); % Gl. (31)
+% TODO: Skalierung gem. [Gautier1990] Kap. 5-1-1
+
+if size(W_g,1) < size(W_g,2)
+  error(['Die Informationsmatrix muss mindestens so viele Zeilen wie Spalten ', ...
+    'haben. Aktuell %dx%d'], size(W_g,1), size(W_g,2));
+end
 
 % Prüfe Rang der Matrix, [Gautier1990] Kap. 3-2
 c = length(PV2);
 b = rank(W_g);
 if b < length(MPVsym)
-  warning(['Die numerisch berechnete Informationsmatrix hat nicht den Rang, der ', ...
-    'der Länge des symbolisch bestimmten Minimalparametervektors entspricht!', ...
-    'Die Berechnung des MPV ist womöglich fehlerhaft']);
+  warning(['Die numerisch berechnete Informationsmatrix hat den Rang %d, der nicht ', ...
+    'der Länge %d des symbolisch bestimmten Minimalparametervektors entspricht! ', ...
+    'Die Berechnung des MPV ist womöglich fehlerhaft'], b, length(MPVsym));
 elseif b > length(MPVsym)
   warning('Der MPV enthält zu wenige Einträge. Das ist eigentlich gar nicht möglich');
 end
@@ -62,8 +74,11 @@ end
 [Q_g1,R_g1] = qr(W_g); % Benennung g1: erste QR-Zerlegung nach Gautier
 
 r = NQ*n;
-tau = r * eps(1) * max(abs(diag(R_g1))); % ist sehr kleine Zahl. [Gautier1990] Gl. (14)
-
+if isnan(qr_tolerance)
+  tau = r * eps(1) * max(abs(diag(R_g1))); % ist sehr kleine Zahl. [Gautier1990] Gl. (14)
+else
+  tau = qr_tolerance;
+end
 % Permutation nach [Gautier1990] Kap. 3-3
 % Sortiere die Parameter damit gemäß [GautierKhalil1990]
 R_g1(abs(R_g1(:))<tau) = 0;
@@ -174,7 +189,7 @@ end
 
 % Dieser Test wird nicht benötigt, wenn die Permutation oben selbst
 % durchgeführt wird.
-% % [Gautier1990], Gl. (17)
+% [Gautier1990], Gl. (17)
 % [Q_g2,R_g2,P_g2] = qr(WP); % Zweite QR-Zerlegung nach Gautier
 % R1_g2 = R_g2(1:b,1:b);
 % R2_g2 = R_g2(1:b,b+1:end);
