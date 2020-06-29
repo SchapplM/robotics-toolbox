@@ -129,14 +129,13 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 %% Iterative Lösung der IK
 for rr = 0:retry_limit
   q1 = q0;
-  for jj = 2:n_max
+  [~,Phi_voll] = Rob.constr3(q1, xE_soll);
+  Phi = Phi_voll(I_IK);
+  for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     [~,Jik_voll]=Rob.constr3grad_q(q1, xE_soll);
     Jik = Jik_voll(I_IK,:);
 
-    % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
-    [~,Phi_voll] = Rob.constr3(q1, xE_soll);
-    Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     delta_q_T = Jik \ (-Phi);
@@ -218,8 +217,10 @@ for rr = 0:retry_limit
     end
 
     q1 = q2;
+    [~,Phi_voll] = Rob.constr3(q1, xE_soll);
+    Phi = Phi_voll(I_IK);
 
-    if jj > n_min ... % Mindestzahl Iterationen erfüllt
+    if jj >= n_min ... % Mindestzahl Iterationen erfüllt
       && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
       ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
       nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch

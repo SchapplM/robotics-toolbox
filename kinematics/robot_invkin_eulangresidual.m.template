@@ -113,15 +113,15 @@ end
 
 % Ausgabe belegen
 success = false;
-q1 = q0;
-% Fehlermaß für Startwerte
-[Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
+  % Fehlermaß für Startwerte
+  [Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
 
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
