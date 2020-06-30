@@ -111,7 +111,11 @@ for rr = 1:retry_limit
   end
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
-  for jj = 2:n_max
+  % Fehlermaß für Startwerte
+  if constr_m == 1, Phi_voll = Rob.constr1(q0, xE_soll);
+  else,             Phi_voll = Rob.constr2(q0, xE_soll, true); end
+  Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  for jj = 1:n_max
 
     % Gradientenmatrix, siehe [SchapplerTapOrt2019]/(23)
     dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
@@ -121,16 +125,8 @@ for rr = 1:retry_limit
       dpq=Rob.constr2grad_rq(q1, xE_soll, true);
     end
     Jdk_voll = [dxq; dpq];
+    Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
 
-    if constr_m == 1
-      Phi_voll = Rob.constr1(q1, xE_soll);
-    else
-      Phi_voll = Rob.constr2(q1, xE_soll, true);
-    end
-
-    %% Reduktion auf betrachtete FG
-    Jdk = Jdk_voll(I_IK,:);
-    Phi = Phi_voll(I_IK);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Normale Invertierung der Jacobi-Matrix der seriellen Kette
@@ -182,8 +178,12 @@ for rr = 1:retry_limit
 
     q1 = q2;
     
+    % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
+    if constr_m == 1, Phi_voll = Rob.constr1(q1, xE_soll);
+    else,             Phi_voll = Rob.constr2(q1, xE_soll, true); end
+    Phi = Phi_voll(I_IK);
 
-    if jj > n_min ... % Mindestzahl Iterationen erfüllt
+    if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) < 1e-10) ) % oder die Nullraumoptimierung läuft noch

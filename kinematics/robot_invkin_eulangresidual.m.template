@@ -87,7 +87,6 @@ delta_qlim = qmax - qmin;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-q = q0; %#ok<NASGU> % Zuweisung notwendig für mex
 
 if any(wn ~= 0)
   nsoptim = true;
@@ -105,6 +104,11 @@ else
 end
 I_IK = I_IK2(s.I_EE);
 
+% Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
+q1 = q0; 
+Phi = NaN(6,1); % Dimension kann sich noch verkleinern
+Tc_stack = NaN(3*%NL%,4);
+
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
 if nsoptim && NQJ <= length(I_IK)
@@ -113,15 +117,15 @@ end
 
 % Ausgabe belegen
 success = false;
-q1 = q0;
-% Fehlermaß für Startwerte
-[Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
+  % Fehlermaß für Startwerte
+  [Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
 
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
