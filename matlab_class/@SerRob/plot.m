@@ -158,7 +158,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4]) && ~s.nojoints
       end
       cubpar_c = r_W_Gi; % Mittelpunkt des Quaders
       cubpar_l = [gd; gd; gh]; % Dimension des Quaders
-      cubpar_a = flipud(180/pi*tr2rpy(R_W_i, 'zyx')'); % Orientierung des Quaders. Benutze Singularitäts-berücksichtigende Funktion
+      cubpar_a = rotation3dToEulerAngles(R_W_i)'; % Orientierung des Quaders. Benutze Singularitäts-berücksichtigende Funktion
       drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
     else
       continue % kein Gelenk
