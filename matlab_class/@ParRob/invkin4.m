@@ -65,11 +65,14 @@ for i = 1:R.NLEG
   Leg_NQJ(i) = R.Leg(i).NJ;
   Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
 end
+sigma_PKM = R.MDH.sigma; % Marker für Dreh-/Schubgelenk
+K = 0.6*ones(R.NJ,1);
+K(sigma_PKM==1) = K(sigma_PKM==1) / 5;
 
 s = struct('I_EE', R.I_EE,...
       'I_EE_Task', R.I_EE_Task,...
           'sigma', R.MDH.sigma,...
-              'K', 0.6*ones(R.NJ,1), ... % Verstärkung
+              'K', K, ... % Verstärkung
              'Kn', 0.4*ones(R.NJ,1), ... % Verstärkung
              'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz

@@ -84,11 +84,7 @@ function [q, Phi, Tc_stack_PKM] = %PN%_invkin3(xE_soll, q0, s)
 %% Initialisierung
 
 %% Definitionen
-% Variablen zum Speichern der Zwischenergebnisse
-sigma_PKM = s.sigma; % Marker für Dreh-/Schubgelenk
-K = 0.6*ones(s.NJ,1);
-K(sigma_PKM==1) = K(sigma_PKM==1) / 5; % Verstärkung für Schubgelenke kleiner
-
+sigma_PKM = s.sigma;
 
 s_cst3_q = struct(  'I_EE', s.I_EE,...
                'I_EE_Task', s.I_EE_Task,...
