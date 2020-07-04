@@ -564,7 +564,7 @@ for jj = 1:2
     Q_t = Q2_t;
     Name = 'IK_Parallel';
   end
-  s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS_3T2R_%s.gif', Name));
+  s_anim = struct( 'gif_name', fullfile(respath, sprintf('ParRob_class_example_6UPS_3T2R_%s.gif', Name)));
   s_plot = struct( 'ks_legs', [], 'straight', 0);
   figure(10+jj);clf;hold all;
   set(10+jj, 'units','normalized','outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
