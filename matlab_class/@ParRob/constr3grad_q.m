@@ -41,8 +41,11 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 % Anzahl ZB
 % TODO: Das funktioniert wahrscheinlich nicht bei allen asymmetrischen PKM,
 % falls planare Roboter modelliert werden.
-nPhit = size(Phi_tq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
-nPhir = size(Phi_rq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
+% nPhit = size(Phi_tq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
+% nPhir = size(Phi_rq_red,1)/Rob.NLEG; % TODO: Setzt symmetrische PKM vorraus
+% nPhi = nPhit + nPhir;
+nPhit = floor(size(Phi_tq_red,1)/Rob.NLEG);
+nPhir = floor((size(Phi_rq_red ,1))/Rob.NLEG);
 nPhi = nPhit + nPhir;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
