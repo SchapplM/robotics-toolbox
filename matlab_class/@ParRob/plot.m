@@ -93,6 +93,19 @@ end
 
 
 %% Plattform Plotten (von Plattform-Koppelpunkten her)
+% Anpassung der Ist-Plattform-Pose für den Fall der Aufgabenredundanz
+if all(Rob.I_EE_Task==[1 1 1 1 1 0])
+  % Transformation von Plattform zum Plattform-Koppelpunkt für die letzte
+  % Beinkette (zur Nutzung von Variable von vorher)
+  T_P_Bi = [eul2r(Rob.phi_P_B_all(:,end),Rob.phiconv_P_E(end)), Rob.r_P_B_all(:,end);[0 0 0 1]]; 
+  % Von Welt-KS zum EE aus direkter Kinematik der letzten Beinkette
+  T_W_E_lastleg = T_W_Bi*invtr(T_P_Bi)*Rob.T_P_E;
+  x_lastleg = Rob.t2x(T_W_E_lastleg); % Umrechnung in Minimalkoordinaten
+  % Setze freien Rotations-FG so, dass es dem Ist-Zustand entspricht.
+  % Dadurch wird vermieden, dass Soll- und Ist-Plattform-Pose gegeneinander
+  % verdreht sind.
+  x(6) = x_lastleg(6);
+end
 [~,Tc_Pges_W] = Rob.fkine_platform(x);
 
 % Plattform als Objekt
