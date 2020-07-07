@@ -551,6 +551,10 @@ for i_FG = 1:size(EEFG_Ges,1)
     end
     end % Schleife über jacobi_mode
   end % Schleife über Verschiedene PKM
+  if isempty(ResStat) % Dieser Fall kann nur bei manuellem Test einer PKM vorkommen.
+    warning('Leere Ergebnistabelle für FG-Kombination Nr. %d. Keiner der PKM konnte erfolgreich getestet werden', i_FG);
+    continue
+  end
   ResStat.Properties.VariableNames = {'Name', 'JacobiModus', 'RelError_until1stSing', ...
     'RelError20_80', 'RelError05_30', 'ProzentTrajSingFrei', 'ProzentTraj', ...
     'RealTimeRation'};
