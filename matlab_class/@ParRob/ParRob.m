@@ -800,16 +800,16 @@ classdef ParRob < RobBase
       % TODO: Das ändert sich evtl bei überbestimmten PKM
       % Indizes der relevanten Zwangsbedingungen daraus ableiten
       % Werden benötigt für Ausgabe von constr1
-      R.I_constr_t = [];
-      R.I_constr_r = [];
-      R.I_constr_red = [];
-      R.I_constr_t_red = [];
-      R.I_constr_r_red = [];
+      R.I_constr_t = zeros(1,0); % Initialisierung 1x0 für mex-Eingangsprüfung
+      R.I_constr_r = zeros(1,0);
+      R.I_constr_red = zeros(1,0);
+      R.I_constr_t_red = zeros(1,0);
+      R.I_constr_r_red = zeros(1,0);
       
-      R.I1constr = [];
-      R.I2constr = [];
-      R.I1constr_red = [];
-      R.I2constr_red = [];
+      R.I1constr = zeros(1,0);
+      R.I2constr = zeros(1,0);
+      R.I1constr_red = zeros(1,0);
+      R.I2constr_red = zeros(1,0);
       
       i_red = 1; % Lauf-Index für I_constr_red (jew. erster Eintrag pro Bein)
       i_tred = 1; i_rred = 1; % Lauf-Index für I_constr_t_red und I_constr_r_red
