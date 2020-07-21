@@ -76,7 +76,7 @@ s = struct('I_EE', R.I_EE,...
              'Kn', 0.4*ones(R.NJ,1), ... % Verstärkung
              'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
-      'normalize', true, ... % Normalisieren auf +/- 180°
+      'normalize', false, ... % Normalisieren auf +/- 180°
           'n_min', 0, ... % Minimale Anzahl Iterationen
           'n_max', 1000, ... % Maximale Anzahl Iterationen
       'scale_lim', 1, ... Initialwert für Zufallszahlengenerierung

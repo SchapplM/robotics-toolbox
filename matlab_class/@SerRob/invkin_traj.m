@@ -30,10 +30,8 @@
 % 
 % Siehe auch: ParRob/invkin_traj
 
-% TODO: Nullraumbewegung mit Nebenbedingung
+% TODO: Nullraumbewegung mit Nebenbedingung (siehe robot_invkin_traj.m.template)
 % TODO: Erfolg der IK prüfen
-% TODO: Zur Berechnung der Jacobi-Matrizen + Zeitableitung werden viele
-% Operationen doppelt in der Roboterklasse durchgeführt.
 
 % Quelle:
 % [1] Aufzeichnungen Schappler vom 28.11.2018
