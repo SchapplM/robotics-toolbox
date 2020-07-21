@@ -23,7 +23,8 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext dieser Funktion und
-%   von `%RN%_invkin_eulangresidual`
+%   von `%RN%_invkin_eulangresidual` sowie aufrufende Methode aus
+%   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion.
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -34,25 +35,28 @@
 %   Trajektorie von Gelenkbeschleunigungen
 % PHI
 %   Fehlermaß der inversen Kinematik für alle Zeitschritte
-% JointPos_all [NT x (%NJ%*3)]
+% JointPos_all [NT x (%NQJ%*3)]
 %   gestapelte Positionen aller Gelenke für alle Zeitschritte
 %   (Entspricht letzter Spalte aller homogener Transformationsmatrizen)
 %
 % Siehe auch: ParRob/invkin_traj
 
-% TODO: Nullraumbewegung mit Nebenbedingung
 % TODO: Erfolg der IK prüfen
 % TODO: EE-Trajektorie auch als Winkelgeschwindigkeit und zusätzlicher
 %       Schalter für Umrechnung auf analytische Jacobi-Matrix
-% TODO: Schalter für Weglassen der Beschleunigung
+% TODO: Bei Verletzung von qD ist qD/qDD leicht inkonsistent.
 
 % Quelle:
 % [1] Aufzeichnungen Schappler vom 28.11.2018
 % [2] Aufzeichnungen Schappler vom 11.12.2018
+% [3] Aufzeichnungen Schappler vom 06.07.2020
+% [RMG16] Reiter et al.: Inverse Kinematics in Minimum-Time Trajectory
+% Planning for Kinematically Redundant Manipulators (2016)
 
-% %VERSIONINFO%
+
+% Generated in SerRobLib from template file in robotics repo
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [Q, QD, QDD, PHI, JointPos_all] = %RN%_invkin_traj(X, XD, XDD, T, q0, s)
 
@@ -65,14 +69,16 @@ function [Q, QD, QDD, PHI, JointPos_all] = %RN%_invkin_traj(X, XD, XDD, T, q0, s
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs             'NQJ', 0,
 %$cgargs            'qlim', zeros(%NQJ%,2),
+%$cgargs           'qDlim', zeros(%NQJ%,2),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs        'I_EElink', uint8(0),
 %$cgargs            'reci', true,
+%$cgargs    'simplify_acc', false,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(2,1),
+%$cgargs              'wn', zeros(4,1),
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
@@ -94,48 +100,223 @@ JointPos_all = NaN( length(T), (%NJ%+1)*3 );
 % Einstellungsvariablen aus Struktur herausholen
 I_EE = s.I_EE;
 nt = length(T);
-qk0 = q0;
 link_index = s.I_EElink;
 pkin = s.pkin;
 r_i_i_C = s.T_N_E(1:3,4);
+qlim = s.qlim;
+% Prüfe, ob Grenzen für die Geschwindigkeit gesetzt wurden
+qDlim = s.qDlim;
+qDmin = qDlim(:,1);
+qDmax = qDlim(:,2);
+if all(~isnan(s.qDlim(:)))
+  limits_qD_set = true;
+else
+  % Grenzen sind nicht wirksam
+  qDmin(:) = -Inf;
+  qDmax(:) =  Inf;
+  limits_qD_set = false;
+end
+wn = s.wn;
+if any(wn ~= 0)
+  nsoptim = true;
+else
+  % Keine zusätzlichen Optimierungskriterien
+  nsoptim = false;
+end
+% Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
+% 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
+if sum(I_EE) >= %NQJ%
+  % Es gibt Gelenkgeschwindigkeitsgrenzen, sie können aber nicht genutzt
+  % werden, da keine Nullraumbewegung möglich sind.
+  limits_qD_set = false;
+  % Keine Optimierungen im Nullraum möglich
+  nsoptim = false;
+end
+if nsoptim
+  s.wn = s.wn*0; % keine Nullraumoptimierung auf Positionsebene durchführen
+end
+simplify_acc = s.simplify_acc;
+% Einstellungsvariable für Positions-IK zusammenstellen. Fast alle sind
+% gleich. Es dürfen aber keine überzähligen Felder übergeben werden.
+s_pik = struct( ...
+  'pkin', s.pkin, ...
+  'sigmaJ', s.sigmaJ, ...
+  'NQJ', s.NQJ, ...
+  'qlim', s.qlim, ...
+  'I_EE', s.I_EE, ...
+  'phiconv_W_E', s.phiconv_W_E, ...
+  'I_EElink', s.I_EElink, ...
+  'reci', s.reci, ...
+  'T_N_E', s.T_N_E, ...
+  'K', s.K, ...
+  'Kn', s.Kn, ...
+  'wn', zeros(2,1), ... % Keine Nullraumoptimierung sinnvoll. Wird in Traj. gemacht.
+  'scale_lim', s.scale_lim, ...
+  'maxrelstep', s.maxrelstep, ... 
+  'normalize', s.normalize, ... 
+  'n_min', s.n_min, ...
+  'n_max', s.n_max, ...
+  'rng_seed', s.rng_seed, ...
+  'Phit_tol', s.Phit_tol, ...
+  'Phir_tol', s.Phir_tol, ...
+  'retry_limit', s.retry_limit);
 
-
+% Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
+qk0 = q0;
+qDk0 = zeros(%NQJ%,1);
+qDD_k_T = zeros(%NQJ%,1);
+qD_k = zeros(%NQJ%,1);
+N = eye(%NQJ%);
+dt = 0;
+J_x_alt = zeros(6,%NQJ%);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
+  if k < nt % Schrittweite für letzten Zeitschritt angenommen wie vorletzter
+    dt = T(k+1)-T(k); % Zeit bis zum nächsten Abtastpunkt
+  end
   %% Gelenk-Position berechnen
   % Inverse Kinematik für aktuellen Bahnpunkt. Nutze Anfangswert aus der
   % differentiellen Kinematik hiernach von der letzten Iteration (k-1)
-  [q_k, Phi_k, Tc_stack_k] = %RN%_invkin_eulangresidual(X(k,:)', qk0, s);
-
-  %% Gelenk-Geschwindigkeit berechnen (Siehe [1]).
-  % Geometrische Jacobi-Matrix in analytische Jacobi umrechnen
+  [q_k, Phi_k, Tc_stack_k] = %RN%_invkin_eulangresidual(X(k,:)', qk0, s_pik);
+  %% Gelenk-Geschwindigkeit berechnen
+  % Geometrische Jacobi-Matrix in analytische Jacobi umrechnen (siehe [1]).
   Jg = %RN%_jacobig_sym_varpar(q_k, link_index, r_i_i_C, pkin);
-  Tw = euljac(X(k,4:6)', s.phiconv_W_E);
-  J_x = [Jg(1:3,:); Tw \ Jg(4:6,:)];
+  Tw = euljac(X(k,4:6)', s.phiconv_W_E); % Euler-Transformationsmatrix
+  J_x = [Jg(1:3,:); Tw \ Jg(4:6,:)]; % analytische Jacobi-Matrix
   % Gelenk-Geschwindigkeit mit inverser Jacobi
-  qD_k = J_x(I_EE,:) \ XD(k,I_EE)';
-
+  if ~(nsoptim || limits_qD_set)
+    qD_k = J_x(I_EE,:) \ XD(k,I_EE)';
+  else
+  % Bestimme Korrekturterm zum Ausgleich des Linearisierungsfehlers aus der
+  % letzten Iteration (k-1). Ausgleich der Nullraumbewegung, die aus der
+  % Beschleunigung berechnet wird. Siehe [3].
+    % EE-Geschw. mit der Gelenk-Geschw. aus dem vorherigen Zeitschritt
+    % (k-1) berechnet für diesen Zeitschritt (k). Ein Teil von qDk0 geht in
+    % den Nullraum. Daher kann nicht einfach obige Formel genommen werden.
+    xD_pre = J_x(I_EE,:)*qDk0;
+    % Korrektur-Term der Geschwindigkeit: Die Gelenk-Geschwindigkeit mit
+    % Berechnung aus (k-1) führt nicht zur korrekten EE-Geschw. in (k)
+    xD_korr = -xD_pre+XD(k,I_EE)'; % dieses Residuum sollte klein bleiben
+    % Korrekturwert für Gelenk-Geschw. berechnet mit Pseudo-Inverse (ohne
+    % Nullraumoptimierung, da nur Ausgleich für numerische Ungenauigkeit)
+    qD_korr = J_x(I_EE,:) \ xD_korr;
+    % zu xD passende Gelenk-Geschw. für diesen Zeitschritt (k)
+    qD_k = qDk0 + qD_korr;
+  end
   %% Gelenk-Beschleunigung berechnen
-  % Zeitableitung der geometrischen Jacobi-Matrix
-  JgD = %RN%_jacobigD_sym_varpar(q_k, qD_k, link_index, r_i_i_C, pkin);
-  % Zeitableitung der Euler-Transformationsmatrix
-  TDw = euljacD(X(k,4:6)', XD(k,4:6)', s.phiconv_W_E);
-  % Zeitableitung der inversen Euler-Transformationsmatrix
-  TwD_inv = -Tw\TDw/Tw;
-  % Zeitableitung der analytischen Jacobi (Rotationsteil)
-  JeD = Tw\JgD(4:6,:) + TwD_inv *Jg(4:6,:);
-  % Zeitableitung analytische Jacobi komplett
-  JD_x = [JgD(1:3,:); JeD];
-  % Gelenk-Beschleunigung mit inverser Jacobi berechnen
-  qDD_k = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+  if ~simplify_acc
+    % Zeitableitung der geometrischen Jacobi-Matrix (siehe [1]).
+    JgD = %RN%_jacobigD_sym_varpar(q_k, qD_k, link_index, r_i_i_C, pkin);
+    % Zeitableitung der Euler-Transformationsmatrix
+    TDw = euljacD(X(k,4:6)', XD(k,4:6)', s.phiconv_W_E);
+    % Zeitableitung der inversen Euler-Transformationsmatrix
+    TwD_inv = -Tw\TDw/Tw;
+    % Zeitableitung der analytischen Jacobi (Rotationsteil "e")
+    JeD = Tw\JgD(4:6,:) + TwD_inv *Jg(4:6,:);
+    % Zeitableitung analytische Jacobi komplett
+    JD_x = [JgD(1:3,:); JeD];
+  else
+    % Annäherung der Jacobi-Zeitableitung durch den linken Differenzen-
+    % quotienten der Jacobi-Matrix. Für ersten Zeitschritt ist der Wert
+    % hier grob falsch. Annahme: Geschwindigkeit im ersten Zeitschritt
+    % immer Null. Daher kein Einfluss. Funktioniert nur bei Rast-Rast-
+    % Trajektorien. dt ist die Zeit zum nächsten Schritt. Annahme:
+    % Äquidistant.
+    JD_x = (J_x-J_x_alt)/dt;
+  end
+  % Gelenk-Beschleunigung mit inverser Jacobi (bzw. Pseudo-Inv.) berechnen
+  % Siehe z.B. [RMG16]/(19)
+  qDD_k_T(:) = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
 
-  %% Verbesserter Anfangswert für Positionsberechnung in nächster Iteration
+  % Nullraumbewegung auf Beschleunigungsebene berechnen. Siehe [RMG16]
+  if nsoptim || limits_qD_set
+    % Nullraum-Projektor
+    N = (eye(%NQJ%) - pinv(J_x(I_EE,:))*J_x(I_EE,:));
+  end
+  if nsoptim % Nullraumbewegung, siehe [3]
+    v = zeros(%NQJ%, 1);
+    if wn(1) ~= 0
+      [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
+      v = v - wn(1)*h1dq';
+    end
+    if wn(2) ~= 0
+      [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+      v = v - wn(2)*h2dq';
+    end
+    if wn(3) ~= 0
+      [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
+      v = v - wn(3)*h3dq';
+    end
+    if wn(4) ~= 0
+      [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
+      v = v - wn(4)*h4dq';
+    end
+    % Erster Wert ("pre") für Beschleunigung durch Minimierung der
+    % Zielfunktion h. Siehe [RMG16]/(20) (zweiter Term)
+    qDD_N_pre = N * v;
+  else
+    qDD_N_pre = zeros(%NQJ%,1);
+  end
+    
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  % Geschwindigkeitsgrenzen. Reduziere, falls notwendig
+  if limits_qD_set
+    % Beschleunigung basierend auf Nullraum-Bewegung, [RMG16]/(20)
+    qDD_pre = qDD_k_T+qDD_N_pre; % [3]/(1)
+    % Daraus berechnete Geschwindigkeit im nächsten Zeitschritt
+    qD_pre = qD_k + qDD_pre*dt;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden
+    deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
+    deltaD_ll = (-qDmin + qD_pre); % Unterschreitung Minimalwerte: <0
+    if any([deltaD_ul;deltaD_ll] < 0)
+      if min(deltaD_ul)<min(deltaD_ll)
+        % Verletzung nach oben ist die größere
+        [~,I_worst] = min(deltaD_ul);
+        qDD_lim_I = (qDmax(I_worst)-qD_k(I_worst))/dt;% [3]/(3)
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_worst] = min(deltaD_ll);
+        qDD_lim_I = (qDmin(I_worst)-qD_k(I_worst))/dt;
+      end
+      % Ein Geschwindigkeits-Grenzwert würde im folgenden Schritt
+      % verletzt werden. Versuche die Beschleunigung durch
+      % Nullraumbewegung zu begrenzen. "Ziehe" die Geschwindigkeit in
+      % Richtung der Mitte der Grenzen.
+      qD_pre_h = qD_pre;
+      % qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
+      [~, hdqD] = invkin_optimcrit_limits1(qD_pre_h, qDlim);
+      % Dieser Beschleunigungsvektor liegt im Nullraum der Jacobi-Matrix
+      % (erfüllt also noch die Soll-Beschleunigung des Endeffektors).
+      % Der Vektor führt zu einer Reduzierung der Geschwindigkeit von den
+      % Grenzen weg
+      qDD_N_h = N * (-hdqD');
+      % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
+      qDD_N_he = qDD_N_h/qDD_N_h(I_worst); % [3]/(5)
+      % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
+      % an der Grenze landet.
+      qDD_N_korr_I = -qDD_pre(I_worst) + qDD_lim_I; % [3]/(7)
+      % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
+      qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
+      qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+    else
+      % Keine Verletzung der Geschwindigkeitsgrenzen. Lasse
+      % Beschleunigung so wie sie ist
+      qDD_N_post = qDD_N_pre;  
+    end
+  else
+    % Keine Grenzen für qD gesetzt. Beschleunigung muss nicht korrigiert
+    % werden
+    qDD_N_post = qDD_N_pre;   
+  end
+  % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
+  qDD_k = qDD_k_T + qDD_N_post;
+  
+  %% Anfangswerte für Positionsberechnung in nächster Iteration
+  % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
+  qDk0 = qD_k + qDD_k*dt;
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
-  if k < nt
-    dt = T(k+1)-T(k);
-    qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
-  end
+  qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
 
   %% Ergebnisse speichern
   Q(k,:) = q_k;
@@ -143,5 +324,5 @@ for k = 1:nt
   QDD(k,:) = qDD_k;
   PHI(k,:) = Phi_k;
   JointPos_all(k,:) = Tc_stack_k(:,4);
+  J_x_alt = J_x;
 end
-
