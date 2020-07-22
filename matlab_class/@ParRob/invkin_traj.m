@@ -204,6 +204,15 @@ for k = 1:nt
     % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
   end
+  % Abspeichern für Ausgabe.
+  Q(k,:) = q_k;
+  Phi(k,:) = Phi_k;
+  JointPos_all(k,:) = Tc_stack_k(:,4);
+  % Prüfe Erfolg der IK
+  if any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
+     any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol)
+    break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
+  end
   %% Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
@@ -238,7 +247,6 @@ for k = 1:nt
     PhiD_pre = Phi_q*qDk0;
     PhiD_korr = -PhiD_pre - Phi_x*xD_k(I_EE);
     qD_korr = Phi_q\PhiD_korr;
-    % max(abs(qD_korr))
     qD_k = qDk0 + qD_korr;
     if s.debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
@@ -378,10 +386,8 @@ for k = 1:nt
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
   
   %% Ergebnisse speichern
-  Q(k,:) = q_k;
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
-  Phi(k,:) = Phi_k;
   if nargout >= 5
     Jinv_ges(k,:) = J_x_inv(:);
   end
@@ -391,11 +397,4 @@ for k = 1:nt
   J_x_inv_alt = J_x_inv;
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
-  JointPos_all(k,:) = Tc_stack_k(:,4);
-  if s.debug
-    if max(abs(Phi_k)) > 1e-3
-      warning('Phi zu groß');
-      break;
-    end
-  end
 end

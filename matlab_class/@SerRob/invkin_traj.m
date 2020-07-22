@@ -42,6 +42,8 @@
 
 function [Q, QD, QDD, PHI] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
+warning('Diese Funktion ist veraltet. Bitte nur noch invkin2_traj benutzen');
+
 if nargin < 7
   s = struct('constr_m', 2); % Muss für Übergabe an IK-Funktion definiert sein.
 end
