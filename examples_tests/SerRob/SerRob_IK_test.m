@@ -69,6 +69,7 @@ for Robot_Data = Robots
   
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
+  % serroblib_create_template_functions({SName}, false, false);
   RS = serroblib_create_robot_class(SName, RName);
 %   RS.mex_dep(true);
   RS.fill_fcn_handles(use_mex_functions, true);
@@ -115,9 +116,9 @@ for Robot_Data = Robots
   RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
   RS.invkin2(xE, q0+0.1*ones(RS.NJ,1));
   RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 1));
+    struct('retry_limit', 0));
   RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 1));
+    struct('retry_limit', 0));
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
   %% (Test 2) Inverse Kinematik (Normal) prüfen (für verschiedene Posen)

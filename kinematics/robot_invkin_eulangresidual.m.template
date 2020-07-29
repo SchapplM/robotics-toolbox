@@ -105,7 +105,7 @@ end
 I_IK = I_IK2(s.I_EE);
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
-q1 = q0; 
+q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 

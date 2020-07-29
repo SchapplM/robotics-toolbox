@@ -104,7 +104,7 @@ end
 
 success = false;
 
-for rr = 1:retry_limit
+for rr = 0:retry_limit
   if nargout == 3
     Q = NaN(n_max, Rob.NQJ);
     Q(1,:) = q0;
