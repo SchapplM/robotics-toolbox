@@ -222,7 +222,7 @@ if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
             % Zeichne Linearführung als Quader
             cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2; % Mittelpunkt des Quaders
             cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
-            cubpar_a = 180/pi*tr2rpy(T_qmin(1:3,1:3), 'zyx')'; % Orientierung des Quaders
+            cubpar_a = rotation3dToEulerAngles(T_qmin(1:3,1:3))'; % Orientierung des Quaders
             drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
             % Normales Segment zum Start der Linearführung
             if Rob.DesPar.seg_type(i) == 1

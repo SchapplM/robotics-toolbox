@@ -22,10 +22,10 @@ if ~isempty( SerRob )
     else
       Rob.Leg(i) = SerRob.copy();
     end
+    % Eigenschaft der seriellen Kette als PKM-Beinkette eintragen
+    Rob.Leg(i).islegchain = true;
   end
   Rob.Leg = Rob.Leg(:);
-  % Eigenschaft der seriellen Kette als PKM-Beinkette eintragen
-  Rob.Leg(i).islegchain = true;
 end
 
 Rob.NLEG = NLEG;
