@@ -13,6 +13,7 @@
 %     2: CAD-Modell des Roboters aus hinterlegten STL-Dateien der Körper
 %     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)
 %     4: Darstellung der Körper mit Entwurfsparametern (z.B. Zylinder)
+%     5: Darstellung mit Kollisionsobjekten (Kapseln etc.)
 %   straight (nur aktiv, wenn `mode` auf 1 (Strichmodell)
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
@@ -76,7 +77,7 @@ q_JV = Rob.jointvar(qJ);
 % plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
-if ~s.only_bodies && any(s.mode == [1 3 4]) && ~s.nojoints
+if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -184,8 +185,29 @@ if s.mode == 3
       T_c_W(:,:,i));
   end
 end
+%% Kollisionskörper zeichnen
+if s.mode == 5
+  for j = 1:size(Rob.collbodies.type,1)
+    i = Rob.collbodies.link(j);
+    T_body_i = T_c_W(:,:,i+1);
+    if Rob.collbodies.type(j) == 6 % Kapsel zum vorherigen
+      T_body_iv = T_c_W(:,:,v(i)+1);
+      r = Rob.collbodies.params(j,1);
+      pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
+    elseif Rob.collbodies.type(j) == 3 % Kapsel mit Angabe von 2 Punkten
+      r = Rob.collbodies.params(j,7);
+      pts_i = Rob.collbodies.params(j,1:6);
+      pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
+               eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
+    else
+      error('Fall %d nicht definiert', Rob.collbodies.type(i));
+    end
+    % Objekt zeichnen
+    drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+  end
+end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
-if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
+if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
     % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
     % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
     for i = 1:Rob.NJ
@@ -281,7 +303,7 @@ if ~s.only_bodies && any(s.mode == [3 4]) || s.mode == 1 && s.straight
       end
     end % for i = 1:Rob.NJ
 end
-if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4])
+if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4 5])
     for i = 1:Rob.NJ
       j = v(i)+1;
       % MDH-Transformation in einzelnen Schritten nachrechnen, damit diese
