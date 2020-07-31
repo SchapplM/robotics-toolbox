@@ -38,8 +38,8 @@
 %          Dadurch sehr einfache Prüfung mit AABB-Verfahren möglich. TODO.
 %     * 12 Zylinder im Basis-KS. Störobjekt in der Umgebung
 %          (Gegensatz zu 2)
-%     * 13 Kapsel im Basis-KS. Störobjekt in der Umgebung
-%          (Gegensatz zu 3)
+%     * 13 Kapsel im Basis-KS. Störobjekt in der Umgebung oder Ersatz für
+%           Führung eines Schubgelenks (Gegensatz zu 3)
 %   params [M x 10 double]
 %     Parameter für die Kollisionskörper. Je nachdem wie viele Parameter
 %     die obigen Kollisionsgeometrien haben, werden Spalten mit NaN aufgefüllt
@@ -258,16 +258,20 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
       % Interpretiere Zylinder als Kapsel, da bei schräger Anordnung nicht
       % definiert ist, wo die Kante liegt. Dadurch ist die AABB zu groß
       aabbdata = sort([b_param(1:3); b_param(4:6)])+...
-                 [-repmat(b_param(1),1,3);+repmat(b_param(1),1,3)];
+                 [-repmat(b_param(7),1,3);+repmat(b_param(7),1,3)];
       cb_param = b_param(1:7);
     case 13 % Kapsel im Basis-KS
       aabbdata = sort([b_param(1:3); b_param(4:6)])+...
-                 [-repmat(b_param(1),1,3);+repmat(b_param(1),1,3)];
+                 [-repmat(b_param(7),1,3);+repmat(b_param(7),1,3)];
       cb_param = b_param(1:7);
     otherwise
       error('Fall %d fuer Kollisionskoerper nicht definiert', type);
   end
+  % Debug-Prüfungen. Können später auskommentiert werden.
   if any(size(aabbdata)~=[2 3])
     error('Falsche Dimension der Ausgabe');
+  end
+  if any(aabbdata(1,:)>aabbdata(2,:)) % min (1. Zeile) > max (2. Zeile)
+    error('Die AABB-Parameter sind nicht richtig sortiert');
   end
 end
