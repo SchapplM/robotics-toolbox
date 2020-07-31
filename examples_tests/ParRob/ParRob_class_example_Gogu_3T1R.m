@@ -6,13 +6,13 @@
 % [Gogu2008] Gogu, Grigore:Structural Synthesis of Parallel Robots, Part 1:
 % Methodology (2008), Springer
 
-% Li, Junnan (MA bei Moritz Schappler)
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% Li, Junnan (MA bei Moritz Schappler), 2019-08
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 clear
 clc
 
-RobTitles = {}; % Für die Auswertungsbilder
+RobTitles = cell(5,1); % Für die Auswertungsbilder
 for testcase = 1:5
    
   % FG für die Beinketten: Position und Orientierung der Koppel-KS muss
@@ -241,6 +241,12 @@ for testcase = 1:5
   else
     error('Noch nicht implementiert');
   end
+  % Winkelgrenzen belegen, damit zufällige Neuversuche bei IK möglich
+  for i = 1:RP.NLEG
+    RP.Leg(i).qlim = repmat([-1, 1]*2*pi, RP.Leg(i).NJ, 1); % Drehgelenke
+    RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = repmat([-1, 1]*3, sum(RP.Leg(i).MDH.sigma==1), 1);
+  end
+  fprintf('Untersuche %dT%dR-PKM %s.\n', sum(I_EE(1:3)), sum(I_EE(4:6)), RobTitles{testcase});
   %% Teste FG der Beinketten
   % LJN: beurteilen ob eingegebene I_EE möglich
   I_EE_Max = ones(1,6);
@@ -255,8 +261,8 @@ for testcase = 1:5
   %% PKM testen
   % Definition der Test-Pose
   X_E = [ [0;0;1]; [0;0;0]*pi/180 ];
-  q0 = rand(RP.NJ,1);
-  q0(RP.I_qa) = 0.2;
+  q0 = (1-2*rand(RP.NJ,1))*pi/2; % -90° bis 90°
+  q0(RP.MDH.sigma==1) = 0.2; % möglichst positive Schubgelenke
 
   RP.constr1(q0,X_E);
   Gq = RP.constr1grad_q(q0,X_E);% ZB noch weiter verstehen. EE_FG x Anzahl_q?
@@ -264,7 +270,19 @@ for testcase = 1:5
   [q,phi] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
   
   q(isnan(q)) = q0(isnan(q)); % nicht lösbare Beinkette belegen, für Plot
-  Phi_real = RP.constr1(q, X_E);
+  
+  % PKM zeichnen
+  figure(testcase);clf;
+  hold on;grid on;
+  xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+  view(3);
+  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
+  RP.plot( q, X_E, s_plot );
+  title(sprintf('%s: %dT%dR', RobTitles{testcase}, sum(RP.I_EE(1:3)), sum(RP.I_EE(4:6))));
+  
+  if any(isnan(phi)) || any(abs(phi)>1e-6)
+    error('Keine Lösung der IK gefunden. Es muss aber eine Lösung geben. Weitere Tests nicht sinnvoll');
+  end
   
   %% FG mit Jacobi-Matrix testen
   [G_q_red,G_q] = RP.constr1grad_q(q, X_E);
@@ -283,7 +301,7 @@ for testcase = 1:5
   fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik (%dx%d): %d/%d\n', ...
     RP.mdlname, size(G_q,1), size(G_q,2), rank(G_q), RP.NJ);
   fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik (%dx%d): %d/%d\n', ...
-    RP.mdlname, size(G_dx,1), size(G_dx,2), rank(G_dx), sum(RP.I_EE)+sum(RP.I_qd));
+    RP.mdlname, size(G_dx,1), size(G_dx,2), rank(G_dx), 6+sum(RP.I_qd));
   fprintf('%s: Rang der Jacobi der aktiven Gelenke (%dx%d): %d/%d\n', ...
     RP.mdlname, size(G_a,1), size(G_a,2), rank(G_a), sum(RP.I_EE));
   
@@ -293,13 +311,4 @@ for testcase = 1:5
   if any(abs(xD_test(~RP.I_EE)) > 1e-10) % Genauigkeit hier ist abhängig von Zwangsbed.
     error('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt')
   end
-
-  % PKM zeichnen
-  figure(testcase);clf;
-  hold on;grid on;
-  xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-  view(3);
-  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-  RP.plot( q, X_E, s_plot );
-  title(sprintf('%s: %dT%dR', RobTitles{testcase}, sum(RP.I_EE(1:3)), sum(RP.I_EE(4:6))));
 end

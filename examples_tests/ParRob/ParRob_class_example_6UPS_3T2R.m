@@ -17,6 +17,8 @@
 %   genähert wird. Anpassung der Trajektorie oder IK-Parameter erforderlich
 % * Die IK-Berechnung ist aktuell nur ohne Kompilierung möglich, was sehr
 %   lange dauert
+% * Noch nicht an aktualisierte IK-Funktionen angepasst. Nicht lauffähig
+%   bzw basiert auf alter Version des IK-Algorithmus
 % 
 % Beispielsystem: Hexapod: Basis-Kreis 0.5, Plattform-Kreis 0.2 (Radius)
 
@@ -342,7 +344,7 @@ plot3(X_t(:,1), X_t(:,2), X_t(:,3));
 % erkannt werden.
 s_Traj = s;
 s_Traj.normalize = false; % Mit Kriterium 2 keine Normalisierung. Sonst können Koordinaten jenseits der Grenzen landen
-s_Traj.wn = [0;1];
+s_Traj.wn = [0;1;0;0];
 s_Traj.mode_IK = 1;
 % Referenzlösung ohne Nullraumoptimierung (nur serielle IK, aber auch mit
 % 3T2R)
