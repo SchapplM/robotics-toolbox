@@ -162,6 +162,10 @@ for i=1:size(Q,1)
     view(view1_save,view2_save);
   end
   q = Q(i,:)';
+  if any(isnan(q))
+    warning('Stoppe Animation bei Zeitschritt %d/%d. q wird NaN.', i, size(Q,1)); 
+    i_break = i-1; break; 
+  end
   if isa(Rob, 'ParRob')
     x = X(i,:)';
     Rob.plot(q,x,s_plot);
