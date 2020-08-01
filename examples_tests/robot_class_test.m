@@ -26,7 +26,7 @@ SerRob_class_example_Industrieroboter; close all;
 ParRob_class_example_3RPR; close all;
 ParRob_class_example_3RRR; close all;
 ParRob_class_example_6UPS; close all;
-ParRob_class_example_6UPS_3T2R; close all;
+% ParRob_class_example_6UPS_3T2R; close all; % TODO: Nach Aktualisierung des Skripts wieder aktivieren
 ParRob_class_example_Delta; close all;
 ParRob_class_example_3PRRRR_3T0R; close all;
 ParRob_class_example_6PUS; close all;

@@ -61,9 +61,8 @@ RP.constr1grad_q(q0, xE);
 RP.constr1grad_x(q0, xE);
 
 %% Startpose bestimmen
-% Mittelstellung im Arbeitsraum. Plattform leicht verdreht (wegen
-% Singularität)
-X = [ scale*[0.0;0;5]; [0;0;0]*pi/180 ];
+% Ungefähr Mittelstellung im Arbeitsraum (wegen Singularität nicht exakt mittig)
+X = [ scale*[0.01;0.01;5]; [0;0;0]*pi/180 ];
 
 try
   [q, Phis] = RP.invkin_ser(X, q0, struct('retry_limit',0));
@@ -128,8 +127,8 @@ xlabel('x in m');ylabel('y in m');zlabel('z in m');
 fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
 q0 = q; % Lösung der IK von oben als Startwert
 t0 = tic();
-% IK-Einstellungen: Sehr lockere Toleranzen, damit es schneller geht
-s = struct('Phit_tol', 1e-3, 'Phir_tol', 1*pi/180, 'retry_limit', 0);
+% IK-Einstellungen: Feine toleranzen, Rechenzeit noch akzeptabel.
+s = struct('Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'retry_limit', 0, 'debug', 1);
 % Startpunkt prüfen, Anfangswert verbessern
 [q1, Phi_num1] = RP.invkin1(X_t(1,:)', q0, s);
 if any(abs(Phi_num1) > 1e-2)
