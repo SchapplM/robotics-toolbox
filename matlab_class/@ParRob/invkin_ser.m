@@ -101,14 +101,20 @@ for i = 1:Rob.NLEG
   % genutzt wird
   s.I_EE = Rob.Leg(i).I_EE_Task;
 
-  % Initialisierung
-  q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  T_0i_0 = Rob.Leg(i).T_0_W;
-
+  % Initialisierung: Startwerte der IK
+  if i == 1 || all(~isnan(q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i))))
+    q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
+  else
+    % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
+    % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
+    q0_i = q(Rob.I1J_LEG(1):Rob.I2J_LEG(1));
+  end
+  
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
   % Dafür wird die IK berechnet und dieser Wert wird übergeben
   r_P_P_Bi = r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
   T_P_Bi = [eulxyz2r(Rob.phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];% (P)^T_(Bi)
+  T_0i_0 = Rob.Leg(i).T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
   s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK

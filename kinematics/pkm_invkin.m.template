@@ -150,15 +150,21 @@ for i = 1:NLEG
   s.phiconv_W_E = s_par.Leg_phiconv_W_E(i);
   s.I_EElink = Leg_I_EElink(i);
 
-  % Initialisierung
-  q0_i = q0(I1J_LEG(i):I2J_LEG(i));
-  Leg_T_0_W = [eulxyz2r(Leg_T_0_W_vec(1:3,i)),Leg_T_0_W_vec(4:6,i);[0 0 0 1]];
-  T_0i_0 = Leg_T_0_W;
-
+  % Initialisierung: Startwerte der IK
+  if i == 1 || all(~isnan(q0(I1J_LEG(i):I2J_LEG(i))))
+    q0_i = q0(I1J_LEG(i):I2J_LEG(i));
+  else
+    % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
+    % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
+    q0_i = q(I1J_LEG(1):I2J_LEG(1));
+  end
+  
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
   % Dafür wird die IK berechnet und dieser Wert wird übergeben
   r_P_P_Bi = r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
   T_P_Bi = [eulxyz2r(phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];
+  Leg_T_0_W = [eulxyz2r(Leg_T_0_W_vec(1:3,i)),Leg_T_0_W_vec(4:6,i);[0 0 0 1]];
+  T_0i_0 = Leg_T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
   xE_soll_i = [T_0i_E(1:3,4); r2eul(T_0i_E(1:3,1:3), phiconv_W_E)]; % als Vektor
 
