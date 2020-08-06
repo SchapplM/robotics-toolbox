@@ -40,6 +40,8 @@
 %          (Gegensatz zu 2)
 %     * 13 Kapsel im Basis-KS. Störobjekt in der Umgebung oder Ersatz für
 %           Führung eines Schubgelenks (Gegensatz zu 3)
+%     * 14 Punkt im Basis-KS (3 Parameter) (im Gegensatz zu 9). Kann einem
+%          Kollisionsobjekt an der Roboterbasis entsprechen
 %   params [M x 10 double]
 %     Parameter für die Kollisionskörper. Je nachdem wie viele Parameter
 %     die obigen Kollisionsgeometrien haben, werden Spalten mit NaN aufgefüllt
@@ -98,11 +100,11 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
     %% Fall der Kollisionsprüfung festlegen (Vereinfachung in innerster Schleife)
     if any(cb.type(cc(i,1)) == [6 13]) && any(cb.type(cc(i,2)) == [6,13])
       collcase = uint8(1); % Kapsel+Kapsel (egal ob in Basis- oder Körper-KS)
-    elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 10 % Punkt+Quader
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 10 % Punkt+Quader
       collcase = uint8(2);
-    elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 12 % Punkt+Zylinder
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 12 % Punkt+Zylinder
       collcase = uint8(3);
-    elseif cb.type(cc(i,1)) == 9 && cb.type(cc(i,2)) == 13 % Punkt+Kapsel
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 13 % Punkt+Kapsel
       collcase = uint8(4);
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
@@ -237,9 +239,7 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
       cb_param = [b_pts,b_param(1)];
     case 9 % Punkt des KS-Ursprungs
       b_pt = JP_i(1,3*(b_idx_pt(1,1)-1)+1:3*b_idx_pt(1,1)); % bezogen auf Basis-KS
-      % Nehme Endpunkte des Zylinders der Kapsel und erweitere um den Radius
-      % der Halbkugeln an den Enden
-      aabbdata = [b_pt;b_pt]; % Bound Box ist auch nur ein Punkt
+      aabbdata = [b_pt;b_pt]; % Bounding-Box ist auch nur ein Punkt
       % Parameter sind die Punktkoordinaten
       cb_param = b_pt;
     case 10 % Quader im Basis-KS (frei drehbar)
@@ -264,6 +264,11 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
       aabbdata = sort([b_param(1:3); b_param(4:6)])+...
                  [-repmat(b_param(7),1,3);+repmat(b_param(7),1,3)];
       cb_param = b_param(1:7);
+    case 14 % Punkt im Basis-KS
+      b_pt = b_param(1:3); % bezogen auf Basis-KS
+      aabbdata = [b_pt;b_pt]; % Bounding-Box ist auch nur ein Punkt
+      % Parameter sind die Punktkoordinaten
+      cb_param = b_pt;
     otherwise
       error('Fall %d fuer Kollisionskoerper nicht definiert', type);
   end
