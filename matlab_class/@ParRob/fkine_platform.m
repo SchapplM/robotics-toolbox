@@ -40,12 +40,13 @@ r_0_0_P = T_0_P(1:3,4);
 r_P_P_B_ges = Rob.r_P_B_all;
 
 for iLeg = 1:Rob.NLEG
-
+  R_P_Bi = eulxyz2r(Rob.phi_P_B_all(:,iLeg));
+  R_0_Bi = R_0_P * R_P_Bi;
   r_P_P_Bi = r_P_P_B_ges(:,iLeg);
   r_0_P_Bi = R_0_P * r_P_P_Bi;
   r_0_0_Bi = r_0_0_P + r_0_P_Bi;
   
-  Tc_Pges(:,:,iLeg) = rt2tr(R_0_P, r_0_0_Bi);
+  Tc_Pges(:,:,iLeg) = rt2tr(R_0_Bi, r_0_0_Bi);
 end
 
 Tc_Pges(:,:,Rob.NLEG+1) = T_0_P;
