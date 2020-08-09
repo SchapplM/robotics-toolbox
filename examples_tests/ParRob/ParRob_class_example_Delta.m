@@ -176,10 +176,12 @@ RP.plot( q, X0, s_plot );
 plot3(X(:,1), X(:,2), X(:,3), 'r--');
 
 %% Gelenkkräfte und inverse Kinematik berechnen
-iksettings = struct('n_max', 100, 'Phit_tol', 1e-4, 'Phir_tol', 1e-4, 'debug', true);
+% Benutze feine Toleranz für Traj.-IK. Ansonsten werden durch debug=true
+% Fehlermeldungen aufgrund numerischer Fehler ausgelöst.
+iksettings = struct('n_max', 100, 'Phit_tol', 1e-9, 'Phir_tol', 1e-9, 'debug', true);
 [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q0,iksettings);
 for i = 1:length(T)
-  if max(abs( Phi )) > 1e-4
+  if max(abs( Phi(i,:) )) > 1e-4
     warning('IK stimmt nicht. Wahrscheinliche Ursache: Ist innerhalb von n_max nicht konvergiert');
     return
   end
