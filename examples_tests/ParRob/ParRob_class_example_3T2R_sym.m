@@ -227,6 +227,7 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
         % Ketten eingehalten werden. Daher Speicherung.
         r_0_E_Legs = r_0_Ej;
         R_0_E_Legs = R_0_E;
+        x_Legs = RP.t2x(rt2tr(R_0_E, r_0_Ej));
       else
         test_eepos = r_0_E_Legs-r_0_Ej;
         if any(abs(test_eepos)>2e-6) % muss größer als IK-Toleranz sein
@@ -236,11 +237,13 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
         if any(abs(test_eerot(:)) > 1e-6)
           error('i=%d: EE-Rotation aus Beinkette %d stimmt nicht mit Beinkette 1 überein. Fehler %1.2e', i, j, max(abs(test_eerot(:))));
         end
+        test_x = x_Legs - RP.t2x(rt2tr(R_0_E, r_0_Ej));
+        if any(abs(test_x(:)) > 1e-6)
+          error('i=%d: EE-Koordinaten x aus Beinkette %d stimmt nicht mit Beinkette 1 überein. Fehler %1.2e', i, j, max(abs(test_x(:))));
+        end
       end
-      T_E_Leg_j = rt2tr(R_0_E, r_0_Ej);
-      x_i = RP.t2x(T_E_Leg_j);
-      % Berechnet letzten Euler-Winkel neu aus der Beinkette
-      X(i,6) = x_i(6);
+      % Speichere letzten Euler-Winkel aus der ersten Beinkette
+      X(i,6) = x_Legs(6);
     end
 
     % Neues xD berechnen
@@ -254,18 +257,31 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
     % TODO: Diese ZB-Funktionen können nicht funktionieren! (Dritte
     % Rotation ist nicht passend zur Plattform-Pose)
     [~,Phi1D]=RP.constr1D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
-    if any(abs(Phi1D)>1e-2)
+    if any(abs(Phi1D)>1e-6)
       error('Geschwindigkeit der Koppelpunkte mit constr1 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi1D)));
     end
     [~,Phi2D]=RP.constr2D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
-    if any(abs(Phi2D)>1e-2)
+    if any(abs(Phi2D)>1e-6)
       error('Geschwindigkeit der Koppelpunkte mit constr2 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi2D)));
     end
     [~,Phi4D]=RP.constr4D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
-    if any(abs(Phi4D)>1e-2)
+    if any(abs(Phi4D)>1e-6)
       error('Geschwindigkeit der Koppelpunkte mit constr4 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi4D)));
     end
   end
+  % Funktion für direkte Kinematik nochmal testen
+  for j = 2:RP.NLEG
+    [X3,XD3,~] = RP.fkineEE_traj(Q, QD, QDD, j);
+    test_X = X(:,1:6) - X3(:,1:6);
+    test_XD = XD(:,1:6) - XD3(:,1:6);
+    if max(abs(test_X(:)))>1e-6
+      error('Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht gegen Beinkette 1', j);
+    end
+    if max(abs(test_XD(:)))>1e-6
+      error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1', j);
+    end
+  end
+
   Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
   figure(20+robnr);clf;
   for i = 1:RP.NLEG
