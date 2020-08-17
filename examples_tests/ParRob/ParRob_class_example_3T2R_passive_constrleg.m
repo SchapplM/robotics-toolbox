@@ -298,12 +298,14 @@ for robnr = 1:3
   for i = 1:RP.NLEG
     for j = 1:RP.Leg(1).NJ
       subplot(RP.NLEG,6, sprc2no(RP.NLEG, 6, i, j)); hold all;
-      plot(T, Q(:,RP.I1J_LEG(i)+j));
-      plot(T, Q_int(:,RP.I1J_LEG(i)+j));
+      hdl1=plot(T, Q    (:,RP.I1J_LEG(i)+j-1));
+      hdl2=plot(T, Q_int(:,RP.I1J_LEG(i)+j-1));
       grid on;
       ylabel(sprintf('Leg %d, Joint %d', i, j));
     end
   end
+  sgtitle('Konsistenz q-qD');
+  legend([hdl1;hdl2], {'q', 'int(qD)'});
   linkxaxes;
   test_q_qD_kons = Q_int - Q;
   if max(abs(test_q_qD_kons(:))) > 1e-2

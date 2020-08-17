@@ -1,12 +1,7 @@
-
-
-
-
-
-
-
-
-
+% Symmetrische 3T2R-PKM: 5UPU, 5RUU, 5PUU, 5RPUR
+% 
+% Ergebnis des Beispielskripts:
+% * Nachweis, dass diese Art von PKM kinematisch modellierbar ist
 
 % PKM 3 (5PUU) bei IK noch nicht l?sbar
 clear
@@ -21,9 +16,9 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-% 5_UPU, 5_RUU, 5_PUU, 5_RPUR
-for robnr = [1 2 4]
-  if robnr == 1
+
+for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
+  if robnr == 1 % 5_UPU
     RS = serroblib_create_robot_class('S5RRPRR12');% Fuehrungsbeinkette
     RS.fill_fcn_handles(false);
     RP = ParRob('Five_UPU_3T2R');
@@ -37,7 +32,7 @@ for robnr = [1 2 4]
     I_qa = repmat(I_qa_Typ,1,5);
     RP.update_actuation(I_qa);
     
-  elseif robnr == 2
+  elseif robnr == 2 % 5_RUU
     RS = serroblib_create_robot_class('S5RRRRR2');
     RP = ParRob('Five_RUU_3T2R');
     RP.create_symmetric_robot(5, RS, 1.5, 0.5);
@@ -50,7 +45,7 @@ for robnr = [1 2 4]
     I_qa = repmat(I_qa_Typ,1,5);
     RP.update_actuation(I_qa);
     
-  elseif robnr == 3
+  elseif robnr == 3 % 5_PUU
     RS = serroblib_create_robot_class('S5PRRRR10');% Fuehrungsbeinkette
     RS.fill_fcn_handles(false);
     RP = ParRob('Five_PUU_3T2R');
@@ -80,7 +75,7 @@ for robnr = [1 2 4]
       RP.Leg(ii).update_EE(zeros(3,1),r2eulxyz(roty(-pi/2)));
     end
     
-  elseif robnr == 4
+  elseif robnr == 4 % 5_RPUR
     RS = serroblib_create_robot_class('S5RPRRR8V1');% Fuehrungsbeinkette
     RS.fill_fcn_handles(false);
     RP = ParRob('Five_RPUR_3T2R');
@@ -130,7 +125,7 @@ for robnr = [1 2 4]
   
   figure(robnr);clf;
   hold on; grid on;
-  xlabel('x [m]'); ylabel('y [m]'); zlabel('z [m]');
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
   RP.plot( q, X_E, s_plot );
@@ -172,55 +167,148 @@ for robnr = [1 2 4]
   if any(abs(matrix_test_2(:)) > 1e-4)
     warning('constr2grad: Jacobi-Matrix und ihre Inverse passen nicht zueinander');
   end
-  
-  %% Trajektorie ( aktuell ueber constr3grad fuer 5_RPUR )
-  if robnr == 4
-    qaD = 100*rand(sum(RP.I_qa),1);
-    qdDxD = J_2 * qaD;
-    xD_test = qdDxD(sum(RP.I_qd)+1:end);
-    xD_test(6) = 0; % manuell
-    if any(abs(xD_test(~RP.I_EE)) > 1e-4) % Genauigkeit hier ist abhaengig von Zwangsbed.
-      fprintf('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt\n');
-    end
-    
-    k=1; XE = X_E';
-    d1=0.1;
-    h1=0.2;
-    r1=10*pi/180;
-    k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0  r1,0,0];
-    k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0, 0,-r1,0];
-    k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, 0,r1,0];
-    k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
-    [X,XD,XDD,T] = traj_trapez2_multipoint(XE, 1, 2e-1, 1e-1, 5e-3, 0);
-    
-    % Inverse Kinematik berechnen
-    iksettings = struct('n_max', 500, 'Phit_tol', 1e-6, 'Phir_tol', 1e-6, 'debug', true, ...
-      'retry_limit', 100, 'mode_IK', 1, 'reci',true);
-    warning off
-    [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
-    warning on
-    % Tatsächliche EE-Koordinaten mit vollständiger direkter Kinematik bestimmen
-    for i = 1:length(T)
-      if max(abs( Phi(i,:) )) > 1e-4 || any(isnan( Phi(i,:) ))
-        warning('IK stimmt nicht bei i=%d. Wahrscheinliche Ursache: Ist innerhalb von n_max nicht konvergiert', i);
-        return
-      end
-    end
-    %% Animation
-    rob_path = fileparts(which('robotics_toolbox_path_init.m'));
-    resdir = fullfile(rob_path, 'examples_tests', 'results');
-    mkdirs(resdir);
-    s_anim = struct('gif_name', fullfile(resdir, sprintf('%s.gif',RP.mdlname)));
-    figure(2);clf;
-    hold on;
-    plot3(X(:,1), X(:,2), X(:,3));
-    grid on;
-    xlabel('x [m]');
-    ylabel('y [m]');
-    zlabel('z [m]');
-    view(3);
-    title('Animation der kartesischen Trajektorie');
-    RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
+  if robnr ~= 4
+    warning('Trajektorie für Roboter %d noch nicht validiert', robnr);
+    continue;
   end
+%% Trajektorie ( aktuell ueber constr3grad fuer 5_RPUR )
+  qaD = 100*rand(sum(RP.I_qa),1);
+  qdDxD = J_2 * qaD;
+  xD_test = qdDxD(sum(RP.I_qd)+1:end);
+  xD_test(6) = 0; % manuell
+  if any(abs(xD_test(~RP.I_EE)) > 1e-4) % Genauigkeit hier ist abhaengig von Zwangsbed.
+    fprintf('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt\n');
+  end
+  %% Trajektorie berechnen
+  k=1; XE = X_E';
+  d1=0.1;
+  h1=0.2;
+  r1=10*pi/180;
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0  r1,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0, 0,-r1,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, 0,r1,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
+  [X,XD,XDD,T] = traj_trapez2_multipoint(XE, 1, 2e-1, 1e-1, 5e-3, 0);
+
+  % Inverse Kinematik berechnen
+  t1 = tic();
+  iksettings = struct('n_max', 5000, 'Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'debug', true, ...
+    'retry_limit', 0, 'mode_IK', 1, 'normalize', false);
+  warning off
+  [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
+  warning on
+  fprintf('Trajektorien-IK in %1.2fs berechnet. Prüfe die Ergebnisse.\n', toc(t1));
+%   return
+  %% Trajektorie prüfen
+  % Tatsächliche EE-Koordinaten mit vollständiger direkter Kinematik bestimmen
+  for i = 1:length(T)
+    if max(abs( Phi(i,:) )) > max(iksettings.Phit_tol,iksettings.Phir_tol) || any(isnan( Phi(i,:) ))
+      warning(['IK stimmt nicht bei i=%d/%d (%1.3fs/%1.3fs). Wahrscheinliche ', ...
+        'Ursache: Ist innerhalb von n_max nicht konvergiert'], i, length(T), T(i), T(end));
+      return
+    end
+    % Direkte Kinematik berechnen
+    Tc_ges = RP.fkine(Q(i,:)', NaN(6,1));
+    % Schnitt-KS aller Beinketten bestimmen
+    II_BiKS = 1;
+    for j = 1:RP.NLEG
+      II_BiKS = II_BiKS + RP.Leg(j).NL+1;
+      T_Bi = Tc_ges(:,:,II_BiKS);
+      R_0_Bj = T_Bi(1:3,1:3);
+      R_Bj_P = eulxyz2r(RP.phi_P_B_all(:,j))';
+      R_0_P = R_0_Bj * R_Bj_P;
+      r_0_0_Bj = T_Bi(1:3,4);
+      r_P_P_Bj = RP.r_P_B_all(:,j);
+      r_0_Bj_P = -R_0_P*r_P_P_Bj;
+      r_0_Ej = r_0_0_Bj + r_0_Bj_P;
+      R_0_E = R_0_P * RP.T_P_E(1:3,1:3);
+      if j == 1
+        % die EE-Position aus der ersten Kette muss auch für folgende
+        % Ketten eingehalten werden. Daher Speicherung.
+        r_0_E_Legs = r_0_Ej;
+        R_0_E_Legs = R_0_E;
+      else
+        test_eepos = r_0_E_Legs-r_0_Ej;
+        if any(abs(test_eepos)>2e-6) % muss größer als IK-Toleranz sein
+          error('i=%d: EE-Position aus Beinkette %d stimmt nicht mit Beinkette 1 überein. Fehler %1.2e', i, j, max(abs(test_eepos)));
+        end
+        test_eerot = R_0_E_Legs\R_0_E-eye(3);
+        if any(abs(test_eerot(:)) > 1e-6)
+          error('i=%d: EE-Rotation aus Beinkette %d stimmt nicht mit Beinkette 1 überein. Fehler %1.2e', i, j, max(abs(test_eerot(:))));
+        end
+      end
+      T_E_Leg_j = rt2tr(R_0_E, r_0_Ej);
+      x_i = RP.t2x(T_E_Leg_j);
+      % Berechnet letzten Euler-Winkel neu aus der Beinkette
+      X(i,6) = x_i(6);
+    end
+
+    % Neues xD berechnen
+    XD(i,6) = 0; % Auf Null setzen, damit Aufruf auch mehrfach funktioniert.
+    [~,Phi2D]=RP.constr2D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
+    XD(i,6) = Phi2D(4);
+
+    % TODO: Das xD(6) muss vielleicht neu berechnet werden. Dadurch auch
+    % das x(6). Wäre der Fall, wenn die 6. Koordinate abhängig ist und
+    % nicht einfach nur Null bleibt.
+    % TODO: Diese ZB-Funktionen können nicht funktionieren! (Dritte
+    % Rotation ist nicht passend zur Plattform-Pose)
+    [~,Phi1D]=RP.constr1D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
+    if any(abs(Phi1D)>1e-2)
+      error('Geschwindigkeit der Koppelpunkte mit constr1 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi1D)));
+    end
+    [~,Phi2D]=RP.constr2D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
+    if any(abs(Phi2D)>1e-2)
+      error('Geschwindigkeit der Koppelpunkte mit constr2 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi2D)));
+    end
+    [~,Phi4D]=RP.constr4D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
+    if any(abs(Phi4D)>1e-2)
+      error('Geschwindigkeit der Koppelpunkte mit constr4 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi4D)));
+    end
+  end
+  Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
+  figure(20+robnr);clf;
+  for i = 1:RP.NLEG
+    for j = 1:RP.Leg(1).NJ
+      subplot(RP.NLEG,5, sprc2no(RP.NLEG, 5, i, j)); hold all;
+      hdl1=plot(T,     Q(:,RP.I1J_LEG(i)+j-1));
+      hdl2=plot(T, Q_int(:,RP.I1J_LEG(i)+j-1));
+      grid on;
+      ylabel(sprintf('Leg %d, Joint %d', i, j));
+    end
+  end
+  sgtitle('Konsistenz q-qD');
+  legend([hdl1;hdl2], {'q', 'int(qD)'});
+  linkxaxes;
+  test_q_qD_kons = Q_int - Q;
+  if max(abs(test_q_qD_kons(:))) > 1e-2
+    error('Q und QD aus Traj.-IK sind nicht konsistent');
+  end
+  X_int = repmat(X(1,:),length(T),1)+cumtrapz(T, XD);
+  figure(30+robnr);clf;
+  for i = 1:6
+    subplot(2,3,i); hold all;
+    hdl1=plot(T,     X(:,i));
+    hdl2=plot(T, X_int(:,i));
+    grid on;
+    ylabel(sprintf('x %d', i));
+  end
+  sgtitle('Konsistenz x-xD');
+  legend([hdl1;hdl2], {'x', 'int(xD)'});
+  linkxaxes;
+  return
+  %% Animation
+  rob_path = fileparts(which('robotics_toolbox_path_init.m'));
+  resdir = fullfile(rob_path, 'examples_tests', 'results');
+  mkdirs(resdir);
+  s_anim = struct('gif_name', fullfile(resdir, sprintf('%s.gif',RP.mdlname)));
+  figure(2);clf;
+  hold on;
+  plot3(X(:,1), X(:,2), X(:,3));
+  grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
+  view(3);
+  title('Animation der kartesischen Trajektorie');
+  RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
   
 end
