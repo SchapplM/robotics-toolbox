@@ -467,13 +467,13 @@ for k = 1:nt
     % Systeme mit Beinketten mit fünf Gelenken.
     if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
       [Phi_q,Phi_q_voll] = %PN%_constr2grad_q(q_k, x_k, s_2q);
-      [~,Phi_x_voll] = %PN%_constr2grad_x(q_k, x_k, s_2x);
+      [Phi_x,Phi_x_voll] = %PN%_constr2grad_x(q_k, x_k, s_2x);
     else 
       [Phi_q,Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
       [~,Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+      I = s.I_constr_red;
+      Phi_x=Phi_x_voll(I,I_EE);
     end
-    I = s.I_constr_red;
-    Phi_x=Phi_x_voll(I,I_EE);
     J_x_inv = -Phi_q_voll \ Phi_x_voll;
   end
   if ~(nsoptim || limits_qD_set)

@@ -233,16 +233,16 @@ for k = 1:nt
   else
     if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
       [Phi_q,Phi_q_voll] = Rob.constr2grad_q(q_k, x_k);
-      [~,Phi_x_voll] = Rob.constr2grad_x(q_k, x_k);
+      [Phi_x,Phi_x_voll] = Rob.constr2grad_x(q_k, x_k);
     else 
       [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
-      [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);     
+      [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
+      % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
+      % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
+      % Systeme mit Beinketten mit fünf Gelenken.
+      I = Rob.I_constr_red;
+      Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
     end
-    % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
-    % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
-    % Systeme mit Beinketten mit fünf Gelenken.   
-    I = Rob.I_constr_red;
-    Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
     % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
     % dingungen (wird für Dynamik benutzt).
     J_x_inv = -Phi_q_voll \ Phi_x_voll;
