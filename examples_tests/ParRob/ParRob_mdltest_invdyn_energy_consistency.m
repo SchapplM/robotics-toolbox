@@ -34,7 +34,7 @@ mkdirs(respath);
 
 %% Alle Roboter durchgehen
 
-for i_FG = 1:size(EEFG_Ges,1)
+for i_FG = 4%1:size(EEFG_Ges,1)
   ResStat = table();
   num_robots_tested = 0;
   num_robots_success = 0;
@@ -178,7 +178,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     XD_test(:,~RP.I_EE) = 0;
     % IK für Testkonfiguration berechnen
     for i = 1:n
-      [q,Phi] = RP.invkin(X_test(i,:)', q0);
+      [q,Phi] = RP.invkin_ser(X_test(i,:)', q0);
       if any(abs(Phi) > 1e-8) || any(isnan(Phi)), X_test(i,:)=X_test(i,:)*NaN; continue; end
       Q_test(i,:) = q;
       [~, Jinv_voll] = RP.jacobi_qa_x(q, X_test(i,:)');
@@ -193,7 +193,16 @@ for i_FG = 1:size(EEFG_Ges,1)
       RP.plot(Q_test(i,:)', Traj_0.X(1,:)', s_plot);
       title(sprintf('%s in Testkonfiguration 1',PName));
     end
-    for jacobi_mode = 1:2 % Dynamik mit zwei Arten von Jacobi-Matrix berechnen
+    if ~all(EE_FG == [1 1 1 1 1 0])
+      % Benutze für normale PKM die Zwangsbedingungs-Modellierungen Nr. 1
+      % und 4.
+      jacobi_modes = [1 2];
+    else
+      % Benutze für 3T2R-PKM nur die Jacobi-Matrix aus Zwangsbedingung Nr.
+      % 2. Alle anderen führen zu einer nicht-konsistenten Kinematik
+      jacobi_modes = 3;
+    end
+    for jm = jacobi_modes % Dynamik mit verschiedenen Arten von Jacobi-Matrix berechnen
     % Dynamik berechnen (mit den Zufallswerten)
     n_succ = 0;
     n_fail = 0;
@@ -214,8 +223,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       X_ges = NaN(nt,6);
       XD_ges = NaN(nt,6);
       XDD_ges = NaN(nt,6);
-      PHI_ges = NaN(nt, 25); % TODO; Schappler: Warum nicht RP.I2constr_red(end)
-      PHI_ges2 = NaN(nt, 25);% TODO; Schappler: Warum nicht RP.I2constr_red(end)
+      PHI_ges = NaN(nt, RP.I2constr_red(end));
+      PHI_ges2 = NaN(nt, RP.I2constr_red(end));
       Q_ges = NaN(nt,RP.NJ);
       QD_ges = NaN(nt,RP.NJ);
       QDD_ges = NaN(nt,RP.NJ);
@@ -241,37 +250,43 @@ for i_FG = 1:size(EEFG_Ges,1)
         Tges(i) = (i-1)*dt;
         % Kinematik für Zeitschritt i berechnen:
         % Berechnung der Gelenk-Geschwindigkeit und Jacobi-Matrix
-        % TODO: constr1 und constr2 per Fallunterscheidung (EE-FG)
-        G1_q = RP.constr2grad_q(q, x); % Für Konditionszahl weiter unten
-        G1_x = RP.constr2grad_x(q, x);
+        G1_q = RP.constr1grad_q(q, x); % Für Konditionszahl weiter unten
+        G1_x = RP.constr1grad_x(q, x);
+        G2_q = RP.constr2grad_q(q, x);
+        G2_x = RP.constr2grad_x(q, x);
         G4_q = RP.constr4grad_q(q);
         G4_x = RP.constr4grad_x(x);
-        if jacobi_mode == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
+        if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
           Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
-        else % Nehme neue Modellierung der Jacobi für die Dynamik
+        elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
           Jinv_voll = -G4_q\G4_x;
+        else % Modellierung für 3T2R-PKM
+          Jinv_voll = -G2_q\G2_x;
         end
         qD = Jinv_voll*xD_red;
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
-% TODO: Fallunterscheidung 3T2R/3T3R
-%         if jacobi_mode == 1
-%           GD1_q = RP.constr1gradD_q(q, qD, x, xD);
-%           GD1_x = RP.constr1gradD_x(q, qD, x, xD);
-%           JinvD_voll = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
-%         else
-%           % Nehme Modellierung 4 der Jacobi für die Dynamik
-%           GD4_q = RP.constr4gradD_q(q, qD);
-%           GD4_x = RP.constr4gradD_x(x, xD);
-%           JinvD_voll = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
-%         end
-%         [~,JinvD_voll] = RP.jacobiD_qa_x(q, qD, x, xD); % effizienter hier zu berechnen als in Dynamik
+        if jm == 1
+          GD1_q = RP.constr1gradD_q(q, qD, x, xD);
+          GD1_x = RP.constr1gradD_x(q, qD, x, xD);
+          JinvD_voll = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+        elseif jm == 2
+          % Nehme Modellierung 4 der Jacobi für die Dynamik
+          GD4_q = RP.constr4gradD_q(q, qD);
+          GD4_x = RP.constr4gradD_x(x, xD);
+          JinvD_voll = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+        else
+          GD2_q = RP.constr2gradD_q(q, qD, x, xD);
+          GD2_x = RP.constr2gradD_x(q, qD, x, xD);
+          JinvD_voll = G2_q\GD2_q/G2_q*G2_x - G2_q\GD2_x;
+        end
 
         % Kennzahlen für Singularitäten
         SingDet(i,1) = cond(G1_q);
         SingDet(i,2) = cond(G1_x);
         SingDet(i,3) = cond(G4_q);
         SingDet(i,4) = cond(G4_x);
-        
+        SingDet(i,5) = cond(G2_q);
+        SingDet(i,6) = cond(G2_x);
         %% Dynamik und Energie
         % Dynamik-Terme berechnen (Beschleunigung und Kraft im Zeitschritt i)
         Mx = RP.inertia2_platform(q, x, Jinv_voll);
@@ -311,11 +326,17 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         
         % Kinematische Zwangsbedingungen prüfen
-        PHI_ges(i,:) = RP.constr2(q, x);
+        if ~all(EE_FG == [1 1 1 1 1 0])
+          PHI_ges(i,:) = RP.constr1(q, x);
+        else
+          PHI_ges(i,:) = RP.constr2(q, x);
+        end
+        
         PHI_ges2(i,:) = Phi;
         
         %% Zusätzliche Prüfung für constr4 vs constr1 (Optional)
-        if usr_test_constr4_JinvD && cond(G1_q) < 1e2 % nicht bei Singularität testen
+        if cond(G1_q) < 1e2 && usr_test_constr4_JinvD && ...% nicht bei Singularität testen
+            ~all(EE_FG == [1 1 1 1 1 0]) % nicht für 3T2R-PKM testen
           % Zusätzlicher Test: Prüfe andere Berechnung der Jacobi-Matrix
           % Dafür müssen die korrigierten IK-Gelenkwinkel genommen werden
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
@@ -403,6 +424,45 @@ for i_FG = 1:size(EEFG_Ges,1)
       RTratio = Tges(Ip_end)/toc(t1);
       fprintf('Dauer für %1.0f Simulationsschritte (%1.2fs simulierte Zeit): %1.2fs (%1.0f%% Echtzeit)\n', ...
         i, Tges(Ip_end), toc(t1), 100*RTratio);
+      %% Konsistenz der PKM berechnen
+      % Falls es hier einen Fehler gibt, hat die differentielle Kinematik
+      % oben nicht funktioniert. PKM-EE für jede Beinkette einzeln berechnen
+      X_fromlegs = NaN(nt, 6, RP.NLEG);
+      XD_fromlegs = NaN(nt, 6, RP.NLEG);
+      XDD_fromlegs = NaN(nt, 6, RP.NLEG);
+      for j = 1:RP.NLEG
+        [X_fromlegs(1:Ip_end,:,j),XD_fromlegs(1:Ip_end,:,j),XDD_fromlegs(1:Ip_end,:,j)] = ...
+          RP.fkineEE_traj(Q_ges(1:Ip_end,:), QD_ges(1:Ip_end,:), QDD_ges(1:Ip_end,:), j);
+        if j > 1
+          test_X = X_fromlegs(:,1:5, 1) - X_fromlegs(:,1:5, j);
+          if any(abs(test_X(:))>1e-6)
+            error(['Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht ', ...
+              'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
+              find(any(abs(test_X)>1e-6,2),1,'first'), nt);
+          end
+          test_XD = XD_fromlegs(:,1:6,1) - XD_fromlegs(:,1:6,j);
+          if any(abs(test_XD(:))>1e-6)
+            error(['Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht ', ...
+              'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
+              find(any(abs(test_XD)>1e-6,2),1,'first'), nt);
+          end
+          test_XDD = XDD_fromlegs(:,1:6,1) - XDD_fromlegs(:,1:6,j);
+          if any(abs(test_XDD(:))>1e-6)
+            warning(['Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht ', ...
+              'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
+              find(any(abs(test_XDD)>1e-6,2),1,'first'), nt);
+          end
+        end
+      end
+      % Prüfe, ob die Integration der Zeitableitungen konsistent ist
+      Q_ges_num = repmat(Q_ges(1,:),nt,1)+cumtrapz(Tges, QD_ges);
+      QD_ges_num = zeros(size(Q_ges));
+      QD_ges_num(2:end,RP.MDH.sigma==1) = diff(Q_ges(:,RP.MDH.sigma==1))./...
+        repmat(diff(Tges), 1, sum(RP.MDH.sigma==1)); % Differenzenquotient
+      QD_ges_num(2:end,RP.MDH.sigma==0) = (mod(diff(Q_ges(:,RP.MDH.sigma==0))+pi, 2*pi)-pi)./...
+        repmat(diff(Tges), 1, sum(RP.MDH.sigma==0)); % Siehe angdiff.m
+      QD_ges_num2 = repmat(QD_ges(1,:),nt,1)+cumtrapz(Tges, QDD_ges);
+
       if usr_plot_figures
         %% Plot: Energie
         change_current_figure(1);clf;
@@ -438,7 +498,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Energie', PName));
         set(1, 'Name', 'Energie', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath_rob, sprintf('%s_Energie_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Energie_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -459,10 +519,49 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Gelenke', PName));
         set(2, 'Name', 'Beingelenk-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath_rob, sprintf('%s_Gelenke_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Gelenke_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
+        %% Plot: Gelenke: Konsistenz
+        change_current_figure(6);clf;
+        for i = 1:RP.NJ
+          legnum = find(i>=RP.I1J_LEG, 1, 'last');
+          legjointnum = i-(RP.I1J_LEG(legnum)-1);
+          subplot(ceil(sqrt(RP.NJ)), ceil(RP.NJ/ceil(sqrt(RP.NJ))), i);
+          hold on; grid on;
+          hdl1=plot(Tges, Q_ges(:,i), '-');
+          hdl3=plot(Tges, Q_ges_num(:,i), '-');
+          title(sprintf('q %d L%d,J%d', i, legnum, legjointnum));
+          if i == length(q), legend([hdl1;hdl3], {'q','int(qD)'}); end
+        end
+        sgtitle(sprintf('%s: Gelenke Konsistenz q', PName));
+        set(6, 'Name', 'Gelenk-Kons.-q', 'NumberTitle', 'off');
+        if usr_save_figures
+          name = fullfile(respath_rob, sprintf('%s_Gelenke_Konsistenz_q_dt%dus_Jac%d', PName, 1e6*dt, jm));
+          export_fig([name, '.png']);
+          saveas(gcf, [name, '.fig']);
+        end
+        change_current_figure(7);clf;
+        for i = 1:RP.NJ
+          legnum = find(i>=RP.I1J_LEG, 1, 'last');
+          legjointnum = i-(RP.I1J_LEG(legnum)-1);
+          subplot(ceil(sqrt(RP.NJ)), ceil(RP.NJ/ceil(sqrt(RP.NJ))), i);
+          hold on; grid on;
+          hdl1=plot(Tges, QD_ges(:,i), '-');
+          hdl2=plot(Tges, QD_ges_num(:,i), '-');
+          hdl3=plot(Tges, QD_ges_num2(:,i), '-');
+          title(sprintf('qD %d L%d,J%d', i, legnum, legjointnum));
+          if i == length(qD), legend([hdl1;hdl2;hdl3], {'qD','diff(q)', 'int(qDD)'}); end
+        end
+        sgtitle(sprintf('%s: Gelenke Konsistenz qD', PName));
+        set(7, 'Name', 'Gelenk-Kons.-qD', 'NumberTitle', 'off');
+        if usr_save_figures
+          name = fullfile(respath_rob, sprintf('%s_Gelenke_Konsistenz_qD_dt%dus_Jac%d', PName, 1e6*dt, jm));
+          export_fig([name, '.png']);
+          saveas(gcf, [name, '.fig']);
+        end
+
         %% Plot: Plattform
         change_current_figure(3);clf;
         subplot(2,2,1);
@@ -487,7 +586,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Plattform', PName));
         set(3, 'Name', 'Plattform-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath_rob, sprintf('%s_Plattform_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Plattform_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -497,28 +596,30 @@ for i_FG = 1:size(EEFG_Ges,1)
         subplot(2,1,1); hold on;
         title('Singularitäts-Kennzahlen');
         plot(Tges, SingDet(:,1:2));
-        plot(Tges, SingDet(:,3:4), '--');
+        plot(Tges, SingDet(:,3:4), '-');
+        plot(Tges, SingDet(:,5:6), '-');
         legend({'cond(JIK) (var.1)', 'cond(JDK) (var.1)', ...
-                'cond(JIK) (var.4)', 'cond(JDK) (var.4)'});
+                'cond(JIK) (var.4)', 'cond(JDK) (var.4)', ...
+                'cond(JIK) (var.2)', 'cond(JDK) (var.2)'});
         grid on;
-%         subplot(2,2,3); hold on;
-%         title('Prüfung der Kinematik-Konsistenz');
-%         plot(Tges, PHI_ges(:, RP.I_constr_t_red));
-%         set(gca, 'ColorOrderIndex', 1);
-%         plot(Tges, PHI_ges2(:, RP.I_constr_t_red), '--');
-%         grid on; ylabel('Translatorische Zwangsbed.');
-%         subplot(2,2,4); hold on;
-%         if ~isempty(RP.I_constr_r_red)
-%         plot(Tges, PHI_ges(:, RP.I_constr_r_red));
-%         set(gca, 'ColorOrderIndex', 1);
-%         plot(Tges, PHI_ges2(:, RP.I_constr_r_red), '--');
-%         grid on;ylabel('Rotatorische Zwangsbed.');
+        subplot(2,2,3); hold on;
+        title('Prüfung der Kinematik-Konsistenz');
+        plot(Tges, PHI_ges(:, RP.I_constr_t_red));
+        set(gca, 'ColorOrderIndex', 1);
+        plot(Tges, PHI_ges2(:, RP.I_constr_t_red), '--');
+        grid on; ylabel('Translatorische Zwangsbed.');
+        subplot(2,2,4); hold on;
+        if ~isempty(RP.I_constr_r_red)
+        plot(Tges, PHI_ges(:, RP.I_constr_r_red));
+        set(gca, 'ColorOrderIndex', 1);
+        plot(Tges, PHI_ges2(:, RP.I_constr_r_red), '--');
+        grid on;ylabel('Rotatorische Zwangsbed.');
         end
         linkxaxes
         sgtitle(sprintf('%s: Validierung/Test', PName));
         set(4, 'Name', 'Testen', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath_rob, sprintf('%s_Test_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Test_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -581,7 +682,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       TrajUntil1stSing = I_till1stsing(end) / Ip_end;
       TrajAchieved = i/nt; % Anteil der Simulationsdauer, die geschafft wurde
       % Ergebnis in Tabelle abspeichern
-      ResStat = [ResStat; {PName, jacobi_mode, Pdiss_relerrori1stsing, ...
+      ResStat = [ResStat; {PName, jm, Pdiss_relerrori1stsing, ...
         Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, 100*TrajAchieved, 100*RTratio, double(~fail)}]; %#ok<AGROW>
     end
     fprintf('%d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
