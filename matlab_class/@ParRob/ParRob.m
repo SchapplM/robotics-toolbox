@@ -954,6 +954,11 @@ classdef ParRob < RobBase
         if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
           % Führungskette für 3T2R anders
           R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+        elseif all(R.I_EE == logical([1 1 1 1 1 0])) && R.Leg(i).NJ == 5
+          % Die Beinkette hat nur 5FG und wird auch mit den reziproken
+          % Winkeln initialisiert. Es handelt sich wahrscheinlich um eine
+          % symmetrische 3T2R-PKM mit constr2-Modellierung.
+          R.I_constr_red(i_red:i_red+nPhi-1) = R.I1constr(i)-1+[1 2 3 5 6];
         else
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
