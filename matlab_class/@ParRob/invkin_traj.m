@@ -44,8 +44,7 @@
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
-% TODO: Nullraumbewegung mit Nebenbedingung
-% TODO: Erfolg der IK prüfen
+% TODO: Bessere Abgrenzung von 3T3R-PKM mit Aufgabenredundanz und 3T2R-PKM
 
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
@@ -102,7 +101,8 @@ Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Hier ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-if dof_3T2R && Rob.NJ==25
+if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+  % nur für aufgabenredundante 3T3R-PKM
   Jinv_ges = NaN(nt, 6*Rob.NJ);
   JinvD_ges = zeros(nt, 6*Rob.NJ);
 else
@@ -188,7 +188,7 @@ if ~dof_3T2R
   limits_qD_set = false;
 end
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
-if dof_3T2R && Rob.NJ==25
+if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
   J_x_inv_alt = zeros(Rob.NJ,6);
 else
   J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
@@ -231,9 +231,10 @@ for k = 1:nt
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
-    if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-      [Phi_q,Phi_q_voll] = Rob.constr2grad_q(q_k, x_k);
-      [Phi_x,Phi_x_voll] = Rob.constr2grad_x(q_k, x_k);
+    if ~all(Rob.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+      Phi_q = Rob.constr2grad_q(q_k, x_k);
+      Phi_x = Rob.constr2grad_x(q_k, x_k);
+      J_x_inv = -Phi_q \ Phi_x;
     else 
       [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
       [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
@@ -242,13 +243,14 @@ for k = 1:nt
       % Systeme mit Beinketten mit fünf Gelenken.
       I = Rob.I_constr_red;
       Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+      % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
+      % dingungen (wird für Dynamik benutzt).
+      J_x_inv = -Phi_q_voll \ Phi_x_voll;
     end
-    % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
-    % dingungen (wird für Dynamik benutzt).
-    J_x_inv = -Phi_q_voll \ Phi_x_voll;
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R
+    if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
+        ~all(Rob.I_EE == [1 1 1 1 1 1]) % 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
@@ -287,22 +289,20 @@ for k = 1:nt
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else
-      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-        [Phi_qD,Phi_qD_voll] = Rob.constr2gradD_q(q_k, qD_k, x_k, xD_k);
-        [~,Phi_xD_voll] = Rob.constr2gradD_x(q_k, qD_k, x_k, xD_k);
+      if ~all(Rob.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+        Phi_qD = Rob.constr2gradD_q(q_k, qD_k, x_k, xD_k);
+        Phi_xD = Rob.constr2gradD_x(q_k, qD_k, x_k, xD_k);
+        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
       else 
         [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
         [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+        I = Rob.I_constr_red;
+        Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+        % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+        % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+        % spielt die Aufgabenredundanz keine Rolle.
+        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
       end
-      I = Rob.I_constr_red;
-      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-        Phi_qD = Phi_qD_voll(Rob.I_constr_red,:);
-      end
-      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-      % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
     end
   end
   if ~dof_3T2R

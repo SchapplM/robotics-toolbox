@@ -167,7 +167,8 @@ if ~dof_3T2R
 end
 
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
-if dof_3T2R && s.NJ==25
+if dof_3T2R && all(s.I_EE == [1 1 1 1 1 1])
+  % nur für aufgabenredundante 3T3R-PKM
   J_x_inv_alt = zeros(s.NJ,6);
 else
   J_x_inv_alt = zeros(s.NJ,sum(s.I_EE));
@@ -415,9 +416,9 @@ Q = NaN(nt, s.NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
-if dof_3T2R && s.NJ==25
-  Jinv_ges = NaN(nt, 6* s.NJ);
-  JinvD_ges = zeros(nt, 6* s.NJ);
+if dof_3T2R && all(s.I_EE == [1 1 1 1 1 1])
+  Jinv_ges = NaN(nt, 6*s.NJ);
+  JinvD_ges = zeros(nt, 6*s.NJ);
 else
   Jinv_ges = NaN(nt, sum(I_EE)* s.NJ);
   JinvD_ges = zeros(nt, sum(I_EE)* s.NJ);
@@ -465,19 +466,20 @@ for k = 1:nt
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
-    if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-      [Phi_q,Phi_q_voll] = %PN%_constr2grad_q(q_k, x_k, s_2q);
-      [Phi_x,Phi_x_voll] = %PN%_constr2grad_x(q_k, x_k, s_2x);
+    if ~all(s.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+      Phi_q = %PN%_constr2grad_q(q_k, x_k, s_2q);
+      Phi_x = %PN%_constr2grad_x(q_k, x_k, s_2x);
+      J_x_inv = -Phi_q \ Phi_x;
     else 
       [Phi_q,Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
       [~,Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
       I = s.I_constr_red;
       Phi_x=Phi_x_voll(I,I_EE);
+      J_x_inv = -Phi_q_voll \ Phi_x_voll;
     end
-    J_x_inv = -Phi_q_voll \ Phi_x_voll;
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R
+    if ~dof_3T2R || ~all(s.I_EE == [1 1 1 1 1 1])
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
@@ -516,22 +518,20 @@ for k = 1:nt
       Phi_xD = %PN%_constr4gradD_x(x_k, xD_k, s_x);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else
-      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-        [Phi_qD,Phi_qD_voll] = %PN%_constr2gradD_q(q_k, qD_k, x_k, xD_k, s_2qd);
-        [~,Phi_xD_voll] = %PN%_constr2gradD_x(q_k, qD_k, x_k, xD_k, s_2xd);
+      if ~all(s.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+        Phi_qD = %PN%_constr2gradD_q(q_k, qD_k, x_k, xD_k, s_2qd);
+        Phi_xD = %PN%_constr2gradD_x(q_k, qD_k, x_k, xD_k, s_2xd);
+        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
       else 
         [Phi_qD,Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
         [~,Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
+        I = s.I_constr_red;
+        Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+        % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+        % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+        % spielt die Aufgabenredundanz keine Rolle.
+        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
       end
-      I = s.I_constr_red;
-      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
-        Phi_qD = Phi_qD_voll(s.I_constr_red,:);
-      end
-      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-      % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
     end
   end
   if ~dof_3T2R
