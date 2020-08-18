@@ -425,6 +425,7 @@ for DynParMode = 2:4
     disp('Übereinstimmung bei folgenden Robotern:');
     disp(robot_list_succ(:));
   end
+  if isempty(ResStat), continue; end
   ResStat.Properties.VariableNames = {'Name', 'AnzahlErfolg', 'AnzahlFehlschlag', 'AnzahlTests'};
   restabfile = fullfile(respath, sprintf('ParRob_invdyn_test_DoF_%s_DynParMode%d.csv', char(48+EE_FG), DynParMode));
   writetable(ResStat, restabfile, 'Delimiter', ';');
