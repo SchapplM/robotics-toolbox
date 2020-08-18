@@ -85,7 +85,8 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
       RP.Leg(ii) = copy(RS);
     end
     RP.initialize();
-    pkin_all  = [ 0, 0.0, 0.9, 0.0, 0, 0.0, 0, 0, 0]';
+    pkin_all = zeros(length(RS.pkin));
+    pkin_all(strcmp(RS.pkin_names, 'a5')) = 0.9;
     for ii=1:RP.NLEG
       RP.Leg(ii).update_mdh(pkin_all(1:size(RP.Leg(ii).pkin),1));
       RP.Leg(ii).update_EE(zeros(3,1),r2eulxyz(roty(pi/2)));
@@ -182,12 +183,18 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
   %% Trajektorie berechnen
   k=1; XE = X_E';
   d1=0.1;
-  h1=0.2;
+  h1=0.1;
   r1=10*pi/180;
   k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0  r1,0,0];
   k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0, 0,-r1,0];
   k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, 0,r1,0];
   k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [d1,0,0, 0,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [-d1,0,0, -0,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,d1,0, 0,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,-d1,0, -0,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,0,h1, 0,0,0];
+  k=k+1; XE(k,:) = XE(k-1,:) + [0,-0,-h1, -0,0,0];
   [X,XD,XDD,T] = traj_trapez2_multipoint(XE, 1, 2e-1, 1e-1, 5e-3, 0);
 
   % Inverse Kinematik berechnen
@@ -312,7 +319,7 @@ for robnr = 4%[1 2 4] % 5_UPU, 5_RUU, 5_PUU, 5_RPUR
   sgtitle('Konsistenz x-xD');
   legend([hdl1;hdl2], {'x', 'int(xD)'});
   linkxaxes;
-  return
+
   %% Animation
   rob_path = fileparts(which('robotics_toolbox_path_init.m'));
   resdir = fullfile(rob_path, 'examples_tests', 'results');
