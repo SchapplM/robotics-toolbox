@@ -59,7 +59,6 @@ if method <= 3
     elseif method == 3
       phi_P_Bi = [-pi/2;-pi/2-beta_i;0*pi/180];
     end
-    Rob.Leg(i).update_EE();
     phi_P_B_all(:,i) =  phi_P_Bi;
   end
   if Rob.issym
@@ -110,10 +109,7 @@ elseif method == 8
       beta_i = 2*pi/NLEG*(i-1);
     end
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
-    phi_P_Bi = [-pi/2; 0*pi/2; 0*pi/2];
-    Rob.Leg(i).update_EE(); % von Junnan
-% TODO: Prüfen, ob das folgende passt (von Abderahman):
-%     Rob.Leg(i).update_EE(zeros(3,1),r2eulxyz(roty(pi/2)))
+    phi_P_Bi = [0; pi/2; 0];
     phi_P_B_all(:,i) =  phi_P_Bi;
   end   
 else
