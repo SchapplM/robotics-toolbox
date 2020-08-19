@@ -193,7 +193,7 @@ if any(abs(Phi_num1) > 1e-2)
 end
 % Traj.-IK mit Standard-Funktion berechnen
 fprintf('Inverse Kinematik für Trajektorie berechnen: %d Bahnpunkte\n', length(t));
-[Q_t, ~, ~, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
+[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > s.Phit_tol)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > s.Phir_tol))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
@@ -201,6 +201,26 @@ end
 fprintf('Trajektorien-IK mit Funktion invkin_traj berechnet. Dauer: %1.1fs.\n', ...
   toc(t0));
 save(fullfile(respath, 'ParRob_class_example_6UPS_traj.mat'));
+% Konsistenz der Kinematik prüfen (passen Position/Geschwindigkeit/Beschl.
+% aus den einzelnen Beinketten zueinander)
+for j = 1:RP.NLEG
+  [X3,XD3,XDD3] = RP.fkineEE_traj(Q_t, QD_t, QDD_t, j);
+  test_X = X_t(:,1:6) - X3(:,1:6);
+  test_XD = XD_t(:,1:6) - XD3(:,1:6);
+  test_XDD = XDD_t(:,1:6) - XDD3(:,1:6);
+  if max(abs(test_X(:)))>1e-2
+    Ifirst = find(any(abs(test_X)>1e-2,2), 1, 'first');
+    error('Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
+  end
+  if max(abs(test_XD(:)))>1e-5
+    Ifirst = find(any(abs(test_XD)>1e-2,2), 1, 'first');
+    error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
+  end
+  if max(abs(test_XDD(:)))>1e-4
+    Ifirst = find(any(abs(test_XDD)>1e-2,2), 1, 'first');
+    error('Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
+  end
+end
 % Traj.-IK mit neuer optimierter Funktion berechnen
 t1 = tic();
 s_p = s;
