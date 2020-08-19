@@ -153,14 +153,14 @@ classdef ParRob < RobBase
       T_B1_E = invtr(T_P_B1) * R.T_P_E; % Plf-Koppel-KS zu Plattform-EE-KS
       for i = 1:size(Q,1)
         q1_i   = Q  (i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
-        qD1_i  = QD (i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
-        qDD1_i = QDD(i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
         % Direkte Kinematik der Beinkette
         T_A1_E1 = R.Leg(idx_leg).fkineEE(q1_i);
         T_0_E1 = T_0_A1*T_A1_E1;
         % Annahme: E1 (virt. EE der Beinkette) = B1 (Koppelgelenk-KS);
         % (setzt erfüllte kinematische Zwangsbedingungen voraus)
         X(i,:) = R.t2x(T_0_E1*T_B1_E);
+        if nargout < 2, continue; end % Keine Geschwindigkeit gefragt
+        qD1_i  = QD (i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
         % Geschwindigkeit der ersten Beinkette umrechnen auf PKM-Plattform
         Jg = R.Leg(idx_leg).jacobig(q1_i); % geom. Jacobi der Beinkette (bez. auf Beinketten-Basis)
         % Geschw. des virt. Beinketten-EE bezogen auf PKM-Basis
@@ -171,6 +171,8 @@ classdef ParRob < RobBase
         % Umrechnen auf Euler-Winkel-Zeitableitung bezogen auf PKM-Koord.
         Tw = euljac(X(i,4:6)', R.phiconv_W_E);
         XD(i,:) = [V_0_E(1:3); Tw\V_0_E(4:6)];
+        if nargout < 3, continue; end % Keine Beschleunigung gefragt
+        qDD1_i = QDD(i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
         % Beschleunigung der ersten Beinkette
         JgD = R.Leg(idx_leg).jacobigD(q1_i, qD1_i);
         VD_0_E1 = rotate_wrench(Jg*qDD1_i+JgD*qD1_i, t2r(T_0_A1));
