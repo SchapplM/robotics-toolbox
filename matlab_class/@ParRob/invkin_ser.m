@@ -130,7 +130,7 @@ for i = 1:Rob.NLEG
 
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
-      warning('Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich');
+      % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
       return
     end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
