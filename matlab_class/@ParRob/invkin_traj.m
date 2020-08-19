@@ -44,8 +44,6 @@
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
-% TODO: Bessere Abgrenzung von 3T3R-PKM mit Aufgabenredundanz und 3T2R-PKM
-
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 % [3] Aufzeichnungen Schappler vom 06.07.2020
@@ -189,7 +187,7 @@ if ~dof_3T2R
 end
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
 if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  J_x_inv_alt = zeros(Rob.NJ,6);
+  J_x_inv_alt = zeros(Rob.NJ,6); % konsistent zur obigen Initialisierung
 else
   J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
 end
@@ -231,11 +229,11 @@ for k = 1:nt
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
-    if ~all(Rob.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+    if Rob.NJ == 25 % fuer symmetrische 3T2R-PKM
       Phi_q = Rob.constr2grad_q(q_k, x_k);
       Phi_x = Rob.constr2grad_x(q_k, x_k);
       J_x_inv = -Phi_q \ Phi_x;
-    else 
+    else % aufgabenredundante 3T3R-PKM und asymmetrische 3T2R-PKM
       [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
       [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
       % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
@@ -243,14 +241,18 @@ for k = 1:nt
       % Systeme mit Beinketten mit fünf Gelenken.
       I = Rob.I_constr_red;
       Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-      % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
-      % dingungen (wird für Dynamik benutzt).
-      J_x_inv = -Phi_q_voll \ Phi_x_voll;
+      if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+        % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
+        % dingungen (wird für Dynamik benutzt).
+        J_x_inv = -Phi_q_voll \ Phi_x_voll;
+      else % asymmetrische 3T2R-PKM
+        J_x_inv = -Phi_q \ Phi_x;
+      end
     end
   end
   if ~(nsoptim || limits_qD_set)
     if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
-        ~all(Rob.I_EE == [1 1 1 1 1 1]) % 3T2R-PKM
+        ~all(Rob.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
@@ -289,11 +291,11 @@ for k = 1:nt
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else
-      if ~all(Rob.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
+      if Rob.NJ == 25 % fuer symmetrische 3T2R-PKM
         Phi_qD = Rob.constr2gradD_q(q_k, qD_k, x_k, xD_k);
         Phi_xD = Rob.constr2gradD_x(q_k, qD_k, x_k, xD_k);
         JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
-      else 
+      else % alle anderen 3T2R-PKM und aufgabenredundante 3T3R-PKM
         [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
         [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
         I = Rob.I_constr_red;
@@ -301,7 +303,11 @@ for k = 1:nt
         % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
         % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
         % spielt die Aufgabenredundanz keine Rolle.
-        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+        if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+          JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+        else % asymmetrische 3T2R-PKM
+          JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
+        end
       end
     end
   end

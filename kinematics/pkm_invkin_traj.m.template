@@ -39,6 +39,9 @@
 
 % Diese Datei ist identisch mit: ParRob/invkin_traj.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+% 
+% TODO:
+% Funktioniert noch nicht für asymmetrische PKM
 
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
