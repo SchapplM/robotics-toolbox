@@ -208,9 +208,7 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
   t1 = tic();
   iksettings = struct('n_max', 5000, 'Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'debug', true, ...
     'retry_limit', 0, 'mode_IK', 1, 'normalize', false);
-  warning off
   [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
-  warning on
   fprintf('Trajektorien-IK in %1.2fs berechnet. Prüfe die Ergebnisse.\n', toc(t1));
 
   %% Trajektorie prüfen
@@ -280,15 +278,27 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
     end
   end
   % Funktion für direkte Kinematik nochmal testen
-  for j = 2:RP.NLEG
-    [X3,XD3,~] = RP.fkineEE_traj(Q, QD, QDD, j);
+  for j = 1:RP.NLEG
+    [X3,XD3,XDD3] = RP.fkineEE_traj(Q, QD, QDD, j);
+    % Die Beschleunigung des dritten Euler-Winkels wurde noch nicht
+    % korrigiert. Wird basierend auf erster Beinkette gemacht.
+    if j == 1
+      XDD(:,6) = XDD3(:,6);
+    end
     test_X = X(:,1:6) - X3(:,1:6);
     test_XD = XD(:,1:6) - XD3(:,1:6);
+    test_XDD = XDD(:,1:6) - XDD3(:,1:6);
     if max(abs(test_X(:)))>1e-6
-      error('Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht gegen Beinkette 1', j);
+      Ifirst = find(any(abs(test_X)>1e-6,2), 1, 'first');
+      error('Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
     end
     if max(abs(test_XD(:)))>1e-6
-      error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1', j);
+      Ifirst = find(any(abs(test_XD)>1e-6,2), 1, 'first');
+      error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
+    end
+    if max(abs(test_XDD(:)))>1e-6
+      Ifirst = find(any(abs(test_XDD)>1e-6,2), 1, 'first');
+      error('Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
     end
   end
   % Prüfe die Konsistenz von Geschwindigkeit und Position der Gelenke

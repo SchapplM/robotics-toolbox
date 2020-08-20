@@ -3,8 +3,9 @@
 % Ergebnis des Beispielskripts:
 % * Nachweis, dass diese Art von PKM kinematisch modellierbar ist
 % 
-% TODO:
-% * Alles mit Template-Funktionen rechnen
+% Quellen:
+% [STO19] Schappler, M. et al.: Modeling Parallel Robot Kinematics for 3T2R
+% and 3T3R Tasks using Reciprocal Sets of Euler Angles, MDPI Robotics KaRD2
 
 % MA Bejaoui (Bejaoui2020_M963; Betreuer: Moritz Schappler), 2020-04
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-08
@@ -25,23 +26,24 @@ end
 for robnr = 1:3
   if robnr == 1
     RS1 = serroblib_create_robot_class('S5RRRRR12V1');% passive Fuehrungsbeinkette US , Denavit-Hartenberg falsch
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S6PRRRRR6'); % Folgebeinketten (P)US
-    RS2.fill_fcn_handles(false);
     Name = '6UPS/US';
     % ParRob-Klasse fuer PKM erstellen
     RP = ParRob('OneUS_FivePUS');
     % Beinketten definieren
     RP.NLEG = 6;
     RP.Leg = copy(RS1); % Fuehrungsbeinkette RRS
-    pkin_RS1 = [0.5;1.5;pi/2;0;0;0;0];
-    RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
-    
+    pkin_RS1 = zeros(length(RS1.pkin),1);
+    pkin_RS1(strcmp(RS1.pkin_names, 'a2')) = 0.5;
+    pkin_RS1(strcmp(RS1.pkin_names, 'a3')) = 1.5;
+    pkin_RS1(strcmp(RS1.pkin_names, 'alpha2')) = pi/2;
+    RP.Leg(1).update_mdh(pkin_RS1);
     for ii=2:RP.NLEG % Folgebeinketten 4 PUS
       RP.Leg(ii) = copy(RS2);
     end
-    %   a2 a3  a4  a5 a6 2  3     4  d2 d3 d4 d5 d6 t1
-    pkin_RS2 = [0, 0, 1.0, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0 ,0 ]';
+    pkin_RS2 = zeros(length(RS2.pkin),1);
+    pkin_RS2(strcmp(RS2.pkin_names, 'a4')) = 1.0;
+    pkin_RS2(strcmp(RS2.pkin_names, 'alpha3')) = pi/2;
     for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
       RP.Leg(ii).update_mdh(pkin_RS2(1:size(RP.Leg(ii).pkin),1));
     end
@@ -50,23 +52,22 @@ for robnr = 1:3
     RP.initialize();
     I_qa_Typ1 = zeros(1,5); % keine Aktuierung fuer passives Fuehrungsbein
     I_qa_Typ2 = zeros(1,6); % Folgebeinketten
-    I_qa_Typ2(1) = 1;  % das 3te Gelenk P ist aktuiert
+    I_qa_Typ2(1) = 1;  % das erstes Gelenk (P) ist aktuiert
     I_qa = [I_qa_Typ1,repmat(I_qa_Typ2,1,5)];
-    RP.update_actuation(I_qa);
-    
   elseif robnr == 2
     RS1 = serroblib_create_robot_class('S5RRRRR2');% passive Fuehrungsbeinkette RUU
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S6RRPRRR14V3'); % Folgebeinketten U(P)S
-    RS2.fill_fcn_handles(false);
     Name = '6UPS/RUU';
     % ParRob-Klasse fuer PKM erstellen
     RP = ParRob('OneRUU_FiveUPS');
     % Beinketten definieren
     RP.NLEG = 6;
     RP.Leg = copy(RS1); % Fuehrungsbeinkette RUU
-    pkin_RS1 = [0.5 , 1]';
+    pkin_RS1 = zeros(length(RS1.pkin),1);
+    pkin_RS1(strcmp(RS1.pkin_names, 'a2')) = 0.5;
+    pkin_RS1(strcmp(RS1.pkin_names, 'a4')) = 1.0;
     RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
+    % (Beinkette 2 hat keine Kinematik-Parameter)
     for ii=2:RP.NLEG % Folgebeinketten 5 UPS
       RP.Leg(ii) = copy(RS2);
     end
@@ -92,21 +93,19 @@ for robnr = 1:3
     I_qa_Typ2 = zeros(1,6); % Folgebeinketten
     I_qa_Typ2(3) = 1;  % das 3te Gelenk P ist aktuiert
     I_qa = [I_qa_Typ1,repmat(I_qa_Typ2,1,5)];
-    RP.update_actuation(I_qa);
-    
   elseif robnr == 3
     RS1 = serroblib_create_robot_class('S5RRRRR12V1');% passive Fuehrungsbeinkette US , Denavit-Hartenberg falsch
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S6RRPRRR14V3'); % Folgebeinketten U(P)S
-    RS2.fill_fcn_handles(false);
     Name = '6UPS/US';
     % ParRob-Klasse fuer PKM erstellen
     RP = ParRob('OneUS_FiveUPS');
     % Beinketten definieren
     RP.NLEG = 6;
     RP.Leg = copy(RS1); % Fuehrungsbeinkette RRS
-    %pkin_RS1 = zeros(9,1);
-    pkin_RS1 = [0.5;1.5;pi/2;0;0;0;0];
+    pkin_RS1 = zeros(length(RS1.pkin),1);
+    pkin_RS1(strcmp(RS1.pkin_names, 'a2')) = 0.5;
+    pkin_RS1(strcmp(RS1.pkin_names, 'a3')) = 1.5;
+    pkin_RS1(strcmp(RS1.pkin_names, 'alpha2')) = pi/2;
     RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
     for ii=2:RP.NLEG % Folgebeinketten 5 UPS
       RP.Leg(ii) = copy(RS2);
@@ -119,59 +118,47 @@ for robnr = 1:3
     I_qa_Typ2 = zeros(1,6); % Folgebeinketten
     I_qa_Typ2(3) = 1;  % das 3te Gelenk P ist aktuiert
     I_qa = [I_qa_Typ1,repmat(I_qa_Typ2,1,5)];
-    RP.update_actuation(I_qa);
     for ii = 1:RP.NLEG
       RP.Leg(ii).update_EE(zeros(3,1),zeros(3,1));
     end
   end
-  % generelle Einstellungen
+  RP.fill_fcn_handles(false, true);
+  RP.update_actuation(I_qa);
+  % allgemeine Einstellungen
   I_EE = logical([1 1 1 1 1 0]);
   I_EE_Task = logical([1 1 1 1 1 0]); % 3T2R; letzter Eintrag Null, da beta_3 weg
   RP.update_EE_FG(I_EE,I_EE_Task);
   % Startpose
-  X_E = [[0.1;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
+  X0 = [[0.1;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
   q0 = (-0.5+rand(RP.NJ,1))*2*60*pi/180; % zwischen -60° und +60°
   q0(RP.MDH.sigma==1) = 0.4; % Schubgelenke eher positiv wählen
-  q = q0; % qs in constr2 und q sind ungleich ( also aktive Gelenke)
   fprintf('3T2R-PKM mit passiver Führungskette %d/%d: %s\n', robnr, 3, Name);
-  %% IK
-  [q,phi] = RP.invkin_ser(X_E, q);
-  [Phi3_red,Phi3_voll] = RP.constr3(q, X_E); % mit Fuehrungsbeinkette
-  [Phi2_red,Phi2_voll] = RP.constr2(q, X_E);
+  %% IK berechnen
+  [q,phi] = RP.invkin_ser(X0, q0);
+  [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
+  [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
   % Letzten Euler-Winkel auf den tatsächlichen Wert setzen.
-  X_E(6) = X_E(6) + Phi3_voll(4);
+  X0(6) = X0(6) + Phi3_voll(4);
   %% Roboter zeichnen
   figure(10+robnr);clf;
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
-  RP.plot( q, X_E, s_plot );
+  RP.plot( q, X0, s_plot );
   hold off;
   %% Jacobi-Matrix auswerten
   % Jacobi q-Anteile
-  [G_q_red,G_q_voll] = RP.constr3grad_q(q, X_E); % automatisches herausnehmen
-  % Vorgehen von Li fuer q-Anteile
-  G_q = G_q_voll(RP.I_constr_red,:); % manuelles herausnehmen
-  % Vergleich zwischen manuellem und automatischem Herausnehmen
-  if  any(abs(G_q_red - G_q) > 1e-2)
-    warning('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_q falsch \n');
-  else
-    fprintf('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_q richtig\n');
-  end
+  [G_q,G_q_voll] = RP.constr3grad_q(q, X0); % automatisches herausnehmen
+  assert(all(size(G_q)==[35 35]), 'ZB-matrix G_q muss 35x35 sein');
+  assert(all(size(G_q_voll)==[36 35]), 'ZB-matrix G_q_voll muss 36x35 sein');
   
   % Jacobi x-Anteile ( dim bei G_x_red von constr3grad noch nicht richtig)
-  [G_x_red,G_x_voll] = RP.constr3grad_x(q, X_E); % automatisches herausnehmen
+  [G_x_red,G_x_voll] = RP.constr3grad_x(q, X0); % automatisches herausnehmen
   % Vorgehen von Li fuer x-Anteile
-  G_x = G_x_voll(RP.I_constr_red,:);
-  G_eta = G_x_voll(RP.I_constr_red,RP.I_EE_Task); % manuelles herausnehmen
-  % Vergleich zwischen manuellem und automatischem Herausnehmen
-  if  any(abs(G_x_red - G_eta) > 1e-2)
-    warning('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_x falsch \n');
-  else
-    fprintf('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_x richtig \n');
-  end
-  
+  G_x = G_x_red;
+  G_eta = G_x_red(:,RP.I_EE_Task); % manuelles herausnehmen
+
   % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen
   G_a = G_q(:,RP.I_qa); % aktiv, phi_dqa [STO19]
   G_d = G_q(:,RP.I_qd); % passiv, phi_dpa [STO19]
@@ -195,16 +182,9 @@ for robnr = 1:3
   if any(abs(matrix_test(:)) > 1e-4)
     error('Jacobi-Matrix und ihre Inverse passen nicht zueinander');
   end
-  % FG test
-  qaD = 100*rand(sum(RP.I_qa),1);
-  qdDxD = J_voll1 * qaD;
-  xD_test = qdDxD(sum(RP.I_qd)+1:end);
-  if any(abs(xD_test(~RP.I_EE)) > 1e-4) % Genauigkeit hier ist abhaengig von Zwangsbed.
-    fprintf('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt\n');
-  end
-  
+
   %% Trajektorie berechnen
-  k=1; XE = X_E';
+  k=1; XE = X0';
   d1=0.1;
   h1=0.1;
   r1=10*pi/180;
@@ -224,17 +204,14 @@ for robnr = 1:3
   fprintf('Berechne Trajektorien-IK für %d Zeitschritte\n', length(T));
   iksettings = struct('n_max', 5000, 'Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'debug', true, ...
     'retry_limit', 0, 'mode_IK', 1, 'normalize', false);
-  warning off
   [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
-  warning on
   fprintf('Trajektorien-IK in %1.2fs berechnet. Prüfe die Ergebnisse.\n', toc(t1));
   %% Trajektorie prüfen
   % Tatsächliche EE-Koordinaten mit vollständiger direkter Kinematik bestimmen
   for i = 1:length(T)
     if max(abs( Phi(i,:) )) > max(iksettings.Phit_tol,iksettings.Phir_tol) || any(isnan( Phi(i,:) ))
-      warning(['IK stimmt nicht bei i=%d/%d (%1.3fs/%1.3fs). Wahrscheinliche ', ...
+      error(['IK stimmt nicht bei i=%d/%d (%1.3fs/%1.3fs). Wahrscheinliche ', ...
         'Ursache: Ist innerhalb von n_max nicht konvergiert'], i, length(T), T(i), T(end));
-      return
     end
     % Direkte Kinematik berechnen
     Tc_ges = RP.fkine(Q(i,:)', NaN(6,1));
@@ -275,14 +252,12 @@ for robnr = 1:3
       X(i,6) = x_Legs(6);
     end
     % Neues xD berechnen
+    XD(i,6) = 0; % Auf Null setzen, damit Aufruf auch mehrfach funktioniert.
     [~,Phi2D]=RP.constr2D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
     XD(i,6) = Phi2D(4);
 
-    % TODO: Das xD(6) muss vielleicht neu berechnet werden. Dadurch auch
-    % das x(6). Wäre der Fall, wenn die 6. Koordinate abhängig ist und
-    % nicht einfach nur Null bleibt.
-    % TODO: Diese ZB-Funktionen können nicht funktionieren! (Dritte
-    % Rotation ist nicht passend zur Plattform-Pose)
+    % Berechne die Zeitableitung aller Zwangsbedingungs-Modellierungen
+    % Alle müssen Null sein. Ansonsten bewegt sich die PKM auseinander.
     [~,Phi1D]=RP.constr1D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
     if any(abs(Phi1D)>1e-2)
       error('Geschwindigkeit der Koppelpunkte mit constr1 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi1D)));
@@ -297,16 +272,27 @@ for robnr = 1:3
     end
   end
   % Funktion für direkte Kinematik nochmal testen
-  for j = 2:RP.NLEG
-    [X3,XD3,~] = RP.fkineEE_traj(Q, QD, QDD, j);
+  for j = 1:RP.NLEG
+    [X3,XD3,XDD3] = RP.fkineEE_traj(Q, QD, QDD, j);
+    % Die Beschleunigung des dritten Euler-Winkels wurde noch nicht
+    % korrigiert. Wird basierend auf erster Beinkette gemacht.
+    if j == 1
+      XDD(:,6) = XDD3(:,6);
+    end
     test_X = X(:,1:6) - X3(:,1:6);
-    Ifirst = find(any(abs(test_X)>1e-6,2), 1, 'first');
     test_XD = XD(:,1:6) - XD3(:,1:6);
+    test_XDD = XDD(:,1:6) - XDD3(:,1:6);
     if max(abs(test_X(:)))>1e-6
+      Ifirst = find(any(abs(test_X)>1e-6,2), 1, 'first');
       error('Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
     end
     if max(abs(test_XD(:)))>1e-6
-      error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1', j);
+      Ifirst = find(any(abs(test_XD)>1e-6,2), 1, 'first');
+      error('Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
+    end
+    if max(abs(test_XDD(:)))>1e-6
+      Ifirst = find(any(abs(test_XDD)>1e-6,2), 1, 'first');
+      error('Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht gegen Beinkette 1. Erstes Vorkommnis: Zeitschritt %d', j, Ifirst);
     end
   end
   Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
