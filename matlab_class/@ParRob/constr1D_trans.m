@@ -46,6 +46,7 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
 
 % Allgemeine Definitionen
 NLEG = Rob.NLEG;
+PhitD_red = NaN(length(Rob.I_constr_t_red),1);
 PhitD = NaN(3*NLEG,1);
 I1 = 1;
 phi = xE(4:6); % Euler-Winkel
