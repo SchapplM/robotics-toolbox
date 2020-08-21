@@ -311,7 +311,7 @@ for k = 1:nt
       end
     end
   end
-  if ~dof_3T2R
+  if ~dof_3T2R || Rob.NJ == 25
     qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
   else
     % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
@@ -325,10 +325,8 @@ for k = 1:nt
       error('Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen nicht');
     end
   end
-  if nsoptim || limits_qD_set
-    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
-  end
   if nsoptim % Nullraumbewegung
+    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
     v = zeros(Rob.NJ, 1);
     if wn(1) ~= 0
@@ -353,7 +351,7 @@ for k = 1:nt
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
-  if limits_qD_set
+  if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre; 
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
