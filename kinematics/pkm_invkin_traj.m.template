@@ -469,16 +469,14 @@ for k = 1:nt
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
-    if ~all(s.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
-      Phi_q = %PN%_constr2grad_q(q_k, x_k, s_2q);
-      Phi_x = %PN%_constr2grad_x(q_k, x_k, s_2x);
-      J_x_inv = -Phi_q \ Phi_x;
-    else 
-      [Phi_q,Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
-      [~,Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
-      I = s.I_constr_red;
-      Phi_x=Phi_x_voll(I,I_EE);
+    [Phi_q,Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
+    [~,    Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+    I = s.I_constr_red;
+    Phi_x=Phi_x_voll(I,I_EE);
+    if all(s.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
       J_x_inv = -Phi_q_voll \ Phi_x_voll;
+    else % Strukturell 3T2R
+      J_x_inv = -Phi_q \ Phi_x;
     end
   end
   if ~(nsoptim || limits_qD_set)
@@ -521,19 +519,17 @@ for k = 1:nt
       Phi_xD = %PN%_constr4gradD_x(x_k, xD_k, s_x);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else
-      if ~all(s.I_EE == [1 1 1 1 1 1]) % fuer symmetrische 3T2R-PKM
-        Phi_qD = %PN%_constr2gradD_q(q_k, qD_k, x_k, xD_k, s_2qd);
-        Phi_xD = %PN%_constr2gradD_x(q_k, qD_k, x_k, xD_k, s_2xd);
-        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
-      else 
-        [Phi_qD,Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
-        [~,Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
-        I = s.I_constr_red;
-        Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-        % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-        % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-        % spielt die Aufgabenredundanz keine Rolle.
+      [Phi_qD,Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
+      [~,     Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
+      I = s.I_constr_red;
+      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+      % spielt die Aufgabenredundanz keine Rolle.
+      if all(s.I_EE == [1 1 1 1 1 1])
         JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+      else % strukturell 3T2R-PKM
+        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
       end
     end
   end

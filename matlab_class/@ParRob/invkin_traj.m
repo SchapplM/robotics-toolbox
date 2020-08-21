@@ -228,26 +228,20 @@ for k = 1:nt
     Phi_q = Rob.constr4grad_q(q_k);
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
-  else
-    if Rob.NJ == 25 % fuer symmetrische 3T2R-PKM
-      Phi_q = Rob.constr2grad_q(q_k, x_k);
-      Phi_x = Rob.constr2grad_x(q_k, x_k);
+  else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
+    [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
+    [~,    Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
+    % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
+    % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
+    % Systeme mit Beinketten mit fünf Gelenken. TODO: Noch aktuell?
+    I = Rob.I_constr_red;
+    Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
+      % dingungen (wird für Dynamik benutzt).
+      J_x_inv = -Phi_q_voll \ Phi_x_voll;
+    else % PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
-    else % aufgabenredundante 3T3R-PKM und asymmetrische 3T2R-PKM
-      [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
-      [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
-      % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
-      % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
-      % Systeme mit Beinketten mit fünf Gelenken.
-      I = Rob.I_constr_red;
-      Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-      if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
-        % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
-        % dingungen (wird für Dynamik benutzt).
-        J_x_inv = -Phi_q_voll \ Phi_x_voll;
-      else % asymmetrische 3T2R-PKM
-        J_x_inv = -Phi_q \ Phi_x;
-      end
     end
   end
   if ~(nsoptim || limits_qD_set)
@@ -290,28 +284,22 @@ for k = 1:nt
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
-    else
-      if Rob.NJ == 25 % fuer symmetrische 3T2R-PKM
-        Phi_qD = Rob.constr2gradD_q(q_k, qD_k, x_k, xD_k);
-        Phi_xD = Rob.constr2gradD_x(q_k, qD_k, x_k, xD_k);
+    else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
+      [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
+      [~,     Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+      I = Rob.I_constr_red;
+      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+      % spielt die Aufgabenredundanz keine Rolle.
+      if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+      else % strukturell 3T2R-PKM
         JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
-      else % alle anderen 3T2R-PKM und aufgabenredundante 3T3R-PKM
-        [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
-        [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
-        I = Rob.I_constr_red;
-        Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-        % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-        % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-        % spielt die Aufgabenredundanz keine Rolle.
-        if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
-          JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
-        else % asymmetrische 3T2R-PKM
-          JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
-        end
       end
     end
   end
-  if ~dof_3T2R || Rob.NJ == 25
+  if ~dof_3T2R || ~all(Rob.I_EE == [1 1 1 1 1 1])
     qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
   else
     % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
