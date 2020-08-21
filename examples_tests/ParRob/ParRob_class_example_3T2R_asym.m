@@ -1,6 +1,6 @@
-% Asym. 3T2R PKM mit nur aktiven Beinketten:
-% 3T2R-Führungskette: PUU-Leading, RUU, UPU
-% kombiniert mit 3T3R-Hauptstruktur: PUS, RUS, UPS
+% Beispielskript für asymmetrische 3T2R-PKM (nur aktive Beinketten)
+% * Eine 3T2R-Führungskette: PUU-Leading, RUU, UPU
+% * kombiniert mit 3T3R-Hauptstruktur (vier Ketten): PUS, RUS, UPS
 
 % MA Bejaoui (Bejaoui2020_M963; Betreuer: Moritz Schappler), 2020-04
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-08
@@ -18,9 +18,9 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 
-
 for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
   for BeinNr = 1:3 % Hauptstruktur: PUS, RUS, UPS
+    close all % sonst sind zu viele Bilder offen
     fignum = 100*LeadingNr+10*BeinNr;
     if LeadingNr == 1 % PUU-Leading
       RS1 = serroblib_create_robot_class('S5PRRRR10');% Fuehrungsbeinkette
@@ -28,7 +28,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       if BeinNr == 1 % PUS
         RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('FourPUU_OneUPS_3T2R');
+        RP = ParRob('PKM_1PUU_4UPS_3T2R');
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
         pkin_RS1 = [0, 0, 1.0, 0, pi/2, pi/2, 0, 0, 0, 0, 0]';
@@ -64,7 +64,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 2 % RUS
         RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('FourPUU_OneRUS_3T2R');
+        RP = ParRob('PKM_1PUU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -101,7 +101,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 3 % UPS
         RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('FourPUU_OneUPS_3T2R');
+        RP = ParRob('PKM_1PUU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -138,7 +138,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       if BeinNr == 1 % PUS
         RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourPUS_3T2R');
+        RP = ParRob('PKM_1RUU_4PUS_3T2R');
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
         pkin_RS1 = [1.0, 1.0]'; 
@@ -175,7 +175,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 2 % RUS
         RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourRUS_3T2R');
+        RP = ParRob('PKM_1RUU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -212,7 +212,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 3 % UPS
         RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourUPS_3T2R');
+        RP = ParRob('PKM_1RUU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -250,7 +250,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       if BeinNr == 1 % PUS
         RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourPUS_3T2R');
+        RP = ParRob('PKM_1UPU_4PUS_3T2R');
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
         pkin_RS1 = zeros(4,1);
@@ -287,7 +287,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 2 % RUS
         RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourRUS_3T2R');
+        RP = ParRob('PKM_1UPU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -324,7 +324,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       elseif BeinNr == 3 % UPS
         RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
         RS2.fill_fcn_handles(false);
-        RP = ParRob('OneRUU_FourUPS_3T2R');
+        RP = ParRob('PKM_1UPU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
         RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
@@ -355,52 +355,34 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
       end
     end
-    % generelle Einstellungen
-    I_EE = logical([1 1 1 1 1 0]);
-    I_EE_Task = logical([1 1 1 1 1 0]); % 3T2R , die Null , da beta_3 weg
-    RP.update_EE_FG(I_EE,I_EE_Task);
+    % allgemeine Einstellungen
+    RP.update_EE_FG(logical([1 1 1 1 1 0]));
     % Startpose
-    X_E = [[0.2;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
+    X0 = [[0.2;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
     q0 = rand(RP.NJ,1);
     q0(RP.I_qa) = 0.5;
     q = q0; % qs in constr2 und q sind ungleich ( also aktive Gelenke)
     %% IK
-    [q,phi] = RP.invkin_ser(X_E, q);
-    [Phi3_red,Phi3_voll] = RP.constr3(q, X_E); % mit Fuehrungsbeinkette
-    [Phi2_red,Phi2_voll] = RP.constr2(q, X_E);
-    X_E(6) = X_E(6) + Phi3_voll(4);
+    X0(6) = 0;
+    [q,phi] = RP.invkin_ser(X0, q);
+    [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
+    [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+    X0(6) = X0(6) + Phi3_voll(4);
     %% Roboter zeichnen
     figure(fignum+1);clf;
     hold on; grid on;
     xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
     s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
-    RP.plot( q, X_E, s_plot );
+    RP.plot( q, X0, s_plot );
     hold off;
     %% Jacobi-Matrix auswerten
     % Jacobi q-Anteile
-    [G_q_red,G_q_voll] = RP.constr3grad_q(q, X_E); % automatisches herausnehmen
-    % Vorgehen von Li fuer q-Anteile
-    G_q = G_q_voll(RP.I_constr_red,:); % manuelles herausnehmen
-    % Vergleich zwischen manuellem und automatischem Herausnehmen
-    if  any(abs(G_q_red - G_q) > 1e-2)
-      warning('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_q falsch \n');
-    else
-      fprintf('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_q richtig\n');
-    end
-    
-    % Jacobi x-Anteile ( dim bei G_x_red von constr3grad noch nicht richtig)
-    [G_x_red,G_x_voll] = RP.constr3grad_x(q, X_E); % automatisches herausnehmen
-    % Vorgehen von Li fuer x-Anteile
+    [G_q,G_q_voll] = RP.constr3grad_q(q, X0); 
+    % Jacobi x-Anteile (dim bei G_x_red von constr3grad noch nicht richtig)
+    [~,G_x_voll] = RP.constr3grad_x(q, X0);
     G_x = G_x_voll(RP.I_constr_red,:);
-    G_eta = G_x_voll(RP.I_constr_red,RP.I_EE_Task); % manuelles herausnehmen
-    % Vergleich zwischen manuellem und automatischem Herausnehmen
-    if  any(abs(G_x_red - G_eta) > 1e-2)
-      warning('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_x falsch \n');
-    else
-      fprintf('Vergleich zwischen manuellem und automatischem Herausnehmen fuer G_x richtig \n');
-    end
-    
+    G_eta = G_x_voll(RP.I_constr_red,RP.I_EE_Task);
     % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen
     G_a = G_q(:,RP.I_qa); % aktiv, phi_dqa [STO19]
     G_d = G_q(:,RP.I_qd); % passiv, phi_dpa [STO19]
@@ -433,30 +415,39 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     end
     
     %% Trajektorie berechnen
-    k=1; XE = X_E';
-    d1=0.1;
-    h1=0.2;
+    k=1; XE = X0';
+    d1=0.05;
+    h1=0.05;
     r1=10*pi/180;
     k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0  r1,0,0];
     k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0, 0,-r1,0];
     k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, 0,r1,0];
     k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [d1,0,0, 0,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [-d1,0,0, -0,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [0,d1,0, 0,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [0,-d1,0, -0,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [0,0,h1, 0,0,0];
+    k=k+1; XE(k,:) = XE(k-1,:) + [0,-0,-h1, -0,0,0];
     [X,XD,XDD,T] = traj_trapez2_multipoint(XE, 1, 2e-1, 1e-1, 5e-3, 0);
     % Inverse Kinematik berechnen
     t1 = tic();
     fprintf('Berechne Trajektorien-IK für %d Zeitschritte\n', length(T));
     iksettings = struct('n_max', 5000, 'Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'debug', true, ...
-      'retry_limit', 0, 'mode_IK', 2, 'normalize', false);
+      'retry_limit', 0, 'mode_IK', 1, 'normalize', false);
     warning off
     [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
     warning on
     fprintf('Trajektorien-IK in %1.2fs berechnet. Prüfe die Ergebnisse.\n', toc(t1));
     %% Trajektorie prüfen
+    t1 = tic();
+    i_error = -1;
     % Tatsächliche EE-Koordinaten mit vollständiger direkter Kinematik bestimmen
     for i = 1:length(T)
-      if max(abs( Phi(i,:) )) > 1e-3 || any(isnan( Phi(i,:) ))
+      if max(abs( Phi(i,:) )) > 1e-8 || any(isnan( Phi(i,:) ))
         warning('IK stimmt nicht bei i=%d. Wahrscheinliche Ursache: Ist innerhalb von n_max nicht konvergiert', i);
-        return
+        i_error = i;
+        break
       end
       % Direkte Kinematik berechnen
       Tc_ges = RP.fkine(Q(i,:)', NaN(6,1));
@@ -494,14 +485,12 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         X(i,6) = x_i(6);
       end
       % Neues xD berechnen
+      XD(i,6) = 0; % Auf Null setzen, damit Aufruf auch mehrfach funktioniert.
       [~,Phi2D]=RP.constr2D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
       XD(i,6) = Phi2D(4);
 
-      % TODO: Das xD(6) muss vielleicht neu berechnet werden. Dadurch auch
-      % das x(6). Wäre der Fall, wenn die 6. Koordinate abhängig ist und
-      % nicht einfach nur Null bleibt.
-      % TODO: Diese ZB-Funktionen können nicht funktionieren! (Dritte
-      % Rotation ist nicht passend zur Plattform-Pose)
+      % Berechne die Zeitableitung aller Zwangsbedingungs-Modellierungen
+      % Alle müssen Null sein. Ansonsten bewegt sich die PKM auseinander.
       [~,Phi1D]=RP.constr1D(Q(i,:)', QD(i,:)', X(i,:)', XD(i,:)');
       if any(abs(Phi1D)>1e-2)
         error('Geschwindigkeit der Koppelpunkte mit constr1 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi1D)));
@@ -515,6 +504,20 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         error('Geschwindigkeit der Koppelpunkte mit constr4 ist nicht konsistent. Fehler %1.2e.', max(abs(Phi4D)));
       end
     end
+    % Die Trajektorie hat nicht komplett funktioniert. Werte den Rest
+    % trotzdem aus.
+    if i_error ~= -1
+      fprintf('Rob %d-%d (%s): Kein Erfolg der Trajektorien-IK. Abbruch bei %d/%d\n', ...
+        LeadingNr, BeinNr, RP.mdlname, i_error-1, length(T));
+      Q = Q(1:i_error-1,:);
+      QD = QD(1:i_error-1,:);
+      QDD = QDD(1:i_error-1,:);
+      T = T(1:i_error-1);
+      X = X(1:i_error-1,:);
+      XD = XD(1:i_error-1,:);
+      XDD = XDD(1:i_error-1,:);
+    end
+      
     Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
     figure(fignum+2);clf;
     for i = 1:RP.NLEG
@@ -531,20 +534,22 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     linkxaxes;
     test_q_qD_kons = Q_int - Q;
     if max(abs(test_q_qD_kons(:))) > 1e-2
-      error('Q und QD aus Traj.-IK sind nicht konsistent');
+      warning('Q und QD aus Traj.-IK sind nicht konsistent');
     end
+    fprintf(['Rob %d-%d (%s): Prüfung der Trajektorie abgeschlossen (Dauer: ', ...
+      '%1.2f). Erstelle Animation.\n'], LeadingNr, BeinNr, RP.mdlname, toc(t1));
     %% Animation
     rob_path = fileparts(which('robotics_toolbox_path_init.m'));
     resdir = fullfile(rob_path, 'examples_tests', 'results');
     mkdirs(resdir);
-    s_anim = struct('gif_name', fullfile(resdir, sprintf('%s.gif',RP.mdlname)));
+    s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_asym_test_%s.gif',RP.mdlname)));
     figure(fignum+3);clf;
     hold on;
     plot3(X(:,1), X(:,2), X(:,3));
     grid on;
     xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
-    title('Animation der kartesischen Trajektorie');
+    title(RP.mdlname, 'interpreter', 'none');
     RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
   end
 end

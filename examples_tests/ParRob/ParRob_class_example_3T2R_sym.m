@@ -1,19 +1,23 @@
-% Symmetrische 3T2R-PKM: 5RPUR
+% Beispielskript für symmetrische 3T2R-PKM
 % 
 % Ergebnis des Beispielskripts:
 % * Nachweis, dass diese Art von PKM kinematisch modellierbar ist
+% * PKM Nr. 1 (5UPU) funktioniert nicht (siehe [HL02])
+% * PKM Nr. 3 (5RPUR) funktionert (siehe [TG11])
 %
 % Offene Punkte und Besonderheiten:
 % * Die PKM werden ohne die Transformation Bi-P für die PKM-Plattform
 %   modelliert. Das Vorgehen ist also leicht anders als in ParRobLib
-% * PKM 1 bis 3 bei IK noch nicht lösbar (TODO: Weitere PKM modellieren und
-%   eintragen)
 % 
 % Quellen:
 % [STO19] Schappler, M. et al.: Modeling Parallel Robot Kinematics for 3T2R
 % and 3T3R Tasks using Reciprocal Sets of Euler Angles, MDPI Robotics KaRD2
 % [TG11] Tale-Masouleh, M.; Gosselin, C.: Singularity analysis of 5-RPUR
 % parallel mechanisms (3T2R)
+% [HL02] Z. Huang, Q. C. Li: General Methodology for Type Synthesis of
+% Symmetrical Lower-Mobility Parallel Manipulators and Several Novel Manipulators
+% [Bejaoui2020_M963] Bejaoui, Abderahman: Modellierung und Struktursynthese 
+% paralleler Roboter mit Freiheitsgrad Fünf
 
 % MA Bejaoui (Bejaoui2020_M963; Betreuer: Moritz Schappler), 2020-04
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-08
@@ -31,68 +35,40 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 
-for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementieren
+for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
   if robnr == 1 % 5_UPU
-    RS = serroblib_create_robot_class('S5RRPRR12');% Fuehrungsbeinkette
-    RP = ParRob('Five_UPU_3T2R');
+    RS = serroblib_create_robot_class('S5RRPRR12');
+    RP = ParRob('P5_UPU_3T2R');
     RP.create_symmetric_robot(5, RS, 1.1, 0.3);
     pkin_all = zeros(8,5);
     for ii=1:RP.NLEG
       RP.Leg(ii).update_mdh(pkin_all(1:size(RP.Leg(ii).pkin),1));
     end
-    I_qa_Typ = zeros(1,5); % Typ1: S5PRRRR1
+    I_qa_Typ = false(5,1);
     I_qa_Typ(3) = 1; % das dritte Gelenk (P) ist aktuiert
   elseif robnr == 2 % 5_RUU
     RS = serroblib_create_robot_class('S5RRRRR2');
-    RP = ParRob('Five_RUU_3T2R');
+    RP = ParRob('P5_RUU_3T2R');
     RP.create_symmetric_robot(5, RS, 1.5, 0.5);
     pkin_all  = [1.0, 1.5]';
     for ii=1:RP.NLEG
       RP.Leg(ii).update_mdh(pkin_all(1:size(RP.Leg(ii).pkin),1));
     end
-    I_qa_Typ = zeros(1,5); % Typ1: S5PRRRR1
-    I_qa_Typ(1) = 1; % das 2te Gelenk P ist aktuiert
-    I_qa = repmat(I_qa_Typ,1,5);
-  elseif robnr == 3 % 5_PUU
-    RS = serroblib_create_robot_class('S5PRRRR10');% Fuehrungsbeinkette
-    RP = ParRob('Five_PUU_3T2R');
-    RP.NLEG = 5;
-    RP.Leg = copy(RS);
-    for ii=2:RP.NLEG
-      RP.Leg(ii) = copy(RS);
-    end
-    pkin_all  = [0, 0, 0.5, 0, pi/2, pi/2, 0, 0, 0, 0, 0]';
-    for ii=1:RP.NLEG
-      RP.Leg(ii).update_mdh(pkin_all(1:size(RP.Leg(ii).pkin),1));
-    end
-    RP.initialize();
-    RP.align_base_coupling(1, 1.1);
-    RP.align_platform_coupling(8, 0.2);
-    RP.Leg(1).update_base( 3*RP.r_P_B_all(:,1), r2eulxyz(rotx(-pi)*roty(-pi))); % Fuehrungsbeinkette PUU
-    RP.Leg(2).update_base( 3*RP.r_P_B_all(:,2), r2eulxyz(rotz((-3*pi/5)))); % Folgebeinketten PUU
-    RP.Leg(3).update_base( 3*RP.r_P_B_all(:,3), r2eulxyz(rotz((-pi/5)))); % Folgebeinkette PUU
-    RP.Leg(4).update_base( 3*RP.r_P_B_all(:,4), r2eulxyz(rotz((pi/5)))); % Folgebeinkette PUU
-    RP.Leg(5).update_base( 3*RP.r_P_B_all(:,5), r2eulxyz(rotz((3*pi/5)))); % Folgebeinkette PUU
-    
-    I_qa_Typ = zeros(1,5); % Typ1: S5PRRRR1
-    I_qa_Typ(1) = 1; % das 2te Gelenk P ist aktuiert
-    I_qa = repmat(I_qa_Typ,1,5);
-    for ii=1:RP.NLEG
-      RP.Leg(ii).update_EE(zeros(3,1),r2eulxyz(roty(-pi/2)));
-    end
-  elseif robnr == 4 % 5_RPUR; siehe [TG11]
-    RS = serroblib_create_robot_class('S5RPRRR8V1');% Fuehrungsbeinkette
-    RP = ParRob('Five_RPUR_3T2R');
+    I_qa_Typ = false(5,1);
+    I_qa_Typ(1) = 1; % das erste Gelenk (P) ist aktuiert
+  elseif robnr == 3 % 5_RPUR; siehe [TG11]
+    RS = serroblib_create_robot_class('S5RPRRR8V1');
+    RP = ParRob('P5_RPUR_3T2R');
     RP.NLEG = 5;
     RP.Leg = copy(RS);
     for ii=2:RP.NLEG
       RP.Leg(ii) = copy(RS);
     end
     RP.initialize();
-    pkin_all = zeros(length(RS.pkin));
-    pkin_all(strcmp(RS.pkin_names, 'a5')) = 0.9;
+    pkin = zeros(length(RS.pkin),1);
+    pkin(strcmp(RS.pkin_names, 'a5')) = 0.9;
     for ii=1:RP.NLEG
-      RP.Leg(ii).update_mdh(pkin_all(1:size(RP.Leg(ii).pkin),1));
+      RP.Leg(ii).update_mdh(pkin);
       RP.Leg(ii).update_EE(zeros(3,1),r2eulxyz(roty(pi/2)));
     end
     % Orientierung der Gestell-Koppelpunkt-KS
@@ -108,12 +84,23 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
     RP.r_P_B_all(:,4) = [-0.2;-0.3;0];
     RP.r_P_B_all(:,5) = [0.2;-0.3;0];
     
-    I_qa_Typ = zeros(1,5); % Typ1: S5PRRRR1
+    I_qa_Typ = zeros(5,1);
     I_qa_Typ(2) = 1; % das 2te Gelenk P ist aktuiert
-    I_qa = repmat(I_qa_Typ,1,5);
+  elseif robnr == 5 % 5_RPUR; siehe [TG11]
+    RS = serroblib_create_robot_class('S5RPRRR10V1');
+    pkin = zeros(length(RS.pkin),1);
+    pkin(strcmp(RS.pkin_names, 'a5')) = 1.4;
+    RS.update_mdh(pkin);
+    RP = ParRob('P5RPUR_3T2R');
+    RP.create_symmetric_robot(5, RS);
+    RP.initialize();
+    RP.align_base_coupling(1, 0.8);
+    RP.align_platform_coupling(8, 0.4);
+    I_qa_Typ = zeros(5,1); % Typ1: S5PRRRR1
+    I_qa_Typ(2) = 1; % das 2te Gelenk P ist aktuiert
   end
   RP.fill_fcn_handles(false, true);
-  RP.update_actuation(I_qa);
+  RP.update_actuation(repmat(I_qa_Typ,5,1));
   % qlim setzen, damit Neuversuche in IK besser funktionieren
   for i = 1:RP.NLEG
     % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
@@ -124,70 +111,100 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
     end
   end
   % allgemeine Einstellungen
-  I_EE = logical([1 1 1 1 1 0]);
-  I_EE_Task = logical([1 1 1 1 1 0]); % 3T2R , die Null , da beta_3 weg
-  RP.update_EE_FG(I_EE,I_EE_Task,repmat(I_EE_Task,RP.NLEG,1));
+  RP.update_EE_FG([1 1 1 1 1 0]); % Strukturelle FG der PKM
   % Startpose
   X0 = [[0.1;0.1;1.0];[0;0;0]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
   % Anfangswerte für IK durch ausprobieren
-  if robnr == 4
+  if robnr == 3
     q0 = rand(RP.NJ,1);
   else
     q0 = pi/2*2*(-0.5+rand(RP.NJ,1)); % Zufallswinkel zwischen -90° und +90°)
   end
   q0(RP.MDH.sigma==1) = 0.5; % positive Längen
+  q0(RP.I1J_LEG(2):end) = NaN; % Setze NaN, damit Beinketten 2-5 das Ergebnis von Beinkette 1 als Startwert bekommen.
+  % Indizes für die Zwangsbedingungen (sind für constr3 auch in der ParRob
+  % Klasse implementiert. Für constr2 nicht.)
+  I_constr2 = 1:6*RP.NLEG;
+  I_constr2(4:6:end) = []; % immer die vierte Komponente entfernen (reziproker Winkel)
+  I_constr3 = 1:6*RP.NLEG;
+  I_constr3(4) = [];
   %% IK berechnen
-  [q,phi] = RP.invkin_ser(X0, q0);
-  [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
-  [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
-  % Letzten Euler-Winkel auf den tatsächlichen Wert setzen.
+  X0(6) = 0;
+  [q, phi] = RP.invkin_ser(X0, q0);
+  [~,Phi3_voll] = RP.constr3(q, X0);
+  % Letzten Euler-Winkel auf den tatsächlichen Wert setzen. Dieser ist in
+  % der Zwangsbedingung enthalten.
   X0(6) = X0(6) + Phi3_voll(4);
+  % Berechne die Zwangsbedingungen nochmal neu mit korrigiertem X(6)
+  [~,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
+  [~,Phi2_voll] = RP.constr2(q, X0);
   
   figure(10+robnr);clf;
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
-  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
-  RP.plot( q, X0, s_plot );
-  hold off;
-  
+  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'ks_platform', 1:6, 'straight', 0);
+  RP.plot(q, X0, s_plot );
+  title(RP.mdlname, 'interpreter', 'none');
   if any(abs(phi) > 1e-6)
     error('IK konnte für %s nicht erfolgreich berechnet werden.', RP.mdlname);
   end
-
-  I_EE_Legs_3T2R = repmat(I_EE_Task,5,1);
-  RP.update_EE_FG(I_EE, I_EE_Task, I_EE_Legs_3T2R);
-  %% Differentielle Kinematik ueber constr2grad
-  [G_q_2,G_q_voll_2] = RP.constr2grad_q(q, X0);
-  [G_x_2,G_x_voll_2] = RP.constr2grad_x(q, X0);
-
-  G_a_2 = G_q_2(:,RP.I_qa); % aktiv, phi_dqa [STO19]
-  G_d_2 = G_q_2(:,RP.I_qd); % passiv, phi_dpa [STO19]
+  if all(abs(Phi3_voll) < 1e-6) && all(abs(Phi2_voll) < 1e-6)
+    fprintf('Rob %d. %s: Die ZB-Modellierung 2 und 3 ergibt eine korrekte PKM\n', robnr, RP.mdlname);
+  end
+  %% Differentielle Kinematik über constr3
+  % Wird in [Bejaoui2020_M963] Kap. 4.3.3. Dort wird der Nachteil der 29x25
+  % Gradientenmatrix beschrieben. Das Ergebnis ist für funktionierende PKM
+  % identisch zur Modellierung constr2.
+  [~,G_q_voll_3] = RP.constr3grad_q(q, X0);
+  [~,G_x_voll_3] = RP.constr3grad_x(q, X0);
+  G_q_3 = G_q_voll_3(I_constr3,:);
+  G_x_3 = G_x_voll_3(I_constr3,1:5);
+  Jinv_3 = G_q_3 \ G_x_3;
+  J_qa_x_3 = Jinv_3(RP.I_qa,:);
+  fprintf('Rob %d. %s: Rang der %dx%d Jacobi der aktiven Gelenke: %d/%d. Konditionszahl: %1.2e\n', ...
+    robnr, RP.mdlname, size(J_qa_x_3,1), size(J_qa_x_3,2), rank(J_qa_x_3), sum(RP.I_EE), cond(J_qa_x_3));
+  G_a_3 = G_q_3(:,RP.I_qa); % aktiv, phi_dqa [STO19]
+  G_d_3 = G_q_3(:,RP.I_qd); % passiv, phi_dpa [STO19]
   % Jacobi-Matrix zur Berechnung der abhaengigen Gelenke und EE-Koordinaten
-  G_dxp_2 = [G_d_2, G_x_2]; % Gl. 50, phi_dxp, hier p-Anteile ueber x-Anteilen [STO19]
-  J_2 = G_dxp_2 \ G_a_2; % inv(G_dx) * G_a = inv(phi_dxp)*phi_dqa, Gl. 50 vollstaendige Jacobi-Matrix bezogen auf x-Koordinaten [STO19]
-  Jinv_2 = G_q_2 \ G_x_2; % vollstaendige inverse Jacobi-Matrix in x-Koord Gl. 49
-  J_qa_x_2 = Jinv_2(RP.I_qa,:);
-  fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d. Konditionszahl: %1.2e\n', ...
-    RP.mdlname, rank(J_qa_x_2), sum(RP.I_EE), cond(J_qa_x_2));
-  
+  G_dxp_3 = [G_d_3, G_x_3]; % Gl. 50, phi_dxp, hier p-Anteile ueber x-Anteilen [STO19]
+  J_3 = G_dxp_3 \ G_a_3; % inv(G_dx) * G_a = inv(phi_dxp)*phi_dqa, Gl. 50 vollstaendige Jacobi-Matrix bezogen auf x-Koordinaten [STO19]
   % Pruefe inverse Jacobi-Matrix gegen nicht-invertierte
-  if cond(J_qa_x_2) < 1e4
+  if cond(J_qa_x_3) < 1e4
     % Funktioniert nur, wenn die Konditionszahl halbwegs gut ist
-    J_x_qa_2 = J_2(sum(RP.I_qd)+1:end,:);
-    matrix_test_2_debug = J_qa_x_2*J_x_qa_2- eye(5);
-    matrix_test_2 = J_x_qa_2*J_qa_x_2- eye(5);
-    if any(abs(matrix_test_2(:)) > 1e-4)
-      error('constr2grad: Jacobi-Matrix und ihre Inverse passen nicht zueinander');
+    J_x_qa_3 = J_3(sum(RP.I_qd)+1:end,:);
+    matrix_test_3_debug = J_qa_x_3*J_x_qa_3- eye(5);
+    matrix_test_3 = J_x_qa_3*J_qa_x_3- eye(5);
+    if any(abs(matrix_test_3(:)) > 1e-4)
+      error('constr3grad: Jacobi-Matrix und ihre Inverse passen nicht zueinander');
     end
   else
-    warning(['%s: Die Konditionszahl ist zu groß (%1.2e). Eine Berechnung der Traj', ...
-      'ektorie ist nicht möglich.'], RP.mdlname, cond(J_qa_x_2));
+    if any(robnr==[1 2])
+      addstr = sprintf('Dieses Verhalten ist erwartet.');
+    else
+      addstr = '';
+    end
+    fprintf(['Rob %d. %s: Die Konditionszahl ist zu groß (%1.2e). Eine Berechnung der Traj', ...
+      'ektorie ist nicht möglich. %s\n'], robnr, RP.mdlname, cond(J_qa_x_3), addstr);
     continue;
   end
-  
+  %% Differentielle Kinematik über constr2
+  % Wird in [Bejaoui2020_M963] Kap. 4.3.1 beschrieben.
+  [~,G_q_voll_2] = RP.constr2grad_q(q, X0);
+  [~,G_x_voll_2] = RP.constr2grad_x(q, X0);
+  G_q_2 = G_q_voll_2(I_constr2,:);
+  G_x_2 = G_x_voll_2(I_constr2,1:5);
+  Jinv_2 = G_q_2 \ G_x_2; % vollstaendige inverse Jacobi-Matrix in x-Koord Gl. 49
+  J_qa_x_2 = Jinv_2(RP.I_qa,:);
+  test_Jinv_23 = Jinv_2 - Jinv_3;
+  if any(abs(test_Jinv_23(:))>1e-6)
+    % Wenn die Methoden nicht übereinstimmen, ist der dritte Euler-Winkel
+    % bei den verschiedenen Beinketten nicht gleich.
+    error('inverse Jacobi-Matrix stimmt nicht zwischen Methode 2 und 3 überein. PKM funktioniert nicht.');
+  end
+
   %% Trajektorie berechnen
-  % Einmal in jede Koordinatenrichtung bewegen
+  % Einmal in jede Koordinatenrichtung einzeln bewegen
   k=1; XE = X0';
   d1=0.1;
   h1=0.1;
@@ -212,6 +229,7 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
   fprintf('Trajektorien-IK in %1.2fs berechnet. Prüfe die Ergebnisse.\n', toc(t1));
 
   %% Trajektorie prüfen
+  t1 = tic();
   % Tatsächliche EE-Koordinaten mit vollständiger direkter Kinematik bestimmen
   for i = 1:length(T)
     if max(abs( Phi(i,:) )) > max(iksettings.Phit_tol,iksettings.Phir_tol) || any(isnan( Phi(i,:) ))
@@ -333,19 +351,18 @@ for robnr = 4 % 5_UPU, 5_RUU, 5_PUU, 5_RPUR; TODO: Fall 1-3 korrekt implementier
   sgtitle('Konsistenz x-xD');
   legend([hdl1;hdl2], {'x', 'int(xD)'});
   linkxaxes;
-
+  fprintf('Prüfung der Trajektorie abgeschlossen (Dauer: %1.2f). Erstelle Animation.\n', toc(t1));
   %% Animation
   rob_path = fileparts(which('robotics_toolbox_path_init.m'));
   resdir = fullfile(rob_path, 'examples_tests', 'results');
   mkdirs(resdir);
-  s_anim = struct('gif_name', fullfile(resdir, sprintf('%s.gif',RP.mdlname)));
+  s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_sym_test_%s.gif',RP.mdlname)));
   figure(2);clf;
   hold on;
   plot3(X(:,1), X(:,2), X(:,3));
   grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
-  title(RP.mdlname);
+  title(RP.mdlname, 'interpreter', 'none');
   RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
-  
 end
