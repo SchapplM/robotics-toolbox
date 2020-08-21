@@ -1,0 +1,107 @@
+% Ableitung der Translationskomponente der kinematischen ZB nach der Zeit
+% 
+% Variante 1:
+% * Translation ausgedrückt als Vektor vom Basis-Koppelpunkt A zum
+%   Plattform-Koppelpunkt B
+% * Translationsfehler ist Differenz zwischen Vektor berechnet aus x und q
+% 
+% Eingabe:
+% q [Nx1]
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
+% xE [6x1]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% s [struct]
+%   Struktur mit Eigenschaften des Roboters
+% 
+% Ausgabe:
+% PhitD_red
+%   Reduzierte kinematische Zwangsbedingungen (Zeitableitung) (siehe folgendes)
+%   Die Reduktion folgt aus der Klassenvariablen I_EE
+% PhitD [6Mx1]
+%   Kinematische Zwangsbedingungen des Roboters für alle M Beine (Zeitableitung): 
+%   Maß für den Positionsfehler zwischen Ist-Pose aus
+%   gegebenen Gelenkwinkeln q und Soll-Pose aus gegebenen EE-Koordinaten x
+% 
+% Diese Datei ist identisch mit: ParRob/constr1D_trans.m
+% Hier Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-08
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+
+function [PhitD_red, PhitD] = %PN%_constr1D_trans(q, qD, xE ,xDE, s)
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs            'NLEG', 0,
+%$cgargs              'NJ', 0,
+%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
+%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs       'r_P_B_all', zeros(3,%NLEG%),
+%$cgargs           'T_P_E', eye(4),
+%$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
+%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
+%$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
+%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+
+%% Initialisierung
+assert(isreal(q) && all(size(q) == [%NJ% 1]), ...
+  '%PN%_constr1D_trans: q muss %dx1 sein', %NJ%);
+assert(isreal(qD) && all(size(qD) == [%NJ% 1]), ...
+  '%PN%_constr1D_trans: qD muss %dx1 sein', %NJ%);
+assert(isreal(xE) && all(size(xE) == [6 1]), ...
+  '%PN%_constr1D_trans: xE muss 6x1 sein');
+assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
+  '%PN%_constr1D_trans: xDE muss 6x1 sein');
+
+% Allgemeine Definitionen
+NLEG = s.NLEG;
+PhitD = NaN(3*NLEG,1);
+PhitD_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
+I1 = 1;
+phi = xE(4:6); % Euler-Winkel
+Jw = eulxyzjac(phi); % Euler-Jacobi-Matrix für EE-Orientierung
+R_0_E = eulxyz2r(phi);
+r_P_B_all = s.r_P_B_all;
+T_P_E = s.T_P_E;
+r_P_P_E = T_P_E(1:3,4);
+
+Leg_phi_W_0 = s.Leg_phi_W_0;
+Leg_phiconv_W_0 = s.Leg_phiconv_W_0;
+%% Berechnung
+for i = 1:NLEG
+  % Definitionen für Beinkette i
+  IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
+  qs = q(IJ_i); % Gelenkwinkel dieser Kette 
+  qsD = qD(IJ_i);
+  phi_0_Ai = Leg_phi_W_0(:,i);
+  R_0_0i = eul2r(phi_0_Ai, Leg_phiconv_W_0(i));
+  r_P_P_Bi = r_P_B_all(:,i);
+  r_E_E_Bi = T_P_E(1:3,1:3)' * (-r_P_P_E + r_P_P_Bi);
+  
+  % Geschwindigkeit des Koppelpunktes auf Seite der Beinkette
+  r_N_E = s.Leg_T_N_E_vec(4:6,i);
+  J0i_i_trans = %SN%_jacobia_transl_sym_varpar(qs, uint8(s.Leg_I_EElink(i)),r_N_E,s.Leg_pkin_gen(i,:)');
+  J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
+  J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
+  V_bein = J_Ai_Bi*qsD;
+  % Geschwindigkeit des Koppelpunktes auf Plattform-Seite
+  V_plat = xDE(1:3)-skew(R_0_E*r_E_E_Bi)*Jw*xDE(4:6);
+
+  % Geschwindigkeits-Zwangsbedingung entspricht Differenz am Koppelpunkt
+  V_diff = V_bein - V_plat;
+  PhitD(I1:I1+2) = V_diff;
+  I1 = I1+3;
+  % Ausgabe mit reduzierten Einträgen
+  J1 = sum(s.I_EE(1:3))*(i-1)+1;
+  PhitD_red(J1:J1+sum(s.I_EE(1:3))-1) = V_diff(s.I_EE(1:3));
+end
