@@ -164,7 +164,9 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   if any(abs(Phi1) > 1e-6)
     error('ZB in Startpose ungleich Null');
   end
-  
+  assert(all(size(Phi1)==[36 1]), 'ZB Phi1 muss 36x1 sein');
+  assert(all(size(Phit1)==[18 1]), 'ZB Phit1 muss 18x1 sein');
+  assert(all(size(Phir1)==[18 1]), 'ZB Phir1 muss 18x1 sein');
   %% Gelenkwinkelgrenzen festlegen (für Optimierung)
   for i = 1:RP.NLEG
     q_i = qs(RP.I1J_LEG(i):RP.I2J_LEG(i));
@@ -191,10 +193,12 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   % Roboter auf 3T2R einstellen
   RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
   %% Jacobi-Matrizen auswerten
-  
   [G_q_red,G_q_voll] = RP.constr3grad_q(qs, X0);
-  [~,G_x_voll] = RP.constr3grad_x(qs, X0); 
-  
+  assert(all(size(G_q_red)==[35 36]), 'ZB-matrix G_q muss 35x36 sein');
+  assert(all(size(G_q_voll)==[36 36]), 'ZB-matrix G_q_voll muss 36x36 sein');
+  [G_x_red,G_x_voll] = RP.constr3grad_x(qs, X0);
+  assert(all(size(G_x_red)==[35 6]), 'ZB-matrix G_x muss 35x6 sein');
+  assert(all(size(G_x_voll)==[36 6]), 'ZB-matrix G_x_voll muss 36x6 sein');
   % Testen der Komponentenaufteilung
   G_q = G_q_voll(RP.I_constr_red,:);
   G_x = G_x_voll(RP.I_constr_red,:);
@@ -278,6 +282,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
       t1 = tic();
       % Berechnung mit aus Vorlagendatei generierter Funktion
       [q_i, Phi_i] = RP.invkin4(XL(i,:)', qs, s_ep);
+      assert(all(size(Phi_i)==[35 1]), 'ZB Phi_i aus ParRob/invkin4 muss 35x1 sein');
       fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (tpl-Funktion). Bis hier %1.1fs.\n', ...
         i, size(XL,1), toc(t1), toc(t0));
       if max(abs(Phi_i)) > 1e-6
@@ -292,6 +297,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
       if test_class_methods
         t2 = tic();
         [q_i_class, Phi_i_class] = RP.invkin3(XL(i,:)', qs, s_ep);
+        assert(all(size(Phi_i_class)==[35 1]), 'ZB Phi_i aus ParRob/invkin3 muss 35x1 sein');
         fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (Klassen-Methode).\n', ...
           i, size(XL,1), toc(t2));
         % Prüfe, ob beide Methoden das gleiche Ergebnis haben
@@ -388,7 +394,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   
   %% Inverse Kinematik zum Startpunkt der Trajektorie
   % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert
-  t0 = tic();
+  tic();
   s_start = s;
   % Toleranz maximal stark setzen, damit es keinen Sprung im Verlauf gibt
   % (durch die vielen Nullraumiterationen ist die Aufgabentoleranz später
@@ -477,7 +483,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
     end
     Namen_Methoden{kk} = name_method;
     t1=tic();
-    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_kk);
+    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_kk);
     fprintf('Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs\n', kk, name_method, toc(t1));
     I_err = abs(Phi_t_kk) > max(s_kk.Phit_tol,s_kk.Phir_tol);
     if any(I_err(:))
@@ -490,7 +496,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
     % Das gleiche nochmal mit der Klassenmethode
     if false && test_class_methods
       t1=tic();
-      [Q_t_tpl, QD_t_tpl, QDD_t_tpl, Phi_t_kls] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, q1, s_kk);
+      [Q_t_tpl, QD_t_tpl, QDD_t_tpl, Phi_t_kls] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_kk);
       fprintf('Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs (Klassen-Methode)\n', kk, name_method, toc(t1));
       if max(abs(Phi_t_kls(:))) > max(s.Phit_tol,s.Phir_tol)
         error('Fehler in Trajektorie zu groß. IK nicht berechenbar');

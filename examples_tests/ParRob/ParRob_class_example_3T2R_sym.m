@@ -110,6 +110,11 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
       RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = [0.1, 2.0];
     end
   end
+  % Setze EE-FG der Beinketten auf 3T2R: Entspricht den strukturellen FG
+  % der Beinketten. Die Eigenschaft I_EE_Task ist trotzdem 3T3R (für IK).
+  for ii=1:RP.NLEG
+    RP.Leg(ii).I_EE = logical([1 1 1 1 1 0]);
+  end
   % allgemeine Einstellungen
   RP.update_EE_FG([1 1 1 1 1 0]); % Strukturelle FG der PKM
   % Startpose
@@ -131,13 +136,17 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
   %% IK berechnen
   X0(6) = 0;
   [q, phi] = RP.invkin_ser(X0, q0);
-  [~,Phi3_voll] = RP.constr3(q, X0);
+  [Phi3_red,Phi3_voll] = RP.constr3(q, X0);
+  assert(all(size(Phi3_red)==[29,1]), 'Ausgabe 1 von constr3 muss 29x1 sein');
+  assert(all(size(Phi3_voll)==[30,1]), 'Ausgabe 2 von constr3 muss 30x1 sein');
   % Letzten Euler-Winkel auf den tatsächlichen Wert setzen. Dieser ist in
   % der Zwangsbedingung enthalten.
   X0(6) = X0(6) + Phi3_voll(4);
   % Berechne die Zwangsbedingungen nochmal neu mit korrigiertem X(6)
   [~,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
-  [~,Phi2_voll] = RP.constr2(q, X0);
+  [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+  assert(all(size(Phi2_red)==[25,1]), 'Ausgabe 1 von constr2 muss 25x1 sein');
+  assert(all(size(Phi2_voll)==[30,1]), 'Ausgabe 2 von constr2 muss 30x1 sein');
   
   figure(10+robnr);clf;
   hold on; grid on;
@@ -153,15 +162,20 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
     fprintf('Rob %d. %s: Die ZB-Modellierung 2 und 3 ergibt eine korrekte PKM\n', robnr, RP.mdlname);
   end
   %% Differentielle Kinematik über constr3
-  % Wird in [Bejaoui2020_M963] Kap. 4.3.3. Dort wird der Nachteil der 29x25
+  % Siehe [Bejaoui2020_M963] Kap. 4.3.3. Dort wird der Nachteil der 29x25
   % Gradientenmatrix beschrieben. Das Ergebnis ist für funktionierende PKM
   % identisch zur Modellierung constr2.
-  [~,G_q_voll_3] = RP.constr3grad_q(q, X0);
-  [~,G_x_voll_3] = RP.constr3grad_x(q, X0);
+  [G_q_red_3,G_q_voll_3] = RP.constr3grad_q(q, X0);
+  [G_x_red_3,G_x_voll_3] = RP.constr3grad_x(q, X0);
+  assert(all(size(G_q_red_3)==[29,25]), 'Ausgabe 1 von constr3grad_q muss 29x25 sein');
+  assert(all(size(G_q_voll_3)==[30,25]), 'Ausgabe 2 von constr3grad_q muss 30x25 sein');
+  assert(all(size(G_x_red_3)==[29,5]), 'Ausgabe 1 von constr3grad_x muss 29x5 sein');
+  assert(all(size(G_x_voll_3)==[30,6]), 'Ausgabe 2 von constr3grad_x muss 30x6 sein');
   G_q_3 = G_q_voll_3(I_constr3,:);
   G_x_3 = G_x_voll_3(I_constr3,1:5);
   Jinv_3 = G_q_3 \ G_x_3;
   J_qa_x_3 = Jinv_3(RP.I_qa,:);
+  assert(all(size(J_qa_x_3)==[5 5]), 'inverse Jacobi-Matri muss 5x5 sein');
   fprintf('Rob %d. %s: Rang der %dx%d Jacobi der aktiven Gelenke: %d/%d. Konditionszahl: %1.2e\n', ...
     robnr, RP.mdlname, size(J_qa_x_3,1), size(J_qa_x_3,2), rank(J_qa_x_3), sum(RP.I_EE), cond(J_qa_x_3));
   G_a_3 = G_q_3(:,RP.I_qa); % aktiv, phi_dqa [STO19]
@@ -190,8 +204,12 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
   end
   %% Differentielle Kinematik über constr2
   % Wird in [Bejaoui2020_M963] Kap. 4.3.1 beschrieben.
-  [~,G_q_voll_2] = RP.constr2grad_q(q, X0);
-  [~,G_x_voll_2] = RP.constr2grad_x(q, X0);
+  [G_q_red_2,G_q_voll_2] = RP.constr2grad_q(q, X0);
+  [G_x_red_2,G_x_voll_2] = RP.constr2grad_x(q, X0);
+  assert(all(size(G_q_red_2)==[25,25]), 'Ausgabe 1 von constr2grad_q muss 25x25 sein');
+  assert(all(size(G_q_voll_2)==[30,25]), 'Ausgabe 2 von constr2grad_q muss 30x25 sein');
+  assert(all(size(G_x_red_2)==[25,5]), 'Ausgabe 1 von constr2grad_x muss 25x5 sein');
+  assert(all(size(G_x_voll_2)==[30,6]), 'Ausgabe 2 von constr2grad_x muss 30x6 sein');
   G_q_2 = G_q_voll_2(I_constr2,:);
   G_x_2 = G_x_voll_2(I_constr2,1:5);
   Jinv_2 = G_q_2 \ G_x_2; % vollstaendige inverse Jacobi-Matrix in x-Koord Gl. 49
@@ -358,6 +376,7 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
   mkdirs(resdir);
   s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_sym_test_%s.gif',RP.mdlname)));
   figure(2);clf;
+  set(2,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
   hold on;
   plot3(X(:,1), X(:,2), X(:,3));
   grid on;

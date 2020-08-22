@@ -125,9 +125,8 @@ for robnr = 1:3
   RP.fill_fcn_handles(false, true);
   RP.update_actuation(I_qa);
   % allgemeine Einstellungen
-  I_EE = logical([1 1 1 1 1 0]);
-  I_EE_Task = logical([1 1 1 1 1 0]); % 3T2R; letzter Eintrag Null, da beta_3 weg
-  RP.update_EE_FG(I_EE,I_EE_Task);
+  RP.Leg(1).I_EE = logical([1 1 1 1 1 0]);
+  RP.update_EE_FG(logical([1 1 1 1 1 0])); % 3T2R; letzter Eintrag Null, da beta_3 weg
   % Startpose
   X0 = [[0.1;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
   q0 = (-0.5+rand(RP.NJ,1))*2*60*pi/180; % zwischen -60° und +60°
@@ -136,9 +135,15 @@ for robnr = 1:3
   %% IK berechnen
   [q,phi] = RP.invkin_ser(X0, q0);
   [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
-  [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+  assert(all(size(Phi3_red)==[35,1]), 'Ausgabe 1 von constr3 muss 35x1 sein');
+  assert(all(size(Phi3_voll)==[36,1]), 'Ausgabe 2 von constr3 muss 36x1 sein');
   % Letzten Euler-Winkel auf den tatsächlichen Wert setzen.
   X0(6) = X0(6) + Phi3_voll(4);
+  % Aufruf der ZB-Modellierung 2. Ist für diese Art von Roboter aber
+  % nicht zielführend.
+  [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+  assert(all(size(Phi2_red)==[36,1]), 'Ausgabe 1 von constr2 muss 36x1 sein');
+  assert(all(size(Phi2_voll)==[36,1]), 'Ausgabe 2 von constr2 muss 36x1 sein');
   %% Roboter zeichnen
   figure(10+robnr);clf;
   hold on; grid on;
@@ -147,7 +152,8 @@ for robnr = 1:3
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
   RP.plot( q, X0, s_plot );
   hold off;
-  %% Jacobi-Matrix auswerten
+  %% Differentielle Kinematik über constr3
+  % Siehe [Bejaoui2020_M963] Kap. 4.2.
   % Jacobi q-Anteile
   [G_q,G_q_voll] = RP.constr3grad_q(q, X0); % automatisches herausnehmen
   assert(all(size(G_q)==[35 35]), 'ZB-matrix G_q muss 35x35 sein');
@@ -176,6 +182,8 @@ for robnr = 1:3
   
   J_qa_eta = Jinv_voll2(RP.I_qa,:); % Inverse Jacobi-Matrix des Roboters (eta-Koord)
   J_eta_qa = J_voll2(sum(RP.I_qd)+1:end,:); % Jacobi-Matrix (wird mit qaD multi.)
+  assert(all(size(J_qa_eta)==[5 5]), 'inverse Jacobi-Matri muss 5x5 sein');
+  assert(all(size(J_eta_qa)==[5 5]), 'Jacobi-Matri muss 5x5 sein');
   
   % Prüfe inverse Jacobi-Matrix gegen nicht-invertierte
   matrix_test = J_eta_qa*J_qa_eta - eye(5); % 5x5
@@ -319,6 +327,7 @@ for robnr = 1:3
   mkdirs(resdir);
   s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_PassivBK_%s.gif',RP.mdlname)));
   figure(2);clf;
+  set(2,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
   hold on;
   plot3(X(:,1), X(:,2), X(:,3));
   grid on;

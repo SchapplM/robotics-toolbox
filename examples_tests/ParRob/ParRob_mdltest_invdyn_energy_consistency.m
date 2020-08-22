@@ -129,6 +129,7 @@ for i_FG = 4%1:size(EEFG_Ges,1)
       Set.general.noprogressfigure = true;
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
+      % Set.general.create_template_functions = true; % Debug
       Traj = Traj_W;
       cds_start
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
@@ -261,6 +262,9 @@ for i_FG = 4%1:size(EEFG_Ges,1)
         elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
           Jinv_voll = -G4_q\G4_x;
         else % Modellierung für 3T2R-PKM
+          % Kann nicht erkennen, wenn die PKM ungültig ist. Dafür wird
+          % constr3 benötigt. Annahme: Alle PKM die hier aus der PKM-Daten-
+          % bank genommen werden, funktionieren. Nehmer daher constr2.
           Jinv_voll = -G2_q\G2_x;
         end
         qD = Jinv_voll*xD_red;
@@ -329,7 +333,8 @@ for i_FG = 4%1:size(EEFG_Ges,1)
         if ~all(EE_FG == [1 1 1 1 1 0])
           PHI_ges(i,:) = RP.constr1(q, x);
         else
-          PHI_ges(i,:) = RP.constr2(q, x);
+          % Nehme constr3, um sicher festzustellen, ob die PKM noch konsistent ist.
+          PHI_ges(i,:) = RP.constr3(q, x);
         end
         
         PHI_ges2(i,:) = Phi;

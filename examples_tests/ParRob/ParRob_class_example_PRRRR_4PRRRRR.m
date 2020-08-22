@@ -47,13 +47,20 @@ RP.initialize();
 
 % Kinematik-Parameter der Beinketten neu belegen (ungefähr wie in
 % [Gogu2008])
-pkin_all = [0.45,0.45,0.45,0.1,0.1,0.25,0,0,0,0,0,0,0,0;
-            0,0.65,0.75,0,0,0,0,0,0.1,0,0,0,0,0;
-            0,0.65,0.75,0,0,0,0,0,0.1,0,0,0,0,0;
-            0,0.65,0.75,0,0,0,0,0,0.1,0,0,0,0,0;
-            0,0.65,0.75,0,0,0,0,0,0.1,0,0,0,0,0]';%14x5
-for i = 1:RP.NLEG
-  RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
+pkin1 = zeros(length(RP.Leg(1).pkin), 1);
+pkin1(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.45;
+pkin1(strcmp(RP.Leg(1).pkin_names,'a3')) = 0.45;
+pkin1(strcmp(RP.Leg(1).pkin_names,'a4')) = 0.45;
+pkin1(strcmp(RP.Leg(1).pkin_names,'d3')) = 0.10;
+pkin1(strcmp(RP.Leg(1).pkin_names,'d4')) = 0.10;
+pkin1(strcmp(RP.Leg(1).pkin_names,'d5')) = 0.25;
+pkin2 = zeros(length(RP.Leg(2).pkin), 1);
+pkin2(strcmp(RP.Leg(2).pkin_names,'a3')) = 0.65;
+pkin2(strcmp(RP.Leg(2).pkin_names,'a4')) = 0.75;
+pkin2(strcmp(RP.Leg(2).pkin_names,'d2')) = 0.10;
+RP.Leg(1).update_mdh(pkin1);
+for i = 2:RP.NLEG
+  RP.Leg(i).update_mdh(pkin2);
 end
 
 % EE-KS mit Null-Rotation vorbelegen
@@ -92,8 +99,8 @@ if (I_EE & I_EE_Max) ~= I_EE
   error('unmögliche EE_FG')
 end
 
-I_EE_Legs = [RP.Leg(1).I_EE;RP.Leg(2).I_EE;RP.Leg(3).I_EE;RP.Leg(4).I_EE;RP.Leg(5).I_EE];
-RP.update_EE_FG(I_EE,I_EE_Task,I_EE_Legs);
+RP.Leg(1).I_EE = I_EE;
+RP.update_EE_FG(I_EE,I_EE_Task);
 
 %% PKM testen
 % Definition der Test-Pose
@@ -112,8 +119,12 @@ for i = 1:10
 end
 
 % Jacobi-Matrizen berechnen
-[~,G_q] = RP.constr3grad_q(q, X_E);
-[~,G_x] = RP.constr3grad_x(q, X_E);
+[G_q_red, G_q] = RP.constr3grad_q(q, X_E);
+assert(all(size(G_q_red)==[29,29]), 'Ausgabe 1 von constr3grad_q muss 29x29 sein');
+assert(all(size(G_q)==[30,29]), 'Ausgabe 2 von constr3grad_q muss 30x29 sein');
+[G_x_red, G_x] = RP.constr3grad_x(q, X_E);
+assert(all(size(G_x_red)==[29,5]), 'Ausgabe 1 von constr3grad_x muss 29x6 sein');
+assert(all(size(G_x)==[30,6]), 'Ausgabe 2 von constr3grad_x muss 30x6 sein');
 G_q(abs(G_q)<1e-12) = 0;
 G_x(abs(G_x)<1e-12) = 0;
 % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen 
@@ -146,7 +157,7 @@ fprintf('%s: Rang der PKM-Jacobi (aktiv -> passiv+EE): %d/%d\n', ...
 %% PKM zeichnen
 figure(1);clf;
 hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+xlabel('x in m');ylabel('y in m');zlabel('z in m');
 view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X_E, s_plot );
@@ -176,7 +187,7 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
 %% Roboter in Startpose mit Beispieltrajektorie plotten
 figure(2);clf;
 hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+xlabel('x in m');ylabel('y in m');zlabel('z in m');
 view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], ...
                  'ks_platform', RP.NLEG+[1,2], ...
@@ -302,9 +313,9 @@ figure(9);clf;
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));
 grid on;
-xlabel('x [m]');
-ylabel('y [m]');
-zlabel('z [m]');
+xlabel('x in m');
+ylabel('y in m');
+zlabel('z in m');
 view(3);
 title('Animation der kartesischen Trajektorie');
 RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);

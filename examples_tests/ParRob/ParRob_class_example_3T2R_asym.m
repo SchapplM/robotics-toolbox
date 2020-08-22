@@ -356,6 +356,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       end
     end
     % allgemeine Einstellungen
+    RP.Leg(1).I_EE = logical([1 1 1 1 1 0]);
     RP.update_EE_FG(logical([1 1 1 1 1 0]));
     % Startpose
     X0 = [[0.2;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
@@ -366,8 +367,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     X0(6) = 0;
     [q,phi] = RP.invkin_ser(X0, q);
     [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
-    [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+    assert(all(size(Phi3_red)==[29,1]), 'Ausgabe 1 von constr3 muss 29x1 sein');
+    assert(all(size(Phi3_voll)==[30,1]), 'Ausgabe 2 von constr3 muss 30x1 sein');
     X0(6) = X0(6) + Phi3_voll(4);
+    % Aufruf der ZB-Modellierung 2. Ist für diese Art von Roboter aber
+    % nicht zielführend.
+    [Phi2_red,Phi2_voll] = RP.constr2(q, X0);
+    assert(all(size(Phi2_red)==[30,1]), 'Ausgabe 1 von constr2 muss 30x1 sein');
+    assert(all(size(Phi2_voll)==[30,1]), 'Ausgabe 2 von constr2 muss 30x1 sein');
     %% Roboter zeichnen
     figure(fignum+1);clf;
     hold on; grid on;
@@ -378,9 +385,13 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     hold off;
     %% Jacobi-Matrix auswerten
     % Jacobi q-Anteile
-    [G_q,G_q_voll] = RP.constr3grad_q(q, X0); 
+    [G_q, G_q_voll] = RP.constr3grad_q(q, X0);
+    assert(all(size(G_q)==[29 29]), 'ZB-matrix G_q muss 29x29 sein');
+    assert(all(size(G_q_voll)==[30 29]), 'ZB-matrix G_q_voll muss 30x29 sein');
     % Jacobi x-Anteile (dim bei G_x_red von constr3grad noch nicht richtig)
-    [~,G_x_voll] = RP.constr3grad_x(q, X0);
+    [G_x_red, G_x_voll] = RP.constr3grad_x(q, X0);
+    assert(all(size(G_x_red)==[29 5]), 'ZB-matrix G_x_red muss 29x5 sein');
+    assert(all(size(G_x_voll)==[30 6]), 'ZB-matrix G_x_voll muss 30x6 sein');
     G_x = G_x_voll(RP.I_constr_red,:);
     G_eta = G_x_voll(RP.I_constr_red,RP.I_EE_Task);
     % Aufteilung der Ableitung nach den Gelenken in Gelenkklassen
@@ -544,6 +555,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     mkdirs(resdir);
     s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_asym_test_%s.gif',RP.mdlname)));
     figure(fignum+3);clf;
+    set(fignum+3,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
     hold on;
     plot3(X(:,1), X(:,2), X(:,3));
     grid on;
