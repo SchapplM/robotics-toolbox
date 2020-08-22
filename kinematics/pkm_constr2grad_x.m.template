@@ -71,45 +71,28 @@ s_4 = struct(     'I_EE', s.I_EE,...
          'Leg_I_EE_Task', s.Leg_I_EE_Task,...
            'Leg_phi_W_0', s.Leg_phi_W_0,...
        'Leg_phiconv_W_0', s.Leg_phiconv_W_0);                
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:6*s.NLEG;
+if %NJ% == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(4:6:end) = []; % entspricht z-Euler-Winkel
+end
 
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tt_red,Phi_tt]=%PN%_constr2grad_tt(s_1);
-[Phi_tr_red,Phi_tr]=%PN%_constr2grad_tr(xE, s_2);
-[Phi_rt_red,Phi_rt]=%PN%_constr2grad_rt(s_3);
-[Phi_rr_red,Phi_rr]=%PN%_constr2grad_rr(q, xE, s_4);
-
-% Anzahl ZB
-nPhit = size(Phi_tt_red,1)/s.NLEG;
-nPhir = size(Phi_rr_red,1)/s.NLEG;
-nPhi = nPhit + nPhir;
+[~, Phi_tt] = %PN%_constr2grad_tt(s_1);
+[~, Phi_tr] = %PN%_constr2grad_tr(xE, s_2);
+[~, Phi_rt] = %PN%_constr2grad_rt(s_3);
+[~, Phi_rr] = %PN%_constr2grad_rr(q, xE, s_4);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
-dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
-dim_Px_red=[size(Phi_tt_red,1)+size(Phi_rt_red,1), size(Phi_tt_red,2)+size(Phi_tr_red,2)];
-
-Phi_x_red = NaN(dim_Px_red);
-Phi_x =     NaN(dim_Px);
-
-
+Phi_x = NaN(6*s.NLEG, 6);
 
 for i = 1:s.NLEG
-     % Anzahl der Zwangsbedingungen 
-     nPhit = floor(size(Phi_tt_red,1)/s.NLEG);
-     nPhir = floor((size(Phi_rr_red ,1))/s.NLEG);
-     nPhi = nPhit + nPhir;
-     
-     % oder feste zahlen so(unguenstig)
-     % nPhir = 2;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen
-     % nPhit = 3;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen 
-
-     Phi_x_red((i-1)*nPhi+1:(i)*nPhi,:) = ...
-     [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)]; % nur fuer symmetrisch
- 
-     Phi_x((i-1)*6+1:(i)*6, :) = ...
+  Phi_x((i-1)*6+1:(i)*6, :) = ...
     [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
      Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
 end
+Phi_x_red = Phi_x(I_constr_red, s.I_EE);

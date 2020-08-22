@@ -31,39 +31,32 @@ assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2grad_q: xE muss 6x1 sein');
 
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:6*Rob.NLEG;
+if Rob.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(4:6:end) = []; % entspricht z-Euler-Winkel
+end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[Phi_tq_red,Phi_tq]=Rob.constr2grad_tq(q);
-[Phi_rq_red,Phi_rq]=Rob.constr2grad_rq(q, xE);
-
-% Anzahl ZB
-nPhit = size(Phi_tq_red,1)/Rob.NLEG;
-nPhir = size(Phi_rq_red,1)/Rob.NLEG;
-nPhi = nPhit + nPhir;
+[~, Phi_tq] = Rob.constr2grad_tq(q);
+[~, Phi_rq] = Rob.constr2grad_rq(q, xE);
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-dim_Pq_red=[size(Phi_tq_red,1) + size(Phi_rq_red ,1), size(Phi_rq_red,2)];
-dim_Pq =   [size(Phi_tq,1)     + size(Phi_rq,1),      size(Phi_rq,    2)];
-
 if ~Rob.issym
-  Phi_q_red = NaN(dim_Pq_red);
-  Phi_q =     NaN(dim_Pq);
+  Phi_q = NaN(6*Rob.NLEG, Rob.NJ);
 else
-  Phi_q_red = sym('xx', dim_Pq_red);
-  Phi_q_red(:)=0;
-  Phi_q = sym('xx',     dim_Pq);
-  Phi_q(:)=0;
+  Phi_q = sym('xx', 6*Rob.NLEG, Rob.NJ);
+  Phi_q(:) = 0;
 end
 
 %% Belegung der Ausgabe
 % Entspricht [2_SchapplerTapOrt2019a]/(32)
 for i = 1:Rob.NLEG
-  Phi_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
   Phi_q((i-1)*6+1:(i)*6, :) = ...
     [Phi_tq((i-1)*3+1:(i)*3, :); ...
      Phi_rq((i-1)*3+1:(i)*3, :)];
 end
+Phi_q_red = Phi_q(I_constr_red, :);

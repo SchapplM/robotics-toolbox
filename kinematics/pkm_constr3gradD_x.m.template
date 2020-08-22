@@ -40,6 +40,7 @@ function [PhiD_x_red, PhiD_x] = %PN%_constr3gradD_x(q, qD, xE, xDE, s)
 %$cgargs              'NJ', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs    'I_constr_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -53,9 +54,6 @@ function [PhiD_x_red, PhiD_x] = %PN%_constr3gradD_x(q, qD, xE, xDE, s)
 
 
 %% Initialisierung
-
-
-
 s1 = struct(        'I_EE', s.I_EE,...
           'I_constr_t_red', s.I_constr_t_red,...
                     'NLEG', s.NLEG,...
@@ -82,38 +80,20 @@ s4 = struct(        'I_EE', s.I_EE,...
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-%%% calling of the differentiation of the  kinematic constraint of the
-%%% platform can be found in Modelling sets of Euler angles
-[PhiD_tt_red,PhiD_tt]=%PN%_constr2gradD_tt(s1);
-[PhiD_tr_red,PhiD_tr]=%PN%_constr2gradD_tr(xE, xDE, s2);
-[PhiD_rt_red,PhiD_rt]=%PN%_constr3grad_rt(s3); % Term und Ableitung Null.
-[PhiD_rr_red,PhiD_rr]=%PN%_constr3gradD_rr(q, qD, xE, xDE, s4);
+[~, PhiD_tt] = %PN%_constr2gradD_tt(s1);
+[~, PhiD_tr] = %PN%_constr2gradD_tr(xE, xDE, s2);
+[~, PhiD_rt] = %PN%_constr3grad_rt(s3); % Term und Ableitung Null.
+[~, PhiD_rr] = %PN%_constr3gradD_rr(q, qD, xE, xDE, s4);
 
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
-dim_Px =   [size(PhiD_tt,    1)+size(PhiD_rt,    1), size(PhiD_tt,    2)+size(PhiD_tr,    2)];
-dim_Px_red=[size(PhiD_tt_red,1)+size(PhiD_rt_red,1), size(PhiD_tt_red,2)+size(PhiD_tr_red,2)];
-
-PhiD_x_red = NaN(dim_Px_red);
-PhiD_x =     NaN(dim_Px);
-
+PhiD_x = NaN(6*s.NLEG, 6);
 
 %% Belegung der Ausgabe
 for i = 1:s.NLEG
-  % Anzahl der Zwangsbedingungen
-  nPhit = floor(size(PhiD_tt_red,1)/s.NLEG);
-  nPhir = floor((size(PhiD_rr_red ,1))/s.NLEG);
-  nPhi = nPhit + nPhir;
-  
-  % oder feste zahlen so(unguenstig)
-  % nPhir = 2;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen
-  % nPhit = 3;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen 
-  PhiD_x_red((i-1)*nPhi+1:(i)*nPhi,:) = ...
-    [PhiD_tt_red((i-1)*nPhit+1:(i)*nPhit, :), PhiD_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-    PhiD_rt_red((i-1)*nPhir+1:(i)*nPhir, :), PhiD_rr_red((i-1)*nPhir+1:(i)*nPhir, :)]; % nur fuer symmetrisch
-  
   PhiD_x((i-1)*6+1:(i)*6, :) = ...
     [PhiD_tt((i-1)*3+1:(i)*3, :), PhiD_tr((i-1)*3+1:(i)*3, :); ...
-    PhiD_rt((i-1)*3+1:(i)*3, :), PhiD_rr((i-1)*3+1:(i)*3, :)];
+     PhiD_rt((i-1)*3+1:(i)*3, :), PhiD_rr((i-1)*3+1:(i)*3, :)];
 end
+PhiD_x_red = PhiD_x(s.I_constr_red, s.I_EE);

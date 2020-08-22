@@ -883,6 +883,7 @@ classdef ParRob < RobBase
       if nargin < 4
         % TODO: Bei 3T2R stimmt das eventuell nicht, wenn Beinketten 5
         % Gelenke haben
+        % TODO: Diese Eingabe kann entfernt werden.
         I_EE_Legs = logical(repmat(I_EE_Task, R.NLEG,1));
       end
       R.I_EE_Task = logical(I_EE_Task);

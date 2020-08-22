@@ -59,6 +59,12 @@ function [PhiDpphi_red, PhiDpphi] = %PN%_constr2gradD_rr(q, qD, xE ,xDE, s)
 %% Initialisierung
 
 NLEG = s.NLEG;
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:3*%NLEG%;
+if %NJ% == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(1:3:end) = [];
+end
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36); Gl. (C.35)
@@ -147,15 +153,9 @@ for iLeg = 1:NLEG
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   PhiDpphi(J1:J2,:) = Phi_phi_i_GradxD;
-  
-  % Ausgabe mit reduzierter Dimension
-  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  K1 = 1+sum(s.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(s.I_EE(4:6))-1;
-  if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
-    PhiDpphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],s.I_EE(4:6));
-  else
-    PhiDpphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_GradxD(s.I_EE(4:6),s.I_EE(4:6)); % das war vor anpassung
-  end
 end
+% Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG
+% Nur für symmetrische 3T2R-PKM wird die erste Komponente für jede
+% Beinkette entfernt. Dies entspricht der zu entfernenden Rotation um die
+% z-Achse.
+PhiDpphi_red = PhiDpphi(I_constr_red,:);

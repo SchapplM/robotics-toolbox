@@ -22,10 +22,11 @@ function [Phipx_red, Phipx] = constr2grad_rt(Rob)
 % Die Translation hat keinen Einfluss auf die Rotation
 % Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
 Phipx = zeros(3*Rob.NLEG,3);
-% TODO: Die Aufteilung hier ist unlogisch
-Phipx_red = zeros( sum(Rob.I_EE(4:6))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
-% if (Rob.NLEG == 5 && all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) ) % Rob.I_EE = Rob.I_EE_Task, da bezug auf Plattform
-%     Phipx_red = zeros( sum(Rob.I_EE(4:6))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
-% else
-%     Phipx_red = zeros( sum(Rob.I_EE(1:3))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
-% end
+
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+n_constr_r_red = 3*Rob.NLEG;
+if Rob.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  n_constr_r_red = 2*Rob.NLEG;
+end
+Phipx_red = zeros(n_constr_r_red, sum(Rob.I_EE(1:3)) );

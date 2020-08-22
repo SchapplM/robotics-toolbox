@@ -42,8 +42,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr2D: xDE muss 6x1 sein');
 
-[~, Phi_q] = R.constr2grad_q(q, xE);
-[~, Phi_x] = R.constr2grad_x(q, xE);
+[Phi_q_red, Phi_q] = R.constr2grad_q(q, xE);
+[Phi_x_red, Phi_x] = R.constr2grad_x(q, xE);
 PhiD = Phi_q*qD + Phi_x*xDE;
-% TODO: Hier richtig machen:
-PhiD_red = PhiD; % Phi_q_red*qD + Phi_x_red*xDE;
+PhiD_red = Phi_q_red*qD + Phi_x_red*xDE(R.I_EE);

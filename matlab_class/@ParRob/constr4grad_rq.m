@@ -45,8 +45,9 @@ end
 
 
 %% Berechnung
-% Berechnung aus dem translatorischen Teil der Jacobi-Matrix der seriellen
-% Beinketten 
+% Berechnung aus dem rotatorischen Teil der Jacobi-Matrix der seriellen
+% Beinketten
+K1 = 1;
 for i = 1:NLEG
   IJ_i = Rob.I1J_LEG(i):Rob.I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
@@ -57,25 +58,16 @@ for i = 1:NLEG
   J0i_i_rotg = Rob.Leg(i).jacobiw(qs);
   J_Ai_Bi = R_0_0i*J0i_i_rotg; % Bezug auf das Basis-KS der PKM
 
-  if ~Rob.issym
-    dPhidqJi = zeros(3*NLEG,Rob.Leg(i).NQJ);
-    dPhidqJi_red = zeros(sum(Rob.Leg(i).I_EE_Task(4:6))*NLEG,Rob.Leg(i).NQJ);
-  else
-    dPhidqJi = sym('xx', [3*NLEG,Rob.Leg(i).NQJ]);
-    dPhidqJi(:)=0;
-    dPhidqJi_red = sym('xx', [sum(Rob.Leg(i).I_EE_Task(4:6))*NLEG,Rob.Leg(i).NQJ]);
-    dPhidqJi_red(:)=0;
-  end
-  
+  %% In Endergebnis einsetzen
+  I1 = 1+3*(i-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
+  I2 = I1+2; % drei rotatorische Einträge
   % Gl. A.10
-  dPhidqJi(3*(i-1)+1:3*(i),:) = J_Ai_Bi;
-  Phi_q(:,IJ_i) = dPhidqJi;
+  Phi_q(I1:I2,IJ_i) = J_Ai_Bi;
   
   % Eintragen in Ergebnis-Variable
-  I1 = sum(Rob.Leg(i).I_EE_Task(4:6))*(i-1)+1;
-  I2 = I1+sum(Rob.Leg(i).I_EE_Task(4:6))-1;
   if ~isempty(Phi_q_red)
-    dPhidqJi_red(I1:I2,:) = J_Ai_Bi(Rob.Leg(i).I_EE_Task(4:6),:);
-    Phi_q_red(:,IJ_i) = dPhidqJi_red;
+    K2 = K1+sum(Rob.Leg(i).I_EE_Task(4:6))-1;
+    Phi_q_red(K1:K2,IJ_i) = J_Ai_Bi(Rob.Leg(i).I_EE_Task(4:6),:);
+    K1 = K2+1;
   end
 end

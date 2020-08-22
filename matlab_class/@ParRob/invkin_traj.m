@@ -229,13 +229,9 @@ for k = 1:nt
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
-    [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
-    [~,    Phi_x_voll] = Rob.constr3grad_x(q_k, x_k); 
-    % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
-    % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
-    % Systeme mit Beinketten mit fünf Gelenken. TODO: Noch aktuell?
-    I = Rob.I_constr_red;
-    Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+    [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
+    [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
+    Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
     if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
@@ -285,10 +281,9 @@ for k = 1:nt
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
-      [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
-      [~,     Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
-      I = Rob.I_constr_red;
-      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+      [Phi_qD,     Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
+      [Phi_xD_tmp, Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+      Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.

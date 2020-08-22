@@ -44,27 +44,30 @@ function [Phipq_red, Phipq] = constr2gradD_rq(Rob, q, qD, xE, xDE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_rq: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2gradD_rq: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_rq: qD muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2gradD_rq: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr1gradD_rq: xE muss 6x1 sein');
+  'ParRob/constr2gradD_rq: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/constr1gradD_rq: xDE muss 6x1 sein');
+  'ParRob/constr2gradD_rq: xDE muss 6x1 sein');
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:3*Rob.NLEG;
+if NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(1:3:end) = [];
+end
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis, siehe [2_SchapplerTapOrt2019a]/34 oder Gl. (B.30)
 
 if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
-  Phipq_red = zeros(sum(Rob.I_EE(4:6))*NLEG,NJ);
 else
   Phipq = sym('phi', [3*NLEG,NJ]);
   Phipq(:)=0;
-  Phipq_red = sym('phi', [sum(Rob.I_EE(4:6))*NLEG,NJ]);
-  Phipq_red(:)=0;
 end
 
 %% Berechnung
@@ -164,18 +167,10 @@ for iLeg = 1:NLEG
   J1 = Rob.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
   J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
-  
-  
-  K2 = K1+sum(Rob.I_EE(4:6))-1; % drei rotatorische Einträge
-  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  alpha_logical = [0 1 1];
-  alpha_logical = logical(mod(alpha_logical,2)); % logical [0 1 1]
-%   Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(alpha_logical,:);
-  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
-    Phipq_red( K1:K2, J1:J2) = PhiD_phi_i_Gradq([2 3],:);
-  else
-    Phipq_red( K1:K2, J1:J2) = PhiD_phi_i_Gradq(Rob.I_EE(4:6),:); % das war vor anpassung
-  end
-  K1 = K2+1;
 end
+
+% Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG
+% Nur für symmetrische 3T2R-PKM wird die erste Komponente für jede
+% Beinkette entfernt. Dies entspricht der zu entfernenden Rotation um die
+% z-Achse.
+Phipq_red = Phipq(I_constr_red,:);

@@ -38,8 +38,12 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2_rot: xE muss 6x1 sein');
 NLEG = Rob.NLEG;
 Phi = NaN(3*NLEG,1);
-Phi_red = NaN(sum(Rob.I_EE(4:6))*NLEG,1);
-
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:3*Rob.NLEG;
+if Rob.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(1:3:end) = [];
+end
 R_P_E = Rob.T_P_E(1:3,1:3);
 
 %% Berechnung
@@ -73,16 +77,7 @@ for iLeg = 1:NLEG
 end
 
 % Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG
-for iLeg = 1:NLEG
-  % Indizes für volle ZB
-  J1 = 1+3*(iLeg-1);
-  J2 = J1+2;
-  % Indizes für reduzierte ZB
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
-  % Auswahl der wirklich benötigten Einträge
-  Phi_i = Phi(J1:J2,:); % hier noch keine Elimination
-  if all(Rob.Leg(iLeg).I_EE == logical([1 1 1 1 1 0]))
-    Phi_red(K1:K2,:) = Phi_i([2 3]); % anstatt logical Rob.I_EE (1 1 0)
-  end
-end
+% Nur für symmetrische 3T2R-PKM wird die erste Komponente für jede
+% Beinkette entfernt. Dies entspricht der zu entfernenden Rotation um die
+% z-Achse.
+Phi_red = Phi(I_constr_red);

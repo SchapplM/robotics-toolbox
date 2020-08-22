@@ -33,47 +33,40 @@ function [PhiD_q_red, PhiD_q] = constr2gradD_q(Rob, q, qD, xE, xDE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_q: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2gradD_q: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_q: qD muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2gradD_q: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr1gradD_q: xE muss 6x1 sein');
+  'ParRob/constr2gradD_q: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/constr1gradD_q: xDE muss 6x1 sein');
+  'ParRob/constr2gradD_q: xDE muss 6x1 sein');
 
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:6*Rob.NLEG;
+if Rob.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(4:6:end) = []; % entspricht z-Euler-Winkel
+end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[PhiD_tq_red,PhiD_tq]=Rob.constr2gradD_tq(q, qD);
-[PhiD_rq_red,PhiD_rq]=Rob.constr2gradD_rq(q, qD, xE, xDE);
-
-% Anzahl ZB
-nPhit = floor(size(PhiD_tq_red,1)/Rob.NLEG);
-nPhir = floor((size(PhiD_rq_red ,1))/Rob.NLEG);
-nPhi = nPhit + nPhir;
+[~,PhiD_tq] = Rob.constr2gradD_tq(q, qD);
+[~,PhiD_rq] = Rob.constr2gradD_rq(q, qD, xE, xDE);
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-dim_Pq_red=[size(PhiD_tq_red,1) + size(PhiD_rq_red ,1), size(PhiD_rq_red,2)];
-dim_Pq =   [size(PhiD_tq,1)     + size(PhiD_rq,1),      size(PhiD_rq,    2)];
-
 if ~Rob.issym
-  PhiD_q_red = NaN(dim_Pq_red);
-  PhiD_q =     NaN(dim_Pq);
+  PhiD_q = NaN(6*Rob.NLEG, Rob.NJ);
 else
-  PhiD_q_red = sym('xx', dim_Pq_red);
-  PhiD_q_red(:)=0;
-  PhiD_q = sym('xx',     dim_Pq);
+  PhiD_q = sym('xx', [6*Rob.NLEG, Rob.NJ]);
   PhiD_q(:)=0;
 end
 
 %% Belegung der Ausgabe
 % Entspricht [2_SchapplerTapOrt2019a]/(32)
 for i = 1:Rob.NLEG
-  PhiD_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     PhiD_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
   PhiD_q((i-1)*6+1:(i)*6, :) = ...
     [PhiD_tq((i-1)*3+1:(i)*3, :); ...
      PhiD_rq((i-1)*3+1:(i)*3, :)];
 end
+PhiD_q_red = PhiD_q(I_constr_red, :);

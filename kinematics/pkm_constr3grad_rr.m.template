@@ -135,15 +135,14 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
   
   % Ausgabe mit reduzierter Dimension
-  % TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
-  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
   % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
   % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  K1 = 1+sum(s.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(s.I_EE(4:6))-1;
+  K1 = 1; % nur eine Beinkette betrachtet.
   if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
+    K2 = 2;
     Phipphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],s.I_EE(4:6));
   else
+    K2 = sum(s.I_EE(4:6));
     Phipphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_Gradx(s.I_EE(4:6),s.I_EE(4:6)); % das war vor anpassung
   end
 end

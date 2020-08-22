@@ -121,10 +121,10 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
   % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
+  K2 = K1+sum(Rob.I_EE_Task(4:6))-1;
   if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
     Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6));
   else
-    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6)); % das war vor anpassung
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));
   end
 end

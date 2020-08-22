@@ -90,35 +90,27 @@ s2 = struct(        'I_EE', s.I_EE,...
              'Leg_phi_W_0', s.Leg_phi_W_0,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
 
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:6*s.NLEG;
+if s.NJ==25 % Workaround um symmetrische 3T2R-PKM zu erkennen.
+  I_constr_red(4:6:end) = []; % entspricht z-Euler-Winkel
+end
+
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[PhiD_tq_red,PhiD_tq]=%PN%_constr2gradD_tq(q, qD, s1); % calling of the differentiation of the translational kinematic constraints
-[PhiD_rq_red,PhiD_rq]=%PN%_constr2gradD_rq(q, qD, xE, xDE, s2); % calling of the differentiation of the rotational kinematic constraints
+[~, PhiD_tq] = %PN%_constr2gradD_tq(q, qD, s1);
+[~, PhiD_rq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s2);
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-dim_Pq_red=[size(PhiD_tq_red,1) + size(PhiD_rq_red ,1), size(PhiD_rq_red,2)];
-dim_Pq =   [size(PhiD_tq,1)     + size(PhiD_rq,1),      size(PhiD_rq,    2)];
-
-
-PhiD_q_red = NaN(dim_Pq_red);
-PhiD_q =     NaN(dim_Pq);
-
-
-% Anzahl ZB
-% TODO: Das funktioniert wahrscheinlich nicht bei allen asymmetrischen PKM,
-% falls planare Roboter modelliert werden.
-nPhit = floor(size(PhiD_tq_red,1)/s.NLEG);
-nPhir = floor((size(PhiD_rq_red ,1))/s.NLEG);
-nPhi = nPhit + nPhir;
+PhiD_q = NaN(6*s.NLEG, s.NJ);
 
 %% Belegung der Ausgabe
 for i = 1:s.NLEG
-  PhiD_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     PhiD_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
   PhiD_q((i-1)*6+1:(i)*6, :) = ...
     [PhiD_tq((i-1)*3+1:(i)*3, :); ...
      PhiD_rq((i-1)*3+1:(i)*3, :)];
 end
+PhiD_q_red = PhiD_q(I_constr_red, :);
