@@ -11,6 +11,10 @@ this_repo_path = fullfile(fileparts(which('robotics_toolbox_path_init.m')));
 addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'ParRob'));
 
+%% Kompiliere Abhängigkeiten
+mex_script_dependencies('ParRob', true);
+matlabfcn2mex({'check_collisionset_simplegeom'});
+
 %% Allgemeine Funktionen
 ParRob_transformations_test; close all;
 

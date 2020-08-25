@@ -16,6 +16,14 @@ Einige Funktionen benötigen das Repo `matlab-ext` mit externen Funktionen und T
 
 Für die Matlab-Klasse SerRob muss die Sammlung externer Robotermodelle `serrob_mdlbib` (für serielle Roboter) und ggf. `serhybrob-mdl` (für hybride Roboter) initialisiert sein.
 
+#### Kompilierung
+
+Für die Benutzung der ParRob-Klasse müssen vorher einmalig deren mex-Abhängigkeiten kompiliert werden:  
+`mex_script_dependencies('ParRob', true);`
+
+Für die Benutzung der Kollisionserkennung muss einmalig die Funktion dafür kompiliert werden:  
+`matlabfcn2mex({'check_collisionset_simplegeom'});`
+
 ### Modultests
 
 Die einzelnen Funktionen des Repos können über die Modultests aus dem Ordner `examples_tests` gestartet werden. Die Funktionsfähigkeit des Gesamt-Repos kann mit dem Gesamt-Testskript `robotics_toolbox_test_repo.m` aus dem Hauptordner geprüft werden.

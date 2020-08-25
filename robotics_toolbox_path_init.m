@@ -23,5 +23,5 @@ addpath(fullfile(this_tb_path, 'matlab_class'));
 % Ergebnis-Ordner für Ausgabe der Test-Skripte erstellen
 mkdirs(fullfile(this_tb_path, 'examples_tests', 'results'));
 
-% Abhängigkeiten kompilieren
-mex_script_dependencies('ParRob', true);
+% Abhängigkeiten nicht kompilieren; verzögert den Start von Matlab zu sehr
+% mex_script_dependencies('ParRob', true);
