@@ -949,6 +949,10 @@ classdef ParRob < RobBase
           % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
           % Wahl von constr3 oder constr2 voraus.
           R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+          % Berücksichtige in den Indizes der rotatorischen ZB, dass die
+          % reziproken Euler-Winkel benutzt werden. Vorher: Indizes 4 und 5
+          % in Gesamt-ZB, nachher: Indizes 5 und 6
+          R.I_constr_r_red(i_rred:i_rred+nPhir-1) = R.I_constr_r_red(i_rred:i_rred+nPhir-1)+1;
         else
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...

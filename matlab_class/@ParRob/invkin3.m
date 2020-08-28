@@ -115,12 +115,8 @@ end
 delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
+I_constr_r_red = Rob.I_constr_r_red;
 I_IK = Rob.I_constr_red;
-if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  I_constr_r_red = setdiff(I_IK,Rob.I_constr_t);
-else
-  I_constr_r_red = Rob.I_constr_r_red;
-end
 
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
