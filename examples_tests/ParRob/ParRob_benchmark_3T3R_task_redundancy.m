@@ -228,7 +228,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
     'wn', [0;1], 'K', 7e-1*ones(RP.NJ,1), ...
     'Kn', 0.7*ones(RP.NJ,1), ...
     'scale_lim', 0.7, ...
-    'retry_limit', 0, 'I_EE', I_EE_3T2R, ...
+    'retry_limit', 0, 'I_EE_Task', I_EE_3T2R, ...
     'maxrelstep', 0.25); % Grenzen sind nicht so breit; nehme größere max. Schrittweite
   % Würfel-Trajektorie (Kantenlänge 300mm
   d1=0.15; h1=0.15;
@@ -314,7 +314,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
       t3 = tic();
       RP.update_EE_FG(I_EE_3T3R, I_EE_3T3R);
       s_ep_3T3R = s_ep; % Neue Konfiguration für Einzelpunkt-IK mit 3T3R
-      s_ep_3T3R.I_EE = I_EE_3T3R; % keine Aufgabenredundanz
+      s_ep_3T3R.I_EE_Task = I_EE_3T3R; % keine Aufgabenredundanz
       s_ep_3T3R.scale_lim = 0; % Grenzen ignorieren. Gibt eh nur eine Lösung
       qs_globopt = qs;
       for j = 1:nsteps_angle % in 2-Grad-Schritten durchgehen
@@ -494,7 +494,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
     QD_t_all(:,:,kk) = QD_t_kk;
     QDD_t_all(:,:,kk) = QDD_t_kk;
     % Das gleiche nochmal mit der Klassenmethode
-    if false && test_class_methods
+    if test_class_methods
       t1=tic();
       [Q_t_tpl, QD_t_tpl, QDD_t_tpl, Phi_t_kls] = RP.invkin_traj(X_t, XD_t, XDD_t, t, q1, s_kk);
       fprintf('Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs (Klassen-Methode)\n', kk, name_method, toc(t1));
@@ -788,8 +788,8 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   RP.update_EE_FG(I_EE_3T3R, I_EE_3T3R);
   s_Traj_z = s;
   s_Traj_z.normalize = false;
-  s_Traj_z.wn = [0;0];
-  s_Traj_z.I_EE = logical([1 1 1 1 1 1]);
+  s_Traj_z.wn = [0;0;0;0];
+  s_Traj_z.I_EE_Task = logical([1 1 1 1 1 1]);
   s_Traj_z.mode_IK = 1; % Einzelpunkt-IK
   nzE = 360/10;
   Q_z_all = NaN(n, RP.NJ, nzE);
@@ -885,14 +885,15 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
                      'mp4_name', [anim_filename,'.mp4'] );
     s_plot = struct( 'ks_legs', [], 'straight', 0);
     change_current_figure(100*robnr+30+kk);clf;hold all;
-    set(100*robnr+30+kk, 'name', sprintf('Rob%d_Anim_M%d', robnr, kk), 'NumberTitle', 'off', ...
-      'units','normalized','outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
+    set(100*robnr+30+kk, 'name', sprintf('Rob%d_Anim_M%d', robnr, kk), ...
+      'color','w', 'NumberTitle', 'off', 'units','normalized',...
+      'outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
     view(3);
     axis auto
     hold on;grid on;
     xlabel('x in m');ylabel('y in m');zlabel('z in m');
     plot3(X_t(:,1), X_t(:,2), X_t(:,3));
-    RP.anim( Q_t(1:20:size(Q_t,1),:), X_t(1:20:size(X_t,1),:), s_anim, s_plot);
+    RP.anim( Q_t, X_t, s_anim, s_plot);
     fprintf('Animation der Bewegung gespeichert: %s\n', s_anim.gif_name);
   end
 

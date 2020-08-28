@@ -34,13 +34,14 @@ mkdirs(respath);
 
 %% Alle Roboter durchgehen
 
-for i_FG = 4%1:size(EEFG_Ges,1)
+for i_FG = 1:size(EEFG_Ges,1)
   ResStat = table();
   num_robots_tested = 0;
   num_robots_success = 0;
   robot_list_succ = {};
   robot_list_fail = {};
   EE_FG = EEFG_Ges(i_FG,:);
+  fprintf('Untersuche Energiekonsistenz für %dT%dR-PKM\n', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
   [PNames_Kin, ~] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
   if isempty(PNames_Kin)
     continue % Es gibt keine PKM mit diesen FG.
@@ -48,7 +49,7 @@ for i_FG = 4%1:size(EEFG_Ges,1)
   % III = find(strcmp(PNames_Kin, 'P3RRR1G1P1')); % Debug; P6RRPRRR14V3G1P4
   for ii = 1:length(PNames_Kin)
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
-    fprintf('Untersuche PKM %s\n', PName);
+    fprintf('Untersuche PKM %d/%d: %s\n', ii, length(PNames_Kin), PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
 
     %% Roboter Initialisieren
@@ -427,31 +428,33 @@ for i_FG = 4%1:size(EEFG_Ges,1)
       end
       Ip_end = i;
       RTratio = Tges(Ip_end)/toc(t1);
-      fprintf('Dauer für %1.0f Simulationsschritte (%1.2fs simulierte Zeit): %1.2fs (%1.0f%% Echtzeit)\n', ...
-        i, Tges(Ip_end), toc(t1), 100*RTratio);
+      fprintf(['Dauer für %d Simulationsschritte (%1.2fs simulierte Zeit): ', ...
+        '%1.2fs (%1.0f%% Echtzeit)\n'], Ip_end, Tges(Ip_end), toc(t1), 100*RTratio);
       %% Konsistenz der PKM berechnen
       % Falls es hier einen Fehler gibt, hat die differentielle Kinematik
       % oben nicht funktioniert. PKM-EE für jede Beinkette einzeln berechnen
-      X_fromlegs = NaN(nt, 6, RP.NLEG);
-      XD_fromlegs = NaN(nt, 6, RP.NLEG);
-      XDD_fromlegs = NaN(nt, 6, RP.NLEG);
+      X_fromlegs = NaN(Ip_end, 6, RP.NLEG);
+      XD_fromlegs = NaN(Ip_end, 6, RP.NLEG);
+      XDD_fromlegs = NaN(Ip_end, 6, RP.NLEG);
       for j = 1:RP.NLEG
         [X_fromlegs(1:Ip_end,:,j),XD_fromlegs(1:Ip_end,:,j),XDD_fromlegs(1:Ip_end,:,j)] = ...
           RP.fkineEE_traj(Q_ges(1:Ip_end,:), QD_ges(1:Ip_end,:), QDD_ges(1:Ip_end,:), j);
         if j > 1
-          test_X = X_fromlegs(:,1:5, 1) - X_fromlegs(:,1:5, j);
+          % Teste nur bis zum vorletzten Zeitpunkt. Der letzte kann schon
+          % durch eine Singularität beeinträchtigt sein
+          test_X = X_fromlegs(1:end-1,1:5, 1) - X_fromlegs(1:end-1,1:5, j);
           if any(abs(test_X(:))>1e-6)
             error(['Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht ', ...
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
               find(any(abs(test_X)>1e-6,2),1,'first'), nt);
           end
-          test_XD = XD_fromlegs(:,1:6,1) - XD_fromlegs(:,1:6,j);
+          test_XD = XD_fromlegs(1:end-1,1:6,1) - XD_fromlegs(1:end-1,1:6,j);
           if any(abs(test_XD(:))>1e-6)
             error(['Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht ', ...
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
               find(any(abs(test_XD)>1e-6,2),1,'first'), nt);
           end
-          test_XDD = XDD_fromlegs(:,1:6,1) - XDD_fromlegs(:,1:6,j);
+          test_XDD = XDD_fromlegs(1:end-1,1:6,1) - XDD_fromlegs(1:end-1,1:6,j);
           if any(abs(test_XDD(:))>1e-6)
             warning(['Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht ', ...
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
@@ -630,7 +633,7 @@ for i_FG = 4%1:size(EEFG_Ges,1)
         end
       end
       
-      if usr_plot_animation && i > 1
+      if usr_plot_animation && Ip_end > 1
         %% Plot des Roboters in Startpose
         change_current_figure(5);clf;hold all;
         xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
@@ -658,7 +661,7 @@ for i_FG = 4%1:size(EEFG_Ges,1)
       % Simulation abbricht, ist sie hier noch nicht wirksam.
       % Starte Validierung erst nach 20% der Zeit. Annahme: Beim Start ist
       % die Bezugsgröße noch zu klein für einen relativen Fehler
-      if i == 1
+      if Ip_end == 1
         I_test2080 = 1;
         I_test0530 = 1;
         I_till1stsing = 1;
@@ -685,13 +688,13 @@ for i_FG = 4%1:size(EEFG_Ges,1)
         n_succ = n_succ + 1;
       end
       TrajUntil1stSing = I_till1stsing(end) / Ip_end;
-      TrajAchieved = i/nt; % Anteil der Simulationsdauer, die geschafft wurde
+      TrajAchieved = Ip_end/nt; % Anteil der Simulationsdauer, die geschafft wurde
       % Ergebnis in Tabelle abspeichern
       ResStat = [ResStat; {PName, jm, Pdiss_relerrori1stsing, ...
         Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, 100*TrajAchieved, 100*RTratio, double(~fail)}]; %#ok<AGROW>
     end
-    fprintf('%d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
-      n_succ+n_fail, n, n_succ, n_fail, n-(n_succ+n_fail));
+    fprintf(['%d/%d Testkombinationen für %s getestet (%d i.O., %d n.i.O) ', ...
+      '(bei restlichen %d IK falsch).\n'], n_succ+n_fail, n, PName, n_succ, n_fail, n-(n_succ+n_fail));
     num_robots_tested = num_robots_tested + 1;
     if n_succ == n
       num_robots_success = num_robots_success + 1;
