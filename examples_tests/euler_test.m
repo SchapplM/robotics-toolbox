@@ -263,7 +263,7 @@ for i_conv = uint8(1:N)
     AD_sym = eulD_diff_rotmat(R_1, RD, i_conv);
     AD_num = (A_2-A_1)/delta_t;
     test_AD = AD_sym - AD_num;
-    if max(abs(test_AD(:))) > 1e10*eps(1+max(abs(AD_num(:)))) % Schwellwert ca. 1e-6 für normale Werte
+    if max(abs(test_AD(:))) > 1e11*eps(1+max(abs(AD_num(:)))) % Schwellwert ca. 1e-5 für normale Werte
       error('Transformationsmatrix eul%sD_diff_rotmat stimmt nicht gegen eul%s_diff_rotmat', eulstr, eulstr);
     end
     % Zeitableitung des Tests auf Einheitsmatrix von oben: Produktregel
