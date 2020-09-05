@@ -230,7 +230,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       Q_ges = NaN(nt,RP.NJ);
       QD_ges = NaN(nt,RP.NJ);
       QDD_ges = NaN(nt,RP.NJ);
-      SingDet = NaN(nt,2);
+      SingDet = NaN(nt,6);
       Facc_ges = NaN(nt,6);
       P_diss_ges = zeros(nt,2);
 
@@ -252,12 +252,12 @@ for i_FG = 1:size(EEFG_Ges,1)
         Tges(i) = (i-1)*dt;
         % Kinematik für Zeitschritt i berechnen:
         % Berechnung der Gelenk-Geschwindigkeit und Jacobi-Matrix
-        G1_q = RP.constr1grad_q(q, x); % Für Konditionszahl weiter unten
-        G1_x = RP.constr1grad_x(q, x);
+        [G1_q, G1_q_voll] = RP.constr1grad_q(q, x); % Für Konditionszahl weiter unten
+        [G1_x, G1_x_voll] = RP.constr1grad_x(q, x);
         G2_q = RP.constr2grad_q(q, x);
         G2_x = RP.constr2grad_x(q, x);
-        G4_q = RP.constr4grad_q(q);
-        G4_x = RP.constr4grad_x(x);
+        [G4_q, G4_q_voll] = RP.constr4grad_q(q);
+        [G4_x, G4_x_voll] = RP.constr4grad_x(x);
         if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
           Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
         elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
@@ -286,10 +286,19 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
 
         % Kennzahlen für Singularitäten
-        SingDet(i,1) = cond(G1_q);
-        SingDet(i,2) = cond(G1_x);
-        SingDet(i,3) = cond(G4_q);
-        SingDet(i,4) = cond(G4_x);
+        if ~all(EE_FG == [1 1 1 1 1 0])
+          SingDet(i,1) = cond(G1_q);
+          SingDet(i,2) = cond(G1_x);
+          SingDet(i,3) = cond(G4_q);
+          SingDet(i,4) = cond(G4_x);
+        else
+          % Für 3T2R-PKM sind die reduzierten ZB der Var. 1 und 4 nicht
+          % definiert.
+          SingDet(i,1) = cond(G1_q_voll);
+          SingDet(i,2) = cond(G1_x_voll);
+          SingDet(i,3) = cond(G4_q_voll);
+          SingDet(i,4) = cond(G4_x_voll);
+        end
         SingDet(i,5) = cond(G2_q);
         SingDet(i,6) = cond(G2_x);
         %% Dynamik und Energie
@@ -341,8 +350,9 @@ for i_FG = 1:size(EEFG_Ges,1)
         PHI_ges2(i,:) = Phi;
         
         %% Zusätzliche Prüfung für constr4 vs constr1 (Optional)
-        if cond(G1_q) < 1e2 && usr_test_constr4_JinvD && ...% nicht bei Singularität testen
-            ~all(EE_FG == [1 1 1 1 1 0]) % nicht für 3T2R-PKM testen
+        if ~all(EE_FG == [1 1 1 1 1 0]) && ... % nicht für 3T2R-PKM testen
+          cond(G1_q) < 1e2 && usr_test_constr4_JinvD % nicht bei Singularität testen
+             
           % Zusätzlicher Test: Prüfe andere Berechnung der Jacobi-Matrix
           % Dafür müssen die korrigierten IK-Gelenkwinkel genommen werden
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
@@ -717,11 +727,11 @@ for i_FG = 1:size(EEFG_Ges,1)
   save(fullfile(respath, sprintf('ResStat_%dT%dR_FG.mat', sum(EE_FG(1:3)), sum(EE_FG(4:6)))), 'ResStat');
   fprintf('Energiekonsistenz für %d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...
     num_robots_tested, disp_array(EE_FG, '%1.0f'), num_robots_success);
-  disp('Keine Energiekonsistenz bei folgenden Robotern:');
+  fprintf('Keine Energiekonsistenz bei folgenden %d Robotern:\n', length(robot_list_fail));
   disp(robot_list_fail(:));
-  disp('Energiekonsistenz bei folgenden Robotern:');
+  fprintf('Energiekonsistenz bei folgenden %d Robotern:\n', length(robot_list_succ));
   disp(robot_list_succ(:));
-  disp('Ergebnistabelle für FG:');
+  fprintf('Ergebnistabelle für FG mit %d Einträgen:\n', size(ResStat,1));
   disp(ResStat);
   fprintf(['Erklärung: \nRelError20_80: maximaler Anteil der dissipierten ', ...
     'Energie am Gesamt-Leistungsfluss von 20%% bis 80%% der Simulation.\n']);
