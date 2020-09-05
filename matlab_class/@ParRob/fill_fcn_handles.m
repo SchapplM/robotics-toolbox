@@ -63,8 +63,11 @@ for i = 1:length(R.all_fcn_hdl)
     else
       mdlname_j = mdlname_A0;
     end
-    if strcmp(cell2str(ca(2)),'invkin') || strcmp(cell2str(ca(2)),'invkin_traj') || strcmp(cell2str(ca(2)),'invkin3')
-      % IK-Funktionen: Hier ist die G-/P-Nummer egal (wird durch die
+    if strcmp(cell2str(ca(2)),'fkineEE_traj') || ...
+       strcmp(cell2str(ca(2)),'invkin') || ...
+       strcmp(cell2str(ca(2)),'invkin_traj') || ...
+       strcmp(cell2str(ca(2)),'invkin3')
+      % Kinematik-Funktionen: Hier ist die G-/P-Nummer egal (wird durch die
       % Parameter abgedeckt). Daher auch nicht im Namen enthalten.
       if parrob % PKM ist aus ParRobLib
         mdlname_j = PName_Legs;

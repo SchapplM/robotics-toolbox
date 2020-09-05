@@ -48,7 +48,7 @@ for iLeg = 1:Rob.NLEG
   r_A1_ges(iLeg,:) = eye(3,4)*T_W_0*[Rob.Leg(iLeg).r_W_0;1];
 %   T_W_Ai = transl(Rob.Leg(iLeg).r_W_0) * ...
 %           r2t( eul2r(Rob.Leg(iLeg).phi_W_0, Rob.Leg(iLeg).phiconv_W_0) );
-  T_W_Bi = T_W_0*Tci_0(:,:,Rob.Leg(iLeg).I_EElink+1);
+  T_W_Bi = T_W_0*Tci_0(:,:,Rob.Leg(iLeg).I_EElink+1)*Rob.Leg(iLeg).T_N_E;
   r_B1_ges(iLeg,:) = T_W_Bi(1:3,4);
 end
 
@@ -105,6 +105,7 @@ if all(Rob.I_EE_Task==[1 1 1 1 1 0])
   % Dadurch wird vermieden, dass Soll- und Ist-Plattform-Pose gegeneinander
   % verdreht sind.
   x(6) = x_lastleg(6);
+  % Rob.fkineEE_traj(q',[],[],5)
 end
 [~,Tc_Pges_W] = Rob.fkine_platform(x);
 

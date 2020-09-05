@@ -87,6 +87,7 @@ classdef ParRob < RobBase
       coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+      fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
       invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
       invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
       invkin3fcnhdl % Funktions-Handle für IK (zu pkm_invkin3_tpl.m.template)
@@ -123,12 +124,115 @@ classdef ParRob < RobBase
         {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
-        {'dynparconvfcnhdl', 'minimal_parameter_para'}...
-        {'invkinfcnhdl', 'invkin'}...
+        {'dynparconvfcnhdl', 'minimal_parameter_para'},...
+        {'fkintrajfcnhdl', 'fkineEE_traj'},...
+        {'invkinfcnhdl', 'invkin'},...
         {'invkintrajfcnhdl', 'invkin_traj'},...
         {'invkin3fcnhdl', 'invkin3'}};
       R.extfcn_available = false(length(R.all_fcn_hdl),1);
       R.I_platform_dynpar = true(1,10);
+    end
+    function [X,XD,XDD] = fkineEE_traj(R, Q, QD, QDD, idx_leg)
+      % Direkte Kinematik für komplette Trajektorie berechnen. Basierend
+      % auf der einer Beinkette.
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      % idx_leg: Index der Beinkette, für die die direkte Kinematik
+      % bestimmt wird.
+      %
+      % Ausgabe:
+      % X,XD,XDD: EE-Lage, -Geschw., -Beschl. (als Zeitreihe; bezogen auf PKM-Basis)
+      if nargin < 5, idx_leg = 1; end
+      X = NaN(size(Q,1),6);
+      XD = X; XDD = X;
+      % Transformation zum KS: Siehe fkine_legs
+      T_0_A1 = R.Leg(idx_leg).T_W_0; % von PKM-Basis zu Beinketten-Basis
+      r_P_P_B1 = R.r_P_B_all(:,idx_leg);
+      R_P_B1 = eulxyz2r(R.phi_P_B_all(:,idx_leg));
+      T_P_B1 = rt2tr(R_P_B1, r_P_P_B1); % Plattform-KS zu Plattform-Koppel-KS
+      T_B1_E = invtr(T_P_B1) * R.T_P_E; % Plf-Koppel-KS zu Plattform-EE-KS
+      for i = 1:size(Q,1)
+        q1_i   = Q  (i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
+        % Direkte Kinematik der Beinkette
+        T_A1_E1 = R.Leg(idx_leg).fkineEE(q1_i);
+        T_0_E1 = T_0_A1*T_A1_E1;
+        % Annahme: E1 (virt. EE der Beinkette) = B1 (Koppelgelenk-KS);
+        % (setzt erfüllte kinematische Zwangsbedingungen voraus)
+        X(i,:) = R.t2x(T_0_E1*T_B1_E);
+        if nargout < 2, continue; end % Keine Geschwindigkeit gefragt
+        qD1_i  = QD (i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
+        % Geschwindigkeit der ersten Beinkette umrechnen auf PKM-Plattform
+        Jg = R.Leg(idx_leg).jacobig(q1_i); % geom. Jacobi der Beinkette (bez. auf Beinketten-Basis)
+        % Geschw. des virt. Beinketten-EE bezogen auf PKM-Basis
+        V_0_E1 = rotate_wrench(Jg*qD1_i, t2r(T_0_A1));
+        % Umrechnen auf PKM-EE mit Adjunkt-Jacobi-Matrix
+        r_0_E1_E = t2r(T_0_E1) * T_B1_E(1:3,4);
+        V_0_E = adjoint_jacobian(r_0_E1_E) * V_0_E1;
+        % Umrechnen auf Euler-Winkel-Zeitableitung bezogen auf PKM-Koord.
+        Tw = euljac(X(i,4:6)', R.phiconv_W_E);
+        XD(i,:) = [V_0_E(1:3); Tw\V_0_E(4:6)];
+        if nargout < 3, continue; end % Keine Beschleunigung gefragt
+        qDD1_i = QDD(i,R.I1J_LEG(idx_leg):R.I2J_LEG(idx_leg))';
+        % Beschleunigung der ersten Beinkette
+        JgD = R.Leg(idx_leg).jacobigD(q1_i, qD1_i);
+        VD_0_E1 = rotate_wrench(Jg*qDD1_i+JgD*qD1_i, t2r(T_0_A1));
+        % Umrechnen auf PKM-EE
+        VD_0_E = adjointD_jacobian(t2r(T_0_E1)'*r_0_E1_E, t2r(T_0_E1), V_0_E1(4:6)) * V_0_E1 + ...
+                  adjoint_jacobian(r_0_E1_E) * VD_0_E1;
+        TwD = euljacD(X(i,4:6)', XD(i,4:6)', R.phiconv_W_E);
+        XDD(i,:) = [VD_0_E(1:3); Tw\(VD_0_E(4:6)-TwD*XD(i,4:6)')];
+      end
+    end
+    function [X,XD,XDD] = fkineEE2_traj(R, Q, QD, QDD, idx_leg)
+      % Direkte Kinematik für komplette Trajektorie berechnen. Basierend
+      % auf der einer Beinkette. Genau wie Funktion fkineEE_traj, aber Auf-
+      % ruf einer kompilierten Funktion für die ganze Trajektorie
+      if nargin < 5, idx_leg = uint8(1); end
+      %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
+      Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
+      Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
+      Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
+      Leg_I_EElink = uint8(zeros(R.NLEG,1));
+      Leg_phi_W_0 = zeros(3,R.NLEG);
+      Leg_phiconv_W_0 = uint8(zeros(R.NLEG,1));
+      Leg_NQJ = zeros(R.NLEG,1);
+      for i = 1:R.NLEG
+        Leg_pkin_gen(i,:) = R.Leg(i).pkin_gen';
+        Leg_I_EElink(i,:) = uint8(R.Leg(i).I_EElink);
+        T_N_E = R.Leg(i).T_N_E;
+        Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
+        Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
+        T_0_W = R.Leg(i).T_0_W;
+        Leg_T_0_W_vec(1:3,i) = r2eulxyz(T_0_W(1:3,1:3));
+        Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
+        Leg_phi_W_0(:,i) = R.Leg(i).phi_W_0;
+        Leg_phiconv_W_0(i) = R.Leg(i).phiconv_W_0;
+        Leg_NQJ(i) = R.Leg(i).NJ;
+      end
+      s = struct( ...
+        'NLEG', R.NLEG,...
+        'NJ', R.NJ,...
+        'T_P_E', R.T_P_E, ...
+        'I1J_LEG', R.I1J_LEG,...
+        'I2J_LEG', R.I2J_LEG,...
+        'r_P_B_all', R.r_P_B_all,...
+        'phi_P_B_all', R.phi_P_B_all,...
+        'Leg_pkin_gen', Leg_pkin_gen,...
+        'Leg_T_N_E_vec', Leg_T_N_E_vec,...
+        'Leg_T_0_W_vec', Leg_T_0_W_vec, ...
+        'Leg_I_EElink', Leg_I_EElink,...
+        'Leg_phi_W_0', Leg_phi_W_0,...
+        'Leg_phiconv_W_0', Leg_phiconv_W_0,...
+        'Leg_NQJ', Leg_NQJ);
+      if nargout == 1
+        X = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
+      elseif nargout == 2
+        [X, XD] = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
+      else
+        [X, XD, XDD] = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
+      end
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
