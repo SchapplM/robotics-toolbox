@@ -66,8 +66,9 @@ if nargin < 4
   % Inverse Jacobi-Matrix
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
-K1 = eye (Rob.Leg(1).NL*NLEG); % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
-R1 = K1  * [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
+% Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
+% Hier Einheitsmatrix, daher keine Multiplikation notwendig.
+R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Massenmatrix des vollständigen Systems (alle Subsysteme)
 % Ausgelagert in andere Funktion, da Term auch für Coriolis-Kräfte benötigt
