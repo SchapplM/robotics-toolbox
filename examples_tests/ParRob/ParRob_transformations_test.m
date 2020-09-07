@@ -47,23 +47,25 @@ RP.update_EE(rand(3,1),rand(3,1));
 % Prüfen, ob durch Hin- und Herrechnen ein Fehler passiert ist
 Test=[X_P;XD_P;XDD_P]-[X_P2;XD_P2;XDD_P2];
 assert(all(abs(Test(:))<1e-10), 'Umrechnung Plattform-EE mit xP2xE / xE2xP stimmt nicht.');
-
+fprintf('Klassen-Methode xP2xE_traj und xE2xP_traj in sich getestet\n');
 %% Teste Umrechnung der Trajektorie zwischen Basis und Welt
 Traj_W = struct('T', T, 'X', X_t, 'XD', XD_t, 'XDD', XDD_t);
-for i = 1:2 % zwei Fälle durchgehen: mit/ohne Rotation
+for i = 1:3 % drei Fälle durchgehen: mit/ohne Rotation und 180° um x
   % Beliebige Transformation der Basis einstellen
   if i == 1
     RP.update_base(rand(3,1), rand(3,1));
-  else
+  elseif i == 2
     RP.update_base(rand(3,1), zeros(3,1)); % Keine Rotation der Basis
+  else
+    RP.update_base(rand(3,1), [pi;0;0]); % Keine Rotation der Basis
   end
   T_W_B1 = RP.T_W_0;
   % Trajektorien-Eckpunkte in Basis-KS umrechnen
-  Traj_B1 = RP.rotate_traj(Traj_W);
+  Traj_B1 = RP.transform_traj(Traj_W);
   % Inverse Rechnung anstellen. Transformiere Welt-KS
   T_W_B2 = invtr(T_W_B1);
   RP.update_base(T_W_B2(1:3,4), r2eul(T_W_B2(1:3,1:3), RP.phiconv_W_0));
-  Traj_B2 = RP.rotate_traj(Traj_B1);
+  Traj_B2 = RP.transform_traj(Traj_B1);
   % Testen: B2 ist eigentlich identisch mit W. Trajektorie muss nach
   % zweifacher Transformation wieder die ursprüngliche sein
   test_X = Traj_W.X - Traj_B2.X;
@@ -73,3 +75,4 @@ for i = 1:2 % zwei Fälle durchgehen: mit/ohne Rotation
   test_XDD = Traj_W.XDD - Traj_B2.XDD;
   assert(all(abs(test_XDD(:))<1e-10), 'Fehler bei Umrechnung der Beschl.-Traj.');
 end
+fprintf('Klassen-Methode transform_traj in sich getestet\n');

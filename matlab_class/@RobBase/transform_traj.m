@@ -1,4 +1,4 @@
-% Rotiere die EE-Trajektorie ins Basis-KS des Roboters
+% Transformiere die EE-Trajektorie ins Basis-KS des Roboters
 % Die Roboter-Funktionen sind alle mit X in Basis-Koordinaten definiert.
 % Für eine vorgegebene Aufgabe ist es aber sinnvoller, diese unabhängig vom
 % Roboter im Welt-KS zu definieren.
@@ -8,7 +8,7 @@
 %   Handle zum Klassen-Objekt
 % Traj_W [struct]
 %   Roboter-Trajektorie (EE) bezogen auf Welt-KS
-%   Felder: X [Nx6], XD [Nx6], XDD [Nx6]. X sind Euler-Winkel
+%   Felder: X [Nx6], XD [Nx6], XDD [Nx6]. X sind Positionen und Euler-Winkel
 % 
 % Ausgabe:
 % Traj_0 [struct]
@@ -18,10 +18,10 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-08
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function Traj_0 = rotate_traj(R, Traj_W)
+function Traj_0 = transform_traj(R, Traj_W)
 Traj_0 = Traj_W;
 
-% Trajektorie verschieben (nur Position. Geschwindigkeit egal)
+%% Initialisierung
 X_W = Traj_W.X;
 calc_vel = false;
 if isfield(Traj_W, 'XD')
@@ -36,12 +36,18 @@ if isfield(Traj_W, 'XDD')
     error('Berechnung der Beschleunigung ohne Berechnung der Geschw. nicht möglich');
   end
 end
-
 R_W_0 = R.T_W_0(1:3,1:3);
 R_0_W = R_W_0';
-test = R_W_0-eye(3); % Bei Rotation der Basis muss die Trajektorie auch gedreht werden
-if max(abs(test(:))) > 1e-10
-  X_0 = NaN(size(XD_W));
+
+%% Testen und Fallunterscheidung
+% Prüfe, ob reine Verschiebung ohne Drehung
+test_norot = all(all(abs(R_W_0 - eye(3)) < 1e-12));
+% Teste ob nur Drehung nach unten und Verschiebung
+test_rotx_xyz = all(all(abs(R_W_0 - [1,0,0;0,-1,0;0,0,-1]) < 1e-12)) & ...
+            R.phiconv_W_0 == 2; % Formel unten geht nur mit Euler-XYZ-Winkeln
+if ~test_norot && ~test_rotx_xyz
+  %% Allgemeiner Fall: Beliebige Drehung
+  X_0 = NaN(size(X_W));
   if calc_vel
     XD_0 = NaN(size(XD_W));
   end
@@ -83,13 +89,36 @@ if max(abs(test(:))) > 1e-10
       XDD_0(i,:) = [VD_0_Pi(1:3); phiDD0i];
     end
   end
-else
+elseif test_norot
+  %% Sonderfall: Keine Rotation
   % Rechnung: r_0_P = r_W_P - r_W_0; (falls R_W_0 = 1)
   X_0 = X_W - repmat([R.T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1);
   % Keine Neuberechnung der Geschwindigkeit/Beschl- notwendig.
   % Daher auch keine erneute Speicherung
   calc_vel = false;
   calc_acc = false;
+else % test_rotx_xyz
+  %% Sonderfall: Nur Translation und Rotation mit 180° um x-Achse
+  % Rechnung: r_0_P = R_0_W * r_W_0_P = R_0_W * (-r_W_0 + r_W_P);
+  r_W_0_P = - repmat([R.T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1) + X_W;
+  % Rotation um 180°: Richtungen umdrehen; r_0_P = R_0_W * r_W_0_P
+  r_0_0_P = [r_W_0_P(:,1),-r_W_0_P(:,2:3)];
+  % Euler-Winkel: Die Drehung der x-Achse um 180° wird wieder korrigiert.
+  phi_0_P = [wrapToPi(X_W(:,4)+pi),X_W(:,5:6)];
+  X_0 = [r_0_0_P, phi_0_P];
+  if calc_vel
+    % Translatorische Geschwindigkeit: y/z umkehren
+    rD_0_0_P = [XD_W(:,1),-XD_W(:,2:3)];
+    % Euler-Winkel-Zeitableitung bleibt gleich (pi hinzuaddiert)
+    phiD_0_P = XD_W(:,4:6);
+    XD_0 = [rD_0_0_P, phiD_0_P];
+  end
+  if calc_acc
+    % Gleiche Vorgehensweise wie bei Geschwindigkeit
+    rDD_0_0_P = [XDD_W(:,1),-XDD_W(:,2:3)];
+    phiDD_0_P = XDD_W(:,4:6);
+    XDD_0 = [rDD_0_0_P, phiDD_0_P];
+  end
 end
 
 Traj_0.X = X_0;

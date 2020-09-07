@@ -190,7 +190,7 @@ for PKMName = PKM_selection
   [X,XD,XDD,T] = traj_trapez2_multipoint(XE_W, 1, 1e-1, 1e-2, 1e-3, 0.25);
   Traj_W = struct('T', T, 'X', X, 'XD', XD, 'XDD', XDD);
   % Trajektorien-Eckpunkte in Basis-KS umrechnen
-  Traj_0 = RP.rotate_traj(Traj_W);
+  Traj_0 = RP.transform_traj(Traj_W);
   Traj_0.X(:,4) = 0;
   %% Roboter in Startpose mit Beispieltrajektorie plotten
   % Roboter wurde vorher schon gezeichnet. Es fehlt nur die Trajektorie
