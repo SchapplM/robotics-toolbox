@@ -397,31 +397,33 @@ classdef ParRob < RobBase
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
     function [Jinv_qD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE)
-      % Analytische Jacobi-Matrix zwischen Antriebs- und Plattformkoord.
+      % Analytische Jacobi-Matrix zwischen Antriebs- und Endeffektorkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
       % xE: EE-Koordinaten (6x1) (nicht: Plattform-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
-      % Plattform-Geschw. mit Euler-Zeitableitung)
+      % Endeffektor-Geschw. mit Euler-Zeitableitung)
       
       if R.extfcn_available(1) && nargout ~= 2
         % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
         xP = R.xE2xP(xE);
         [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
-        Jinv_qD_sD = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
-        if ~all(R.I_EE == [1 1 1 1 1 1])
-          % Keine vollständigen FG. Annahme: Keine Umwandlung zwischen
-          % Rotations-FG erforderlich
-          Jinv_qD_xD = Jinv_qD_sD;
-        else
-          % Korrekturmatrix (symbolische Jacobi bezieht sich auf
-          % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
-          % Hier Bezug auf EE-Euler-Winkel-Geschwindigkeit (nicht: Plattform)
-          T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
-          Jinv_qD_xD = Jinv_qD_sD*T;
-        end
+        % Aufruf der symbolisch generierten Funktion. Diese enthält den
+        % Bezug von Antriebsgeschwindigkeiten zur Plattform-Geschwindigkeit.
+        Jinv_qD_sDred = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
+        % Erweitere auf 6FG, falls es sich um eine 2T1R/3T0R PKM handelt
+        Jinv_qD_sD = zeros(sum(R.I_qa),6);
+        Jinv_qD_sD(:,R.I_EE) = Jinv_qD_sDred;
+        % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+        % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
+        % Hier Bezug auf EE-Euler-Winkel-Geschwindigkeit (nicht: Plattform)
+        % Notwendig, wenn 3T3R oder wenn T_P_E ungleich Null.
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
+        Jinv_qD_xDvoll = Jinv_qD_sD*T;
+        % Reduziere die FG wiede rauf 2T1R o.ä.
+        Jinv_qD_xD = Jinv_qD_xDvoll(:,R.I_EE);
       else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
         G_q  = R.constr1grad_q(q, xE);
         G_x = R.constr1grad_x(q, xE);
