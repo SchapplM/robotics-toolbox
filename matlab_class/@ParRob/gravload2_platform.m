@@ -72,7 +72,7 @@ if nargin < 4
 end
 % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 % Hier Einheitsmatrix, daher keine Multiplikation notwendig.
-R1 = K1 * [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
+R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
