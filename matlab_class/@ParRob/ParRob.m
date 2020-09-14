@@ -1169,12 +1169,14 @@ classdef ParRob < RobBase
       % Der Vektor wird für die PKM und die Beinketten gespeichert.
       % Eingabe:
       % g_world: Gravitations-Vektor im Welt-KS
-      R_W_0 = R.T_W_0(1:3,1:3);
-      g_base = R_W_0' * g_world;
-      
-      % Aktualisiere Klassenvariable für PKM (hier Gravitation im Basis-KS)
-      R.gravity = g_base;
-      
+      if nargin == 2
+        R_W_0 = R.T_W_0(1:3,1:3);
+        g_base = R_W_0' * g_world;
+        % Aktualisiere Klassenvariable für PKM (hier Gravitation im Basis-KS)
+        R.gravity = g_base;
+      else % Nur Aktualisierung der Gravitation im Beinketten-Basis-KS
+        g_base = R.gravity;
+      end
       % Aktualisiere Gravitationsvektor für die Beinketten. Das "Welt"-KS
       % der Beinketten entspricht dem Basis-KS der PKM (da die Drehung
       % Welt-Basis der Beinketten die Anordnung der Gestell-Koppelgelenke

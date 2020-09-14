@@ -1292,7 +1292,15 @@ classdef SerRob < RobBase
         mpv = R.dynparconvfcnhdl(R.pkin_gen, mges, mrSges, Ifges);
       end
     end
-    
+    function update_gravity(R, g_world)
+      % Aktualisiere den Gravitationsvektor für den Roboter
+      % Eingabe:
+      % g_world: Gravitations-Vektor im Welt-KS
+      R_W_0 = R.T_W_0(1:3,1:3);
+      g_base = R_W_0' * g_world;
+      % Aktualisiere Klassenvariable (Gravitation im Basis-KS)
+      R.gravity = g_base;
+    end
     function CAD_add(R, filepath, link, T_body_CAD, unit, color)
       % Füge die CAD-Datei für einen Körper des Roboters hinzu
       % filepath: Absoluter Pfad zur STL-Datei
