@@ -68,10 +68,14 @@ RS.fill_fcn_handles(true, true); % kompilierte Funktionen benutzen
 % letzten Kompilieren)
 % RS.mex_dep(true)
 
+% Definiere eine EE-Transformation. Es muss eine Drehung zwischen letzter
+% Gelenkachse und der EE-z-Achse geben. Ansonsten funktioniert die
+% Aufgabenredundanz in der inversen Kinematik nicht
+RS.update_EE([0;0;0.200], [pi/2;0;0]);
 %% Transformation zwischen MDH und SDH KS
 % Diese Transformation kann benutzt werden, um das STL-Modell richtig ein-
 % zustellen (siehe S6RRRRRR10V4_UR5_init_CAD) oder zum Vergleich zu SDH.
-q0 = pi/180*[0; -90; 60; -60; 90; 0];
+q0 = pi/180*[0; -90; 60; -150; 90; 0];
 Tc_mdh = RS.fkine(q0);
 % Umrechnung von MDH auf SDH. alpha und a sind um eins verschoben (s.o.)
 a_sdh = [RS.MDH.a(2:RS.NJ);0];
@@ -103,16 +107,16 @@ xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 view(3);
 RS.plot( q0, s_plot );
 sgtitle('UR 5 CAD-Modell');
-%% Inverse Kinematik für Trajektorie berechnen
+%% Trajektorie definieren
 % Würfel-Trajektorie erstellen
-q1 = q0+[0;-15;15;0;0;0]*pi/180; % etwas zurückgehen mit Roboter, damit Arbeitsraum günstiger
+q1 = q0+[0;-45;45;0;0;0]*pi/180; % etwas zurückgehen mit Roboter, damit Arbeitsraum günstiger
 fprintf('Konditionszahl der Jacobi in IK-Anfangswert: %1.2f\n', cond(RS.jacobig(q1)));
 T_E = RS.fkineEE(q1);
 x0 = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
 % Start in Grundstellung
 k=1; XE = x0';
 % Fahrt in Startstellung
-k=k+1; XE(k,:) = XE(k-1,:) + [ -0.2,0.1,0, 0,0,0];
+% k=k+1; XE(k,:) = XE(k-1,:) + [ -0.2,0.1,0, 0,0,0];
 % Beginne Würfel-Trajektorie
 d1=0.25;
 k=k+1; XE(k,:) = XE(k-1,:) + [ d1,0,0, 0,0,0];
@@ -131,15 +135,43 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,d1,0,  0,0,0];
 k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0.1, 0,0,0];
 [X,XD,XDD,T,IL] = traj_trapez2_multipoint(XE, 1, 1e-1, 1e-2, 5e-3, 0.1);
 
-% inverse Kinematik berechnen
+%% Inverse Kinematik der Eckpunkte berechnen
+for i = 1:size(XE,1)
+  % Mit 3T3R-IK
+  [q_3T3R, Phi_3T3R] = RS.invkin2(XE(i,:)', q1);
+  % Mit 3T2R-IK
+  s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'wn', [0;1]);
+  [q_3T2R, Phi_3T2R] = RS.invkin2(XE(i,:)', q1, s_ik);
+  if any(abs([Phi_3T3R;Phi_3T2R]) > 1e-10)
+    error('IK für Eckpunkt %d funktioniert mit einer Methode nicht', i);
+  end
+  % Zeige, dass das Ergebnis mit geänderter Redundanter Koordinate
+  % identisch ist
+  XE_i_test = XE(i,:)'; XE_i_test(6) = rand(1,1);
+  q_3T2R_test = RS.invkin2(XE_i_test, q1, s_ik);
+  if any(abs(q_3T2R_test-q_3T2R) > 1e-10)
+    error('3T2R-IK für Eckpunkt %d hat anderes Ergebnis bei anderem x6. Darf nicht sein.', i);
+  end
+end
+fprintf('IK für alle %d Eckpunkte der Trajektorie berechnet.\n', size(XE,1));
+%% Inverse Kinematik der Trajektorie berechnen
 fprintf('Berechne IK für Trajektorie mit %d Punkten.\n', length(T));
+% Berechne die IK mit vollständigen Rotations-FG (wie in X vorgegeben)
 t1=tic();
-[Q, ~, ~, PHI] = RS.invkin2_traj(X,XD,XDD,T,q1);
+[Q_3T3R, ~, ~, PHI_3T3R] = RS.invkin2_traj(X,XD,XDD,T,q1);
+fprintf('Dauer der IK-Berechnung (3T3R): %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
+  toc(t1), 1e3*toc(t1)/length(T));
+
+% Stelle die IK auf Aufgabenredundanz ein
+t1=tic();
+s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'retry_limit', 0, ...
+  'wn', [0;1;0;0]); % Hyperbolischer Abstand der Gelenkpositionen von ihren Grenzen
+[Q, ~, ~, PHI] = RS.invkin2_traj(X,XD,XDD,T,q1,s_ik);
 fprintf('Dauer der IK-Berechnung: %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
   toc(t1), 1e3*toc(t1)/length(T));
 % Prüfe, ob IK erfolgreich
 for i = 1:length(T)
-  if max(abs( PHI(i,:) )) > 1e-4
+  if max(abs( PHI_3T3R(i,:) )) > 1e-4
     [~,iE_next] = min(abs(T(IL)-T(i)));
     warning(['IK stimmt nicht. Fehler bei Zeitschritt %d (t=%1.3fs). Nach Eckpunkt %d. ', ...
       'Trajektorie nicht durchführbar?'], i, T(i), iE_next);
@@ -149,7 +181,7 @@ for i = 1:length(T)
     plot3(X(:,1), X(:,2), X(:,3));
     xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
-    RS.plot(Q(i-1,:)', s_plot);
+    RS.plot(Q_3T3R(i-1,:)', s_plot);
     title('Letzter funktionierender Trajektorienpunkt');
     % Kürze Trajektorie auf machbaren Bereich und mache damit weiter
     Q = Q(1:i-1,:); %#ok<NASGU>
@@ -160,19 +192,31 @@ for i = 1:length(T)
     break %#ok<UNRCH>
   end
 end
+% Zeige, dass das Ergebnis identisch ist, wenn die aufgabenredundante
+% Koordinate beliebig geändert wird
+X_test = X; X_test(:,6) = rand(length(T),1);
+XD_test = XD; XD_test(:,6) = rand(length(T),1);
+XDD_test = XDD; XDD_test(:,6) = rand(length(T),1);
+[Q_test, ~, ~, PHI] = RS.invkin2_traj(X_test,XD_test,XDD_test,T,q1,s_ik);
+test_Q_AR = Q_test - Q;
+if any(abs(test_Q_AR(:))>1e-10)
+  error('IK hat anderes Ergebnis bei Änderung der redundanten Koordinate. Darf nicht sein.');
+end
 %% Zeitverlauf der Trajektorie
 figure(7);clf;
 for k = 1:RS.NQJ
   subplot(2,3,k);hold on;
-  plot(T, Q(:,k)/RS.qunitmult_eng_sci(k));
+  hdl1=plot(T, Q_3T3R(:,k)/RS.qunitmult_eng_sci(k));
+  hdl2=plot(T, Q(:,k)/RS.qunitmult_eng_sci(k));
   plot([0;T(end)], RS.qlim(k,1)*[1;1]/RS.qunitmult_eng_sci(k), 'r-');
   plot([0;T(end)], RS.qlim(k,2)*[1;1]/RS.qunitmult_eng_sci(k), 'r-');
   xlabel('t in s');
   ylabel(sprintf('q_%d in %s', k, RS.qunit_eng{k}));
   grid on;
 end
+legend([hdl1;hdl2], {'3T3R', '3T2R'});
 linkxaxes
-sgtitle(sprintf('Zeitverlauf der Gelenkgrößen'));
+sgtitle(sprintf('Zeitverlauf der Gelenkwinkel'));
 %% Animation
 s_anim = struct( 'mp4_name', fullfile(resdir,'UR5_Traj.mp4')); % als mp4 speichern
 s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'mode', 1); % alle KS zeichnen, als Strich-Modell. TODO: Als CAD
