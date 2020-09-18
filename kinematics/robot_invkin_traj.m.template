@@ -184,7 +184,8 @@ for k = 1:nt
   JointPos_all(k,:) = Tc_stack_k(:,4);
   % Prüfe Erfolg der IK
   if any(abs(Phi_k(1:n_Phi_t)) > s_pik.Phit_tol) || ...
-     any(abs(Phi_k(n_Phi_t+1:end)) > s_pik.Phir_tol)
+     any(abs(Phi_k(n_Phi_t+1:end)) > s_pik.Phir_tol) || ...
+     any(isnan(Phi_k)) || any(isnan(q_k))
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
