@@ -37,10 +37,41 @@ else
   else % serielle Kette ist eine Variante abgeleitet aus Hauptmodell
     PName_Legs = ['P', res{1}, res{2}, res{3}, 'V', res{4}];
   end
-  PName_Kin = [PName_Legs, 'G', res{5}, 'P', res{6}];
   % Modellvariante ohne Aktuierung, unter dem die Dynamik-Funktionen
-  % gespeichert sind.
-  mdlname_A0 = [PName_Kin, 'A0'];
+  % gespeichert sind. Die Plattform-Nummer wird hier nicht beachtet.
+  % Es können verschiedene allgemeine Modelle passen, da die
+  % Gestell-Konfigurationen relativ ähnlich sind. Suche passendes.
+  % Dadurch wird doppelter Code in der Datenbank vermieden.
+  switch str2double(res{5}) % siehe align_base_coupling.m
+    case 1
+      basecoupling_equiv = [5,4,8];
+    case 2
+      basecoupling_equiv = [6,4,8];
+    case 3
+      basecoupling_equiv = [7,4,8];
+    case 4
+      basecoupling_equiv = 8;
+    case 5
+      basecoupling_equiv = [1 4 8];
+    case 6
+      basecoupling_equiv = [2 4 8];
+    case 7
+      basecoupling_equiv = [3 4 8];
+    case 8
+      basecoupling_equiv = 4;
+  end
+  % Code für die eigentlich gesuchte Darstellung vorne und hinten anstellen
+  % (zuerst suchen und einstellen, wenn nichts gefunden wurde).
+  basecoupling_equiv = [str2double(res{5}), basecoupling_equiv, str2double(res{5})];
+  for k = basecoupling_equiv
+    % Suche in den Ordnern nach Funktionen
+    mdlname_A0 = [PName_Legs, sprintf('G%d',k), 'A0'];
+    if~isempty(which([mdlname_A0,'_gravload_para_pf_slag_vp1']))
+      % Dieses Modell existiert (da eine beispielhafte Funktion gefunden
+      % wurde).
+      break;
+    end
+  end
 end
 
 % Liste von Funktionen, die nicht für den allgemeinen Fall "A0" benutzt
