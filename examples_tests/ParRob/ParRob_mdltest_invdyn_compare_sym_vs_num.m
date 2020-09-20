@@ -68,6 +68,7 @@ for DynParMode = 2:4
     RP = parroblib_create_robot_class(PNameA0, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
     files_missing = RP.fill_fcn_handles(true, true);
+    % Prüfe, ob die Dynamik-Implementierung in symbolischer Form vorliegt
     if length(files_missing) >= 6 && usr_only_check_symvsnum
       fprintf('Keine symbolisch generierten Dynamik-Funktionen verfügbar. Kein Test Sym vs Num möglich.\n');
       continue
@@ -86,16 +87,25 @@ for DynParMode = 2:4
     Traj_W = cds_gen_traj(EE_FG, 1, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.
     % Traj = timestruct_select(Traj, [1, 2]);
-    params_success = false;
-    % Prüfe, ob die Dynamik-Implementierung in symbolischer Form vorliegt
+    % Lade die bestehenden Parameter und prüfe, ob sie gültig sind oder mit
+    % einer veralteten Version der Maßsynthese erstellt wurden.
+    params_valid = false;
     if exist(paramfile_robot, 'file')
       params = load(paramfile_robot);
+      if length(intersect(fieldnames(params), {'pkin', 'qlim', 'r_W_0', ...
+          'phi_W_0', 'r_P_E', 'phi_P_E', 'DesPar_ParRob', 'q0'})) == 8
+        params_valid = true;
+      end
+    end
+    params_success = false;
+    if params_valid % Parameter sind gültig: Lade die alten Parameter und teste sie
       q0 = params.q0;
       for il = 1:RP.NLEG
         RP.Leg(il).update_mdh(params.pkin); 
         RP.Leg(il).qlim = params.qlim(RP.I1J_LEG(il):RP.I2J_LEG(il),:);
       end
       RP.update_base(params.r_W_0, params.phi_W_0);
+      RP.update_EE(params.r_P_E, params.phi_P_E);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
@@ -119,7 +129,7 @@ for DynParMode = 2:4
         end
       end
     else
-      fprintf('Es gibt keine abgespeicherten Parameter. Führe Maßsynthese durch\n');
+      fprintf('Es gibt keine (gültigen) abgespeicherten Parameter. Führe Maßsynthese durch\n');
     end
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
@@ -152,11 +162,13 @@ for DynParMode = 2:4
       RP = RobotOptRes.R;
       r_W_0 = RP.r_W_0;
       phi_W_0 = RP.phi_W_0;
+      phi_P_E = RP.phi_P_E;
+      r_P_E = RP.r_P_E;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
       q0 = RobotOptRes.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
-      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim');
+      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
       fprintf('Maßsynthese beendet\n');
       Traj_0 = cds_transform_traj(RP, Traj_W);
     end
@@ -206,6 +218,14 @@ for DynParMode = 2:4
       Q_test(i,:) = q;
       [~, Jinv] = RP.jacobi_qa_x(q, X_test(i,:)');
       QD_test(i,:) = Jinv*XD_test(i,RP.I_EE)';
+      % Teste symbolischen Aufruf der Jacobi-Matrix gegen numerischen
+      Jinv_num_qa_x = Jinv(RP.I_qa,:);
+      Jinv_sym_qa_x = RP.jacobi_qa_x(q, X_test(i,:)');
+      test_Jinv = Jinv_sym_qa_x - Jinv_num_qa_x;
+      if max(abs(test_Jinv(:))) > 1e-10
+        error('Inverse Jacobi-Matrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_Jinv(:))));
+      end
+      
       [~, JinvD] = RP.jacobiD_qa_x(q, QD_test(i,:)', X_test(i,:)', XD_test(i,:)');
       QDD_test(i,:) = JinvD*XD_test(i,RP.I_EE)' + Jinv*XDD_test(i,RP.I_EE)';
       
