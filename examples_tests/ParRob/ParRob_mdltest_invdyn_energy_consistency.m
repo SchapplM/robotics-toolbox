@@ -1,9 +1,11 @@
 % Teste die PKM-Dynamik mit Berechnung der Energiekonsistenz Direkten Dynamik
 % Zusätzlich wird eine Form der kinematischen Zwangsbedingungen getestet
 % (da beim Energiekonsistenz-Test sowieso brauchbare E-/A-Daten der Kinematik entstehen)
+% 
+% Siehe auch: ParRob_mdltest_invdyn_compare_sym_vs_num.m (ähnlich)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-11
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 clc
 clear
@@ -13,6 +15,7 @@ usr_plot_figures = true;
 usr_save_figures = true;
 usr_plot_animation = true;
 usr_debug = true;
+usr_num_tests_per_dof = 5;
 usr_test_constr4_JinvD = true; % zum Debuggen der constr4gradD-Funktionen
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
@@ -41,7 +44,8 @@ for i_FG = 1:size(EEFG_Ges,1)
   if isempty(PNames_Kin)
     continue % Es gibt keine PKM mit diesen FG.
   end
-  for ii = 1:length(PNames_Kin) % Debug: find(strcmp(PNames_Kin, 'P6RRPRRR14V3G1P4'));
+  % III = find(strcmp(PNames_Kin, 'P3RRR1G1P1')); % Debug; P6RRPRRR14V3G1P4
+  for ii = 1:length(PNames_Kin)
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
     fprintf('Untersuche PKM %s\n', PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
@@ -60,16 +64,26 @@ for i_FG = 1:size(EEFG_Ges,1)
     Traj_W = cds_gen_traj(EE_FG, 1, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.)
     % Traj = timestruct_select(Traj, [1, 2]);
-    params_success = false;
-    % Prüfe, ob die Dynamik-Implementierung in symbolischer Form vorliegt
+    % Lade die bestehenden Parameter und prüfe, ob sie gültig sind oder mit
+    % einer veralteten Version der Maßsynthese erstellt wurden.
+    params_valid = false;
     if exist(paramfile_robot, 'file')
       params = load(paramfile_robot);
+      if length(intersect(fieldnames(params), {'pkin', 'qlim', 'r_W_0', ...
+          'phi_W_0', 'r_P_E', 'phi_P_E', 'DesPar_ParRob', 'q0'})) == 8
+        params_valid = true;
+      end
+    end
+    % params_valid = false; % Debug: neue Maßsynthese erzwingen.
+    params_success = false;
+    if params_valid % Parameter sind gültig: Lade die alten Parameter und teste sie
       q0 = params.q0;
       for il = 1:RP.NLEG
         RP.Leg(il).update_mdh(params.pkin); 
         RP.Leg(il).qlim = params.qlim(RP.I1J_LEG(il):RP.I2J_LEG(il),:);
       end
       RP.update_base(params.r_W_0, params.phi_W_0);
+      RP.update_EE(params.r_P_E, params.phi_P_E);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
@@ -93,16 +107,24 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
       end
     else
-      fprintf('Es gibt keine abgespeicherten Parameter. Führe Maßsynthese durch\n');
+      fprintf('Es gibt keine (gültigen) abgespeicherten Parameter. Führe Maßsynthese durch\n');
     end
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
       Set.optimization.objective = 'valid_act';
-      Set.optimization.ee_rotation = false;
-      Set.optimization.ee_translation = false;
+      % TODO: Folgende Terme sollten aktiviert werden (aktuell noch falsch)
+      Set.optimization.ee_rotation = false; % darf beliebige Werte einnehmen ....
+      % Set.optimization.ee_translation = false; % ... muss für Dynamik egal sein
+      % Set.optimization.ee_translation_only_serial = false; % damit obige Funktion wirkt
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
+      if all(EE_FG==[1 1 1 0 0 0]) || all(EE_FG==[1 1 1 1 1 1])
+        % Deckenmontage funktioniert für diese FG schon.
+        Set.structures.mounting_parallel = {'ceiling'};
+      else
+        Set.structures.mounting_parallel = 'floor';
+      end
       Set.structures.use_parallel_rankdef = 6;
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -130,11 +152,13 @@ for i_FG = 1:size(EEFG_Ges,1)
       RP = RobotOptRes.R;
       r_W_0 = RP.r_W_0;
       phi_W_0 = RP.phi_W_0;
+      phi_P_E = RP.phi_P_E;
+      r_P_E = RP.r_P_E;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
       q0 = RobotOptRes.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
-      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim');
+      save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
       fprintf('Maßsynthese beendet\n');
       Traj_0 = cds_transform_traj(RP, Traj_W);
     end
@@ -300,6 +324,16 @@ for i_FG = 1:size(EEFG_Ges,1)
           G1_q = RP.constr1grad_q(q,x);
           G1_x = RP.constr1grad_x(q,x);
           Jinv_voll1 = -G1_q\G1_x;
+          % Vergleiche gegen symbolische Herleitung der Jacobi-Matrix
+          Jinv_sym_qa_x = RP.jacobi_qa_x(q, x);
+          Jinv4_num_qa_x = Jinv_voll4(RP.I_qa,:);
+          Jinv1_num_qa_x = Jinv_voll1(RP.I_qa,:);
+          if any(abs(Jinv_sym_qa_x(:)-Jinv1_num_qa_x(:))>1e-2) % TODO: Noch hohe Toleranz
+            error('Jacobi-Matrix nach Methode 4 stimmt nicht gegen symbolisch generierte');
+          end
+          if any(abs(Jinv_sym_qa_x(:)-Jinv4_num_qa_x(:))>1e-2)
+            error('Jacobi-Matrix nach Methode 1 stimmt nicht gegen symbolisch generierte');
+          end
           % Vergleiche absoluten und relativen Fehler (bei kleinen
           % absoluten Werten größerer Einfluss von Rundungsfehlern)
           test_J_abs = abs(Jinv_voll4 - Jinv_voll1);
@@ -542,7 +576,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       TrajAchieved = i/nt; % Anteil der Simulationsdauer, die geschafft wurde
       % Ergebnis in Tabelle abspeichern
       ResStat = [ResStat; {PName, jacobi_mode, Pdiss_relerrori1stsing, ...
-        Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, 100*TrajAchieved, 100*RTratio}]; %#ok<AGROW>
+        Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, 100*TrajAchieved, 100*RTratio, double(~fail)}]; %#ok<AGROW>
     end
     fprintf('%d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
       n_succ+n_fail, n, n_succ, n_fail, n-(n_succ+n_fail));
@@ -554,14 +588,17 @@ for i_FG = 1:size(EEFG_Ges,1)
       robot_list_fail = [robot_list_fail(:)', {PName}];
     end
     end % Schleife über jacobi_mode
+    if num_robots_tested >= usr_num_tests_per_dof*2 % da jede PKM zwei mal getestet wird
+      break; % Testen aller Roboter dauert sehr lange. Ergebnis für wenige reicht aus.
+    end
   end % Schleife über Verschiedene PKM
   if isempty(ResStat) % Dieser Fall kann nur bei manuellem Test einer PKM vorkommen.
     warning('Leere Ergebnistabelle für FG-Kombination Nr. %d. Keiner der PKM konnte erfolgreich getestet werden', i_FG);
     continue
   end
-  ResStat.Properties.VariableNames = {'Name', 'JacobiModus', 'RelError_until1stSing', ...
-    'RelError20_80', 'RelError05_30', 'ProzentTrajSingFrei', 'ProzentTraj', ...
-    'RealTimeRation'};
+  ResStat.Properties.VariableNames = {'Name', 'JacobiMode', 'RelError_until1stSing', ...
+    'RelError20_80', 'RelError05_30', 'PercentTrajSingFree', 'PercentTraj', ...
+    'RealTimeRatio', 'Success'};
   save(fullfile(respath, sprintf('ResStat_%dT%dR_FG.mat', sum(EE_FG(1:3)), sum(EE_FG(4:6)))), 'ResStat');
   fprintf('Energiekonsistenz für %d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...
     num_robots_tested, disp_array(EE_FG, '%1.0f'), num_robots_success);
@@ -573,9 +610,9 @@ for i_FG = 1:size(EEFG_Ges,1)
   disp(ResStat);
   fprintf(['Erklärung: \nRelError20_80: maximaler Anteil der dissipierten ', ...
     'Energie am Gesamt-Leistungsfluss von 20%% bis 80%% der Simulation.\n']);
-  fprintf(['ProzentTrajSingFrei: Prozentualer Anteil der singularitätsfreien ', ...
+  fprintf(['PercentTrajSingFree: Prozentualer Anteil der singularitätsfreien ', ...
     'Bewegung an der gesamten Simulationsdauer.\n']);
-  fprintf(['ProzentTraj: Prozentualer Anteil der erfolgreichen Simulation ', ...
+  fprintf(['PercentTraj: Prozentualer Anteil der erfolgreichen Simulation ', ...
     'an der geplanten Gesamtdauer der Simulation der freien Bewegung.\n']);
   restabfile = fullfile(respath, sprintf('fdyn_energy_cons_test_DoF_%s.csv', ...
     char(48+EE_FG)));
