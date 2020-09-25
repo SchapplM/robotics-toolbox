@@ -182,6 +182,7 @@ classdef SerRob < RobBase
         'material', [2.7E3, 72e9, 27e9, 300e6], ... % Dichte, E-Modul, Schubmodul, Dehngrenze für Alu-Legierung AlCu4PbMgMn
         'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
         'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
+        'joint_offset', zeros(R.NJ,1), ... % Offset-Parameter für zusätzliches Segment nach Schubgelenk. Verschiebt die Linearachse.
         'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes (aus Datenbank)
         'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors (aus Datenbank)
         'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks (aus Datenbank)

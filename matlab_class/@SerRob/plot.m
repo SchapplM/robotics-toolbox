@@ -55,8 +55,11 @@ if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
 end
-
-
+% Relativ neu hinzugefügtes Feld. Abwärts-Kompatibilität für gespeicherte
+% Roboter-Klassen, z.B. aus Maßsynthese-Ergebnissen
+if ~isfield(Rob.DesPar, 'joint_offset')
+  Rob.DesPar.joint_offset = zeros(Rob.NJ,1);
+end
 
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt
@@ -121,13 +124,16 @@ if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
       d = Rob.MDH.d(i);
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
       d = q_JV(i) + Rob.MDH.offset(i);
+      % Zusätzlicher Offset aus Entwurfsparametern: Schubachse wird mit
+      % einem Segment verlängert. Dadurch Verschiebung der Schiene.
+      r_W_Gi_offsetkorr = T_c_W(1:3,1:3,i+1)*[0;0;Rob.DesPar.joint_offset(i)];
     elseif Rob.MDH.sigma(i) == 2 % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
       d = Rob.MDH.d(i);
     else
       error('Fall für sigma nicht definiert');
     end
     r_W_Oimd = r_W_Oi - T_c_W(1:3,1:3,i+1)*[0;0;d];
-
+    
     if Rob.MDH.sigma(i) == 0 % Drehgelenk
       if ~s.straight
         % Gelenke werden so auf der z-Achse verschoben, dass sie in der
@@ -157,7 +163,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
         % die Mitte zwischen die KS gesetzt
         r_W_Gi = (r_W_Oi+r_W_Oimd)/2;
       end
-      cubpar_c = r_W_Gi; % Mittelpunkt des Quaders
+      cubpar_c = r_W_Gi - r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
       cubpar_l = [gd; gd; gh]; % Dimension des Quaders
       cubpar_a = rotation3dToEulerAngles(R_W_i)'; % Orientierung des Quaders. Benutze Singularitäts-berücksichtigende Funktion
       drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
@@ -234,6 +240,7 @@ if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
             error('Segmenttyp ist nicht definiert');
           end
         else % Schubgelenk
+          r_W_Gi_offsetkorr = T2(1:3,1:3)*[0;0;Rob.DesPar.joint_offset(i)];
           % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
           % berücksichtigt.
           % Transformation zu Anfangs- und Endlage des Schubgelenkes
@@ -242,31 +249,56 @@ if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
 
           if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
             % Zeichne Linearführung als Quader
-            cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2; % Mittelpunkt des Quaders
+            cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2-r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
             cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
             cubpar_a = rotation3dToEulerAngles(T_qmin(1:3,1:3))'; % Orientierung des Quaders
             drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
             % Normales Segment zum Start der Linearführung
             if Rob.DesPar.seg_type(i) == 1
-              if Rob.qlim(i,2)*Rob.qlim(i,2)< 0 % Führung liegt auf der Höhe
+              if Rob.qlim(i,1)*Rob.qlim(i,2)< 0 % Führung liegt auf der Höhe
                 % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
                 drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
                   'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                   'EdgeAlpha', 0.1);
+                if Rob.DesPar.joint_offset(i) ~= 0
+                  % TODO: Für diesen Fall noch nicht ausreichend getestet
+                  drawCylinder([T2(1:3,4)', ...
+                    T_qmax(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
+                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                    'EdgeAlpha', 0.1);
+                end
               else
                 % Keine senkrechte Verbindung (Schiene fängt woanders an)
                 if Rob.qlim(i,2) < 0 % Schiene liegt komplett "links" vom KS. Gehe zum Endpunkt
                   drawCylinder([T1(1:3,4)', T_qmax(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
                     'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                     'EdgeAlpha', 0.1);
+                  if Rob.DesPar.joint_offset(i) ~= 0
+                    % TODO: Für diesen Fall noch nicht ausreichend getestet
+                    drawCylinder([T2(1:3,4)', ...
+                      T_qmax(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
+                      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                      'EdgeAlpha', 0.1);
+                  end
                 else % Schiene liegt "rechts" vom KS. Gehe zum Startpunkt
-                  drawCylinder([T1(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                  drawCylinder([T1(1:3,4)', ...
+                    T_qmin(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
                     'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                     'EdgeAlpha', 0.1);
+                  % Zusätzliches Segment nach dem Schubgelenk (mit Offset)
+                  if Rob.DesPar.joint_offset(i) ~= 0
+                    drawCylinder([T2(1:3,4)', ...
+                      T_qmax(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
+                      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                      'EdgeAlpha', 0.1);
+                  end
                 end
               end
             end
           else % Schubgelenk ist Hubzylinder
+            if Rob.DesPar.joint_offset(i) ~= 0
+              warning('Ser.DesPar.joint_offset noch nicht für diesen Fall implementiert');
+            end
             % Großer Zylinder, muss so lang sein wie maximaler Hub.
             T_grozylstart = T_qmin * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
             drawCylinder([T_grozylstart(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
