@@ -33,6 +33,10 @@ end
 if isa(X, 'struct')
   error('Falsches Eingabeformat für Argument X');
 end
+if any(isnan(Q(1,:))) || any(isnan(X(1,:)))
+  warning('Ungültige Trajektorie. Erster Zeitschritt ist NaN. Abbruch.');
+  return
+end
 %% Initialisierung
 s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', []);
 
@@ -223,6 +227,7 @@ for i=1:size(Q,1)
   end
   drawnow();
 end
+
 % Verkürzen des Videos bei Fehler
 if ~isempty(s_anim.gif_name) && ~isnan(i_break)
   mov = mov(:,:,1,1:i_break);
