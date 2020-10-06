@@ -119,12 +119,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
-      if all(EE_FG==[1 1 1 0 0 0]) || all(EE_FG==[1 1 1 1 1 1])
-        % Deckenmontage funktioniert für diese FG schon.
-        Set.structures.mounting_parallel = {'ceiling'};
-      else
-        Set.structures.mounting_parallel = 'floor';
-      end
+      % TODO: Deckenmontage funktioniert noch nicht richtig.
+      Set.structures.mounting_parallel = 'floor';
       Set.structures.use_parallel_rankdef = 6;
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -162,6 +158,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       fprintf('Maßsynthese beendet\n');
       Traj_0 = cds_transform_traj(RP, Traj_W);
     end
+    respath_rob = fullfile(respath, sprintf('%dT%dR', sum(EE_FG(1:3)), sum(EE_FG(4:6))), PName);
+    mkdirs(respath_rob);
 
     %% Parameter für Dynamik-Test
     mges_PKM = rand(size(RP.DynPar.mges));
@@ -433,7 +431,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Energie', PName));
         set(1, 'Name', 'Energie', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath, sprintf('%s_Energie_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Energie_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -454,7 +452,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Gelenke', PName));
         set(2, 'Name', 'Beingelenk-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath, sprintf('%s_Gelenke_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Gelenke_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -482,7 +480,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Plattform', PName));
         set(3, 'Name', 'Plattform-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath, sprintf('%s_Plattform_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Plattform_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -513,7 +511,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         sgtitle(sprintf('%s: Validierung/Test', PName));
         set(4, 'Name', 'Testen', 'NumberTitle', 'off');
         if usr_save_figures
-          name = fullfile(respath, sprintf('%s_Test_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
+          name = fullfile(respath_rob, sprintf('%s_Test_dt%dus_Jac%d', PName, 1e6*dt, jacobi_mode));
           export_fig([name, '.png']);
           saveas(gcf, [name, '.fig']);
         end
@@ -531,7 +529,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         %% Animation des bewegten Roboters
         i_end_vis = Ip_end-1;
         i_diff = ceil(i_end_vis / 25);
-        s_anim = struct( 'gif_name', fullfile(respath, sprintf('%s_energy_test_dt%dus.gif', PName, 1e6*dt)));
+        s_anim = struct( 'gif_name', fullfile(respath_rob, sprintf('%s_energy_test_dt%dus.gif', PName, 1e6*dt)));
         s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
         change_current_figure(6);clf;hold all;
         view(3);
@@ -549,6 +547,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       % die Bezugsgröße noch zu klein für einen relativen Fehler
       if i == 1
         I_test2080 = 1;
+        I_test0530 = 1;
         I_till1stsing = 1;
       else
         I_test2080 = max([floor(Ip_end*0.20);1]):max([floor(Ip_end*0.8);1]);
@@ -597,7 +596,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     continue
   end
   ResStat.Properties.VariableNames = {'Name', 'JacobiMode', 'RelError_until1stSing', ...
-    'RelError20_80', 'RelError05_30', 'PercentTrajSingFree', 'PercentTraj', ...
+    'RelError20_80', 'RelError05_30', 'PercentSimSingFree', 'PercentTraj', ...
     'RealTimeRatio', 'Success'};
   save(fullfile(respath, sprintf('ResStat_%dT%dR_FG.mat', sum(EE_FG(1:3)), sum(EE_FG(4:6)))), 'ResStat');
   fprintf('Energiekonsistenz für %d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...
@@ -610,11 +609,34 @@ for i_FG = 1:size(EEFG_Ges,1)
   disp(ResStat);
   fprintf(['Erklärung: \nRelError20_80: maximaler Anteil der dissipierten ', ...
     'Energie am Gesamt-Leistungsfluss von 20%% bis 80%% der Simulation.\n']);
-  fprintf(['PercentTrajSingFree: Prozentualer Anteil der singularitätsfreien ', ...
+  fprintf(['PercentSimSingFree: Prozentualer Anteil der singularitätsfreien ', ...
     'Bewegung an der gesamten Simulationsdauer.\n']);
   fprintf(['PercentTraj: Prozentualer Anteil der erfolgreichen Simulation ', ...
     'an der geplanten Gesamtdauer der Simulation der freien Bewegung.\n']);
   restabfile = fullfile(respath, sprintf('fdyn_energy_cons_test_DoF_%s.csv', ...
     char(48+EE_FG)));
   writetable(ResStat, restabfile, 'Delimiter', ';');
+  %% Prüfe Erfolg. Fehler bei Nicht-Erfolg
+  if sum(ResStat.Success) ~= length(ResStat.Success)
+    warning('Nicht alle Vorwärts-Dynamik-Simulationen energetisch konsistent.');
+    if all(EE_FG == [1 1 0 0 0 1])
+      % Nur bei einer einzigen PKM ist der Fehler gering genug. TODO: Warum?
+      I_test = strcmp(ResStat.Name, 'P3RPP1G1P1A1');
+      if any(~ResStat.Success(I_test))
+        error('Eine vorher als funktionierend markierte 2T1R-PKM ist nicht konsistent. Fehler.');
+      end
+    elseif all(EE_FG == [1 1 1 0 0 0])
+      % Alle PKM müssen funktionieren
+      error('Nicht alle PKM bei 3T0R energiekonsistent. Fehler.');
+    elseif all(EE_FG == [1 1 1 0 0 1])
+      % Nur eine PKM funktioniert aktuell nicht. TODO: Warum?
+      I_test = ~strcmp(ResStat.Name, 'P4PRRRR6V1G2P1A1');
+      if any(~ResStat.Success(I_test))
+        error('Eine vorher als funktionierend markierte 3T1R-PKM ist nicht konsistent. Fehler.');
+      end
+    elseif all(EE_FG == [1 1 1 1 1 1])
+      % Alle PKM müssen funktionieren
+      error('Nicht alle PKM bei 3T3R energiekonsistent. Fehler.');
+    end
+  end
 end

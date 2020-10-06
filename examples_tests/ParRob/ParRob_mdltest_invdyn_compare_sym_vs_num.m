@@ -52,6 +52,13 @@ if isempty(PNames_Kin)
   fprintf('Keine Roboter mit FG [%s] in Datenbank\n', disp_array(EE_FG, '%1.0f'));
   continue
 end
+% Stelle Liste von PKM zusammen, die sich in ihrer Kinematik ohne
+% Betrachtung des Plattform-Koppelgelenks unterscheiden
+PNames_noP = cell(size(PNames_Kin));
+for i = 1:length(PNames_Kin)
+  PNames_noP{i} = PNames_Kin{i}(1:end-2);
+end
+[~,III] = unique(PNames_noP);
 for DynParMode = 2:4
   fprintf('Untersuche Dynamik-Parameter Nr. %d\n', DynParMode);
   % 2 = Inertialparameter (kein Regressor)
@@ -64,7 +71,7 @@ for DynParMode = 2:4
   robot_list_fail = {}; % Liste fehlgeschlagener
 
   % III = find(strcmp(PNames_Kin, 'P3RRR1G1P1')); % Debug; P6RRPRRR14V3G1P4
-  for ii = 1:length(PNames_Kin)
+  for ii = III(:)' % 1:length(PNames_Kin)
     % Suche erste gültige Aktuierung in der Datenbank (ist für Dynamik
     % egal; es wird nur die Plattform-Dynamik betrachtet ohne Projektion in
     % die Antriebskoordinaten).
@@ -159,12 +166,14 @@ for DynParMode = 2:4
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
-      if all(EE_FG==[1 1 1 0 0 0]) || all(EE_FG==[1 1 1 1 1 1])
-        % Deckenmontage funktioniert für diese FG schon.
-        Set.structures.mounting_parallel = {'ceiling'};
-      else
-        Set.structures.mounting_parallel = 'floor';
-      end
+      % TODO: Deckenmontage funktioniert noch nicht richtig.
+      Set.structures.mounting_parallel = 'floor';
+%       if all(EE_FG==[1 1 1 0 0 0]) || all(EE_FG==[1 1 1 1 1 1])
+%         % Deckenmontage funktioniert für diese FG schon.
+%         Set.structures.mounting_parallel = {'ceiling'};
+%       else
+%         Set.structures.mounting_parallel = 'floor';
+%       end
       Set.structures.use_parallel_rankdef = 6; % Rangdefizit ist egal
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -499,5 +508,9 @@ for DynParMode = 2:4
   ResStat.Properties.VariableNames = {'Name', 'AnzahlErfolg', 'AnzahlFehlschlag', 'AnzahlTests'};
   restabfile = fullfile(respath, sprintf('ParRob_invdyn_test_DoF_%s_DynParMode%d.csv', char(48+EE_FG), DynParMode));
   writetable(ResStat, restabfile, 'Delimiter', ';');
+  %% Prüfe Erfolg. Fehler bei Nicht-Erfolg
+  if sum(ResStat.AnzahlFehlschlag) > 0
+    error('Die Dynamik nach zwei Implementierungen stimmt nicht überein. Fehler.');
+  end
 end % DynParMode
 end % EEFG
