@@ -55,15 +55,25 @@ else
   Phi_x_red = sym('xx', dim_Px_red);
   Phi_x_red(:)=0;
   Phi_x = sym('xx',     dim_Px);
-  Phi_x(:)=0;
+  Phi_x(:)= 0;
 end
 
 
 for i = 1:Rob.NLEG
-  Phi_x_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  Phi_x((i-1)*6+1:(i)*6, :) = ...
+     % Anzahl der Zwangsbedingungen 
+     nPhit = floor(size(Phi_tt_red,1)/Rob.NLEG);
+     nPhir = floor((size(Phi_rr_red ,1))/Rob.NLEG);
+     nPhi = nPhit + nPhir;
+     
+     % oder feste zahlen so(unguenstig)
+     % nPhir = 2;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen
+     % nPhit = 3;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen 
+
+     Phi_x_red((i-1)*nPhi+1:(i)*nPhi,:) = ...
+     [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+     Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)]; % nur fuer symmetrisch
+ 
+     Phi_x((i-1)*6+1:(i)*6, :) = ...
     [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
      Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
 end

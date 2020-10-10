@@ -4,13 +4,13 @@
 % * geometrische Matrix der direkten Kinematik
 % 
 % Variante 3:
-% * Implementierung der Rotation mit FÃ¼hrungs-Beinkette und Folge-Beinketten
+% * Implementierung der Rotation mit Führungs-Beinkette und Folge-Beinketten
 % 
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
-%   Endeffektorpose des Roboters bezÃ¼glich des Basis-KS
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
 % Phi_x_red
@@ -20,10 +20,9 @@
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
-% (C) Institut fÃ¼r Mechatronische Systeme, UniversitÃ¤t Hannover
+% (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function [Phi_x_red, Phi_x] = constr3grad_x(Rob, q, xE)
-
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr2grad_x: q muss %dx1 sein', Rob.NJ);
@@ -39,12 +38,13 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
 [Phi_rr_red,Phi_rr]=Rob.constr3grad_rr(q, xE);
 
 % Anzahl ZB
-nPhit = size(Phi_tt_red,1)/Rob.NLEG;
-nPhir = size(Phi_rr_red,1)/Rob.NLEG;
+nPhit = floor(size(Phi_tt_red,1))/Rob.NLEG;
+nPhir = floor(size(Phi_rr_red ,1))/Rob.NLEG;
 nPhi = nPhit + nPhir;
 
+
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-% Initialisierung mit Fallunterscheidung fÃ¼r symbolische Eingabe
+% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_Px =   [size(Phi_tt,    1)+size(Phi_rt,    1), size(Phi_tt,    2)+size(Phi_tr,    2)];
 dim_Px_red=[size(Phi_tt_red,1)+size(Phi_rt_red,1), size(Phi_tt_red,2)+size(Phi_tr_red,2)];
 if ~Rob.issym
@@ -59,12 +59,31 @@ end
 
 
 for i = 1:Rob.NLEG
-  % TODO: Die reduzierten ZB sind aktuell nicht konsistent fÃ¼r Roboter mit
-  % Beinketten mit fÃ¼nf Gelenken. Funktionert bspw. nur fÃ¼r 6UPS-3T2R
-  Phi_x_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
+  % TODO: Die reduzierten ZB sind aktuel+l nicht konsistent für Roboter mit
+  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
+  if all(Rob.Leg(i).I_EE_Task == logical([1 1 1 1 1 0])) || i == 1
+     % Anzahl der Zwangsbedingungen 
+     nPhit = floor(size(Phi_tt_red,1)/Rob.NLEG);
+     nPhir = floor((size(Phi_rr_red ,1))/Rob.NLEG);
+     nPhi = nPhit + nPhir;  
+     % oder feste zahlen so(unguenstig)
+     % nPhir = 2;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen
+     % nPhit = 3;  % vielleicht verallgemeinern, Achtung bei nicht ganzen Zahlen 
+     Phi_x_red((i-1)*nPhi+1:(i)*nPhi,:) = ...
     [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
      Phi_rt_red((i-1)*nPhir+1:(i)*nPhir, :), Phi_rr_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  Phi_x((i-1)*6+1:(i)*6, :) = ...
+  else
+    if all(Rob.I_EE_Task == logical([1 1 0 0 0 1]))
+      nPhir = 1;
+    else
+      nPhir = 3;
+    end
+     nPhi = nPhit + nPhir;
+     Phi_x_red((i-1)*nPhi:(i)*nPhi - 1, :) = ...
+    [Phi_tt_red((i-1)*nPhit+1:(i)*nPhit, :), Phi_tr_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+     Phi_rt_red((i-1)*nPhir :(i)*nPhir -1, :), Phi_rr_red((i-1)*nPhir:(i)*nPhir -1, :)];
+  end
+     Phi_x((i-1)*6+1:(i)*6, :) = ...
     [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
      Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
 end

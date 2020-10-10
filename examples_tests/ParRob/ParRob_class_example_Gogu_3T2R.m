@@ -99,7 +99,13 @@ if any(isnan([phi;q]))
   warning('Inverse Kinematik nicht lösbar');
   q(isnan(q)) = q0(isnan(q));
 end
-
+figure(1);clf;
+hold on;grid on;
+xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+view(3);
+s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
+RP.plot( q, X_E, s_plot );
+return
 % Entferne den Eintrag der Z-Komponente der ZB für die zweite Beinkette
 % Dieser Eintrag ist nicht relevant für die Kinematik
 % TODO: Erneute Anpassung der Zwangsbedingungs-Funktionen. Entfernung

@@ -7,13 +7,17 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
-% Phipphi_red
+% PhiDpphi_red
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
-% Phipphi [3xN]
+% PhiDpphi [3xN]
 %   Ableitung der kinematischen Zwangsbedingungen nach der EE-Orientierung
 %   Rotatorischer Teil
 
@@ -28,13 +32,17 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phipphi_red, Phipphi] = constr2grad_rr(Rob, q, xE)
+function [PhiDpphi_red, PhiDpphi] = constr2gradD_rr(Rob, q, qD, xE ,xDE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr2grad_rr: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr1gradD_rr: q muss %dx1 sein', Rob.NJ);
+assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
+  'ParRob/constr1gradD_rr: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2grad_rr: xE muss 6x1 sein');
+  'ParRob/constr1gradD_rr: xE muss 6x1 sein');
+assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
+  'ParRob/constr1gradD_rr: xDE muss 6x1 sein');
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
@@ -42,23 +50,27 @@ NLEG = Rob.NLEG;
 
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
-  Phipphi = zeros(3*NLEG,3);
-  Phipphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
+  PhiDpphi = zeros(3*NLEG,3);
+  PhiDpphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
 else
-  Phipphi = sym('xx',     [3*NLEG,3]);
-  Phipphi(:)=0;
-  Phipphi_red = sym('xx', [sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6))]);
-  Phipphi_red(:)=0;
+  PhiDpphi = sym('xx',     [3*NLEG,3]);
+  PhiDpphi(:)=0;
+  PhiDpphi_red = sym('xx', [sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6))]);
+  PhiDpphi_red(:)=0;
 end
 
 %% Berechnung
 R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
+omega_0_Ex  = euljac (xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
+RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
+R_Bi_P = eye(3,3);
 
 for iLeg = 1:NLEG
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
-  qs = q(IJ_i); % Gelenkwinkel dieser Kette
+  q_i = q(IJ_i); % Gelenkwinkel dieser Kette
+  qD_i= qD(IJ_i);
   
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
@@ -66,13 +78,17 @@ for iLeg = 1:NLEG
   R_Bi_P = R_P_Bi.';
   
   % Definitionen, Laden der Kinematik
-  T_0i_Bi = Rob.Leg(iLeg).fkineEE(qs);
+  T_0i_Bi = Rob.Leg(iLeg).fkineEE(q_i);
   R_0i_E_q = T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E;
   R_0_E_q = R_0_0i * R_0i_E_q;
 
   % Rotationsmatrix Differenz-Rotation. 
   R_Ex_Eq = R_0_E_x' * R_0_E_q; % Argument in [2_SchapplerTapOrt2019a]/(19)
-
+  % Ableitungen der Rotationsmatrizen berechnen
+  omega_0i_Bi   = Rob.Leg(iLeg).jacobiw(q_i) * qD_i;
+  RD_0i_Bi = skew (omega_0i_Bi) * T_0i_Bi(1:3,1:3);
+  RD_0_E_q = R_0_0i * RD_0i_Bi * R_Bi_P * R_P_E;
+  RD_Ex_Eq = (RD_0_E_x' * R_0_E_q) + (R_0_E_x' * RD_0_E_q);
   %% (III) Ableitung des Matrixproduktes
   % Dritter Term in [2_SchapplerTapOrt2019a]/(36) bzw. Gl. (A.50): 
   % [2_SchapplerTapOrt2019a]/(A23); Gl. (B.12)
@@ -83,13 +99,21 @@ for iLeg = 1:NLEG
   a12=R_0_E_q(2,1);a22=R_0_E_q(2,2);a32=R_0_E_q(2,3);
   a13=R_0_E_q(3,1);a23=R_0_E_q(3,2);a33=R_0_E_q(3,3);
   dPidR2b = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
+  % Berechnung der Zeitableitung:
+  % Setze Zeitableitung der EE-Rotationsmatrix transponiert in Matrix ein.
+  % Da die Elemente der Rotationsmatrix nur eingesetzt werden, wird
+  % elementweise abgeleitet
+  a11=RD_0_E_q(1,1);a21=RD_0_E_q(1,2);a31=RD_0_E_q(1,3);
+  a12=RD_0_E_q(2,1);a22=RD_0_E_q(2,2);a32=RD_0_E_q(2,3);
+  a13=RD_0_E_q(3,1);a23=RD_0_E_q(3,2);a33=RD_0_E_q(3,3);
+  dDPidR2b = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
 
   %% (IV) Ableitung von R_0_E nach den Euler-Winkeln
   % Vierter Term in [2_SchapplerTapOrt2019a]/(36) bzw. Gl. (A.50)
   % (XYZ-Euler-Winkel der Endeffektor-Orientierung)
   % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
   dR0Ebdphi = rotmat_diff_eul(xE(4:6), Rob.phiconv_W_E);
-  
+  dR0EbdphiD = rotmatD_diff_eul(xE(4:6), xDE(4:6), Rob.phiconv_W_E);
   %% (II) Transpositions-Matrix;
   % Gl (C.29), [2_SchapplerTapOrt2019a]/(A19)
   % zweiter Term in [2_SchapplerTapOrt2019a]/(36) bzw. (A.50)
@@ -102,15 +126,16 @@ for iLeg = 1:NLEG
   % Aus eulzyx_diff_rmatvec_matlab.m
   % Unabhängig vom Roboter (nur von Orientierungsdarstellung) 
   dphidRb = eul_diff_rotmat(R_Ex_Eq, phiconv_W_E_reci);
-  
+  dDphidRb = eulD_diff_rotmat(R_Ex_Eq, RD_Ex_Eq, phiconv_W_E_reci);
   %% Gesamtergebnis
   % [2_SchapplerTapOrt2019a]/(36) bzw. Gl. (A.50)
-  Phi_phi_i_Gradx = dphidRb * P_T*dPidR2b * dR0Ebdphi;
-  
+  Phi_phi_i_GradxD = dDphidRb * P_T * dPidR2b  * dR0Ebdphi ...% AD P B  C
+                   + dphidRb  * P_T * dDPidR2b * dR0Ebdphi... % A  P BD C
+                   + dphidRb  * P_T * dPidR2b  * dR0EbdphiD;  % A  P B  CD
   %% Einsetzen in Ausgabevariable
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
-  Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
+  PhiDpphi(J1:J2,:) = Phi_phi_i_GradxD;
   
   % Ausgabe mit reduzierter Dimension
   % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
@@ -118,8 +143,8 @@ for iLeg = 1:NLEG
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
   K2 = K1+sum(Rob.I_EE(4:6))-1;
   if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
-    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6));
+    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],Rob.I_EE(4:6));
   else
-    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6)); % das war vor anpassung
+    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.I_EE(4:6),Rob.I_EE(4:6)); % das war vor anpassung
   end
 end

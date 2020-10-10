@@ -115,8 +115,12 @@ end
 delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
-I_constr_r_red = Rob.I_constr_r_red;
 I_IK = Rob.I_constr_red;
+if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
+  I_constr_r_red = setdiff(I_IK,Rob.I_constr_t);
+else
+  I_constr_r_red = Rob.I_constr_r_red;
+end
 
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
@@ -221,7 +225,7 @@ for rr = 0:retry_limit
     Phi = Phi_voll(I_IK);
 
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
-      && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
+      && max(abs(Phi_voll(I_constr_t_red))) < Phit_tol && max(abs(Phi_voll(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
       ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
       nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
      success = true; 

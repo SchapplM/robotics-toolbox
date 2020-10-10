@@ -152,6 +152,36 @@ elseif method > 4 && method <= 8 % Paarweise angeordnet
       Rob.Leg(k_leg).update_base();
     end
   end
+elseif method == 9
+  n_base_par = 1;
+  r_0A = param(1);
+  for i = 1:NLEG
+    if Rob.issym
+      beta_i = 2*sym('pi')/NLEG*(i-1);
+    else
+      beta_i = 2*pi/NLEG*(i-1);
+    end
+    r_0_0_Ai_ges(:,i) = rotz(beta_i)*[r_0A;0;0];
+    if Rob.issym
+      phi_0_Ai_ges(:,i) = [0*sym('pi')/180;0*sym('pi')/180;sym('pi')/2];
+    else
+      phi_0_Ai_ges(:,i) = [pi/2;0*pi/180; pi/2];
+    end
+    
+    if Rob.issym
+      % TODO: Bessere Methode zur Unterdrückung der Warnung (tritt auf,
+      % wenn 0 oder Pi mit Annahmen belegt werden soll
+      warning('off', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+      assume(r_0_0_Ai_ges(:,i), 'real');
+      assume(phi_0_Ai_ges(:,i), 'real');
+      warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+    end
+    Rob.Leg(i).r_W_0 = r_0_0_Ai_ges(:,i);
+    Rob.Leg(i).phi_W_0 = phi_0_Ai_ges(:,i); % Standard-Konvention XYZ lassen
+
+    % Transformationsmatrizen aus den geänderten Euler-Winkeln generieren
+    Rob.Leg(i).update_base();
+  end
 else
   error('Methode nicht implementiert');
 end

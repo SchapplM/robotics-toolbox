@@ -65,8 +65,8 @@ end
 
 %% Belegung der Ausgabe
 for i = 1:Rob.NLEG
-  if all(Rob.I_EE_Task == [1 1 1 1 1 0])
-    if i == 1 % Führungskette: Reduzierte FG um Rotation
+  if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
+    if all(Rob.Leg(i).I_EE_Task == logical([1 1 1 1 1 0])) % Führungskette: Reduzierte FG um Rotation
       Phi_q_red(1:5, :) = ...
         [Phi_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
          Phi_rq_red(1:2, :)];

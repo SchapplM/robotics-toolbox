@@ -22,6 +22,16 @@ function [Phipx_red, Phipx] = constr3grad_rt(Rob)
 % Die Translation hat keinen Einfluss auf die Rotation
 % Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
 Phipx = zeros(3*Rob.NLEG,3);
-Phipx_red = zeros( sum(Rob.I_EE(4:6))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
-% TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
-% Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
+%% ---- Berechne die Anzahl der Fuherungsbeine
+leading_chain = 0;
+for ii = 1: Rob.NLEG
+    if(all(Rob.Leg(ii).I_EE_Task == logical([1 1 1 1 1 0])) )
+        leading_chain = leading_chain + 1;
+    end
+end
+%% --- Anteil der Zwangsbedingungen  
+if (all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))) 
+    Phipx_red = zeros( sum(Rob.I_EE(1:3))*Rob.NLEG - leading_chain, sum(Rob.I_EE(1:3)) );
+else
+    Phipx_red = zeros( sum(Rob.I_EE(1:3))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
+end

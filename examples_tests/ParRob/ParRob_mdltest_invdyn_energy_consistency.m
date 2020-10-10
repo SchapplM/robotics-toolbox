@@ -16,13 +16,14 @@ usr_save_figures = true;
 usr_plot_animation = true;
 usr_debug = true;
 usr_num_tests_per_dof = 5;
-usr_test_constr4_JinvD = true; % zum Debuggen der constr4gradD-Funktionen
+usr_test_constr4_JinvD = false; % zum Debuggen der constr4gradD-Funktionen
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 0; ...
             1 1 1 0 0 1; ...
+            1 1 1 1 1 0; ...
             1 1 1 1 1 1];
-EE_FG_Mask = [1 1 1 1 1 1];
+EE_FG_Mask = [1 1 1 1 1 0];
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
 tmpdir_params = fullfile(rob_path, 'examples_tests', 'tmp_ParRob', 'param_dimsynthres');
@@ -213,8 +214,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       X_ges = NaN(nt,6);
       XD_ges = NaN(nt,6);
       XDD_ges = NaN(nt,6);
-      PHI_ges = NaN(nt, RP.I2constr_red(end));
-      PHI_ges2 = NaN(nt, RP.I2constr_red(end));
+      PHI_ges = NaN(nt, 25); % TODO; Schappler: Warum nicht RP.I2constr_red(end)
+      PHI_ges2 = NaN(nt, 25);% TODO; Schappler: Warum nicht RP.I2constr_red(end)
       Q_ges = NaN(nt,RP.NJ);
       QD_ges = NaN(nt,RP.NJ);
       QDD_ges = NaN(nt,RP.NJ);
@@ -240,8 +241,9 @@ for i_FG = 1:size(EEFG_Ges,1)
         Tges(i) = (i-1)*dt;
         % Kinematik für Zeitschritt i berechnen:
         % Berechnung der Gelenk-Geschwindigkeit und Jacobi-Matrix
-        G1_q = RP.constr1grad_q(q, x); % Für Konditionszahl weiter unten
-        G1_x = RP.constr1grad_x(q, x);
+        % TODO: constr1 und constr2 per Fallunterscheidung (EE-FG)
+        G1_q = RP.constr2grad_q(q, x); % Für Konditionszahl weiter unten
+        G1_x = RP.constr2grad_x(q, x);
         G4_q = RP.constr4grad_q(q);
         G4_x = RP.constr4grad_x(x);
         if jacobi_mode == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
@@ -251,16 +253,18 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         qD = Jinv_voll*xD_red;
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
-        if jacobi_mode == 1
-          GD1_q = RP.constr1gradD_q(q, qD, x, xD);
-          GD1_x = RP.constr1gradD_x(q, qD, x, xD);
-          JinvD_voll = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
-        else
-          % Nehme Modellierung 4 der Jacobi für die Dynamik
-          GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(x, xD);
-          JinvD_voll = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
-        end
+% TODO: Fallunterscheidung 3T2R/3T3R
+%         if jacobi_mode == 1
+%           GD1_q = RP.constr1gradD_q(q, qD, x, xD);
+%           GD1_x = RP.constr1gradD_x(q, qD, x, xD);
+%           JinvD_voll = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+%         else
+%           % Nehme Modellierung 4 der Jacobi für die Dynamik
+%           GD4_q = RP.constr4gradD_q(q, qD);
+%           GD4_x = RP.constr4gradD_x(x, xD);
+%           JinvD_voll = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+%         end
+%         [~,JinvD_voll] = RP.jacobiD_qa_x(q, qD, x, xD); % effizienter hier zu berechnen als in Dynamik
 
         % Kennzahlen für Singularitäten
         SingDet(i,1) = cond(G1_q);
@@ -307,11 +311,11 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         
         % Kinematische Zwangsbedingungen prüfen
-        PHI_ges(i,:) = RP.constr1(q, x);
+        PHI_ges(i,:) = RP.constr2(q, x);
         PHI_ges2(i,:) = Phi;
         
         %% Zusätzliche Prüfung für constr4 vs constr1 (Optional)
-        if cond(G1_q) < 1e2 && usr_test_constr4_JinvD % nicht bei Singularität testen
+        if usr_test_constr4_JinvD && cond(G1_q) < 1e2 % nicht bei Singularität testen
           % Zusätzlicher Test: Prüfe andere Berechnung der Jacobi-Matrix
           % Dafür müssen die korrigierten IK-Gelenkwinkel genommen werden
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
@@ -322,7 +326,9 @@ for i_FG = 1:size(EEFG_Ges,1)
           G1_q = RP.constr1grad_q(q,x);
           G1_x = RP.constr1grad_x(q,x);
           Jinv_voll1 = -G1_q\G1_x;
+          if ~all(EE_FG==[1 1 1 1 1 0])
           % Vergleiche gegen symbolische Herleitung der Jacobi-Matrix
+          % (existiert nicht für 3T2R)
           Jinv_sym_qa_x = RP.jacobi_qa_x(q, x);
           Jinv4_num_qa_x = Jinv_voll4(RP.I_qa,:);
           Jinv1_num_qa_x = Jinv_voll1(RP.I_qa,:);
@@ -331,6 +337,7 @@ for i_FG = 1:size(EEFG_Ges,1)
           end
           if any(abs(Jinv_sym_qa_x(:)-Jinv4_num_qa_x(:))>1e-2)
             error('Jacobi-Matrix nach Methode 1 stimmt nicht gegen symbolisch generierte');
+          end
           end
           % Vergleiche absoluten und relativen Fehler (bei kleinen
           % absoluten Werten größerer Einfluss von Rundungsfehlern)
@@ -494,18 +501,18 @@ for i_FG = 1:size(EEFG_Ges,1)
         legend({'cond(JIK) (var.1)', 'cond(JDK) (var.1)', ...
                 'cond(JIK) (var.4)', 'cond(JDK) (var.4)'});
         grid on;
-        subplot(2,2,3); hold on;
-        title('Prüfung der Kinematik-Konsistenz');
-        plot(Tges, PHI_ges(:, RP.I_constr_t_red));
-        set(gca, 'ColorOrderIndex', 1);
-        plot(Tges, PHI_ges2(:, RP.I_constr_t_red), '--');
-        grid on; ylabel('Translatorische Zwangsbed.');
-        subplot(2,2,4); hold on;
-        if ~isempty(RP.I_constr_r_red)
-        plot(Tges, PHI_ges(:, RP.I_constr_r_red));
-        set(gca, 'ColorOrderIndex', 1);
-        plot(Tges, PHI_ges2(:, RP.I_constr_r_red), '--');
-        grid on;ylabel('Rotatorische Zwangsbed.');
+%         subplot(2,2,3); hold on;
+%         title('Prüfung der Kinematik-Konsistenz');
+%         plot(Tges, PHI_ges(:, RP.I_constr_t_red));
+%         set(gca, 'ColorOrderIndex', 1);
+%         plot(Tges, PHI_ges2(:, RP.I_constr_t_red), '--');
+%         grid on; ylabel('Translatorische Zwangsbed.');
+%         subplot(2,2,4); hold on;
+%         if ~isempty(RP.I_constr_r_red)
+%         plot(Tges, PHI_ges(:, RP.I_constr_r_red));
+%         set(gca, 'ColorOrderIndex', 1);
+%         plot(Tges, PHI_ges2(:, RP.I_constr_r_red), '--');
+%         grid on;ylabel('Rotatorische Zwangsbed.');
         end
         linkxaxes
         sgtitle(sprintf('%s: Validierung/Test', PName));

@@ -86,7 +86,7 @@ for NNN = RobotNames
   end
   RP.update_base(r_W_0, phi_W_0);
   RP.update_EE(r_P_E, phi_P_E, []);
-  
+  RP.phi_P_B_all = repmat(rand(3,1),1,RP.NLEG);% test
   % EE-FG eintragen.
   if RP.NLEG == 3
     RP.update_EE_FG(logical([1 1 0 0 0 1]));
@@ -158,6 +158,8 @@ for NNN = RobotNames
       [~,Phi1_0] = RP.constr1(q0, x0);
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
+      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
+      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
       [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
       [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);
       [~,Phi4dq_0] = RP.constr4grad_q(q0);
@@ -224,6 +226,8 @@ for NNN = RobotNames
           [~,Phi4D_0] = RP.constr4D(q0, qD0, x0, xD0); % Geschwindigkeitsdifferenz 
           [~,Phi1Ddq_0] = RP.constr1gradD_q(q0, qD0, x0, xD0);
           [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0);
+          [~,Phi2Ddq_0] = RP.constr2gradD_q(q0, qD0, x0, xD0);
+          [~,Phi2Ddx_0] = RP.constr2gradD_x(q0, qD0, x0, xD0);
           [~,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0);
           [~,Phi3Ddx_0] = RP.constr3gradD_x(q0, qD0, x0, xD0);
           [~,Phi4Ddq_0] = RP.constr4gradD_q(q0, qD0);
@@ -232,6 +236,8 @@ for NNN = RobotNames
           [~,Phi1_1] = RP.constr1(q1, x1);
           [~,Phi1dq_1] = RP.constr1grad_q(q1, x1);
           [~,Phi1dx_1] = RP.constr1grad_x(q1, x1);
+          [~,Phi2dq_1] = RP.constr2grad_q(q1, x1);
+          [~,Phi2dx_1] = RP.constr2grad_x(q1, x1);
           [~,Phi3dq_1] = RP.constr3grad_q(q1, x1);
           [~,Phi3dx_1] = RP.constr3grad_x(q1, x1);
           [~,Phi4dq_1] = RP.constr4grad_q(q1);
@@ -246,6 +252,8 @@ for NNN = RobotNames
           Phi1dif =  (delta_phi)/dt;
           Phi1difdq =  (Phi1dq_1 - Phi1dq_0)/dt;
           Phi1difdx =  (Phi1dx_1 - Phi1dx_0)/dt;
+          Phi2difdq =  (Phi2dq_1 - Phi2dq_0)/dt;
+          Phi2difdx =  (Phi2dx_1 - Phi2dx_0)/dt;
           Phi3difdq =  (Phi3dq_1 - Phi3dq_0)/dt;
           Phi3difdx =  (Phi3dx_1 - Phi3dx_0)/dt;
           % Zweite Berechnung der Zeitableitung der ZB
@@ -259,6 +267,8 @@ for NNN = RobotNames
           test4 = Phi4D_diff - Phi4D_0;
           test5 = Phi3difdq - Phi3Ddq_0; %for constr3gradD_q vs constr3grad_q
           test6 = Phi3difdx - Phi3Ddx_0;% for constr3gradD_x vs constr3grad_x
+          test7 = Phi2difdq - Phi2Ddq_0; %for constr2gradD_q vs constr2grad_q
+          test8 = Phi2difdx - Phi2Ddx_0;% for constr2gradD_x vs constr2grad_x
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient) 
           if any(abs(test1(:)) > 10e-2)
@@ -273,6 +283,8 @@ for NNN = RobotNames
           % Fehler unendlich werden)
           Phi1Ddq_0(abs(Phi1Ddq_0(:))<1e-12) = 0;
           Phi1Ddx_0(abs(Phi1Ddx_0(:))<1e-12) = 0;
+          Phi2Ddq_0(abs(Phi2Ddq_0(:))<1e-12) = 0;
+          Phi2Ddx_0(abs(Phi2Ddx_0(:))<1e-12) = 0;
           Phi3Ddq_0(abs(Phi3Ddq_0(:))<1e-12) = 0;
           Phi3Ddx_0(abs(Phi3Ddx_0(:))<1e-12) = 0;
           %% Teste constr4D gegen constr4
@@ -316,7 +328,25 @@ for NNN = RobotNames
           if any( I_rq_relerr_3(:) & I_rq_abserr_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             disp(test5(II,JJ));
             error('%s: constr3gradD_rq stimmt nicht gegen constr3grad_rq', PName);
+          end      
+          %% Teste constr2gradD_tq gegen constr2grad_tq
+          RelErr  = Phi2Ddq_0./Phi2difdq - 1;
+          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+          % Fehler für Translatorisch und Rotatorisch getrennt berechnen
+          I_tq_relerr_2 = abs(RelErr(RP.I_constr_t,:)) > 10e-2; % Indizes mit Fehler größer 5%
+          I_tq_abserr_2 = abs(test7(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz
+          if any( I_tq_relerr_2(:) & I_tq_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            disp(test7(II,JJ));
+            error('%s: constr2gradD_tq (=constr3gradD_tq) stimmt nicht gegen constr2grad_tq', PName);
           end
+          %% Teste constr2gradD_rq gegen constr2grad_rq
+          I_rq_relerr_2 = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_rq_abserr_2 = abs(test7(RP.I_constr_r,:)) > 1e10*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz
+          if any( I_rq_relerr_2(:) & I_rq_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            disp(test7(II,JJ));
+            error('%s: constr2gradD_rq stimmt nicht gegen constr2grad_rq', PName);
+          end
+          
           %% Teste constr1gradD_tr gegen constr1grad_tr
           % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
           % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
@@ -335,6 +365,22 @@ for NNN = RobotNames
           I_rr_err = I_rr_relerr & I_rr_abserr;
           if any( I_rr_err(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr1gradD_rr stimmt nicht gegen constr1grad_rr', PName);
+          end
+          %% Teste constr2gradD_tr gegen constr2grad_tr
+          RelErr = Phi2difdx./Phi2Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
+          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+          RelErr(isinf(RelErr)) = 0; % Bezugsgröße Null geht nicht
+          I_tr_relerr_2 = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tr_abserr_2 = abs(test8(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:)))); % erlaubt ca. 4e-5
+          if any( I_tr_relerr_2(:) & I_tr_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            error('%s: constr2gradD_tr stimmt nicht gegen constr2grad_tr', PName);
+          end
+          %% Teste constr2gradD_rr gegen constr2grad_rr
+          I_rr_relerr_2 = abs(RelErr(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:))));
+          I_rr_abserr_2 = abs(test8(RP.I_constr_r,4:6)) > 10;
+          I_rr_err_2 = I_rr_relerr_2 & I_rr_abserr_2;
+          if any( I_rr_err_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            error('%s: constr2gradD_rr stimmt nicht gegen constr2grad_rr', PName);
           end
           %% Teste constr3gradD_tr gegen constr3grad_tr
           RelErr = Phi3difdx./Phi3Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )

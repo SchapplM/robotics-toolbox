@@ -48,14 +48,13 @@ NLEG = Rob.NLEG;
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
   Phipphi = zeros(3*NLEG,3);
-  Phipphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
+  Phipphi_red = zeros( sum(Rob.I_EE(1:3))*NLEG -1 , sum(Rob.I_EE(4:6)) ); % nur fuer 3T2R gedacht
 else
   Phipphi = sym('xx',     [3*NLEG,3]);
   Phipphi(:)=0;
-  Phipphi_red = sym('xx', [sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6))]);
+  Phipphi_red = sym('xx', [sum(Rob.I_EE(1:3))*NLEG -1, sum(Rob.I_EE(4:6))]); % nur fuer 3T2R gedacht
   Phipphi_red(:)=0;
 end
-
 %% Berechnung
 R_P_E = Rob.T_P_E(1:3,1:3);
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
@@ -113,18 +112,19 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   % [2_SchapplerTapOrt2019a]/(36) bzw. Gl. (A.50)
   % Gl. (A.50)
   Phi_phi_i_Gradx = dphidRb * P_T*dPidR2b * dR0Ebdphi;
-  
   %% Einsetzen in Ausgabevariable
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
   
   % Ausgabe mit reduzierter Dimension
-  % TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
-  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
   % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
   % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
   K2 = K1+sum(Rob.I_EE(4:6))-1;
-  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));
+  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6));
+  else
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6)); % das war vor anpassung
+  end
 end

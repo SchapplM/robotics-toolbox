@@ -1,0 +1,124 @@
+% Ableitung der kinematischen Zwangsbedingungen nach den Gelenkwinkeln und
+% Ableitung dieser (Gradienten-)Matrix nach der Zeit
+% 
+% Variante 2:
+% * Absolute Rotation ausgedrückt in XYZ-Euler-Winkeln
+% * Rotationsfehler ausgedrückt in ZYX-Euler-Winkeln (und als E(q)-E(x)
+% 
+% 
+% Eingabe:
+% q [Nx1]
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
+% xE [6x1]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% 
+% Ausgabe:
+% Phi_q_red
+%   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
+%   und der Zeit.
+%   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
+% Phi_q [6xN]
+%   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
+% 
+% Diese Datei ist identisch mit: ParRob/constr3gradD_q.m
+% Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
+
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
+% (C) Institut für Mechatronische Systeme, Universität Hannover
+
+function [PhiD_q_red, PhiD_q] = %PN%_constr2gradD_q(q, qD, xE, xDE, s)
+
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(%NJ%,1), zeros(%NJ%,1),zeros(6,1),zeros(6,1), struct(
+%$cgargs            'I_EE', true(1,6),
+%$cgargs       'I_EE_Task', true(1,6),
+%$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
+%$cgargs            'NLEG', 0,
+%$cgargs              'NJ', 0,
+%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
+%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
+%$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
+%$cgargs       'r_P_B_all', zeros(3,%NLEG%),
+%$cgargs     'phiconv_W_E', uint8(2),
+%$cgargs           'T_P_E', zeros(4,4),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
+%$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
+%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
+%$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
+%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+
+
+%% Initialisierung
+
+s1 = struct(        'I_EE', s.I_EE,...
+                    'NLEG', s.NLEG,...
+                      'NJ', s.NJ,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+          'I_constr_t_red', s.I_constr_t_red,...
+                   'T_P_E', s.T_P_E,...
+               'r_P_B_all', s.r_P_B_all,...
+             'phi_P_B_all',s.phi_P_B_all,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+             'Leg_phi_W_0', s.Leg_phi_W_0,...
+         'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
+                 'Leg_NQJ', s.Leg_NQJ);
+s2 = struct(        'I_EE', s.I_EE,...
+               'I_EE_Task',s.I_EE_Task,...
+                    'NLEG', s.NLEG,...
+                      'NJ', s.NJ,...
+                 'I1J_LEG', s.I1J_LEG,...
+                 'I2J_LEG', s.I2J_LEG,...
+             'phi_P_B_all',s.phi_P_B_all,...
+             'phiconv_W_E',s.phiconv_W_E,...
+                   'T_P_E', s.T_P_E,...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
+            'Leg_I_EElink', s.Leg_I_EElink,...
+           'Leg_I_EE_Task', s.Leg_I_EE_Task,...
+             'Leg_phi_W_0', s.Leg_phi_W_0,...
+         'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
+
+%% Aufruf der Unterfunktionen
+% Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
+% ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
+[PhiD_tq_red,PhiD_tq]=%PN%_constr2gradD_tq(q, qD, s1); % calling of the differentiation of the translational kinematic constraints
+[PhiD_rq_red,PhiD_rq]=%PN%_constr2gradD_rq(q, qD, xE, xDE, s2); % calling of the differentiation of the rotational kinematic constraints
+
+%% Initialisierung mit Fallunterscheidung für symbolische Eingabe
+% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
+dim_Pq_red=[size(PhiD_tq_red,1) + size(PhiD_rq_red ,1), size(PhiD_rq_red,2)];
+dim_Pq =   [size(PhiD_tq,1)     + size(PhiD_rq,1),      size(PhiD_rq,    2)];
+
+
+PhiD_q_red = NaN(dim_Pq_red);
+PhiD_q =     NaN(dim_Pq);
+
+
+% Anzahl ZB
+% TODO: Das funktioniert wahrscheinlich nicht bei allen asymmetrischen PKM,
+% falls planare Roboter modelliert werden.
+nPhit = floor(size(PhiD_tq_red,1)/s.NLEG);
+nPhir = floor((size(PhiD_rq_red ,1))/s.NLEG);
+nPhi = nPhit + nPhir;
+
+%% Belegung der Ausgabe
+for i = 1:s.NLEG
+  PhiD_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
+    [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
+     PhiD_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
+  PhiD_q((i-1)*6+1:(i)*6, :) = ...
+    [PhiD_tq((i-1)*3+1:(i)*3, :); ...
+     PhiD_rq((i-1)*3+1:(i)*3, :)];
+end

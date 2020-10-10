@@ -887,13 +887,13 @@ classdef ParRob < RobBase
       end
       R.I_EE_Task = I_EE_Task;
       
-      if all(R.I_EE_Task == logical([1 1 1 1 1 0]))
+      if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && nargin < 4
         % Führungs-Beinkette muss auch die 3T2R-FG haben.
         R.Leg(1).I_EE_Task = R.I_EE_Task;
         for i = 2:R.NLEG
           % Andere
           R.Leg(i).I_EE_Task = logical([1 1 1 1 1 1]);
-        end
+        end  
       else%if all(R.I_EE_Task == logical([1 1 1 1 1 1]))
         for i = 1:R.NLEG
           % Anderer Fall als 3T2R: Setze die Aufgaben-FG auch für die

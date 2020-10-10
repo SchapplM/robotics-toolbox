@@ -146,5 +146,9 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
   K2 = K1+sum(Rob.I_EE(4:6))-1;
-  PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.I_EE(4:6),Rob.I_EE(4:6));
+  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
+    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],Rob.I_EE(4:6));
+  else
+    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.I_EE(4:6),Rob.I_EE(4:6)); % das war vor anpassung
+  end
 end

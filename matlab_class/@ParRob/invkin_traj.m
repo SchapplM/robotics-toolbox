@@ -102,8 +102,14 @@ Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Hier ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+if dof_3T2R && Rob.NJ==25
+  Jinv_ges = NaN(nt, 6*Rob.NJ);
+  JinvD_ges = zeros(nt, 6*Rob.NJ);
+else
+  Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
+  JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+end
+
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -182,7 +188,11 @@ if ~dof_3T2R
   limits_qD_set = false;
 end
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
-J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
+if dof_3T2R && Rob.NJ==25
+  J_x_inv_alt = zeros(Rob.NJ,6);
+else
+  J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
+end
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
 Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_EE));
 
@@ -221,11 +231,16 @@ for k = 1:nt
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
   else
+    if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
+      [Phi_q,Phi_q_voll] = Rob.constr2grad_q(q_k, x_k);
+      [~,Phi_x_voll] = Rob.constr2grad_x(q_k, x_k);
+    else 
+      [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
+      [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);     
+    end
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
-    % Systeme mit Beinketten mit fünf Gelenken.
-    [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
-    [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
+    % Systeme mit Beinketten mit fünf Gelenken.   
     I = Rob.I_constr_red;
     Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
     % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
@@ -272,10 +287,18 @@ for k = 1:nt
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else
-      [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
-      [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
+        [Phi_qD,Phi_qD_voll] = Rob.constr2gradD_q(q_k, qD_k, x_k, xD_k);
+        [~,Phi_xD_voll] = Rob.constr2gradD_x(q_k, qD_k, x_k, xD_k);
+      else 
+        [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
+        [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+      end
       I = Rob.I_constr_red;
       Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+      if (length(q_k) == 25)% fuer symmetrische 3T2R-PKM
+        Phi_qD = Phi_qD_voll(Rob.I_constr_red,:);
+      end
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
