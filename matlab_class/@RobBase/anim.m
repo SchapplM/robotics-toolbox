@@ -33,7 +33,7 @@ end
 if isa(X, 'struct')
   error('Falsches Eingabeformat für Argument X');
 end
-if any(isnan(Q(1,:))) || any(isnan(X(1,:)))
+if any(isnan(Q(1,:))) || ~isempty(X) && any(isnan(X(1,:)))
   warning('Ungültige Trajektorie. Erster Zeitschritt ist NaN. Abbruch.');
   return
 end
