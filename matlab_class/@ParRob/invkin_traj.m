@@ -70,15 +70,15 @@ for f = fields(s_std)'
     s.(f{1}) = s_std.(f{1});
   end
 end
-dof_3T2R = false;
-mode_IK = s.mode_IK;
 
 I_EE = Rob.I_EE_Task;
+mode_IK = s.mode_IK;
+dof_3T2R = false;
+
 if all(s.I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
   I_EE = s.I_EE;
 end
-
 
 if nargout == 6
   % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
@@ -304,7 +304,7 @@ for k = 1:nt
   if s.debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-    if any(abs(PhiDD_test3) > 1e-2) % TODO: Unklar, warum z.B. bei Delta-PKM notwendig.
+    if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
       error('Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen nicht');
     end
   end
@@ -329,13 +329,12 @@ for k = 1:nt
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
     end
-
-    qDD_N_pre = N * v;  
+    qDD_N_pre = N * v;
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
-    qDD_pre = qDD_k_T + qDD_N_pre; 
+    qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
     deltaD_ll = (-qDmin + qD_pre); % Unterschreitung Minimalwerte: <0
@@ -364,7 +363,7 @@ for k = 1:nt
     else
       qDD_N_post = qDD_N_pre;
     end
-  else 
+  else
     qDD_N_post = qDD_N_pre;
   end
   qDD_k = qDD_k_T + qDD_N_post;

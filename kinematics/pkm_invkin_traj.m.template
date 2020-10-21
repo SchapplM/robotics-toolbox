@@ -36,6 +36,11 @@
 % JointPos_all
 %   gestapelte Positionen aller Gelenke der PKM für alle Zeitschritte
 %   (Entspricht letzter Spalte aller Transformationsmatrizen aus fkine_legs)
+%   Reihenfolge: Siehe Ausgabe Tc_stack_PKM aus invkin_ser
+%   * PKM-Basis
+%   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
+%     virtuelles EE-KS
+%   * Kein Plattform-KS
 
 % Diese Datei ist identisch mit: ParRob/invkin_traj.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
@@ -48,7 +53,7 @@
 
 % %VERSIONINFO%
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = %PN%_invkin_traj(X, XD, XDD, T, q0, s, s_ser)
 
@@ -119,7 +124,6 @@ mode_IK = s.mode_IK;
 debug = s.debug;
 wn = s.wn;
 s_ser.wn = zeros(2,1); % Nullraumopt. nicht in IK-Berechnung
-
 dof_3T2R = false;
 if all(I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
@@ -161,6 +165,7 @@ else
   % Keine zusätzlichen Optimierungskriterien
   nsoptim = false;
 end
+% Vergleiche FG der Aufgabe und FG des Roboters
 if ~dof_3T2R
   % TODO: Hier noch echte Prüfung der FG des Roboters oder detailliertere
   % Fallunterscheidungen notwendig.
@@ -372,13 +377,14 @@ for k = 1:nt
   if k < nt % Schrittweite für letzten Zeitschritt angenommen wie vorletzter
     dt = T(k+1)-T(k); % Zeit bis zum nächsten Abtastpunkt
   end
-
-  if mode_IK == 2
-    % 3T2R-Funktion
-    [q_k, Phi_k, Tc_stack_k] = %PN%_invkin3(x_k, qk0, s_tpl);
-  else
+  %% Gelenk-Position berechnen
+  if mode_IK == 1
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
     [q_k, Phi_k, Tc_stack_k] = %PN%_invkin(x_k, qk0, s_par, s_ser);
+  else
+    % 3T2R-Funktion. Wird hier aber nicht als 3T2R benutzt, da keine
+    % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
+    [q_k, Phi_k, Tc_stack_k] = %PN%_invkin3(x_k, qk0, s_tpl);
   end
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
@@ -389,14 +395,14 @@ for k = 1:nt
      any(abs(Phi_k(s.I_constr_r_red)) > s_ser.Phir_tol)
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
-  % Gelenk-Geschwindigkeit berechnen
+  %% Gelenk-Geschwindigkeit berechnen
   if ~dof_3T2R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen)
     Phi_q = %PN%_constr4grad_q(q_k,s_q);
     Phi_x = %PN%_constr4grad_x(x_k,s_x);
     J_x_inv = -Phi_q \ Phi_x;
-  else
+  else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
@@ -410,11 +416,12 @@ for k = 1:nt
     end
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R || ~all(s.I_EE == [1 1 1 1 1 1])
+    if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
+        ~all(s.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
-      qD_k = - Phi_q \ Phi_x * xD_k(I_EE);
+      qD_k = -Phi_q \ Phi_x * xD_k(I_EE);
     end
   else % Nullraum Optimierung
     % Korrekturterm für Linearisierungsfehler. Für PhiD_pre=0 entsteht die
@@ -448,14 +455,14 @@ for k = 1:nt
       Phi_qD = %PN%_constr4gradD_q(q_k, qD_k, s_q);
       Phi_xD = %PN%_constr4gradD_x(x_k, xD_k, s_x);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
-    else
-      [Phi_qD,Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
-      [Phi_xD_tmp,Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
+    else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
+      [Phi_qD,     Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
+      [Phi_xD_tmp, Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
       Phi_xD=Phi_xD_tmp(:,I_EE);
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      if all(s.I_EE == [1 1 1 1 1 1])
+      if all(s.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
         JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
       else % strukturell 3T2R-PKM
         JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
@@ -472,7 +479,7 @@ for k = 1:nt
   if debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-    if any(abs(PhiDD_test3) > 1e-2)
+    if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
       error('Beschleunigung qDD_k_T erfuellt die kinematischen Bedingungen nicht');
     end
   end
@@ -501,7 +508,7 @@ for k = 1:nt
   else
     qDD_N_pre = zeros(s.NJ, 1);
   end
-  if nsoptim && limits_qD_set
+  if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
@@ -542,7 +549,7 @@ for k = 1:nt
     % eine korrekte Nullraumbewegung ausführt.
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
-    if any(abs(PhiDD_korr) > 1e-8)
+    if any(abs(PhiDD_korr) > 1e-8) % funktioniert nur mit feiner IK-Toleranz Phit_tol
       error('Beschleunigung ist nicht konsistent nach Nullraumbewegung. Fehler %1.1e', max(abs(PhiDD_korr)));
       % Dieser Teil sollte nicht ausgeführt werden müssen (s.o.)
       qDD_korr = Phi_q\PhiDD_korr; %#ok<UNRCH>
@@ -561,7 +568,7 @@ for k = 1:nt
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
-
+  
   %% Ergebnisse speichern
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
