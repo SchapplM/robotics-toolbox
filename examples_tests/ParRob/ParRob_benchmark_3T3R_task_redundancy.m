@@ -509,13 +509,20 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
         error('Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Phi) passt nicht für invkin_traj vs invkin2_traj', kk);
       end
       if max(abs(Q_test(:))) > 1e-6
-        error('Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Q) passt nicht für invkin_traj vs invkin2_traj', kk);
+        I_firstviol = find(any(abs(Q_test) > 1e-6,2), 1, 'first');
+        Q_test(abs(Q_test) < 1e-6) = 0; % Zur besseren Erkennung der Abweichungen im Debug-Modus
+        error(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Q) passt nicht ', ...
+          'für invkin_traj vs invkin2_traj. Zuerst in Zeitschritt %d'], kk, I_firstviol);
       end
       if max(abs(QD_test(:))) > 1e-6
-        error('Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QD) passt nicht für invkin_traj vs invkin2_traj', kk);
+        I_firstviol = find(any(abs(QD_test) > 1e-6,2), 1, 'first');
+        error(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QD) passt nicht ', ...
+          'für invkin_traj vs invkin2_traj. Zuerst in Zeitschritt %d'], kk, I_firstviol);
       end
       if max(abs(QDD_test(:))) > 1e-3
-        warning('Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QDD) passt nicht für invkin_traj vs invkin2_traj', kk);
+        I_firstviol = find(any(abs(QDD_test) > 1e-3,2), 1, 'first');
+        warning(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QDD) passt nicht ', ...
+          'für invkin_traj vs invkin2_traj. Zuerst in Zeitschritt %d'], kk, I_firstviol);
       end
     end
     % Wiederherstellung der Grenzwerte, die temporär zurückgesetzt wurden
