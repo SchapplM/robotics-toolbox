@@ -374,7 +374,7 @@ for k = 1:nt
     % eine korrekte Nullraumbewegung ausführt.
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
-    if any(abs(PhiDD_korr) > 1e-8) % funktioniert nur mit feiner IK-Toleranz Phit_tol
+    if any(abs(PhiDD_korr) > max(1e-8, max(abs(qDD_k))/1e9)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
       error('Beschleunigung ist nicht konsistent nach Nullraumbewegung. Fehler %1.1e', max(abs(PhiDD_korr)));
       % Dieser Teil sollte nicht ausgeführt werden müssen (s.o.)
       qDD_korr = Phi_q\PhiDD_korr; %#ok<UNRCH>
