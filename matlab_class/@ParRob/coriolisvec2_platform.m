@@ -141,10 +141,10 @@ if nargout == 2
 end
 % Massenmatrix-Komponenten aller Subsysteme
 if nargout == 1 && nargin < 8
-  [M_full] = Rob.inertia2_platform_full(q, xE, Jinv);
+  [M_full] = Rob.inertia2_platform_full(q, xE);
 elseif nargout == 2 && nargin < 9
   % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
-  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xE, Jinv);
+  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xE);
 end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der

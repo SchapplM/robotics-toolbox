@@ -8,9 +8,6 @@
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (nicht:
 %   Plattform-Pose xP)
-% Jinv [N x Nx] (optional zur Rechenersparnis)
-%   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
-%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
 % 
 % Ausgabe:
 % M_full
@@ -32,17 +29,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [M_full, M_full_reg] = inertia2_platform_full(Rob, q, xE, Jinv)
+function [M_full, M_full_reg] = inertia2_platform_full(Rob, q, xE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/inertia2_platform: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/inertia2_platform: xE muss 6x1 sein');
-if nargin == 4
-  assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
-    'ParRob/inertia2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
-end
+
 % Dynamik-Parameter der Endeffektor-Plattform
 m_P = Rob.DynPar.mges(end);
 mrSges = Rob.DynPar.mrSges(end,:);
