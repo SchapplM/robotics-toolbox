@@ -32,7 +32,6 @@ if method <= 3 % Kreisförmig
   % Verbindung der Punkte)
   % Methode 2: Kreis, x nach oben, z tangential
   % Methode 3: Zentral (planar), z zeigen in die Mitte, x tangential
-  % Methode 4: Zentral (Kegel); aktuell pi/4 Steigsgrad
   % Parameter: Abstand (Radius des Plattform-Kreises)
   r_0A = param(1);
   for i = 1:NLEG
@@ -110,6 +109,10 @@ elseif method == 4
     Rob.Leg(i).update_base();
   end
 elseif method > 4 && method <= 8 % Paarweise angeordnet
+  % Methode 5: Wie Methode 1, aber paarweise
+  % Methode 6: Wie Methode 2, aber paarweise
+  % Methode 7: Wie Methode 3, aber paarweise
+  % Methode 8: Wie Methode 4, aber paarweise
   % Parameter aus Eingabe extrahieren
   if method ~= 8
     n_base_par = 2;
@@ -153,6 +156,7 @@ elseif method > 4 && method <= 8 % Paarweise angeordnet
     end
   end
 elseif method == 9
+  % Methode 9: Alle Gelenkachsen parallel angeordnet
   n_base_par = 1;
   r_0A = param(1);
   for i = 1:NLEG

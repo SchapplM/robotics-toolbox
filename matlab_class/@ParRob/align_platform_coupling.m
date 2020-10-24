@@ -100,6 +100,7 @@ elseif method > 3 && method <= 6
     end
   end
 elseif method == 8
+  % Methode 8: Alle Gelenkachsen parallel angeordnet
   n_pf_par = 1;
   r_PB = param(1); 
   for i = 1:NLEG

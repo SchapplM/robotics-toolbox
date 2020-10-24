@@ -32,10 +32,10 @@ SName='S6RRRRRR10';
 % Instanz der Roboterklasse erstellen
 RS = serroblib_create_robot_class(SName);
 RS.fill_fcn_handles(true, true);
-rankloss_matrix = NaN(8,4);
+rankloss_matrix = NaN(9,8);
 
-for base_Coup = 1:8
-  for plat_Coup = 1:6
+for base_Coup = 1:9
+  for plat_Coup = [1:6 8]
     %% PKM erstellen
     Parname = sprintf('P6RRRRRR10G%dP%dA1',base_Coup,plat_Coup);
     RP = ParRob(Parname);
@@ -74,6 +74,8 @@ for base_Coup = 1:8
       base_par = [Basis_Radius;Basis_Abstand];
     elseif base_Coup == 8
       base_par = [Basis_Radius;Basis_Abstand;Steigungswinkel];
+    elseif base_Coup == 9
+      base_par = Basis_Radius;
     else
       error('Gestell-Orientierungsmethode %d nicht implementiert', base_Coup)
     end
@@ -81,6 +83,8 @@ for base_Coup = 1:8
       plat_par = Plat_Radius;
     elseif plat_Coup <=6
       plat_par = [Plat_Radius;Plat_Abstand];
+    elseif plat_Coup == 8
+      plat_par = Plat_Radius;
     else
       error('Plattform-Orientierungsmethode %d nicht implementiert', plat_Coup)
     end
@@ -100,82 +104,85 @@ for base_Coup = 1:8
     X = [ [0.05;-0.05;0.5]; [5;-5;3]*pi/180 ];
     leg_config_ok = false(6,1);
     for ii = 1:50
-      % Startwerte für numerische IK
+      % Startwerte für numerische IK (definiere nur die der ersten Beinkette)
       q0 = qlim_pkm(:,1)+rand(36,1).*(qlim_pkm(:,2)-qlim_pkm(:,1));
-      q0(1:6:end) = pi/2; % Erstes Gelenk sollte nach innen zeigen
-      q0(2:6:end) = pi/2; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-      q0(3:6:end) = -0.7; % Ausprobieren zum Vermeiden von Ellenbogen unten
+      q0(1) = pi/2; % Erstes Gelenk sollte nach innen zeigen
+      q0(2) = pi/2; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+      q0(3) = -0.7; % Ausprobieren zum Vermeiden von Ellenbogen unten
       % Für jede Koppelpunkt-Variante die Anfangswerte so anpassen, dass
       % die gewünschte (übersichtliche) Konfiguration herauskommt.
       if base_Coup == 1
-        q0(1:6:end) = rand(6,1).*0.3+1.5; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3+1.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.3;
-        q0(5:6:end) = rand(6,1).*0.2+1.2;
+        q0(1) = rand()*0.3+1.5; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3+1.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.3;
+        q0(5) = rand()*0.2+1.2;
         if plat_Coup == 3
-          q0(1:6:end) = rand(6,1).*0.3+1.5;
-          q0(2:6:end) = rand(6,1).*0.3-1;
-          q0(3:6:end) = rand(6,1).*0.3-3;
-          q0(4:6:end) = rand(6,1).*0.3-3;
-          q0(5:6:end) = rand(6,1).*0.2+1.8;
-          q0(6:6:end) = rand(6,1).*0.2+1.2;
+          q0(1) = rand()*0.3+1.5;
+          q0(2) = rand()*0.3-1;
+          q0(3) = rand()*0.3-3;
+          q0(4) = rand()*0.3-3;
+          q0(5) = rand()*0.2+1.8;
+          q0(6) = rand()*0.2+1.2;
         elseif plat_Coup == 5
-          q0(4:6:end) = rand(6,1).*0.5 + 1.5;
-          q0(5:6:end) = rand(6,1).*0.2+1.2;
-          q0(6:6:end) = rand(6,1).*0.2+2;
+          q0(4) = rand()*0.5 + 1.5;
+          q0(5) = rand()*0.2+1.2;
+          q0(6) = rand()*0.2+2;
         elseif plat_Coup == 6
-          q0(4:6:end) = rand(6,1).*0.2 + 1.3;
-          q0(5:6:end) = rand(6,1).*0.2+1.6;
-          q0(6:6:end) = rand(6,1).*0.2-3;
+          q0(4) = rand()*0.2 + 1.3;
+          q0(5) = rand()*0.2+1.6;
+          q0(6) = rand()*0.2-3;
         end
       elseif base_Coup == 2
-        q0(1:6:end) = rand(6,1).*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.5+1.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.4-1.5;
-        q0(5:6:end) = rand(6,1).*0.4+1.5;
-        q0(6:6:end) = rand(6,1).*0.4-2.5;
+        q0(1) = rand()*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.5+1.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.4-1.5;
+        q0(5) = rand()*0.4+1.5;
+        q0(6) = rand()*0.4-2.5;
       elseif base_Coup == 3
-        q0(1:6:end) = rand(6,1).*0.3-2; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-3; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.2+2.8;
-        q0(5:6:end) = rand(6,1).*0.3+1;
-        q0(6:6:end) = -rand(6,1).*0.2 - 1.6;
+        q0(1) = rand()*0.3-2; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-3; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.2+2.8;
+        q0(5) = rand()*0.3+1;
+        q0(6) = -rand()*0.2 - 1.6;
       elseif base_Coup == 4
-        q0(1:6:end) = rand(6,1).*0.3-2; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3+0.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.3-pi;
-        q0(5:6:end) = rand(6,1).*0.3+1;
-        q0(6:6:end) = rand(6,1).*0.3-1.5;
+        q0(1) = rand()*0.3-2; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3+0.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.3-pi;
+        q0(5) = rand()*0.3+1;
+        q0(6) = rand()*0.3-1.5;
       elseif base_Coup == 5
-        q0(1:6:end) = rand(6,1).*0.3+1.5; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3+1.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.3;
-        q0(5:6:end) = rand(6,1).*0.2+0.9;
+        q0(1) = rand()*0.3+1.5; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3+1.5; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-1; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.3;
+        q0(5) = rand()*0.2+0.9;
       elseif base_Coup == 6
-        q0(1:6:end) = rand(6,1).*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3-1.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.5-3.2; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.3-2;
-        q0(5:6:end) = rand(6,1).*0.3+1.6;
+        q0(1) = rand()*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3-1.3; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.5-3.2; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.3-2;
+        q0(5) = rand()*0.3+1.6;
       elseif base_Coup == 7
-        q0(1:6:end) = rand(6,1).*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = rand(6,1).*0.3+0.1; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = rand(6,1).*0.3-pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = rand(6,1).*0.5+2.5;
-        q0(5:6:end) = rand(6,1).*0.3+1.1;
+        q0(1) = rand()*0.3-1.3; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = rand()*0.3+0.1; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = rand()*0.3-pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = rand()*0.5+2.5;
+        q0(5) = rand()*0.3+1.1;
       elseif base_Coup == 8
-        q0(1:6:end) = -pi*3/4; % Erstes Gelenk sollte nach innen zeigen
-        q0(2:6:end) = pi/4; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
-        q0(3:6:end) = pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
-        q0(4:6:end) = -pi*3/4;
-        q0(5:6:end) = pi/4;
+        q0(1) = -pi*3/4; % Erstes Gelenk sollte nach innen zeigen
+        q0(2) = pi/4; % Zweites Gelenk sollte nicht nach unten klappen ("Ellenbogen unten")
+        q0(3) = pi; % Ausprobieren zum Vermeiden von Ellenbogen unten
+        q0(4) = -pi*3/4;
+        q0(5) = pi/4;
+      elseif base_Coup == 9
+        % TODO: Festlegen, falls zufällige Konfiguration unpassend aussieht
       end
       % Vorherige Lösungen einsetzen
+      q0(7:end) = NaN; % Dadurch wird die Lösung der ersten Beinkette für die nächsten als Startwert gesetzt
       for jj = 1:RP.NLEG
         if leg_config_ok(jj)
           q0(RP.I1J_LEG(jj):RP.I2J_LEG(jj)) = q(RP.I1J_LEG(jj):RP.I2J_LEG(jj));
@@ -264,7 +271,7 @@ for base_Coup = 1:8
       % Setze Segmente als Hohlzylinder mit Radius 50mm
       RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
     end
-    if plat_Coup < 4 % Kreisförmig
+    if plat_Coup < 4 || plat_Coup == 8 % Kreisförmig
       RP.DesPar.platform_par(2) = 5e-3;
     else % Paarweise
       RP.DesPar.platform_par(3) = 5e-3;
