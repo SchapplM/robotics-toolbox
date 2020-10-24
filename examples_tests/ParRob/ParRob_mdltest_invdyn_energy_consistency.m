@@ -151,17 +151,21 @@ for i_FG = 1:size(EEFG_Ges,1)
       Traj = Traj_W;
       cds_start
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
-      resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', 1, PName));
-      if isempty(Structures) || ~exist(resfile, 'file')
+      i_select = 0;
+      for i = 1:length(Structures) % alle Ergebnisse durchgehen (falls mehrere theta-Varianten)
+        resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
+        tmp = load(resfile, 'RobotOptRes');
+        if tmp.RobotOptRes.fval < 1000
+          i_select = i;
+          RobotOptRes = tmp.RobotOptRes;
+          break;
+        end
+      end
+      if isempty(Structures) || i_select == 0
         % Die Methode valid_act nimmt die erstbeste bestimmbare Kinematik.
         % Die Wahl der aktuierten Gelenke muss nicht zu vollem Rang führen.
         % Kriterium ist daher nur die Bestimmbarkeit des Rangs (fval <1000)
-        warning('Etwas ist bei der Maßsynthese schiefgelaufen (kein Ergebnis)');
-        continue
-      end
-      load(resfile, 'RobotOptRes');
-      if RobotOptRes.fval > 1000
-        warning('Kein funktionierendes Ergebnis in Maßsynthese gefunden.');
+        warning('Etwas ist bei der Maßsynthese schiefgelaufen. Keine Lösung.');
         continue
       end
       % Funktionierende Parameter abspeichern (für nächstes Mal)
