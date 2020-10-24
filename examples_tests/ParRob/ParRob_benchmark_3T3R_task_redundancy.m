@@ -905,6 +905,6 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   end
 
   fprintf('Test für %s beendet\n',RP.mdlname);
-  
+  close all % sonst sind zu viele Bilder offen.
 end
 dockall
