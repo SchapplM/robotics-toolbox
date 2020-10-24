@@ -59,7 +59,6 @@ if method <= 3
     elseif method == 3
       phi_P_Bi = [-pi/2;-pi/2-beta_i;0*pi/180];
     end
-    Rob.Leg(i).update_EE();
     phi_P_B_all(:,i) =  phi_P_Bi;
   end
   if Rob.issym
@@ -100,6 +99,20 @@ elseif method > 3 && method <= 6
       phi_P_B_all(:,j+2*(i-1)) =  phi_P_Bi;
     end
   end
+elseif method == 8
+  % Methode 8: Alle Gelenkachsen parallel angeordnet
+  n_pf_par = 1;
+  r_PB = param(1); 
+  for i = 1:NLEG
+    if Rob.issym
+      beta_i = 2*sym('pi')/NLEG*(i-1);
+    else
+      beta_i = 2*pi/NLEG*(i-1);
+    end
+    r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
+    phi_P_Bi = [0; pi/2; 0];
+    phi_P_B_all(:,i) =  phi_P_Bi;
+  end   
 else
   error('Plattform-Koppelgelenk-Methode %d nicht implementiert', method);
 end
@@ -111,7 +124,7 @@ if ~isempty(Rob.I_EE)
   % Bei Methode 1 haben alle Beinketten die identischen FG wie die PKM.
   % Bei den anderen Methoden ist dies nicht so. Daher setzen der vollen FG
   % für die Beinketten für diese Koppel-Methoden.
-  if Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)
+  if (Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)) && any(Rob.I_EE ~= logical([1 1 1 1 1 0]))
     for i = 1:NLEG
       Rob.Leg(i).I_EE = true(1,6);
     end

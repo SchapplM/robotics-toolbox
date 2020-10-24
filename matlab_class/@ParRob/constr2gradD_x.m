@@ -1,4 +1,5 @@
 % Ableitung der kinematischen Zwangsbedingungen nach den EE-Koordinaten
+% Ableitung dieser (Gradienten-)Matrix nach der Zeit
 % Bezeichnungen: 
 % * Jacobi-Matrix der direkten Kinematik, 
 % * geometrische Matrix der direkten Kinematik
@@ -10,26 +11,34 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
-% Phi_x_red
+% PhiD_x_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
-% Phi_x [6xN]
+% PhiD_x [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_x_red, Phi_x] = constr2grad_x(Rob, q, xE)
+function [PhiD_x_red, PhiD_x] = constr2gradD_x(Rob, q, qD, xE, xDE)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr2grad_x: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr2gradD_x: q muss %dx1 sein', Rob.NJ);
+assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
+  'ParRob/constr2gradD_x: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2grad_x: xE muss 6x1 sein');
+  'ParRob/constr2gradD_x: xE muss 6x1 sein');
+assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
+  'ParRob/constr2gradD_x: xDE muss 6x1 sein');
 
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
@@ -40,23 +49,23 @@ end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[~, Phi_tt] = Rob.constr2grad_tt();
-[~, Phi_tr] = Rob.constr2grad_tr(xE);
-[~, Phi_rt] = Rob.constr2grad_rt();
-[~, Phi_rr] = Rob.constr2grad_rr(q, xE);
+[~, PhiD_tt] = Rob.constr2gradD_tt();
+[~, PhiD_tr] = Rob.constr2gradD_tr(xE, xDE);
+[~, PhiD_rt] = Rob.constr2grad_rt();
+[~, PhiD_rr] = Rob.constr2gradD_rr(q, qD, xE ,xDE);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
-  Phi_x = NaN(6*Rob.NLEG, 6);
+  PhiD_x = NaN(6*Rob.NLEG, 6);
 else
-  Phi_x = sym('xx', 6*Rob.NLEG, 6);
-  Phi_x(:)= 0;
+  PhiD_x = sym('xx', [6*Rob.NLEG, 6]);
+  PhiD_x(:)= 0;
 end
 
 for i = 1:Rob.NLEG
-  Phi_x((i-1)*6+1:(i)*6, :) = ...
-    [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
-     Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
+  PhiD_x((i-1)*6+1:(i)*6, :) = ...
+    [PhiD_tt((i-1)*3+1:(i)*3, :), PhiD_tr((i-1)*3+1:(i)*3, :); ...
+     PhiD_rt((i-1)*3+1:(i)*3, :), PhiD_rr((i-1)*3+1:(i)*3, :)];
 end
-Phi_x_red = Phi_x(I_constr_red, Rob.I_EE);
+PhiD_x_red = PhiD_x(I_constr_red, Rob.I_EE);

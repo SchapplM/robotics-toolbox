@@ -33,23 +33,22 @@ assert(isreal(q) && all(size(q) == [R.NJ 1]), ...
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2: xE muss 6x1 sein');
 
-% rotatorischer und translatorischer Teil der ZB
-[Phit_red, Phit] = R.constr2_trans(q, xE);
-[Phir_red, Phir] = R.constr2_rot(q, xE);
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:6*R.NLEG;
+if R.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(4:6:end) = []; % entspricht z-Euler-Winkel
+end
 
-% Anzahl ZB
-nPhit = size(Phit_red,1)/R.NLEG;
-nPhir = size(Phir_red,1)/R.NLEG;
-nPhi = nPhit + nPhir;
+% rotatorischer und translatorischer Teil der ZB
+[~, Phit] = R.constr2_trans(q, xE);
+[~, Phir] = R.constr2_rot(q, xE);
 
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-Phi_red = NaN(size(Phit_red,1)+size(Phir_red,1), 1);
-Phi =     NaN(size(Phit,1)    +size(Phir ,1),    1);
+Phi = NaN(6*R.NLEG, 1);
 for i = 1:R.NLEG
-  Phi_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-    [Phit_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-     Phir_red((i-1)*nPhir+1:(i)*nPhir, :)];
   Phi((i-1)*6+1:(i)*6, :) = ...
     [Phit((i-1)*3+1:(i)*3, :); ...
      Phir((i-1)*3+1:(i)*3, :)];
 end
+Phi_red = Phi(I_constr_red);

@@ -15,11 +15,11 @@
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
-% Phi_q_red
+% PhiD_q_red
 %   Ableitung der kinematischen Zwangsbedingungen nach allen Gelenkwinkeln
 %   und der Zeit.
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
-% Phi_q [6xN]
+% PhiD_q [6xN]
 %   Siehe vorher. Hier alle Zeilen der Zwangsbedingungen
 % 
 % Siehe auch: constr1grad_q

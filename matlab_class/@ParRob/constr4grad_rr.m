@@ -35,12 +35,14 @@ phi = xE(4:6); % Euler-Winkel
 Jw = euljac(phi, Rob.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
 %% Belegung der Ausgabevariablen
 % Plattform-Koppelpunkt-Jacobi
+K1 = 1;
 for i = 1:NLEG
   I1 = 3*(i-1)+1;
   % [A], Gl. 11
   phi = -Jw; % Term entspricht direkt dem Vorfaktor der Winkelgeschwindigkeit
   Phi_rr(I1:I1+2,:) = phi;
   
-  J1 = sum(Rob.Leg(i).I_EE_Task(4:6))*(i-1)+1;
-  Phi_rr_red(J1:J1+sum(Rob.Leg(i).I_EE_Task(4:6))-1,:) = phi(Rob.Leg(i).I_EE_Task(4:6), Rob.I_EE(4:6));
+  K2 = K1+sum(Rob.Leg(i).I_EE_Task(4:6))-1;
+  Phi_rr_red(K1:K2,:) = phi(Rob.Leg(i).I_EE_Task(4:6), Rob.I_EE(4:6));
+  K1 = K2+1;
 end

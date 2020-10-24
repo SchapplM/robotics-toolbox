@@ -50,6 +50,7 @@ PhirD = NaN(length(Rob.I_constr_r),1);
 PhirD_red = NaN(length(Rob.I_constr_r_red),1);
 
 I1 = 1;
+K1 = 1;
 for i = 1:NLEG
   % Definitionen für Beinkette i
   IJ_i = Rob.I1J_LEG(i):Rob.I2J_LEG(i);
@@ -61,8 +62,8 @@ for i = 1:NLEG
   % [A], Gl. 7
   J0i_i_rotg = Rob.Leg(i).jacobiw(qs);
   J_Ai_Bi = R_0_0i*J0i_i_rotg;  % Bezug auf das Basis-KS der PKM
-  V_bein = J_Ai_Bi*qsD;
-
+  V_bein = J_Ai_Bi*qsD; % ToDo: translatische Bewegung beruecksichtigen?
+  
   % Geschwindigkeit des Koppelpunktes auf Seite der Beinkette
   % [A], Gl. 8
   V_plat = Jw * xDE(4:6);
@@ -74,6 +75,7 @@ for i = 1:NLEG
   PhirD(I1:I1+2) = V_diff;
   I1 = I1+3;
   % Ausgabe mit reduzierten Einträgen
-  J1 = sum(Rob.I_EE(4:6))*(i-1)+1;
-  PhirD_red(J1:J1+sum(Rob.Leg(i).I_EE(4:6))-1) = V_diff(Rob.Leg(i).I_EE(4:6));
+  K2 = K1+sum(Rob.Leg(i).I_EE_Task(4:6))-1;
+  PhirD_red(K1:K2) = V_diff(Rob.Leg(i).I_EE_Task(4:6));
+  K1 = K2+1;
 end

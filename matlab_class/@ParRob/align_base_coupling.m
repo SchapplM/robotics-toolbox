@@ -32,7 +32,6 @@ if method <= 3 % Kreisförmig
   % Verbindung der Punkte)
   % Methode 2: Kreis, x nach oben, z tangential
   % Methode 3: Zentral (planar), z zeigen in die Mitte, x tangential
-  % Methode 4: Zentral (Kegel); aktuell pi/4 Steigsgrad
   % Parameter: Abstand (Radius des Plattform-Kreises)
   r_0A = param(1);
   for i = 1:NLEG
@@ -110,6 +109,10 @@ elseif method == 4
     Rob.Leg(i).update_base();
   end
 elseif method > 4 && method <= 8 % Paarweise angeordnet
+  % Methode 5: Wie Methode 1, aber paarweise
+  % Methode 6: Wie Methode 2, aber paarweise
+  % Methode 7: Wie Methode 3, aber paarweise
+  % Methode 8: Wie Methode 4, aber paarweise
   % Parameter aus Eingabe extrahieren
   if method ~= 8
     n_base_par = 2;
@@ -151,6 +154,37 @@ elseif method > 4 && method <= 8 % Paarweise angeordnet
       Rob.Leg(k_leg).phi_W_0 = phi_0_Ai_ges(:,k_leg);
       Rob.Leg(k_leg).update_base();
     end
+  end
+elseif method == 9
+  % Methode 9: Alle Gelenkachsen parallel angeordnet
+  n_base_par = 1;
+  r_0A = param(1);
+  for i = 1:NLEG
+    if Rob.issym
+      beta_i = 2*sym('pi')/NLEG*(i-1);
+    else
+      beta_i = 2*pi/NLEG*(i-1);
+    end
+    r_0_0_Ai_ges(:,i) = rotz(beta_i)*[r_0A;0;0];
+    if Rob.issym
+      phi_0_Ai_ges(:,i) = [0*sym('pi')/180;0*sym('pi')/180;sym('pi')/2];
+    else
+      phi_0_Ai_ges(:,i) = [pi/2;0*pi/180; pi/2];
+    end
+    
+    if Rob.issym
+      % TODO: Bessere Methode zur Unterdrückung der Warnung (tritt auf,
+      % wenn 0 oder Pi mit Annahmen belegt werden soll
+      warning('off', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+      assume(r_0_0_Ai_ges(:,i), 'real');
+      assume(phi_0_Ai_ges(:,i), 'real');
+      warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
+    end
+    Rob.Leg(i).r_W_0 = r_0_0_Ai_ges(:,i);
+    Rob.Leg(i).phi_W_0 = phi_0_Ai_ges(:,i); % Standard-Konvention XYZ lassen
+
+    % Transformationsmatrizen aus den geänderten Euler-Winkeln generieren
+    Rob.Leg(i).update_base();
   end
 else
   error('Methode nicht implementiert');

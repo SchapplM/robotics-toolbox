@@ -264,8 +264,8 @@ for testcase = 1:5
   q0 = (1-2*rand(RP.NJ,1))*pi/2; % -90° bis 90°
   q0(RP.MDH.sigma==1) = 0.2; % möglichst positive Schubgelenke
 
-  RP.constr1(q0,X_E);
-  Gq = RP.constr1grad_q(q0,X_E);% ZB noch weiter verstehen. EE_FG x Anzahl_q?
+  %RP.constr1(q0,X_E);
+  %Gq = RP.constr1grad_q(q0,X_E);% ZB noch weiter verstehen. EE_FG x Anzahl_q?
   % IK für Roboter berechnen
   [q,phi] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
   

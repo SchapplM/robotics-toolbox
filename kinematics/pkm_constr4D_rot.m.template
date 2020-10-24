@@ -72,6 +72,7 @@ PhirD_red = NaN(length(s.I_constr_r_red),1);
 
 %% Berechnung
 I1 = 1;
+K1 = 1;
 for i = 1:NLEG
   % Definitionen für Beinkette i
   IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
@@ -94,6 +95,7 @@ for i = 1:NLEG
   PhirD(I1:I1+2) = V_diff;
   I1 = I1+3;
   % Ausgabe mit reduzierten Einträgen
-  J1 = sum(s.I_EE(4:6))*(i-1)+1;
-  PhirD_red(J1:J1+sum(s.Leg_I_EE_Task(i,4:6))-1) = V_diff(s.Leg_I_EE_Task(i,4:6));
+  K2 = K1+sum(s.Leg_I_EE_Task(i,4:6))-1;
+  PhirD_red(K1:K2) = V_diff(s.Leg_I_EE_Task(i,4:6));
+  K1 = K2+1;
 end

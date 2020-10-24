@@ -876,24 +876,27 @@ classdef ParRob < RobBase
       % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert)
       % I_EE_Task [1x6] logical; Belegung der EE-FG der Aufgabe
       % I_EE_Legs [NLEGx6] EE-FG der einzelnen Beinketten
-      R.I_EE = I_EE;
+      R.I_EE = logical(I_EE);
       if nargin < 3
         I_EE_Task = I_EE;
       end
       if nargin < 4
         % TODO: Bei 3T2R stimmt das eventuell nicht, wenn Beinketten 5
         % Gelenke haben
-        I_EE_Legs = repmat(I_EE_Task, R.NLEG,1);
+        % TODO: Diese Eingabe kann entfernt werden.
+        I_EE_Legs = logical(repmat(I_EE_Task, R.NLEG,1));
       end
-      R.I_EE_Task = I_EE_Task;
+      R.I_EE_Task = logical(I_EE_Task);
       
-      if all(R.I_EE_Task == logical([1 1 1 1 1 0]))
+      if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && nargin < 4
         % Führungs-Beinkette muss auch die 3T2R-FG haben.
         R.Leg(1).I_EE_Task = R.I_EE_Task;
         for i = 2:R.NLEG
-          % Andere
+          % Folge-Beinketten: Setze vollständige FG. Bei Aufgabenredundanz
+          % oder bei normalen 3T2R-PKM muss die Orientierung der Folge- 
+          % ketten vollständig vorgegeben werden
           R.Leg(i).I_EE_Task = logical([1 1 1 1 1 1]);
-        end
+        end  
       else%if all(R.I_EE_Task == logical([1 1 1 1 1 1]))
         for i = 1:R.NLEG
           % Anderer Fall als 3T2R: Setze die Aufgaben-FG auch für die
@@ -927,15 +930,6 @@ classdef ParRob < RobBase
         % Beinkette abgelegt)
         nPhit = sum(R.Leg(i).I_EE_Task(1:3));
         nPhir = sum(R.Leg(i).I_EE_Task(4:6));
-
-        % Sonderfall: 3T2R
-        if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i > 1
-          % Folgekette bei 3T2R muss wieder 3T3R FG haben
-          if R.Leg(i).NJ == 6 % TODO: Bei Sonderfällen Bedingung ändern
-            % TODO: Alternative: I_EE/I_EE_Task; Nur mit Basis-Orientierung?
-            nPhir = 3;
-          end
-        end
         nPhi = nPhit + nPhir;
         
         % Start- und End-Indizes belegen ...
@@ -952,12 +946,17 @@ classdef ParRob < RobBase
 
         % Indizes der reduzierten ZB bestimmen
         if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
-          % Führungskette für 3T2R anders
+          % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
+          % Wahl von constr3 oder constr2 voraus.
           R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+          % Berücksichtige in den Indizes der rotatorischen ZB, dass die
+          % reziproken Euler-Winkel benutzt werden. Vorher: Indizes 4 und 5
+          % in Gesamt-ZB, nachher: Indizes 5 und 6
+          R.I_constr_r_red(i_rred:i_rred+nPhir-1) = R.I_constr_r_red(i_rred:i_rred+nPhir-1)+1;
         else
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
-              [R.I1constr(i)-1+find(R.Leg(i).I_EE_Task(1:3)), ...
+              [R.I1constr(i)-1+  find(R.Leg(i).I_EE_Task(1:3)), ...
                R.I1constr(i)-1+3+find(R.Leg(i).I_EE_Task(4:6))];
         end
         % Lauf-Indizes hochzählen mit der Anzahl ZB für diese Beinkette

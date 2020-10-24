@@ -37,18 +37,21 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2grad_rr: xE muss 6x1 sein');
 NLEG = Rob.NLEG;
 
+% Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
+% symmetrische 3T2R-PKM
+I_constr_red = 1:3*Rob.NLEG;
+if Rob.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
+  I_constr_red(1:3:end) = [];
+end
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36); Gl. (C.35)
 
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
   Phipphi = zeros(3*NLEG,3);
-  Phipphi_red = zeros( sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6)) );
 else
-  Phipphi = sym('xx',     [3*NLEG,3]);
+  Phipphi = sym('xx', [3*NLEG,3]);
   Phipphi(:)=0;
-  Phipphi_red = sym('xx', [sum(Rob.I_EE(4:6))*NLEG, sum(Rob.I_EE(4:6))]);
-  Phipphi_red(:)=0;
 end
 
 %% Berechnung
@@ -111,11 +114,10 @@ for iLeg = 1:NLEG
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
-  
-  % Ausgabe mit reduzierter Dimension
-  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE(4:6))-1;
-  Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));
 end
+
+% Reduzierte Zwangsbedingungsgleichungen, für reduzierte EE-FG
+% Nur für symmetrische 3T2R-PKM wird die erste Komponente für jede
+% Beinkette entfernt. Dies entspricht der zu entfernenden Rotation um die
+% z-Achse.
+Phipphi_red = Phipphi(I_constr_red,:);

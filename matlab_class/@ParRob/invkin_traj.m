@@ -44,9 +44,6 @@
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
-% TODO: Nullraumbewegung mit Nebenbedingung
-% TODO: Erfolg der IK prüfen
-
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 % [3] Aufzeichnungen Schappler vom 06.07.2020
@@ -73,15 +70,15 @@ for f = fields(s_std)'
     s.(f{1}) = s_std.(f{1});
   end
 end
-dof_3T2R = false;
-mode_IK = s.mode_IK;
 
 I_EE = Rob.I_EE_Task;
+mode_IK = s.mode_IK;
+dof_3T2R = false;
+
 if all(s.I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
   I_EE = s.I_EE;
 end
-
 
 if nargout == 6
   % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
@@ -102,8 +99,15 @@ Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Hier ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+  % nur für aufgabenredundante 3T3R-PKM
+  Jinv_ges = NaN(nt, 6*Rob.NJ);
+  JinvD_ges = zeros(nt, 6*Rob.NJ);
+else
+  Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
+  JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+end
+
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -182,7 +186,11 @@ if ~dof_3T2R
   limits_qD_set = false;
 end
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
-J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
+if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+  J_x_inv_alt = zeros(Rob.NJ,6); % konsistent zur obigen Initialisierung
+else
+  J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
+end
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
 Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_EE));
 
@@ -220,20 +228,21 @@ for k = 1:nt
     Phi_q = Rob.constr4grad_q(q_k);
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
-  else
-    % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
-    % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
-    % Systeme mit Beinketten mit fünf Gelenken.
-    [Phi_q,Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
-    [~,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
-    I = Rob.I_constr_red;
-    Phi_x=Phi_x_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
-    % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
-    % dingungen (wird für Dynamik benutzt).
-    J_x_inv = -Phi_q_voll \ Phi_x_voll;
+  else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
+    [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
+    [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
+    Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
+      % dingungen (wird für Dynamik benutzt).
+      J_x_inv = -Phi_q_voll \ Phi_x_voll;
+    else % PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
+      J_x_inv = -Phi_q \ Phi_x;
+    end
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R
+    if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
+        ~all(Rob.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
@@ -271,18 +280,21 @@ for k = 1:nt
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
       JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
-    else
-      [Phi_qD,Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
-      [~,Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
-      I = Rob.I_constr_red;
-      Phi_xD=Phi_xD_voll(I,I_EE); % TODO: Schon in Funktion richtig machen.
+    else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
+      [Phi_qD,     Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
+      [Phi_xD_tmp, Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
+      Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+      if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+      else % strukturell 3T2R-PKM
+        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
+      end
     end
   end
-  if ~dof_3T2R
+  if ~dof_3T2R || ~all(Rob.I_EE == [1 1 1 1 1 1])
     qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
   else
     % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
@@ -292,14 +304,12 @@ for k = 1:nt
   if s.debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-    if any(abs(PhiDD_test3) > 1e-2) % TODO: Unklar, warum z.B. bei Delta-PKM notwendig.
+    if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
       error('Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen nicht');
     end
   end
-  if nsoptim || limits_qD_set
-    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
-  end
   if nsoptim % Nullraumbewegung
+    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
     v = zeros(Rob.NJ, 1);
     if wn(1) ~= 0
@@ -319,13 +329,12 @@ for k = 1:nt
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
     end
-
-    qDD_N_pre = N * v;  
+    qDD_N_pre = N * v;
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
-  if limits_qD_set
-    qDD_pre = qDD_k_T + qDD_N_pre; 
+  if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+    qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
     deltaD_ll = (-qDmin + qD_pre); % Unterschreitung Minimalwerte: <0
@@ -354,7 +363,7 @@ for k = 1:nt
     else
       qDD_N_post = qDD_N_pre;
     end
-  else 
+  else
     qDD_N_post = qDD_N_pre;
   end
   qDD_k = qDD_k_T + qDD_N_post;
@@ -365,7 +374,7 @@ for k = 1:nt
     % eine korrekte Nullraumbewegung ausführt.
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
-    if any(abs(PhiDD_korr) > 1e-8) % funktioniert nur mit feiner IK-Toleranz Phit_tol
+    if any(abs(PhiDD_korr) > max(1e-8, max(abs(qDD_k))/1e9)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
       error('Beschleunigung ist nicht konsistent nach Nullraumbewegung. Fehler %1.1e', max(abs(PhiDD_korr)));
       % Dieser Teil sollte nicht ausgeführt werden müssen (s.o.)
       qDD_korr = Phi_q\PhiDD_korr; %#ok<UNRCH>

@@ -59,6 +59,8 @@ else
       basecoupling_equiv = [3 4 8];
     case 8
       basecoupling_equiv = 4;
+    case 9
+      basecoupling_equiv = [4,8];
   end
   % Code für die eigentlich gesuchte Darstellung vorne und hinten anstellen
   % (zuerst suchen und einstellen, wenn nichts gefunden wurde).

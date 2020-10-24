@@ -127,7 +127,7 @@ if s.mode == 3
   end
 end
 if s.mode == 4
-  if any(Rob.DesPar.platform_method == [1 2 3])
+  if any(Rob.DesPar.platform_method == [1 2 3 8])
     h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
     if h > 0
       rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS

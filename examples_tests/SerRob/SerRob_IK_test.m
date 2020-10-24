@@ -1,6 +1,9 @@
 % Teste die Roboterklasse SerRob mit verschiedenen Systemen bzgl Inverse
 % Kinematik
 % 
+% Achtung: Dieses Testskript ist größtenteils veraltet! Warnungen können
+% ignoriert werden. Es sollte aber fehlerfrei laufen.
+% 
 % Verschiedene Test-Szenarien:
 % * 1) Aufruf aller Funktionen (zur Prüfung auf Syntax-Fehler)
 % * 2) Inverse Kinematik zu erreichbaren Punkten im Kartesischen Arbeitsraum
@@ -22,6 +25,10 @@
 % * "mit1": Gleichzeitige Optimierung von Zielannäherung und Nebenbedingung
 % * "mit2": Erst Zielannäherung mit IK, dann Optimierung der NB als
 %   Nullraumbewegung
+% 
+% Bei Test 5 und 6 wird die Implementierung als Klassenmethode und als
+% eigene Funktionsdatei verglichen. Da die Implementierungen nicht mehr
+% identisch sind, sind diesbezügliche Warnungen nicht mehr relevant.
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
@@ -30,6 +37,7 @@ clear
 clc
 % Unterdrücke Warnung für Schlechte Konditionierung der Jacobi-Matrix
 warning('off', 'MATLAB:rankDeficientMatrix');
+warning('off', 'Coder:MATLAB:rankDeficientMatrix'); % gleiche Warnung aus mex-Datei
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
@@ -90,6 +98,7 @@ for Robot_Data = Robots
   TSS.Q(abs(TSS.Q(:))>150*pi/180) = 0;
   
   %% (Test 1) Alle Funktionen einmal aufrufen
+  fprintf('%s: Test 1 (Funktionsaufrufe)\n', SName);
   q0 = TSS.Q(1,:)';
   qD0 = TSS.QD(1,:)';
   qDD0 = TSS.QDD(1,:)';
@@ -126,6 +135,7 @@ for Robot_Data = Robots
   % liegen in der Nähe der Zielkonfiguration
   % Benutze die EE-FG des Systems (aus I_EE): Die Bewegung ist also je nach
   % Roboter 3T3R (Industrieroboter), 3T0R (SCARA)
+  fprintf('%s: Test 2 (IK Normal)\n', SName);
   for m = 2 % Nur nach Methode 2 prüfen
     for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle funktionierenden Euler-Winkel-Konventionen für 3T3R
       eulstr = euler_angle_properties(i_phiconv);
@@ -173,6 +183,7 @@ for Robot_Data = Robots
   fprintf('Einzelpunkt-IK für %s erfolgreich getestet\n', SName);
 
   %% (Test 3) Inverse Kinematik mit reduzierten FG (3T2R-Aufgabe)
+  fprintf('%s: Test 3 (IK 3T2R)\n', SName);
   if all(RS.I_EE([4,5]))
     % IK-Ziel ist jetzt nicht vollständige Pose, sondern die Richtung der
     % z-Achse des Endeffektors (3T2R-Aufgabe)
@@ -231,6 +242,7 @@ for Robot_Data = Robots
   end
   %% (Test 4) Teste Zielfunktion für Zusatzoptimierung
   % Prüfe, ob Implementierung in SerRob und in Spez. Funktion gleich ist.
+  fprintf('%s: Test 4 (Zielfunktion Zusatzoptimierung)\n', SName);
   for i = 1:size(TSS.Q,1)
     q = TSS.Q(i,:)';
     [h1, hdq1] = RS.optimcrit_limits1(q);
@@ -242,6 +254,7 @@ for Robot_Data = Robots
   %% (Test 5) Inverse Kinematik für 3T2R-/3T3R-Aufgabe (mit Zusatzoptimierung) prüfen
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
   % inversen Kinematik
+  fprintf('%s: Test 5 (IK 3T2R und 3T3R mit Zusatzoptimierung)\n', SName);
   wn = [1;0]; % Auswahl der Nebenbedingungen zur Optimierung
   for tr = [false, true] % Schleife 3T3R bzw 3T2R (Aufgabenredundanz)
     if tr
@@ -362,12 +375,14 @@ for Robot_Data = Robots
           test_ohne = q2_ohne - q_ohne;
           test_mit1 = q2_mit1 - q_mit1;
           test_mit2 = q2_mit2 - q_mit2;
-          if max(abs([test_ohne; test_mit1; test_mit2])) > 1e-6
+          if max(abs([test_ohne; test_mit1; test_mit2])) > 1e-3
             % Debuggen, woran es liegt, dass die eigentlich identischen
             % Methoden unterschiedliche Ergebnisse liefern
             % Ursache: Schlechte Konditionierung in Verbindung mit
             % Rundungsfehlern
-%             figure(20);clf; 
+            % Aktuell: Funktionen sind gar nicht identisch. Wieder
+            % aktivieren, falls Funktionen angeglichen werden.
+%             change_current_figure(20);clf; 
 %             subplot(3,1,1); hold on; grid on; plot(Q_mit1); set(gca, 'ColorOrderIndex',1); plot(Q2_mit1,'--');
 %             Z_all = NaN(size(Q_mit1,1),2);
 %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
@@ -376,7 +391,7 @@ for Robot_Data = Robots
 % %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
 %             subplot(3,1,3); hold on; grid on; plot(Q_mit1-Q2_mit1);
 %             linkxaxes
-            warning('%d/%d: Ergebnis zwischen Klassenfunktion und kompilierter Funktion stimmt nicht (mögl. schlecht konditioniert)', i, size(TSS.Q,1));
+%             warning('%d/%d: Ergebnis zwischen Klassenfunktion und kompilierter Funktion stimmt nicht (mögl. schlecht konditioniert)', i, size(TSS.Q,1));
           else
             n_identq = n_identq + 1;
           end            
@@ -385,7 +400,7 @@ for Robot_Data = Robots
         % Bild: Optimierungskritierum mit den verschiedenen Ansätzen und
         % Implementierungen. Aussage des Bildes: Welches Verfahren führt
         % zum besten Optimierungskriterium.
-        figure(1);clf;
+        change_current_figure(1);clf;
         set(1, 'Name', sprintf('%s_Optim_NB',SName), 'NumberTitle', 'off');
         subplot(2,1,1); hold on
         title(sprintf('%s: Optimierung der Nebenbedingung',SName));
@@ -411,7 +426,7 @@ for Robot_Data = Robots
         end
 
         % Bild: Verschiedene Gelenkwinkel
-        figure(2);clf;
+        change_current_figure(2);clf;
         set(2, 'Name', sprintf('%s_q',SName), 'NumberTitle', 'off');
         for j = 1:min(RS.NQJ,6)
           subplot(3,2,j); hold on
@@ -435,7 +450,7 @@ for Robot_Data = Robots
     end
   end
   %% (Test 6) Inverse Kinematik für komplette Trajektorie (3T3R) prüfen
-%   continue
+  fprintf('%s: Test 6 (IK 3T3R für Trajektorie)\n', SName);
   % Trajektorien-IK als Funktion berücksichtigt auch Geschwindigkeit und
   % Beschleunigung benötigt dadurch weniger IK-Iterationen
   for m = 2 % Nur Methode 2 prüfen
@@ -451,7 +466,7 @@ for Robot_Data = Robots
       % Trajektorie generieren
       T = zeros(3,1); % Zeitmessung für Trajektorie
       % Direkte Kinematik für einzelne Gelenkwinkel der Trajektorie
-      [X] = RS.fkineEE_traj(TSS.Q,TSS.Q*0,TSS.Q*0);
+      X = RS.fkineEE_traj(TSS.Q,TSS.Q*0,TSS.Q*0);
       % Kartesische Trajektorie zwischen einzelnen Posen berechnen
       [X_t,XD_t,XDD_t,t] = traj_trapez2_multipoint(X, 2, 0.100, 0.050, 0.001, 0.100);
       % Trajektorie auf wenige Punkte reduzieren (dauert sonst zu lange)
@@ -484,9 +499,12 @@ for Robot_Data = Robots
       T(3) = toc;
       % Berechnung vergleichen
       test1 = Q_IK - Q_IK2;
+      test1(abs(abs(test1)-2*pi) < 1e-3) = 0; % 2pi-Fehler entfernen
       test1D = QD_IK - QD_IK2;
       test1DD = QDD_IK - QDD_IK2;
-      if max(abs(test1(:))) > 1e-6 || max(abs(test1D(:))) > 1e-5 || max(abs(test1DD(:))) > 1e-1
+      if false && (max(abs(test1(:))) > 1e-6 || max(abs(test1D(:))) > 1e-5 || max(abs(test1DD(:))) > 1e-1)
+        % Aktuell ist die Abweichung der Methoden kein Fehler, da die
+        % Implementierung unterschiedlich ist.
         % Fehler suchen
         % t(find(sum(abs(test1D),2) > 1e-5))
         % test1DD(find(sum(abs(test1DD),2) > 1e-5), :)
@@ -494,7 +512,7 @@ for Robot_Data = Robots
         % Fehler: Berechne und Zeichne Debug-Informationen
         [X_IK,XD_IK,XDD_IK] = RS.fkineEE_traj(Q_IK,QD_IK,QDD_IK);
         % QD_IK3 = [zeros(1,RS.NQJ); diff(Q_IK)] ./ 0.001;
-        figure(1);clf;
+        change_current_figure(1);clf;
         subplot(3,2,sprc2no(3,2,1,1)); hold on;
         plot(t, Q_IK); set(gca, 'ColorOrderIndex', 1);
         plot(t, Q_IK2, '--');

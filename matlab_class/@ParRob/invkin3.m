@@ -221,7 +221,7 @@ for rr = 0:retry_limit
     Phi = Phi_voll(I_IK);
 
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
-      && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
+      && max(abs(Phi_voll(I_constr_t_red))) < Phit_tol && max(abs(Phi_voll(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
       ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
       nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
      success = true; 

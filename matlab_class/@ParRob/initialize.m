@@ -46,11 +46,12 @@ for i = 1:NLEG
   
   R.NL = R.NL + NL_Leg_i-1; % Anzahl der bewegten Körper der Beinkette
 end
-
+R.NL = R.NL + 1;
 R.I1L_LEG = I1L_LEG;
 R.I2L_LEG = I2L_LEG;
 
-R.NL = R.NL + 1; % Zusätzlicher Starrkörper für Plattform
+% phi_P_B_all initialisieren
+R.phi_P_B_all = zeros(3,NLEG);
 
 % MDH-Parameter sigma für ganzen Roboter: Anzeige für Art der einzelnen
 % Gelenke der Beinketten der PKM (bezieht sich nur auf Minimalkoordinaten

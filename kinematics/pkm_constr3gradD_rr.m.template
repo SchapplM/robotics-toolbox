@@ -52,6 +52,7 @@ function [PhiDpphi_red, PhiDpphi] = %PN%_constr3gradD_rr(q, qD, xE ,xDE, s)
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
+%$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
@@ -154,7 +155,12 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
   % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
   % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  K1 = 1+sum(s.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(s.I_EE(4:6))-1;
-  PhiDpphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_GradxD(s.I_EE(4:6),s.I_EE(4:6));
+  K1 = 1; % nur eine Beinkette betrachtet.
+  if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
+    K2 = 2;
+    PhiDpphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],s.I_EE(4:6));
+  else
+    K2 = sum(s.I_EE(4:6));
+    PhiDpphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_GradxD(s.I_EE(4:6),s.I_EE(4:6)); % das war vor anpassung
+  end
 end

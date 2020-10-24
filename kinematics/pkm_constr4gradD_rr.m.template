@@ -49,12 +49,14 @@ PhiD_rr_red = zeros(length(s.I_constr_r_red), sum(s.I_EE(4:6)));
 JwD = euljacD(xE(4:6), xDE(4:6), s.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
 %% Belegung der Ausgabevariablen
 % Plattform-Koppelpunkt-Jacobi
+K1 = 1;
 for i = 1:NLEG
   I1 = 3*(i-1)+1;
   % [A], Gl. 11
   phi = -JwD; % Zeitableitung des entsprechenden Terms aus constr4grad_rr
   PhiD_rr(I1:I1+2,:) = phi;
   
-  J1 = sum(s.Leg_I_EE_Task(i,4:6))*(i-1)+1;
-  PhiD_rr_red(J1:J1+sum(s.Leg_I_EE_Task(i,4:6))-1,:) = phi(s.Leg_I_EE_Task(i,4:6), s.I_EE(4:6));
+  K2 = K1+sum(s.Leg_I_EE_Task(i,4:6))-1;
+  PhiD_rr_red(K1:K2,:) = phi(s.Leg_I_EE_Task(i,4:6), s.I_EE(4:6));
+  K1 = K2+1;
 end

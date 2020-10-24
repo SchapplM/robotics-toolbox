@@ -71,7 +71,6 @@ for i = 1:NLEG
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
   V_bein = J_Ai_Bi*qsD;
-  
   % Geschwindigkeit des Koppelpunktes auf Plattform-Seite
   % [B], Gl. 4
   V_plat = xDE(1:3)-skew(R_0_E*r_E_E_Bi)*Jw*xDE(4:6);

@@ -130,7 +130,7 @@ for i = 1:Rob.NLEG
 
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
-      warning('Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich');
+      % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
       return
     end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
@@ -163,8 +163,12 @@ return
 % Diese Rechnung ist zu zeitaufwändig und muss im Bedarfsfall manuell
 % durchgeführt werden.
 % Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
-if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) %#ok<UNRCH>
-  Phi = Rob.constr3(q, xE_soll);
+if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
+    if(length(q) == 25) % sym
+        Phi = Rob.constr2(q, xE_soll);
+    else  % asym mit genau einer Führungskette
+        Phi = Rob.constr3(q, xE_soll);
+    end
 else
   Phi = Rob.constr1(q, xE_soll);
 end

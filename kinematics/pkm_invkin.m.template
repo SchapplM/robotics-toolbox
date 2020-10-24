@@ -172,13 +172,9 @@ for i = 1:NLEG
   s.T_N_E = Leg_T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
   % Inverse Kinematik für die serielle Beinkette berechnen
-  % Eingabe s einstellen
-  
-
   [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
   if all(I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
-	    fprintf('Fuehrungsbeinkette konvergiert nicht. Keine weitere Berechnung moeglich');
       return
     end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
