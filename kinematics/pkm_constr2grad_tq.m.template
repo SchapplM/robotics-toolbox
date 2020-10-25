@@ -35,8 +35,6 @@ function [Phi_q_legs_red, Phi_q_legs] = %PN%_constr2grad_tq(q, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
@@ -48,9 +46,10 @@ function [Phi_q_legs_red, Phi_q_legs] = %PN%_constr2grad_tq(q, s)
 %$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
 
 %% Initialisierung
-
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 Phi_q_legs = NaN(3*NLEG,NJ);
@@ -61,7 +60,7 @@ Phi_q_legs_red = NaN(sum(s.I_EE(1:3))*NLEG,NJ);
 % Berechnung aus dem translatorischen Teil der Jacobi-Matrix der seriellen
 % Beinketten 
 for i = 1:NLEG
-  IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
+  IJ_i = I1J_LEG(i):I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   
   phi_0_Ai = s.Leg_phi_W_0(:,i);

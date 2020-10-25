@@ -40,8 +40,6 @@ function [X, XD, XDD] = %PN%_fkineEE(Q, QD, QDD, iLeg, s)
 %$cgargs coder.newtype('double',[inf,%NJ%]),
 %$cgargs uint8(1), struct(
 %$cgargs           'T_P_E', zeros(4,4),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
@@ -55,9 +53,15 @@ assert(size(Q,2) == %NJ%, 'Q muss nt x %NJ% sein');
 assert(size(QD,2) == %NJ%, 'QD muss nt x %NJ% sein');
 assert(size(QDD,2) == %NJ%, 'QDD muss nt x %NJ% sein');
 assert(isscalar(iLeg)&&isa(iLeg,'uint8'), 'iLeg muss 1x1 uint8 sein');
+
+%% Initialisierung
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 if nargin < 5, iLeg = 1; end
 X = NaN(size(Q,1),6);
 XD = X; XDD = X;
+
+%% Algorithmus
 % Transformation zum KS: Siehe fkine_legs
 Leg_T_0_W = [eulxyz2r(s.Leg_T_0_W_vec(1:3,iLeg)),s.Leg_T_0_W_vec(4:6,iLeg);[0 0 0 1]];
 T_0_A1 = invtr(Leg_T_0_W); % von PKM-Basis zu Beinketten-Basis
@@ -66,7 +70,7 @@ R_P_B1 = eulxyz2r(s.phi_P_B_all(:,iLeg));
 T_P_B1 = rt2tr(R_P_B1, r_P_P_B1); % Plattform-KS zu Plattform-Koppel-KS
 T_B1_E = invtr(T_P_B1) * s.T_P_E; % Plf-Koppel-KS zu Plattform-EE-KS
 for i = 1:size(Q,1)
-  q1_i   = Q(i,s.I1J_LEG(iLeg):s.I2J_LEG(iLeg))';
+  q1_i   = Q(i,I1J_LEG(iLeg):I2J_LEG(iLeg))';
   % Fußpunktkoordinaten
   Leg_T_0_W = [eulxyz2r(s.Leg_T_0_W_vec(1:3,iLeg)),s.Leg_T_0_W_vec(4:6,iLeg);[0 0 0 1]];
   Leg_T_W_O = invtr(Leg_T_0_W);
@@ -84,7 +88,7 @@ for i = 1:size(Q,1)
   T_0_E = T_0_E1*T_B1_E;
   X(i,:) = [T_0_E(1:3,4); r2eulxyz(T_0_E(1:3,1:3))];
   if nargout < 2, continue; end % Keine Geschwindigkeit gefragt
-  qD1_i  = QD(i,s.I1J_LEG(iLeg):s.I2J_LEG(iLeg))';
+  qD1_i  = QD(i,I1J_LEG(iLeg):I2J_LEG(iLeg))';
   % Geschwindigkeit der ersten Beinkette umrechnen auf PKM-Plattform
   Jg = %SN%_jacobig_sym_varpar(q1_i, s.Leg_I_EElink(iLeg),Leg_T_N_E(1:3,4),s.Leg_pkin_gen(iLeg,:)'); % geom. Jacobi der Beinkette (bez. auf Beinketten-Basis)
   % Geschw. des virt. Beinketten-EE bezogen auf PKM-Basis
@@ -96,7 +100,7 @@ for i = 1:size(Q,1)
   Tw = eulxyzjac(X(i,4:6)');
   XD(i,:) = [V_0_E(1:3); Tw\V_0_E(4:6)];
   if nargout < 3, continue; end % Keine Beschleunigung gefragt
-  qDD1_i = QDD(i,s.I1J_LEG(iLeg):s.I2J_LEG(iLeg))';
+  qDD1_i = QDD(i,I1J_LEG(iLeg):I2J_LEG(iLeg))';
   % Beschleunigung der ersten Beinkette
   JgD = %SN%_jacobigD_sym_varpar(q1_i, qD1_i, s.Leg_I_EElink(iLeg), Leg_T_N_E(1:3,4), s.Leg_pkin_gen(iLeg,:)');
   VD_0_E1 = rotate_wrench(Jg*qDD1_i+JgD*qD1_i, t2r(T_0_A1));

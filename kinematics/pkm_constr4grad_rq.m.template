@@ -33,8 +33,6 @@ function [Phi_q_red, Phi_q] = %PN%_constr4grad_rq(q, s)
 %$cgargs {zeros(%NJ%,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
@@ -43,9 +41,11 @@ function [Phi_q_red, Phi_q] = %PN%_constr4grad_rq(q, s)
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
 %$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
 
-
+%% Initialisierung
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 
@@ -59,7 +59,7 @@ Phi_q_red = zeros(length(s.I_constr_r_red),NJ);
 % Beinketten
 K1 = 1;
 for i = 1:NLEG
-  IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
+  IJ_i = I1J_LEG(i):I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   
   phi_0_Ai = s.Leg_phi_W_0(:,i);

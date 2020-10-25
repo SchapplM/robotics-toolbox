@@ -42,8 +42,6 @@ function [PhiDpphi_red, PhiDpphi] = %PN%_constr3gradD_rr(q, qD, xE ,xDE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1), zeros(6,1),struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -55,8 +53,9 @@ function [PhiDpphi_red, PhiDpphi] = %PN%_constr3gradD_rr(q, qD, xE ,xDE, s)
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
-
 NLEG = %NLEG%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36, 37); Gl. (C.35)
@@ -76,7 +75,7 @@ RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
 R_Bi_P = eye(3,3);
 
 for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTapOrt2019a]/(37)
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   q_i = q(IJ_i); % Gelenkwinkel dieser Kette
   qD_i= qD(IJ_i);
   phi_0_Ai = s.Leg_phi_W_0(:,iLeg);

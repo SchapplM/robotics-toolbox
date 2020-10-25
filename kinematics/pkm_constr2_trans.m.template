@@ -37,8 +37,6 @@ function [Phix_red, Phix] = %PN%_constr2_trans(q, xE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -52,6 +50,8 @@ function [Phix_red, Phix] = %PN%_constr2_trans(q, xE, s)
 %% Initialisierung
 
 NLEG = %NLEG%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 Phix = NaN(3*NLEG,1);
 Phix_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
@@ -62,7 +62,7 @@ r_0_0_E_x = xE(1:3); % [2_SchapplerTapOrt2019a]/(14)
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   % Direkte Kinematik der Beinkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   
   % Fußpunktkoordinaten

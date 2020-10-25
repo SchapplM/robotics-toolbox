@@ -49,8 +49,6 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -62,9 +60,11 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
-
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
+
 Phipq = zeros(3*NLEG,NJ);
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
@@ -72,7 +72,6 @@ I_constr_red = 1:3*NLEG;
 if NJ==25 % Workaround um symmetrische 3T2R-PKM zu erkennen.
   I_constr_red(1:3:end) = [];
 end
-
 
 %% Berechnung
 R_P_E = s.T_P_E(1:3,1:3);
@@ -86,7 +85,7 @@ K1 = 1;
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qi = q(IJ_i); % Gelenkwinkel dieser Kette
   qDi= qD(IJ_i); % velocity of the joint coordinate for the serial chain 
   
@@ -170,8 +169,8 @@ for iLeg = 1:NLEG
   %% In Endergebnis einsetzen
   I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
   I2 = I1+2; % drei rotatorische Einträge
-  J1 = s.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
-  J2 = s.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
+  J1 = I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
+  J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
 end
 Phipq_red = Phipq(I_constr_red,:);

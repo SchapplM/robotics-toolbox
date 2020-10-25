@@ -36,8 +36,6 @@ function [PhiD_q_legs_red, PhiD_q_legs] = %PN%_constr1gradD_tq(q, qD, s)
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
@@ -47,12 +45,12 @@ function [PhiD_q_legs_red, PhiD_q_legs] = %PN%_constr1gradD_tq(q, qD, s)
 %$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
 
 %% Initialisierung
-
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
-
 PhiD_q_legs = NaN(3*NLEG,NJ);
 PhiD_q_legs_red = NaN(length(s.I_constr_t_red),NJ);
 
@@ -61,7 +59,7 @@ PhiD_q_legs_red = NaN(length(s.I_constr_t_red),NJ);
 % Berechnung aus dem translatorischen Teil der Jacobi-Matrix der seriellen
 % Beinketten. Davon muss lediglich die Zeitableitung gebildet werden.
 for i = 1:NLEG
-  IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
+  IJ_i = I1J_LEG(i):I2J_LEG(i);
   q_i = q(IJ_i); % Gelenkwinkel dieser Kette
   qD_i = qD(IJ_i); % Gelenkgeschw. dieser Kette
   

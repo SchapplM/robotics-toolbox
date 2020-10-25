@@ -51,8 +51,6 @@ function [Phipq_red, Phipq] = %PN%_constr3grad_rq(q, xE, s)
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -64,9 +62,10 @@ function [Phipq_red, Phipq] = %PN%_constr3grad_rq(q, xE, s)
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
-
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis, siehe Gl. (B.30)
@@ -86,7 +85,7 @@ K1 = 1;
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   Tc_0 = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(qs, s.Leg_pkin_gen(iLeg,:)');
   Leg_T_N_E = [eulxyz2r(s.Leg_T_N_E_vec(1:3,iLeg)),s.Leg_T_N_E_vec(4:6,iLeg);[0 0 0 1]];
@@ -157,8 +156,8 @@ for iLeg = 1:NLEG
     % In Endergebnis einsetzen
     I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
     I2 = I1+2; % drei rotatorische Einträge
-    J1 = s.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
-    J2 = s.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
+    J1 = I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
+    J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
 
     K2 = K1+sum(s.I_EE_Task(4:6))-1; % zwei oder drei rotatorische Einträge
@@ -224,11 +223,11 @@ for iLeg = 1:NLEG
     I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
     I2 = I1+2; % drei rotatorische Einträge
     G1 = 1; % G: Spalten der Ergebnisvariable (Führungskette ist Nr. 1)
-    G2 = s.I2J_LEG(1); % So viele Spalten wie Gelenke in Führungskette
+    G2 = I2J_LEG(1); % So viele Spalten wie Gelenke in Führungskette
     % Ableitung nach den Gelenkwinkeln der Führungskette
     Phipq(I1:I2,G1:G2) = Phi_phi_i_Gradq_L; 
-    J1 = s.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
-    J2 = s.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
+    J1 = I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
+    J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     % Ableitung nach den Gelenkwinkeln der Folgekette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq_f;
 

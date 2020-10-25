@@ -46,8 +46,6 @@ function [Phipq_red, Phipq] = %PN%_constr2grad_rq(q, xE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -60,9 +58,10 @@ function [Phipq_red, Phipq] = %PN%_constr2grad_rq(q, xE, s)
 
 
 %% Initialisierung
-
 NLEG = %NLEG%;
 NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
@@ -83,7 +82,7 @@ R_0_E_x = eul2r(xE(4:6), s.phiconv_W_E);
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   
   phi_0_Ai = s.Leg_phi_W_0(:,iLeg);
@@ -150,8 +149,8 @@ for iLeg = 1:NLEG
   %% In Endergebnis einsetzen
   I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
   I2 = I1+2; % drei rotatorische Einträge
-  J1 = s.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
-  J2 = s.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
+  J1 = I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
+  J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
 end
 Phipq_red = Phipq(I_constr_red,:);

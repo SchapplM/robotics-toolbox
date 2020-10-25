@@ -43,13 +43,10 @@ function [q, Phi, Tc_stack_PKM] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 %$cgargs {zeros(6,1),zeros(%NJ%,1),struct(
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
-%$cgargs              'NL', 0,
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs     'I1constr_red', zeros(1,%NLEG%),
 %$cgargs     'I2constr_red', zeros(1,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
@@ -83,8 +80,8 @@ I2constr_red = s_par.I2constr_red;
 r_P_B_all = s_par.r_P_B_all;
 T_P_E = s_par.T_P_E;
 NLEG = %NLEG%;
-I1J_LEG = s_par.I1J_LEG;
-I2J_LEG = s_par.I2J_LEG;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
 phi_P_B_all = s_par.phi_P_B_all;
 I_EE_Task = s_par.I_EE_Task;
 
@@ -131,7 +128,7 @@ T_0_E = [eul2r(xE_soll(4:6), phiconv_W_E), xE_soll(1:3); [0 0 0 1]];
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((s_par.NL-1+%NLEG%)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((%NL%-1+%NLEG%)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
