@@ -15,6 +15,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_red
@@ -28,7 +30,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiDr_red, PhiDr] = constr1D_rot(Rob, q,qD, xE ,xDE)
+function [PhiDr_red, PhiDr] = constr1D_rot(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -39,12 +41,13 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1D_rot: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr1D_rot: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 
 % Differentieller Zusammenhang kann über bereits vorhandene Gradienten
 % berechnet werden (ist von der Herleitung und vom Ergebnis identisch)
-[Phi_rq_red, Phi_rq] = Rob.constr1grad_rq(q, xE);
-[Phi_rt_red,Phi_rt] = Rob.constr1grad_rt();
-[Phi_rr_red,Phi_rr] = Rob.constr1grad_rr(q, xE);
+[Phi_rq_red, Phi_rq] = Rob.constr1grad_rq(q, xE, platform_frame);
+[Phi_rt_red, Phi_rt] = Rob.constr1grad_rt();
+[Phi_rr_red, Phi_rr] = Rob.constr1grad_rr(q, xE, platform_frame);
 
 Phi_tx_red = [Phi_rt_red,Phi_rr_red];
 Phi_tx = [Phi_rt, Phi_rr];

@@ -32,6 +32,8 @@ phi_P_E = [20; 40; 50]*pi/180;
 % Basis-Transformation: Nehme auch hier irgendwelche Werte
 r_W_0   = [0.1;0.2;0.3];
 phi_W_0 = [20; 40; 50]*pi/180;
+% Zum Testen der Auswahl der Plattform-Koordinaten für die constr1-Funktion
+platform_frame = true;
 
 %% Alle Robotermodelle durchgehen
 for NNN = RobotNames
@@ -138,9 +140,9 @@ for NNN = RobotNames
       x0 = X_test(i,:)';
 
       % Zwangsbedingungen und -gradienten für q0/x0 berechnen
-      [~,Phi1_0] = RP.constr1(q0, x0);
-      [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
-      [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
+      [~,Phi1_0] = RP.constr1(q0, x0, platform_frame);
+      [~,Phi1dq_0] = RP.constr1grad_q(q0, x0, platform_frame);
+      [~,Phi1dx_0] = RP.constr1grad_x(q0, x0, platform_frame);
       
       [~,Phi2_0] = RP.constr2(q0, x0);
       [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
@@ -163,7 +165,7 @@ for NNN = RobotNames
         q1 = q0+dq;
 
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
-        [~,Phi1_1] = RP.constr1(q1, x0);
+        [~,Phi1_1] = RP.constr1(q1, x0, platform_frame);
         [~,Phi2_1] = RP.constr2(q1, x0);
         [~,Phi3_1] = RP.constr3(q1, x0);
         
@@ -226,7 +228,7 @@ for NNN = RobotNames
         x1 = x0+dx;
 
         % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
-        [~,Phi1_1] = RP.constr1(q0, x1);
+        [~,Phi1_1] = RP.constr1(q0, x1, platform_frame);
         [~,Phi2_1] = RP.constr2(q0, x1);
         [~,Phi3_1] = RP.constr3(q0, x1);
         

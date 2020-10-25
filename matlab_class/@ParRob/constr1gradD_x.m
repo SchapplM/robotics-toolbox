@@ -14,6 +14,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % PhiD_x_red
@@ -27,7 +29,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiD_x_red, PhiD_x] = constr1gradD_x(Rob, q, qD, xE, xDE )
+function [PhiD_x_red, PhiD_x] = constr1gradD_x(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -38,6 +40,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1gradD_x: xE muss 6x1 sein');
 assert(isreal(xE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr1gradD_x: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
@@ -45,9 +48,9 @@ assert(isreal(xE) && all(size(xDE) == [6 1]), ...
 %%% calling of the differentiation of the  kinematic constraint of the
 %%% platform can be found in Modelling sets of Euler angles
 [PhiD_tt_red,PhiD_tt]=Rob.constr1gradD_tt(); 
-[PhiD_tr_red,PhiD_tr]=Rob.constr1gradD_tr(xE, xDE);
+[PhiD_tr_red,PhiD_tr]=Rob.constr1gradD_tr(xE, xDE, platform_frame);
 [PhiD_rt_red,PhiD_rt]=Rob.constr1grad_rt(); % Term und Ableitung Null.
-[PhiD_rr_red,PhiD_rr]=Rob.constr1gradD_rr(q, qD, xE, xDE);
+[PhiD_rr_red,PhiD_rr]=Rob.constr1gradD_rr(q, qD, xE, xDE, platform_frame);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe

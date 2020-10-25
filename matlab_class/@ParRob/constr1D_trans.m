@@ -15,6 +15,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % PhitD_red
@@ -32,7 +34,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhitD_red, PhitD] = constr1D_trans(Rob, q, qD, xE ,xDE)
+function [PhitD_red, PhitD] = constr1D_trans(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -43,8 +45,9 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1D_trans: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr1D_trans: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 
-% Allgemeine Definitionen
+%% Allgemeine Definitionen
 NLEG = Rob.NLEG;
 PhitD_red = NaN(length(Rob.I_constr_t_red),1);
 PhitD = NaN(3*NLEG,1);
@@ -53,8 +56,15 @@ phi = xE(4:6); % Euler-Winkel
 Jw = euljac(phi, Rob.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
 R_0_E = eul2r(phi, Rob.phiconv_W_E);
 r_P_B_all = Rob.r_P_B_all;
-T_P_E = Rob.T_P_E;
+if platform_frame
+  T_P_E = eye(4);
+else
+  T_P_E = Rob.T_P_E;
+end
+
 r_P_P_E = T_P_E(1:3,4);
+
+%% Berechnung
 for i = 1:NLEG
   % Definitionen für Beinkette i
   IJ_i = Rob.I1J_LEG(i):Rob.I2J_LEG(i);

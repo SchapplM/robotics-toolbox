@@ -36,6 +36,8 @@ phi_P_E = [20; 40; 50]*pi/180;
 % Basis-Transformation: Nehme auch hier irgendwelche Werte
 r_W_0   = [0.1;0.2;0.3];
 phi_W_0 = [20; 40; 50]*pi/180;
+% Zum Testen der Auswahl der Plattform-Koordinaten für die constr1-Funktion
+platform_frame = true;
 
 %% Alle Robotermodelle durchgehen
 for NNN = RobotNames
@@ -155,9 +157,9 @@ for NNN = RobotNames
       x0 = X_test(i,:)';
 
       % Zwangsbedingungen und -gradienten für q0/x0 berechnen
-      [~,Phi1_0] = RP.constr1(q0, x0);
-      [~,Phi1dq_0] = RP.constr1grad_q(q0, x0);
-      [~,Phi1dx_0] = RP.constr1grad_x(q0, x0);
+      [~,Phi1_0] = RP.constr1(q0, x0, platform_frame);
+      [~,Phi1dq_0] = RP.constr1grad_q(q0, x0, platform_frame);
+      [~,Phi1dx_0] = RP.constr1grad_x(q0, x0, platform_frame);
       [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
       [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
       [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
@@ -222,10 +224,10 @@ for NNN = RobotNames
           end
           %% Berechne Zeitableitungen aus symbolischer Form und Differenzengleichung
           % Calculation of the differentiated term of the above gradient  
-          [~,Phi1D_0] = RP.constr1D(q0, qD0, x0, xD0);
+          [~,Phi1D_0] = RP.constr1D(q0, qD0, x0, xD0, platform_frame);
           [~,Phi4D_0] = RP.constr4D(q0, qD0, x0, xD0); % Geschwindigkeitsdifferenz 
-          [~,Phi1Ddq_0] = RP.constr1gradD_q(q0, qD0, x0, xD0);
-          [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0);
+          [~,Phi1Ddq_0] = RP.constr1gradD_q(q0, qD0, x0, xD0, platform_frame);
+          [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0, platform_frame);
           [~,Phi2Ddq_0] = RP.constr2gradD_q(q0, qD0, x0, xD0);
           [~,Phi2Ddx_0] = RP.constr2gradD_x(q0, qD0, x0, xD0);
           [~,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0);
@@ -233,9 +235,9 @@ for NNN = RobotNames
           [~,Phi4Ddq_0] = RP.constr4gradD_q(q0, qD0);
           [~,Phi4Ddx_0] = RP.constr4gradD_x(x0, xD0);
           % Zwangsbedingungen und -Matrizen für verschobene Koordinaten q1 berechnen
-          [~,Phi1_1] = RP.constr1(q1, x1);
-          [~,Phi1dq_1] = RP.constr1grad_q(q1, x1);
-          [~,Phi1dx_1] = RP.constr1grad_x(q1, x1);
+          [~,Phi1_1] = RP.constr1(q1, x1, platform_frame);
+          [~,Phi1dq_1] = RP.constr1grad_q(q1, x1, platform_frame);
+          [~,Phi1dx_1] = RP.constr1grad_x(q1, x1, platform_frame);
           [~,Phi2dq_1] = RP.constr2grad_q(q1, x1);
           [~,Phi2dx_1] = RP.constr2grad_x(q1, x1);
           [~,Phi3dq_1] = RP.constr3grad_q(q1, x1);
@@ -276,7 +278,7 @@ for NNN = RobotNames
             disp(test1(RP.I_constr_t)');
             fprintf('Fehler rotatorischer Teil:\n');
             disp(test1(RP.I_constr_r)');
-            warning('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
+            error('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
           end
           
           % Sehr kleine Einträge zu Null setzen (sonst kann der relative

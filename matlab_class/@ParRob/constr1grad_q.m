@@ -13,6 +13,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_q_red
@@ -29,19 +31,19 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_q_red, Phi_q] = constr1grad_q(Rob, q, xE)
+function [Phi_q_red, Phi_q] = constr1grad_q(Rob, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr1grad_q: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1grad_q: xE muss 6x1 sein');
-
+if nargin == 3, platform_frame = false; end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [Phi_tq_red,Phi_tq]=Rob.constr1grad_tq(q);
-[Phi_rq_red,Phi_rq]=Rob.constr1grad_rq(q, xE);
+[Phi_rq_red,Phi_rq]=Rob.constr1grad_rq(q, xE, platform_frame);
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art

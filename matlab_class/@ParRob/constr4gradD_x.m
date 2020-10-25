@@ -10,6 +10,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % PhiD_x_red
@@ -24,18 +26,19 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiD_x_red, PhiD_x] = constr4gradD_x(Rob, xE, xDE)
+function [PhiD_x_red, PhiD_x] = constr4gradD_x(Rob, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr4gradD_x: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr4gradD_x: xDE muss 6x1 sein');
+if nargin == 3, platform_frame = false; end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [Phi_tt_red,Phi_tt]=Rob.constr1gradD_tt(); % Für Translation identisch mit ...
-[Phi_tr_red,Phi_tr]=Rob.constr1gradD_tr(xE, xDE); % ... Methode 1
+[Phi_tr_red,Phi_tr]=Rob.constr1gradD_tr(xE, xDE, platform_frame); % ... Methode 1
 [Phi_rt_red,Phi_rt]=Rob.constr1grad_rt(); % Term und Ableitung Null.
 [Phi_rr_red,Phi_rr]=Rob.constr4gradD_rr(xE, xDE); % Methode 4
 

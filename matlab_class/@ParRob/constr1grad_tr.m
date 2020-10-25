@@ -4,6 +4,8 @@
 % Eingabe:
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phix_phi_red
@@ -18,11 +20,12 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phix_phi_red, Phix_phi] = constr1grad_tr(Rob, xE)
+function [Phix_phi_red, Phix_phi] = constr1grad_tr(Rob, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1grad_tr: xE muss 6x1 sein');
+if nargin == 2, platform_frame = false; end
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
@@ -42,7 +45,11 @@ phi = xE(4:6); % Euler-Winkel
 Jw = euljac(phi, Rob.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
 R_0_E = eul2r(phi, Rob.phiconv_W_E);
 r_P_B_all = Rob.r_P_B_all;
-T_P_E = Rob.T_P_E;
+if platform_frame
+  T_P_E = eye(4);
+else
+  T_P_E = Rob.T_P_E;
+end
 r_P_P_E = T_P_E(1:3,4);
 %% Berechnung
 % Plattform-Koppelpunkt-Jacobi
