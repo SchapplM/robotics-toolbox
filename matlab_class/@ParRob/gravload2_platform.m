@@ -4,12 +4,12 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS (nicht:
-%   Plattform-Pose xP)
+% xP [6x1]
+%   Plattform-Pose des Roboters bezüglich des Basis-KS (Nicht: EE-KS)
 % Jinv [N x Nx] (optional zur Rechenersparnis)
 %   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
-%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
+%   und passiven Gelenke und die bewegliche Plattform-Koordinaten xP).
+%   Nicht bezogen auf die EE-Koordinaten (nicht identisch zu Matrix aus InvKin)
 % 
 % Ausgabe:
 % gred_Fs
@@ -29,19 +29,20 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [gred_Fs, gred_Fs_reg] = gravload2_platform(Rob, q, xE, Jinv)
+function [gred_Fs, gred_Fs_reg] = gravload2_platform(Rob, q, xP, Jinv)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/gravload2_platform: q muss %dx1 sein', Rob.NJ);
-assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/gravload2_platform: xE muss 6x1 sein');
+assert(isreal(xP) && all(size(xP) == [6 1]), ...
+  'ParRob/gravload2_platform: xP muss 6x1 sein');
 if nargin == 4
   assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
     'ParRob/gravload2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
 end
 g = Rob.gravity;
-% Dynamik-Parameter der Endeffektor-Plattform
+% Dynamik-Parameter der Endeffektor-Plattform (bezogen auf Plattform-KS,
+% nicht: Endeffektor-KS)
 m_P = Rob.DynPar.mges(end);
 mrS_P = Rob.DynPar.mrSges(end,:);
 
@@ -65,8 +66,8 @@ end
 %% Projektionsmatrizen
 if nargin < 4
   % Gradientenmatrix der vollständigen Zwangsbedingungen
-  G_q = Rob.constr1grad_q(q, xE);
-  G_x = Rob.constr1grad_x(q, xE);
+  G_q = Rob.constr1grad_q(q, xP, true);
+  G_x = Rob.constr1grad_x(q, xP, true);
   % Inverse Jacobi-Matrix
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
@@ -76,9 +77,9 @@ R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
-  Fg_plf = rigidbody_gravloadB_floatb_eulxyz_slag_vp2_mex(xE(4:6), g, m_P, mrS_P) ;
+  Fg_plf = rigidbody_gravloadB_floatb_eulxyz_slag_vp2_mex(xP(4:6), g, m_P, mrS_P) ;
 else
-  Fg_plf_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), g);
+  Fg_plf_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6), g);
   delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   Fg_plf = Fg_plf_reg(:,Rob.I_platform_dynpar) * delta;
 end
@@ -119,7 +120,7 @@ if nargout == 2
 end
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)
-Tw = euljac(xE(4:6), Rob.phiconv_W_E);
+Tw = euljac(xP(4:6), Rob.phiconv_W_E);
 H = [eye(3), zeros(3,3); zeros(3,3), Tw];
 gred_Fs = H(Rob.I_EE,Rob.I_EE)' \  gred_Fx;
 if nargout == 2

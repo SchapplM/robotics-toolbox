@@ -22,6 +22,7 @@ clear
 usr_only_check_symvsnum = true;
 usr_test_constr4 = true;
 usr_debug = true;
+usr_testselection = true; % Teste jeweils nur eine vorausgewählte PKM
 usr_num_tests_per_dof = 5;
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
@@ -42,12 +43,32 @@ s = struct( ...
        'n_max', 1000, ... % Maximale Anzahl Iterationen
        'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
        'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-
+% Setze eine künstliche Transformation des Endeffektors zum Testen
+% (darf am Ergebnis nichts ändern)
+% TODO: Hier noch Fehler. Darf eigentlich nicht sein.
+delta_r_P_E = 0*[1; -2; 3]*1e-3;
+delta_phi_P_E = 0*[5;-3;4]*pi/180;
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
 for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 EE_FG = EEFG_Ges(i_FG,:);
 fprintf('Untersuche PKM mit FG [%s]\n', char(48+EE_FG));
-[PNames_Kin, PNames_Akt] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+if usr_testselection
+  % Gebe die PKM vor, da das auslesen der Datenbank sonst zu lange dauert
+  % bei schnellen Iterationen der Tests.
+  switch i_FG
+    case 1
+      PNames_Kin = {'P3RRR1G1P1'};
+    case 2
+      PNames_Kin = {'P3PRRRR8V2G1P2'};
+    case 3
+      PNames_Kin = {'P4PRRRR8V1G3P1'};
+    case 4
+      PNames_Kin = {'P6PRRRRR6V2G8P1'};
+  end
+  PNames_Akt = {[PNames_Kin{1}, 'A1']};
+else
+  [PNames_Kin, PNames_Akt] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+end
 if isempty(PNames_Kin)
   fprintf('Keine Roboter mit FG [%s] in Datenbank\n', disp_array(EE_FG, '%1.0f'));
   continue
@@ -70,7 +91,22 @@ for DynParMode = 2:4
   robot_list_part = {}; % Liste teilweise erfolgreich
   robot_list_fail = {}; % Liste fehlgeschlagener
 
-  % III = find(strcmp(PNames_Kin, 'P3RRR1G1P1')); % Debug; P6RRPRRR14V3G1P4
+  % Debug: Auswahl einer Beispiel-PKM
+  if usr_testselection
+    % Eigentlich nicht notwendig, da die PKM vorausgewählt werden. Kann
+    % für die Filterung der Datenbank benutzt werden.
+    switch i_FG
+      case 1
+        III = find(strcmp(PNames_Kin, 'P3RRR1G1P1'));
+      case 2
+        III = find(strcmp(PNames_Kin, 'P3PRRRR8V2G1P2'));
+      case 3
+        III = find(strcmp(PNames_Kin, 'P4PRRRR8V1G3P1'));
+      case 4
+        III = find(strcmp(PNames_Kin, 'P6PRRRRR6V2G8P1'));
+    end
+  end
+  if isempty(III), warning('Keine PKM mit FG [%s] gefunden', char(48+EE_FG)); break; end
   for ii = III(:)' % 1:length(PNames_Kin)
     % Suche erste gültige Aktuierung in der Datenbank (ist für Dynamik
     % egal; es wird nur die Plattform-Dynamik betrachtet ohne Projektion in
@@ -131,8 +167,10 @@ for DynParMode = 2:4
         RP.Leg(il).update_mdh(params.pkin); 
         RP.Leg(il).qlim = params.qlim(RP.I1J_LEG(il):RP.I2J_LEG(il),:);
       end
+      r_P_E = params.r_P_E + delta_r_P_E;
+      phi_P_E = params.phi_P_E + delta_phi_P_E;
       RP.update_base(params.r_W_0, params.phi_W_0);
-      RP.update_EE(params.r_P_E, params.phi_P_E);
+      RP.update_EE(r_P_E, phi_P_E);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
@@ -243,6 +281,12 @@ for DynParMode = 2:4
     else % Minimalparameter-Vektor
       dpv = RP.DynPar.mpv_n1s;
     end
+    
+    % Definiere die gleiche PKM, deren Basis gedreht ist (Boden- vs
+    % Deckenmontage)
+    RP2 = copy(RP);
+    RP2.update_base([],r2eulxyz(RP.T_W_0(1:3,1:3)*rotx(pi)));
+    RP2.update_EE([],  r2eulxyz(RP.T_P_E(1:3,1:3)*rotx(pi)));
     %% Dynamik-Test Symbolisch gegen numerisch
     n = 10; % Anzahl der Test-Konfigurationen
     % Nehme Eckpunkte der Trajektorie aus der Maßsynthese und füge
@@ -257,8 +301,13 @@ for DynParMode = 2:4
     [XP_test, XDP_test, XDDP_test] = RP.xE2xP_traj(X_test0, XD_test0, XDD_test0);
     % Entferne nicht betrachtete/bewegliche Koordinaten (im Plattform-KS
     % definiert)
-    XP_test = XP_test + 1e-1*rand(n,6); XP_test(:,~RP.I_EE) = 0;
-    XDP_test(:,~RP.I_EE) = 0;           XDDP_test(:,~RP.I_EE) = 0;
+    delta_xP_test = 1e-1*rand(n,6); % Kleine Änderung gegenüber Startpose
+    delta_xP_test(1,:) = 0; % Keine Änderung gegenüber Startpose
+    delta_xP_test(2,[4 5]) = 0; % Nur Drehung um z-Achse (falls möglich)
+    delta_xP_test(3,[4 6]) = 0; % Nur Drehung um y-Achse (falls möglich)
+    delta_xP_test(4,[5 6]) = 0; % Nur Drehung um x-Achse (falls möglich)
+    XP_test = XP_test + delta_xP_test;
+    XP_test(:,~RP.I_EE) = 0; XDP_test(:,~RP.I_EE) = 0; XDDP_test(:,~RP.I_EE) = 0;
     % Zurück nach EE-KS umrechnen
     [XE_test, XDE_test, XDDE_test] = RP.xP2xE_traj(XP_test, XDP_test, XDDP_test);
     % Numerik-Fehler durch Umrechnung wieder entfernen
@@ -266,22 +315,78 @@ for DynParMode = 2:4
     XDDE_test(abs(XDDE_test)<1e-12)=0;
     Q_test = NaN(n, RP.NJ); QD_test = Q_test; QDD_test = Q_test; QDD_test_noacc = Q_test;
     
+    % Berechne zusätzliche EE-Trajektorie für die gedrehte PKM (soll sonst
+    % gleich sein)
+    [XE_test2, XDE_test2, XDDE_test2] = RP2.xP2xE_traj(XP_test, XDP_test, XDDP_test);
+    % Numerik-Fehler durch Umrechnung wieder entfernen
+    XE_test2(abs(XE_test2)<1e-12)=0; XDE_test2(abs(XDE_test2)<1e-12)=0;
+    XDDE_test2(abs(XDDE_test2)<1e-12)=0;
+    
     Information_matrix = [];
     % Dynamik berechnen (mit den Zufallswerten)
     n_succ = 0;
     n_fail = 0;
     for i = 1:n
-      % IK für Testkonfiguration berechnen
+      %% IK für Testkonfiguration berechnen
       [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s);
       if any(abs(Phi) > 1e-8) || any(isnan(Phi)), continue; end % IK für diese Pose nicht erfolgreich
       Q_test(i,:) = q;
-      [~, Jinv] = RP.jacobi_qa_x(q, XE_test(i,:)');
-      QD_test(i,:) = Jinv*XDE_test(i,RP.I_EE)';
-      % Teste symbolischen Aufruf der Jacobi-Matrix gegen numerischen
-      Jinv_num_qa_x = Jinv(RP.I_qa,:);
-      Jinv_sym_qa_x = RP.jacobi_qa_x(q, XE_test(i,:)');
-      test_Jinv = Jinv_sym_qa_x - Jinv_num_qa_x;
-      if max(abs(test_Jinv(:))) > 1e-10
+      [~, JinvE] = RP.jacobi_qa_x(q, XE_test(i,:)');
+      QD_test(i,:) = JinvE*XDE_test(i,RP.I_EE)';
+      
+      [~, JinvDE] = RP.jacobiD_qa_x(q, QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)');
+      QDD_test(i,:) = JinvDE*XDE_test(i,RP.I_EE)' + JinvE*XDDE_test(i,RP.I_EE)';
+      
+      % Gravitationsvektor zufällig setzen
+      RP.update_gravity(rand(3,1));
+      % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
+      RP2.update_gravity(rotx(pi)*RP.T_W_0(1:3,1:3)*RP.gravity);
+      
+      % Für Testkonfigurationen mit Null-Beschleunigung: Euler-Zeitableitung 
+      % verursacht auch Beschleunigung über die Kopplung der Koordinaten
+      % Effektiv ist es nur Null-Beschleunigung der Euler-Winkel. Es gibt
+      % eine Winkelbeschleunigung. Siehe euljacD
+      QDD_test_noacc(i,:) = JinvDE*XDE_test(i,RP.I_EE)' + JinvE*zeros(sum(RP.I_EE),1);
+
+      %% Umrechnung der Jacobi-Matrix von EE-KS auf Plattform-KS
+      % Bezogen auf xE, Euler-Winkel-Rotation
+      JinvE_fullx = zeros(RP.NJ, 6);
+      JinvE_fullx(:,RP.I_EE) = JinvE;
+      H_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(XE_test(i,4:6)', RP.phiconv_W_E)];
+      % Bezogen auf EE-Position, geometrische Rotation
+      JinvE_fulls = JinvE_fullx / H_xE;
+      % Umrechnung der geometrischen Jacobi auf die Plattform (statt EE)
+      T_0_E = RP.x2t(XE_test(i,:)');
+      A_P_E = adjoint_jacobian(T_0_E(1:3,1:3)*RP.T_P_E(1:3,4));
+      A_P_E_inv = adjoint_jacobian(-T_0_E(1:3,1:3)*RP.T_P_E(1:3,4));
+      JinvP_fulls = JinvE_fulls * A_P_E;
+      % Zurückrechnen auf die Euler-Winkel-Rotation (Plattform)
+      H_xP = [eye(3,3), zeros(3,3); zeros(3,3), euljac(XP_test(i,4:6)', RP.phiconv_W_E)];
+      JinvP_fullx = JinvP_fulls * H_xP;
+      JinvP = JinvP_fullx(:,RP.I_EE);
+      % Zeitableitung xE
+      JinvDE_fullx = zeros(RP.NJ, 6);
+      JinvDE_fullx(:,RP.I_EE) = JinvDE;
+      % Umrechnen auf Geometrische Darstellung (EE-Bezug)
+      HD_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljacD(XE_test(i,4:6)', XDE_test(i,4:6)', RP.phiconv_W_E)];
+      HD_xP = [eye(3,3), zeros(3,3); zeros(3,3), euljacD(XP_test(i,4:6)', XDP_test(i,4:6)', RP.phiconv_W_E)];
+      JinvDE_fulls = JinvDE_fullx / H_xE - JinvE_fullx * (H_xE \ HD_xE / H_xE);
+      % Umrechnen der Jacobi-Zeitableitung (geometrisch) auf die Plattform
+      AD_P_E = adjointD_jacobian(T_0_E(1:3,1:3)*RP.T_P_E(1:3,4), T_0_E(1:3,1:3)*RP.T_P_E(1:3,1:3), ...
+        euljac(XE_test(i,4:6)', RP.phiconv_W_E)*XDE_test(i,4:6)');
+      AD_P_E_inv = adjointD_jacobian(-T_0_E(1:3,1:3)*RP.T_P_E(1:3,4), T_0_E(1:3,1:3)*RP.T_P_E(1:3,1:3), ...
+        euljac(XE_test(i,4:6)', RP.phiconv_W_E)*XDE_test(i,4:6)');
+      JinvDP_fulls = (JinvDE_fulls - JinvP_fulls*AD_P_E_inv) * A_P_E;
+      % Umrechnen auf die Euler-Winkel-Darstellung (xP)
+      JinvDP_fullx = (JinvDP_fulls + JinvP_fullx*(H_xP\HD_xP/H_xP))*H_xP;
+      JinvDP = JinvDP_fullx(:,RP.I_EE);
+
+      %% Teste symbolischen Aufruf der Jacobi-Matrix gegen numerischen
+      JinvE_num_qa_x = JinvE(RP.I_qa,:);
+      JinvE_sym_qa_x = RP.jacobi_qa_x(q, XE_test(i,:)');
+      % TODO: Hier fehlt die Abgrenzung von Plattform- und EE-KS
+      test_Jinv = JinvE_sym_qa_x - JinvE_num_qa_x;
+      if ~any(delta_r_P_E) && ~any(delta_phi_P_E) && max(abs(test_Jinv(:))) > 1e-10
         change_current_figure(11);clf;hold all;
         xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
         axis auto
@@ -291,27 +396,16 @@ for DynParMode = 2:4
         RP.plot(q, XE_test(i,:)', s_plot);
         error('Inverse Jacobi-Matrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_Jinv(:))));
       end
-
-      [~, JinvD] = RP.jacobiD_qa_x(q, QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)');
-      QDD_test(i,:) = JinvD*XDE_test(i,RP.I_EE)' + Jinv*XDDE_test(i,RP.I_EE)';
       
-      % Parameter zufällig setzen
-      RP.update_gravity(rand(3,1));
-      
-      % Für Testkonfigurationen mit Null-Beschleunigung: Euler-Zeitableitung 
-      % verursacht auch Beschleunigung über die Kopplung der Koordinaten
-      % Effektiv ist es nur Null-Beschleunigung der Euler-Winkel. Es gibt
-      % eine Winkelbeschleunigung. Siehe euljacD
-      QDD_test_noacc(i,:) = JinvD*XDE_test(i,RP.I_EE)' + Jinv*zeros(sum(RP.I_EE),1);
-      
+      %% Dynamik numerisch vs symbolisch testen
       % Berechne Dynamik-Terme auf zwei Arten:
       % numerische Berechnung (Do Thanh, Matlab)
-      Mx2 = RP.inertia2_platform(Q_test(i,:)' , XE_test(i,:)');
-      Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)');
-      Gx2 = RP.gravload2_platform(Q_test(i,:)', XE_test(i,:)');
-      Fx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XE_test(i,:)', XDE_test(i,:)', XDDE_test(i,:)');
-      FGx2 = RP.invdyn2_platform(Q_test(i,:)', 0*QD_test(i,:)', 0*QDD_test(i,:)', XE_test(i,:)', 0*XDE_test(i,:)', 0*XDDE_test(i,:)');
-      FGCx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test_noacc(i,:)', XE_test(i,:)', XDE_test(i,:)', 0*XDDE_test(i,:)');
+      Mx2 = RP.inertia2_platform(Q_test(i,:)' , XP_test(i,:)');
+      Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
+      Gx2 = RP.gravload2_platform(Q_test(i,:)', XP_test(i,:)');
+      Fx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', XDDP_test(i,:)');
+      FGx2 = RP.invdyn2_platform(Q_test(i,:)', 0*QD_test(i,:)', 0*QDD_test(i,:)', XP_test(i,:)', 0*XDP_test(i,:)', 0*XDDP_test(i,:)');
+      FGCx2 = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test_noacc(i,:)', XP_test(i,:)', XDP_test(i,:)', 0*XDDP_test(i,:)');
       % symbolische Berechnung (Abdelatif, Maple)
       Mx1 = RP.inertia_platform(Q_test(i,:)', XP_test(i,:)');
       Cx1 = RP.coriolisvec_platform(Q_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
@@ -327,7 +421,7 @@ for DynParMode = 2:4
       test_FG = FGx2 - FGx1;
       test_FGC = FGCx2 - FGCx1; % Summe Grav.+Cor. aus zwei Implementierungen
       test_FC = (FGCx2-FGx2) - (FGCx1-FGx1); % Nur Vergleich Coriolis aus kompletter Dynamik
-      test_F_sum = (Mx2*XDDE_test(i,RP.I_EE)'+Cx2+Gx2) - Fx2;
+      test_F_sum = (Mx2*XDDP_test(i,RP.I_EE)'+Cx2+Gx2) - Fx2;
       fail = false;
       if any(abs(test_M(:)) > 1e-6)
         warning('Massenmatrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
@@ -346,40 +440,99 @@ for DynParMode = 2:4
         fail = true;
       end
       if any(abs(test_F(:)) > 1e-6) || any(abs(test_F_sum(:)) > 1e-6)
-        warning('Inversdynamik-Terme (gesamt) stimmen nicht. Max Fehler %1.1e.', max(abs(test_F(:))));
+        warning('Inversdynamik-Terme (gesamt) stimmen nicht. Max Fehler %1.1e / %1.1e.', max(abs(test_F(:))), max(abs(test_F_sum)));
         fail = true;
       end
-      if any(abs(test_FG(:)) > 1e-6) || any(abs(test_FG(:)) > 1e-6)
+      if any(abs(test_FG(:)) > 1e-6)
         warning('Gravitations-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FG(:))));
         fail = true;
       end
-      if any(abs(test_FGC(:)) > 1e-6) || any(abs(test_FGC(:)) > 1e-6)
+      if any(abs(test_FGC(:)) > 1e-6)
         warning('Gravitations- und Coriolis-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FGC(:))));
         fail = true;
       end
-      if any(abs(test_FC(:)) > 1e-6) || any(abs(test_FC(:)) > 1e-6)
+      if any(abs(test_FC(:)) > 1e-6)
         warning('Coriolis-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FC(:))));
         fail = true;
       end
-      % Prüfe Aufruf mit gegebener Jacobi-Matrix (sollte schneller sein)
-      Mx2_Jinput = RP.inertia2_platform(Q_test(i,:)' , XE_test(i,:)', Jinv);
-      Cx2_Jinput = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)', Jinv, JinvD);
-      Gx2_Jinput = RP.gravload2_platform(Q_test(i,:)', XE_test(i,:)', Jinv);
-      Fx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XE_test(i,:)', XDE_test(i,:)', XDDE_test(i,:)', Jinv);
-      FGx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', 0*QD_test(i,:)', 0*QDD_test(i,:)', XE_test(i,:)', 0*XDE_test(i,:)', 0*XDDE_test(i,:)', Jinv);
-      FGCx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test_noacc(i,:)', XE_test(i,:)', XDE_test(i,:)', 0*XDDE_test(i,:)', Jinv);
+      %% Prüfe Aufruf des gedrehten Roboters
+      % (muss die gleiche Dynamik haben)
+      Mx2_mount = RP2.inertia2_platform(Q_test(i,:)' , XP_test(i,:)');
+      Cx2_mount = RP2.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
+      Gx2_mount = RP2.gravload2_platform(Q_test(i,:)', XP_test(i,:)');
+      Fx2_mount = RP2.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', XDDP_test(i,:)');
+      Mx1_mount = RP2.inertia_platform(Q_test(i,:)', XP_test(i,:)');
+      Cx1_mount = RP2.coriolisvec_platform(Q_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
+      Gx1_mount = RP2.gravload_platform(Q_test(i,:)', XP_test(i,:)');
+      Fx1_mount = RP2.invdyn_platform(Q_test(i,:)', XP_test(i,:)', XDP_test(i,:)', XDDP_test(i,:)');
+      test_Mx2_mount = Mx2_mount - Mx2;
+      test_Cx2_mount = Cx2_mount - Cx2;
+      test_Gx2_mount = Gx2_mount - Gx2;
+      test_Fx2_mount = Fx2_mount - Fx2;
+      test_Mx1_mount = Mx1_mount - Mx1;
+      test_Cx1_mount = Cx1_mount - Cx1;
+      test_Gx1_mount = Gx1_mount - Gx1;
+      test_Fx1_mount = Fx1_mount - Fx1;
+      if any(abs(test_Mx2_mount(:)) > 1e-6)
+        warning('Massenmatrix (numerisch) stimmt nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Mx2_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Mx1_mount(:)) > 1e-6)
+        warning('Massenmatrix (symbolisch) stimmt nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Mx1_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Cx2_mount(:)) > 1e-6)
+        warning('Coriolis-Terme (numerisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Cx2_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Cx1_mount(:)) > 1e-6)
+        warning('Coriolis-Terme (symbolisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Cx1_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Gx2_mount(:)) > 1e-6)
+        warning('Gravitations-Terme (numerisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Gx2_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Gx1_mount(:)) > 1e-6)
+        warning('Gravitations-Terme (symbolisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Gx1_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Fx2_mount(:)) > 1e-6)
+        warning('Inversdynamik-Terme (numerisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Fx2_mount(:))));
+        fail = true;
+      end
+      if any(abs(test_Fx1_mount(:)) > 1e-6)
+        warning('Inversdynamik-Terme (symbolisch) stimmen nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Fx1_mount(:))));
+        fail = true;
+      end
+      % Teste gedrehte PKM in sich
+      test_M_mount = Mx2_mount - Mx1_mount;
+      if any(abs(test_M_mount(:)) > 1e-6)
+        warning('Massenmatrix der gedrehten PKM stimmt nicht (in sich). Max Fehler %1.1e.', max(abs(test_M_mount(:))));
+        fail = true;
+      end
+      
+      %% Prüfe Aufruf mit gegebener Jacobi-Matrix (sollte schneller sein)
+      Mx2_Jinput = RP.inertia2_platform(Q_test(i,:)' , XP_test(i,:)', JinvP);
+      Cx2_Jinput1 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', JinvP);
+      Cx2_Jinput2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', JinvP, JinvDP);
+      Gx2_Jinput = RP.gravload2_platform(Q_test(i,:)', XP_test(i,:)', JinvP);
+      Fx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', XDDP_test(i,:)', JinvP);
+      FGx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', 0*QD_test(i,:)', 0*QDD_test(i,:)', XP_test(i,:)', 0*XDP_test(i,:)', 0*XDDP_test(i,:)', JinvP);
+      FGCx2_Jinput = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test_noacc(i,:)', XP_test(i,:)', XDP_test(i,:)', 0*XDDP_test(i,:)', JinvP);
       test_Mx2Jin = Mx2_Jinput - Mx1;
-      test_Cx2Jin = Cx2_Jinput - Cx1;
+      test_Cx2Jin1 = Cx2_Jinput1 - Cx1;
+      test_Cx2Jin2 = Cx2_Jinput2 - Cx1;
       test_Gx2Jin = Gx2_Jinput - Gx1;
       test_Fx2Jin = Fx2_Jinput - Fx1;
       testFGx2Jin = FGx2_Jinput - Gx2_Jinput;
-      testFCx2Jin = (FGCx2_Jinput-FGx2_Jinput) - Cx2_Jinput;
+      testFCx2Jin = (FGCx2_Jinput-FGx2_Jinput) - Cx2_Jinput1;
       if any(abs(test_Mx2Jin(:)) > 1e-6)
         warning('Massenmatrix mit Jacobi-Matrix-Eingabe stimmt nicht. Max Fehler %1.1e.', max(abs(test_Mx2Jin(:))));
         fail = true;
       end
-      if any(abs(test_Cx2Jin(:)) > 1e-6)
-        warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe stimmen nicht. Max Fehler %1.1e.', max(abs(test_Cx2Jin(:))));
+      if any(abs(test_Cx2Jin1(:)) > 1e-6) || any(abs(test_Cx2Jin2(:)) > 1e-6)
+        warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe stimmen nicht. Max Fehler %1.1e / %1.1e', max(abs(test_Cx2Jin1(:))), max(abs(test_Cx2Jin2(:))));
         fail = true;
       end
       if any(abs(test_Gx2Jin(:)) > 1e-6)
@@ -398,51 +551,51 @@ for DynParMode = 2:4
         warning('Inversdynamik-Terme mit Jacobi-Matrix-Eingabe stimmt nicht gegen Gravitation. Max Fehler %1.1e.', max(abs(testFGx2Jin(:))));
         fail = true;
       end
-      % Teste, welche Jacobi-Zeitableitung voraussichtlich richtig ist
+      %% Teste, welche Jacobi-Zeitableitung voraussichtlich richtig ist
       if usr_test_constr4
         % Neue Berechnung der Jacobi-Matrix
         G4_q = RP.constr4grad_q(Q_test(i,:)');
-        G4_x = RP.constr4grad_x(XE_test(i,:)');
+        G4_x = RP.constr4grad_x(XP_test(i,:)', true);
         GD4_q = RP.constr4gradD_q(Q_test(i,:)', QD_test(i,:)');
-        GD4_x = RP.constr4gradD_x(XE_test(i,:)', XDE_test(i,:)');
+        GD4_x = RP.constr4gradD_x(XP_test(i,:)', XDP_test(i,:)', true);
         Jinv_4 = -G4_q\G4_x;
         JinvD_4 = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
         % Prüfe Jacobi-Matrix
-        test_JD = JinvD - JinvD_4;
+        test_JD = JinvDP - JinvD_4;
         if max(abs(test_JD(:))) > 1e-4
-          % warning('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
-        end  
+          warning('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
+        end
         % Dynamik damit berechnen
-        Mx2_J4input = RP.inertia2_platform(Q_test(i,:)' , XE_test(i,:)', Jinv_4);
-        Cx2_J4input = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)', Jinv_4, JinvD_4);
-        Gx2_J4input = RP.gravload2_platform(Q_test(i,:)', XE_test(i,:)', Jinv_4);
+        Mx2_J4input = RP.inertia2_platform(Q_test(i,:)' , XP_test(i,:)', Jinv_4);
+        Cx2_J4input = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', Jinv_4, JinvD_4);
+        Gx2_J4input = RP.gravload2_platform(Q_test(i,:)', XP_test(i,:)', Jinv_4);
         % Testen
         test_Mx2J4in = Mx2_J4input - Mx1;
         test_Cx2J4in = Cx2_J4input - Cx1;
         test_Gx2J4in = Gx2_J4input - Gx1;
         if any(abs(test_Mx2J4in(:)) > 1e-6)
-          warning('Massenmatrix mit Jacobi-Matrix-Eingabe (Var. 4) stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
+          warning('Massenmatrix mit Jacobi-Matrix-Eingabe (Var. 4) stimmt nicht. Max Fehler %1.1e.', max(abs(test_Mx2J4in(:))));
           fail = true;
         end
         if any(abs(test_Cx2J4in(:)) > 1e-6)
-          warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_C(:))));
+          warning('Coriolis-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_Cx2J4in(:))));
           fail = true;
         end
         if any(abs(test_Gx2J4in(:)) > 1e-6)
-          warning('Gravitations-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_G(:))));
+          warning('Gravitations-Terme mit Jacobi-Matrix-Eingabe (Var. 4)  stimmen nicht. Max Fehler %1.1e.', max(abs(test_Gx2J4in(:))));
           fail = true;
         end
       end
       
-      % Prüfe Regressor-Form
+      %% Prüfe Regressor-Form
       if DynParMode == 3 || DynParMode == 4
         [Gx2,Gx2_reg] = RP.gravload2_platform(Q_test(i,:)', XE_test(i,:)');
         test_Greg = Gx2_reg*dpv - Gx2;
         if any(abs(test_Greg(:)) > 1e-6)
           error('Gravitationskraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Greg(:))));
         end
-        [M_full,M_full_reg] = RP.inertia2_platform_full(Q_test(i,:)', XE_test(i,:)');
-        [Mx2,Mx2_reg] = RP.inertia2_platform(Q_test(i,:)' , XE_test(i,:)');
+        [M_full,M_full_reg] = RP.inertia2_platform_full(Q_test(i,:)', XP_test(i,:)');
+        [Mx2,Mx2_reg] = RP.inertia2_platform(Q_test(i,:)' , XP_test(i,:)');
         Mx_reg_vec = Mx2_reg*dpv;
         test_Mreg = reshape(Mx_reg_vec, sum(RP.I_EE), sum(RP.I_EE)) - Mx2;
         if any(abs(test_Mreg(:)) > 1e-6)
@@ -456,12 +609,12 @@ for DynParMode = 2:4
         if any(abs(test_Mreg_full(:)) > 1e-6)
           error('Massenmatrix-Regressor (vollständige Jacobi vor Projektion) stimmt nicht. Max Fehler %1.1e.', max(abs(test_Mreg_full(:))));
         end
-        [Cx2,Cx2_reg] = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)') ;
+        [Cx2,Cx2_reg] = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)') ;
         test_Creg = Cx2_reg*dpv - Cx2;
         if any(abs(test_Creg(:)) > 1e-6)
           error('Coriolis-Kraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Creg(:))));
         end
-        [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XE_test(i,:)', XDE_test(i,:)', XDDE_test(i,:)');
+        [Fx2,Fx2_reg] = RP.invdyn2_platform(Q_test(i,:)', QD_test(i,:)', QDD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', XDDP_test(i,:)');
         test_Freg = Fx2_reg*dpv - Fx2;
         if any(abs(test_Freg(:)) > 1e-6)
           error('Inversdynamik-Kraft-Regressor stimmt nicht. Max Fehler %1.1e.', max(abs(test_Freg(:))));
