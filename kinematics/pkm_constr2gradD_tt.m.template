@@ -22,10 +22,9 @@ function [PhiD_x_red, PhiD_x] = %PN%_constr2gradD_tt(s)
 %#codegen
 %$cgargs {struct( 'I_EE', true(1,6),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
-%$cgargs            'NLEG', 0,
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6))}
 %% Initialisierung
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 
 PhiD_x = zeros(3*NLEG,3);
 PhiD_x_red = zeros(length(s.I_constr_t_red), sum(s.I_EE(1:3)));

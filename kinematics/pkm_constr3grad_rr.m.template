@@ -42,7 +42,6 @@ function [Phipphi_red, Phipphi] = %PN%_constr3grad_rr(q, xE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
@@ -58,7 +57,7 @@ function [Phipphi_red, Phipphi] = %PN%_constr3grad_rr(q, xE, s)
 
 %% Initialisierung
 
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36, 37); Gl. (C.35)

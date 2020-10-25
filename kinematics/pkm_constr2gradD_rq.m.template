@@ -49,8 +49,6 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
@@ -65,8 +63,8 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 
 %% Initialisierung
 
-NLEG = s.NLEG;
-NJ = s.NJ;
+NLEG = %NLEG%;
+NJ = %NJ%;
 Phipq = zeros(3*NLEG,NJ);
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM

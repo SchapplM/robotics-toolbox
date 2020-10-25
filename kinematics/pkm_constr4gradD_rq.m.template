@@ -33,8 +33,6 @@ function [Phi_q_red, Phi_q] = %PN%_constr4gradD_rq(q, qD, s)
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
@@ -48,8 +46,8 @@ function [Phi_q_red, Phi_q] = %PN%_constr4gradD_rq(q, qD, s)
 
 %% Initialisierung
 
-NLEG = s.NLEG;
-NJ = s.NJ;
+NLEG = %NLEG%;
+NJ = %NJ%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 

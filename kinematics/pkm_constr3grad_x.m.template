@@ -32,7 +32,6 @@ function [Phi_x_red, Phi_x] = %PN%_constr3grad_x(q, xE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs    'I_constr_red', coder.newtype('double',[1,inf]),
@@ -49,16 +48,15 @@ function [Phi_x_red, Phi_x] = %PN%_constr3grad_x(q, xE, s)
 
 %% Initialisierung
 s_1 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', s.NLEG);
+                  'NLEG', %NLEG%);
                 
 s_2 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', s.NLEG);   
+                  'NLEG', %NLEG%);   
 
 s_3 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', s.NLEG);
+                  'NLEG', %NLEG%);
 
 s_4 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', s.NLEG,...
                'I1J_LEG', s.I1J_LEG,...
                'I2J_LEG', s.I2J_LEG,...
            'phi_P_B_all', s.phi_P_B_all,...
@@ -82,10 +80,10 @@ s_4 = struct(     'I_EE', s.I_EE,...
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung fÃ¼r symbolische Eingabe
-Phi_x = NaN(6*s.NLEG, 6);
+Phi_x = NaN(6*%NLEG%, 6);
 
 % Stelle vollständige Matrix zusammen
-for i = 1:s.NLEG
+for i = 1:%NLEG%
   Phi_x((i-1)*6+1:(i)*6, :) = ...
     [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
      Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];

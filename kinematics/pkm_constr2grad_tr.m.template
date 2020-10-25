@@ -29,11 +29,10 @@ function [Phix_phi_red, Phix_phi] = %PN%_constr2grad_tr(xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0)}
+%$cgargs            'I_EE', true(1,6))}
 
 %% Initialisierung
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_P_tr = [3*NLEG,3];

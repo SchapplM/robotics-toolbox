@@ -37,7 +37,6 @@ function [Phi_red, Phi] = %PN%_constr3_rot(q, xE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
@@ -54,7 +53,7 @@ function [Phi_red, Phi] = %PN%_constr3_rot(q, xE, s)
 
 %% Initialisierung
 
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 Phi = NaN(3*NLEG,1);
 Phi_red = NaN(length(s.I_constr_r_red),1);
 R_0_E_q_L = zeros(3,3);

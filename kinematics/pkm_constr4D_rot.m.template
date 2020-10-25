@@ -38,8 +38,6 @@ function [PhirD_red, PhirD] = %PN%_constr4D_rot(q, qD, xE ,xDE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
@@ -64,7 +62,7 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   '%PN%_constr4D_rot: xDE muss 6x1 sein');
 
 % Allgemeine Definitionen
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 phi = xE(4:6); % Euler-Winkel
 Jw = eulxyzjac(phi); % Euler-Jacobi-Matrix für EE-Orientierung
 PhirD = NaN(3*NLEG,1);

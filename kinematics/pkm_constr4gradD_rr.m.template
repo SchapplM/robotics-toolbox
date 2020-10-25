@@ -35,12 +35,11 @@ function [PhiD_rr_red, PhiD_rr] = %PN%_constr4gradD_rr(xE,xDE,s)
 %$cgargs {zeros(6,1), zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
-%$cgargs            'NLEG', 0,
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6))}
 
 %% Initialisierung
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 
 PhiD_rr = zeros(3*NLEG,3);
 PhiD_rr_red = zeros(length(s.I_constr_r_red), sum(s.I_EE(4:6)));

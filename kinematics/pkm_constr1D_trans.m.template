@@ -39,8 +39,6 @@ function [PhitD_red, PhitD] = %PN%_constr1D_trans(q, qD, xE ,xDE, s)
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
 %$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
 %$cgargs         'I1J_LEG', zeros(%NLEG%,1),
 %$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
@@ -64,7 +62,7 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   '%PN%_constr1D_trans: xDE muss 6x1 sein');
 
 % Allgemeine Definitionen
-NLEG = s.NLEG;
+NLEG = %NLEG%;
 PhitD = NaN(3*NLEG,1);
 PhitD_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
 I1 = 1;
