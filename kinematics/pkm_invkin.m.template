@@ -51,9 +51,7 @@ function [q, Phi, Tc_stack_PKM] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs   'Leg_T_0_W_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', uint8(zeros(%NLEG%,1)),
 %$cgargs       'I_EE_Task', true(1,6),
-%$cgargs         'Leg_NQJ', zeros(%NLEG%,1),
 %$cgargs      'Leg_sigmaJ', zeros(%NQJ%,%NLEG%),
 %$cgargs        'Leg_qlim', zeros(6,2*%NLEG%),
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),struct(
@@ -82,6 +80,8 @@ T_P_E = s_par.T_P_E;
 NLEG = %NLEG%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
+Leg_NQJ = %Leg_NQJ%;
 phi_P_B_all = s_par.phi_P_B_all;
 I_EE_Task = s_par.I_EE_Task;
 
@@ -114,7 +114,6 @@ Leg_I_EE_Task = s_par.Leg_I_EE_Task;%(%NLEG%,6)
 Leg_T_N_E_vec = s_par.Leg_T_N_E_vec;% 6 x NLEG 
 Leg_T_0_W_vec = s_par.Leg_T_0_W_vec;
 Leg_pkin_gen = s_par.Leg_pkin_gen;%(%NLEG%,%NKP%)
-Leg_I_EElink = s_par.Leg_I_EElink;%(%NLEG%,1)
 pkin = zeros(size(Leg_pkin_gen,2),1);
 
 Phi_ser = NaN(I2constr_red(end),1);
@@ -141,8 +140,8 @@ for i = 1:NLEG
   s.I_EE = Leg_I_EE_Task(i,:);
   s.pkin = Leg_pkin_gen(i,:)';
   s.sigmaJ = s_par.Leg_sigmaJ(:,i);
-  s.NQJ = s_par.Leg_NQJ(i);
-  s.qlim = s_par.Leg_qlim(1:s_par.Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
+  s.NQJ = Leg_NQJ(i);
+  s.qlim = s_par.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   s.phiconv_W_E = s_par.Leg_phiconv_W_E(i);
   s.I_EElink = Leg_I_EElink(i);
 
@@ -191,15 +190,15 @@ for i = 1:NLEG
     T_0_0i = invtr(T_0i_0);
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
     % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
-    Tc_stack_0 = NaN(3*(s_par.Leg_NQJ(i)+1),4);
-    for kk = 1:s_par.Leg_NQJ(i)+1
+    Tc_stack_0 = NaN(3*(Leg_NQJ(i)+1),4);
+    for kk = 1:Leg_NQJ(i)+1
       Tr_0i_kk = Tc_stack_0i((kk-1)*3+1:kk*3,1:4);
       T_0_kk = T_0_0i * [Tr_0i_kk;[0 0 0 1]];
       Tc_stack_0((kk-1)*3+1:kk*3,1:4) = T_0_kk(1:3,:);
     end
     % Eintragen in Ergebnis-Variable
-    Tc_stack_PKM(out3_ind1+(1:3*(s_par.Leg_NQJ(i)+1)),:) = Tc_stack_0;
-    out3_ind1 = out3_ind1 + 3*(s_par.Leg_NQJ(i)+1);
+    Tc_stack_PKM(out3_ind1+(1:3*(Leg_NQJ(i)+1)),:) = Tc_stack_0;
+    out3_ind1 = out3_ind1 + 3*(Leg_NQJ(i)+1);
   end
 end
 Phi = Phi_ser;

@@ -196,13 +196,10 @@ classdef ParRob < RobBase
       Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
       Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
       Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
-      Leg_I_EElink = uint8(zeros(R.NLEG,1));
       Leg_phi_W_0 = zeros(3,R.NLEG);
       Leg_phiconv_W_0 = uint8(zeros(R.NLEG,1));
-      Leg_NQJ = zeros(R.NLEG,1);
       for i = 1:R.NLEG
         Leg_pkin_gen(i,:) = R.Leg(i).pkin_gen';
-        Leg_I_EElink(i,:) = uint8(R.Leg(i).I_EElink);
         T_N_E = R.Leg(i).T_N_E;
         Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
         Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
@@ -211,7 +208,6 @@ classdef ParRob < RobBase
         Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
         Leg_phi_W_0(:,i) = R.Leg(i).phi_W_0;
         Leg_phiconv_W_0(i) = R.Leg(i).phiconv_W_0;
-        Leg_NQJ(i) = R.Leg(i).NJ;
       end
       s = struct( ...
         'T_P_E', R.T_P_E, ...
@@ -220,10 +216,8 @@ classdef ParRob < RobBase
         'Leg_pkin_gen', Leg_pkin_gen,...
         'Leg_T_N_E_vec', Leg_T_N_E_vec,...
         'Leg_T_0_W_vec', Leg_T_0_W_vec, ...
-        'Leg_I_EElink', Leg_I_EElink,...
         'Leg_phi_W_0', Leg_phi_W_0,...
-        'Leg_phiconv_W_0', Leg_phiconv_W_0,...
-        'Leg_NQJ', Leg_NQJ);
+        'Leg_phiconv_W_0', Leg_phiconv_W_0);
       if nargout == 1
         X = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
       elseif nargout == 2
@@ -265,22 +259,18 @@ classdef ParRob < RobBase
       Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
       Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
       Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
-      Leg_I_EElink = uint8(zeros(R.NLEG,1));
-      Leg_NQJ = zeros(R.NLEG,1);
       Leg_sigmaJ = zeros(R.Leg(1).NJ,R.NLEG);
       Leg_qlim = zeros(6,2*R.NLEG);
       Leg_phiconv_W_E = uint8(zeros(R.NLEG,1));
       for i = 1:R.NLEG
         Leg_I_EE_Task(i,:) = R.Leg(i).I_EE_Task;
         Leg_pkin_gen(i,:) = R.Leg(i).pkin_gen;
-        Leg_I_EElink(i,:) = uint8(R.Leg(i).I_EElink);
         T_N_E = R.Leg(i).T_N_E;
         Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
         Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
         T_0_W = R.Leg(i).T_0_W;
         Leg_T_0_W_vec(1:3,i) = r2eulxyz(T_0_W(1:3,1:3));
         Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
-        Leg_NQJ(i) = R.Leg(i).NQJ;
         Leg_sigmaJ(:,i) = R.Leg(i).MDH.sigma(R.Leg(i).MDH.mu>=1);
         Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
         Leg_phiconv_W_E(i) = R.Leg(i).phiconv_W_E;
@@ -296,10 +286,8 @@ classdef ParRob < RobBase
         'Leg_I_EE_Task', Leg_I_EE_Task, ...
         'Leg_pkin_gen', Leg_pkin_gen, ...
         'Leg_T_N_E_vec', Leg_T_N_E_vec, ...
-        'Leg_T_0_W_vec', Leg_T_0_W_vec, ...
-        'Leg_I_EElink', Leg_I_EElink, ...               
+        'Leg_T_0_W_vec', Leg_T_0_W_vec, ...             
         'I_EE_Task', R.I_EE_Task,...
-        'Leg_NQJ',Leg_NQJ,...
         'Leg_sigmaJ',Leg_sigmaJ,...
         'Leg_qlim',Leg_qlim,...
         'Leg_phiconv_W_E',Leg_phiconv_W_E);

@@ -42,11 +42,9 @@ function [PhirD_red, PhirD] = %PN%_constr4D_rot(q, qD, xE ,xDE, s)
 %$cgargs           'T_P_E', eye(4),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
-%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
-%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [%NJ% 1]), ...
@@ -59,6 +57,8 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   '%PN%_constr4D_rot: xDE muss 6x1 sein');
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
+Leg_NQJ = %Leg_NQJ%;
 
 % Allgemeine Definitionen
 NLEG = %NLEG%;
@@ -78,7 +78,7 @@ for i = 1:NLEG
   phi_0_Ai = s.Leg_phi_W_0(:,i);
   R_0_0i = eul2r(phi_0_Ai, s.Leg_phiconv_W_0(i));
   % Geschwindigkeit des Koppelpunktes auf Plattform-Seite
-  J0i_i_rotg = %SN%_jacobig_rot_sym_varpar(qs, uint8(s.Leg_I_EElink(i)), s.Leg_pkin_gen(i,:)');
+  J0i_i_rotg = %SN%_jacobig_rot_sym_varpar(qs, Leg_I_EElink(i), s.Leg_pkin_gen(i,:)');
   J_Ai_Bi = R_0_0i*J0i_i_rotg;  % Bezug auf das Basis-KS der PKM
   V_bein = J_Ai_Bi*qsD;
   

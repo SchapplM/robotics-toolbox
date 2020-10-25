@@ -34,17 +34,16 @@ function [Phi_q_red, Phi_q] = %PN%_constr4gradD_rq(q, qD, s)
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
-%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
-%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
 NLEG = %NLEG%;
 NJ = %NJ%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 
@@ -63,7 +62,7 @@ for i = 1:NLEG
   phi_0_Ai = s.Leg_phi_W_0(:,i);
   R_0_0i = eul2r(phi_0_Ai, s.Leg_phiconv_W_0(i));
   % Geometrische Jacobi-Matrix (Rotations-Teil)
-  JD0i_i_rotg = %SN%_jacobigD_rot_sym_varpar(qs, qsD, uint8(s.Leg_I_EElink(i)), s.Leg_pkin_gen(i,:)');
+  JD0i_i_rotg = %SN%_jacobigD_rot_sym_varpar(qs, qsD, Leg_I_EElink(i), s.Leg_pkin_gen(i,:)');
   JD_Ai_Bi = R_0_0i*JD0i_i_rotg; % Bezug auf das Basis-KS der PKM
 
   %% In Endergebnis einsetzen
