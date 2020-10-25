@@ -37,7 +37,6 @@ function [PhirD_red, PhirD] = %PN%_constr4D_rot(q, qD, xE ,xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', eye(4),

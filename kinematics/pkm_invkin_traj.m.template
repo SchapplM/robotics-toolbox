@@ -113,7 +113,10 @@ coder.extrinsic('toc');
 coder.extrinsic('fprintf');
 coder.extrinsic('warning');
 %% Initialisierung
-
+s_I_EE = %I_EE%; % TODO: Konsistentere Benennung; vormals s.I_EE
+NJ = %NJ%;
+NLEG = %NLEG%;
+NL = %NL%;
 I_EE = s.I_EE_Task;
 mode_IK = s.mode_IK;
 debug = s.debug;
@@ -122,7 +125,7 @@ s_ser.wn = zeros(2,1); % Nullraumopt. nicht in IK-Berechnung
 dof_3T2R = false;
 if all(I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
-  I_EE = s.I_EE;
+  I_EE = s_I_EE;
 end
 
 if nargout == 6
@@ -134,11 +137,11 @@ else
   simplify_acc = s.simplify_acc;
 end
 
-qlim = NaN(%NJ%,2);
-qDlim = NaN(%NJ%,2);
+qlim = NaN(NJ,2);
+qDlim = NaN(NJ,2);
 
 J1 = 1;
-for i = 1:%NLEG%
+for i = 1:NLEG
   J2 = J1+s.Leg_NQJ(i)-1;
   qlim(J1:J2,:) = s.Leg_qlim(1:s.Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   qDlim(J1:J2,:) = s.Leg_qDlim(1:s.Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
@@ -150,8 +153,8 @@ if ~all(isnan(qDlim(:)))
   qDmax = qDlim(:,2);
 else
   limits_qD_set = false;
-  qDmin = -inf(%NJ%,1);
-  qDmax =  inf(%NJ%,1);
+  qDmin = -inf(NJ,1);
+  qDmax =  inf(NJ,1);
 end
 
 if any(wn ~= 0)
@@ -170,15 +173,17 @@ if ~dof_3T2R
 end
 
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
-if dof_3T2R && all(s.I_EE == [1 1 1 1 1 1])
+if dof_3T2R && all(s_I_EE == [1 1 1 1 1 1])
   % nur für aufgabenredundante 3T3R-PKM
-  J_x_inv_alt = zeros(%NJ%,6);
+  J_x_inv = NaN(NJ,6); % Vorbelegung für Matlab-Coder
+  J_x_inv_alt = zeros(NJ,6);
 else
-  J_x_inv_alt = zeros(%NJ%,sum(s.I_EE));
+  J_x_inv = NaN(NJ,sum(s_I_EE)); % Vorbelegung für Matlab-Coder
+  J_x_inv_alt = zeros(NJ,sum(s_I_EE));
 end
-Phi_q_alt = zeros(length(s.I_constr_t_red)+length(s.I_constr_r_red), %NJ%);
+Phi_q_alt = zeros(length(s.I_constr_t_red)+length(s.I_constr_r_red), NJ);
 Phi_x_alt = zeros(length(s.I_constr_t_red)+length(s.I_constr_r_red), sum(I_EE));
-N = eye(%NJ%);
+N = eye(NJ); % Nullraum-Projektor
 Phi_xD = Phi_x_alt;
 % Eingabestruktur für tpl-fcns
 % Struktur für %PN%_invkin
@@ -199,7 +204,7 @@ s_par = struct('r_P_B_all', s.r_P_B_all,...
                 'Leg_qlim', s.Leg_qlim,...
          'Leg_phiconv_W_E', s.Leg_phiconv_W_E);
 % Struktur für %PN%_constr4grad_q
-s_q = struct(     'I_EE', s.I_EE,...
+s_q = struct(...
           'I_constr_t_red', s.I_constr_t_red,...
           'I_constr_r_red', s.I_constr_r_red,...
             'I_constr_t', s.I_constr_t,...
@@ -212,7 +217,7 @@ s_q = struct(     'I_EE', s.I_EE,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
                  'Leg_NQJ', s.Leg_NQJ);
  % Struktur für %PN%_constr4grad_x
- s_x = struct(     'I_EE', s.I_EE,...
+ s_x = struct(...
           'I_constr_t_red', s.I_constr_t_red,...
           'I_constr_r_red', s.I_constr_r_red,...
               'I_constr_t', s.I_constr_t,...
@@ -223,10 +228,10 @@ s_q = struct(     'I_EE', s.I_EE,...
            'Leg_I_EE_Task', s.Leg_I_EE_Task);
 % Struktur für %PN%_invkin3_tpl
 
-K_tpl = repmat(s_ser.K,%NLEG%,1);
-Kn_tpl = repmat(s_ser.Kn,%NLEG%,1);
+K_tpl = repmat(s_ser.K,NLEG,1);
+Kn_tpl = repmat(s_ser.Kn,NLEG,1);
 
-s_tpl = struct( 'I_EE', s.I_EE,...
+s_tpl = struct(...
        'I_EE_Task', s.I_EE_Task,...
            'sigma', s.sigma,...
                'K', K_tpl,...
@@ -259,7 +264,7 @@ s_tpl = struct( 'I_EE', s.I_EE,...
          'Leg_NQJ', s.Leg_NQJ,...
         'Leg_qlim', s.Leg_qlim);
 % Struktur für %PN%_constr3grad_q
-s_3q = struct(      'I_EE', s.I_EE,...
+s_3q = struct(...
                'I_EE_Task', s.I_EE_Task,...
                'r_P_B_all', s.r_P_B_all,...
              'phi_P_B_all', s.phi_P_B_all,...
@@ -273,7 +278,7 @@ s_3q = struct(      'I_EE', s.I_EE,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
                  'Leg_NQJ', s.Leg_NQJ);
 % Struktur für %PN%_constr3grad_x
-s_3x = struct(      'I_EE', s.I_EE,...
+s_3x = struct(...
             'I_constr_red', s.I_constr_red,...
              'phi_P_B_all', s.phi_P_B_all,...
                    'T_P_E', s.T_P_E,...
@@ -286,7 +291,7 @@ s_3x = struct(      'I_EE', s.I_EE,...
              'Leg_phi_W_0', s.Leg_phi_W_0,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
 % Struktur für %PN%_constr3gradD_q
-s_3qd = struct(      'I_EE', s.I_EE,...
+s_3qd = struct(...
                'I_EE_Task', s.I_EE_Task,...
           'I_constr_t_red', s.I_constr_t_red,...
              'phi_P_B_all', s.phi_P_B_all,...
@@ -301,7 +306,7 @@ s_3qd = struct(      'I_EE', s.I_EE,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0,...
                  'Leg_NQJ', s.Leg_NQJ);
 % Struktur für %PN%_constr3gradD_x
-s_3xd = struct(      'I_EE', s.I_EE,...
+s_3xd = struct(...
             'I_constr_red', s.I_constr_red,...
           'I_constr_t_red', s.I_constr_t_red,...
              'phi_P_B_all', s.phi_P_B_all,...
@@ -317,20 +322,20 @@ s_3xd = struct(      'I_EE', s.I_EE,...
 % Eingabe nicht gesetzt
 
 nt = length(T);
-Q = NaN(nt, %NJ%);
+Q = NaN(nt, NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
-if dof_3T2R && all(s.I_EE == [1 1 1 1 1 1])
-  Jinv_ges = NaN(nt, 6*%NJ%);
-  JinvD_ges = zeros(nt, 6*%NJ%);
+if dof_3T2R && all(s_I_EE == [1 1 1 1 1 1])
+  Jinv_ges = NaN(nt, 6*NJ);
+  JinvD_ges = zeros(nt, 6*NJ);
 else
-  Jinv_ges = NaN(nt, sum(I_EE)* %NJ%);
-  JinvD_ges = zeros(nt, sum(I_EE)* %NJ%);
+  Jinv_ges = NaN(nt, sum(I_EE)* NJ);
+  JinvD_ges = zeros(nt, sum(I_EE)* NJ);
 end
-JointPos_all = NaN(nt, (1+%NL%-2+%NLEG%)*3);
+JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
 qk0 = q0;
-qDk0 = zeros(%NJ%,1);
+qDk0 = zeros(NJ,1);
 Phi_q_voll = [];
 Phi_x_voll = [];
 dt = T(2)-T(1); % Init. fuer tpl
@@ -367,23 +372,22 @@ for k = 1:nt
     % (effizienter als Euler-Winkel-Zwangsbedingungen)
     Phi_q = %PN%_constr4grad_q(q_k,s_q);
     Phi_x = %PN%_constr4grad_x(x_k,s_x);
-    J_x_inv = -Phi_q \ Phi_x;
+    J_x_inv(:,:) = -Phi_q \ Phi_x;
   else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
-    [Phi_q,    Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
-    [Phi_x_tmp,Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
-    Phi_x=Phi_x_tmp(:,I_EE);
-    if all(s.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
-      J_x_inv = -Phi_q_voll \ Phi_x_voll;
+    [Phi_q, Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
+    [Phi_x, Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+    if all(s_I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      J_x_inv(:,:) = -Phi_q_voll \ Phi_x_voll; % Zuweisung mit ":" für mex
     else % Strukturell 3T2R
-      J_x_inv = -Phi_q \ Phi_x;
+      J_x_inv(:,:) = -Phi_q \ Phi_x;
     end
   end
   if ~(nsoptim || limits_qD_set)
     if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
-        ~all(s.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
+        ~all(s_I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
@@ -428,14 +432,14 @@ for k = 1:nt
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      if all(s.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      if all(s_I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
         JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
       else % strukturell 3T2R-PKM
         JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
       end
     end
   end
-  if ~dof_3T2R || ~all(s.I_EE == [1 1 1 1 1 1])
+  if ~dof_3T2R || ~all(s_I_EE == [1 1 1 1 1 1])
     qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
   else
     % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
@@ -450,9 +454,9 @@ for k = 1:nt
     end
   end
   if nsoptim % Nullraumbewegung
-    N = (eye(%NJ%) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
+    N = (eye(NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
-    v = zeros(%NJ%, 1);
+    v = zeros(NJ, 1);
     if wn(1) ~= 0
       [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
       v = v - wn(1)*h1dq';
@@ -472,7 +476,7 @@ for k = 1:nt
     end
     qDD_N_pre = N * v;
   else
-    qDD_N_pre = zeros(%NJ%, 1);
+    qDD_N_pre = zeros(NJ, 1);
   end
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;

@@ -47,7 +47,6 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -61,6 +60,7 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 NJ = %NJ%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;

@@ -27,15 +27,16 @@ function [Phi_x_red, Phi_x] = %PN%_constr1grad_tt(s)
 
 %% Coder Information
 %#codegen
-%$cgargs {struct( 'I_EE', true(1,6),
+%$cgargs {struct(
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6))}
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 
 Phi_x = zeros(3*NLEG,3);
-Phi_x_red = zeros(length(s.I_constr_t_red), sum(s.I_EE(1:3)));
+Phi_x_red = zeros(length(s.I_constr_t_red), sum(I_EE(1:3)));
 
 %% Belegung der Ausgabevariablen
 % Plattform-Koppelpunkt-Jacobi
@@ -47,5 +48,5 @@ for i = 1:NLEG
   Phi_x(I1:I1+2,:) = phi;
   
   J1 = sum(s.Leg_I_EE_Task(i,1:3))*(i-1)+1; % TODO: Anpassung an unterschiedliche Beine
-  Phi_x_red(J1:J1+sum(s.I_EE(1:3))-1,:) = phi(s.Leg_I_EE_Task(i,1:3), s.I_EE(1:3));
+  Phi_x_red(J1:J1+sum(I_EE(1:3))-1,:) = phi(s.Leg_I_EE_Task(i,1:3), I_EE(1:3));
 end

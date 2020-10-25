@@ -35,7 +35,6 @@ function [PhiD_x_red, PhiD_x] = %PN%_constr3gradD_x(q, qD, xE, xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1), zeros(6,1),struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs    'I_constr_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
@@ -50,14 +49,11 @@ function [PhiD_x_red, PhiD_x] = %PN%_constr3gradD_x(q, qD, xE, xDE, s)
 
 
 %% Initialisierung
-s1 = struct(        'I_EE', s.I_EE,...
+s1 = struct(...
           'I_constr_t_red', s.I_constr_t_red,...
            'Leg_I_EE_Task', s.Leg_I_EE_Task);
-s2 = struct(        'I_EE', s.I_EE,...
-                    'NLEG', %NLEG%);
-s3 = struct(        'I_EE', s.I_EE,...
-                    'NLEG', %NLEG%);
-s4 = struct(        'I_EE', s.I_EE,...
+
+s4 = struct(...
              'phi_P_B_all', s.phi_P_B_all,...
                    'T_P_E', s.T_P_E,...
              'phiconv_W_E', s.phiconv_W_E,...
@@ -67,13 +63,14 @@ s4 = struct(        'I_EE', s.I_EE,...
            'Leg_I_EE_Task', s.Leg_I_EE_Task,...
              'Leg_phi_W_0', s.Leg_phi_W_0,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
+I_EE = %I_EE%;
          
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [~, PhiD_tt] = %PN%_constr2gradD_tt(s1);
-[~, PhiD_tr] = %PN%_constr2gradD_tr(xE, xDE, s2);
-[~, PhiD_rt] = %PN%_constr3grad_rt(s3); % Term und Ableitung Null.
+[~, PhiD_tr] = %PN%_constr2gradD_tr();
+[~, PhiD_rt] = %PN%_constr3grad_rt(); % Term und Ableitung Null.
 [~, PhiD_rr] = %PN%_constr3gradD_rr(q, qD, xE, xDE, s4);
 
 
@@ -87,4 +84,4 @@ for i = 1:%NLEG%
     [PhiD_tt((i-1)*3+1:(i)*3, :), PhiD_tr((i-1)*3+1:(i)*3, :); ...
      PhiD_rt((i-1)*3+1:(i)*3, :), PhiD_rr((i-1)*3+1:(i)*3, :)];
 end
-PhiD_x_red = PhiD_x(s.I_constr_red, s.I_EE);
+PhiD_x_red = PhiD_x(s.I_constr_red, I_EE);

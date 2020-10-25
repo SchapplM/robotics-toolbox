@@ -30,7 +30,6 @@ function [PhiD_q_legs_red, PhiD_q_legs] = %PN%_constr2gradD_tq(q, qD, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1), zeros(%NJ%,1),struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
@@ -45,6 +44,7 @@ function [PhiD_q_legs_red, PhiD_q_legs] = %PN%_constr2gradD_tq(q, qD, s)
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 NJ = %NJ%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
@@ -93,7 +93,7 @@ for i = 1:NLEG
   
 
   dPhidqJi = zeros(3*NLEG,s.Leg_NQJ(i));
-  dPhidqJi_red = zeros(sum(s.I_EE(1:3))*NLEG,s.Leg_NQJ(i));
+  dPhidqJi_red = zeros(sum(I_EE(1:3))*NLEG,s.Leg_NQJ(i));
 
   
   % Kein negatives Vorzeichen, siehe Definition der Zwangsbedingungen
@@ -101,8 +101,8 @@ for i = 1:NLEG
   PhiD_q_legs(:,IJ_i) = dPhidqJi;
   
   % Eintragen in Ergebnis-Variable
-  I1 = sum(s.I_EE(1:3))*(i-1)+1;
-  I2 = I1+sum(s.I_EE(1:3))-1;
+  I1 = sum(I_EE(1:3))*(i-1)+1;
+  I2 = I1+sum(I_EE(1:3))-1;
   if ~isempty(PhiD_q_legs_red)
     dPhidqJi_red(I1:I2,:) = JD_0_E(s.Leg_I_EE_Task(i,1:3),:);
     PhiD_q_legs_red(:,IJ_i) = dPhidqJi_red;

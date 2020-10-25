@@ -24,19 +24,19 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phix_phi_red, Phix_phi] = %PN%_constr2grad_tr(xE, s)
+function [Phix_phi_red, Phix_phi] = %PN%_constr2grad_tr(xE)
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6))}
+%$cgargs {zeros(6,1)}
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_P_tr = [3*NLEG,3];
-dim_P_tr_red = [sum(s.I_EE(1:3))*NLEG, sum(s.I_EE(4:6))];
+dim_P_tr_red = [sum(I_EE(1:3))*NLEG, sum(I_EE(4:6))];
 
 Phix_phi = zeros(dim_P_tr);
 Phix_phi_red = zeros(dim_P_tr_red);

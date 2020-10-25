@@ -36,7 +36,6 @@ function [Phi_red, Phi] = %PN%_constr3_rot(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs       'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),

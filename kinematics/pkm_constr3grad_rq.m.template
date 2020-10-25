@@ -49,7 +49,6 @@ function [Phipq_red, Phipq] = %PN%_constr3grad_rq(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -63,6 +62,7 @@ function [Phipq_red, Phipq] = %PN%_constr3grad_rq(q, xE, s)
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 NJ = %NJ%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
@@ -160,13 +160,17 @@ for iLeg = 1:NLEG
     J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = Phi_phi_i_Gradq;
 
-    K2 = K1+sum(s.I_EE_Task(4:6))-1; % zwei oder drei rotatorische Einträge
-    if all(s.I_EE_Task(4:6) == [1 1 0])
-      Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
+    % Ausgabe mit reduzierter Dimension
+    % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+    % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
+    if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
+      K1 = 1; %#ok<NASGU> % Wiederholung für mex-Coder
+      K2 = 2;
+      Phipq_red(1:K2,J1:J2) = Phi_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
     else
-      % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-      % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-      Phipq_red(K1:K2,J1:J2) = Phi_phi_i_Gradq(s.I_EE(4:6),:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
+      K1 = 1; %#ok<NASGU> % Wiederholung für mex-Coder
+      K2 = sum(I_EE(4:6));
+      Phipq_red(1:K2,J1:J2) = Phi_phi_i_Gradq(I_EE(4:6),:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
     end
     K1 = K2+1;
   elseif iLeg > 1 % ZB für Folgekette

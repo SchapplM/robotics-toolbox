@@ -31,7 +31,6 @@ function [Phi_q_red, Phi_q] = %PN%_constr4gradD_rq(q, qD, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),

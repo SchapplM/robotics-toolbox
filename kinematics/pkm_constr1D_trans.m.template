@@ -38,7 +38,6 @@ function [PhitD_red, PhitD] = %PN%_constr1D_trans(q, qD, xE ,xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', eye(4),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
@@ -61,10 +60,11 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
 
 % Allgemeine Definitionen
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
 PhitD = NaN(3*NLEG,1);
-PhitD_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
+PhitD_red = NaN(sum(I_EE(1:3))*NLEG,1);
 I1 = 1;
 phi = xE(4:6); % Euler-Winkel
 Jw = eulxyzjac(phi); % Euler-Jacobi-Matrix für EE-Orientierung
@@ -100,6 +100,6 @@ for i = 1:NLEG
   PhitD(I1:I1+2) = V_diff;
   I1 = I1+3;
   % Ausgabe mit reduzierten Einträgen
-  J1 = sum(s.I_EE(1:3))*(i-1)+1;
-  PhitD_red(J1:J1+sum(s.I_EE(1:3))-1) = V_diff(s.I_EE(1:3));
+  J1 = sum(I_EE(1:3))*(i-1)+1;
+  PhitD_red(J1:J1+sum(I_EE(1:3))-1) = V_diff(I_EE(1:3));
 end

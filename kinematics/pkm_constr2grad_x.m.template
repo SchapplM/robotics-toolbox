@@ -30,7 +30,6 @@ function [Phi_x_red, Phi_x] = %PN%_constr2grad_x(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
@@ -44,17 +43,11 @@ function [Phi_x_red, Phi_x] = %PN%_constr2grad_x(q, xE, s)
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
-s_1 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', %NLEG%);
-                
-s_2 = struct(     'I_EE', s.I_EE,...
-                  'NLEG', %NLEG%);   
+I_EE = %I_EE%;
 
-s_3 = struct(     'I_EE', s.I_EE,...
-             'I_EE_Task', s.I_EE_Task,...
-                  'NLEG', %NLEG%);
+s_3 = struct('I_EE_Task', s.I_EE_Task);
 
-s_4 = struct(     'I_EE', s.I_EE,...
+s_4 = struct(...
            'phi_P_B_all', s.phi_P_B_all,...
                  'T_P_E', s.T_P_E,...
            'phiconv_W_E', s.phiconv_W_E,...
@@ -75,8 +68,8 @@ end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[~, Phi_tt] = %PN%_constr2grad_tt(s_1);
-[~, Phi_tr] = %PN%_constr2grad_tr(xE, s_2);
+[~, Phi_tt] = %PN%_constr2grad_tt();
+[~, Phi_tr] = %PN%_constr2grad_tr(xE);
 [~, Phi_rt] = %PN%_constr2grad_rt(s_3);
 [~, Phi_rr] = %PN%_constr2grad_rr(q, xE, s_4);
 
@@ -89,4 +82,4 @@ for i = 1:%NLEG%
     [Phi_tt((i-1)*3+1:(i)*3, :), Phi_tr((i-1)*3+1:(i)*3, :); ...
      Phi_rt((i-1)*3+1:(i)*3, :), Phi_rr((i-1)*3+1:(i)*3, :)];
 end
-Phi_x_red = Phi_x(I_constr_red, s.I_EE);
+Phi_x_red = Phi_x(I_constr_red, I_EE);

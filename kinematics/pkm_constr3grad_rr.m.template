@@ -41,7 +41,6 @@ function [Phipphi_red, Phipphi] = %PN%_constr3grad_rr(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -55,6 +54,7 @@ function [Phipphi_red, Phipphi] = %PN%_constr3grad_rr(q, xE, s)
 
 %% Initialisierung
 NLEG = %NLEG%;
+I_EE = %I_EE%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
 
@@ -64,7 +64,7 @@ I2J_LEG = %I2J_LEG%;
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
 
 Phipphi = zeros(3*NLEG,3);
-Phipphi_red = zeros( sum(s.I_EE(4:6))*NLEG, sum(s.I_EE(4:6)) );
+Phipphi_red = zeros( sum(I_EE(4:6))*NLEG, sum(I_EE(4:6)) );
 
 
 %% Berechnung
@@ -138,9 +138,9 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   K1 = 1; % nur eine Beinkette betrachtet.
   if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
     K2 = 2;
-    Phipphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],s.I_EE(4:6));
+    Phipphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],I_EE(4:6));
   else
-    K2 = sum(s.I_EE(4:6));
-    Phipphi_red( K1:K2, 1:sum(s.I_EE(4:6)) ) = Phi_phi_i_Gradx(s.I_EE(4:6),s.I_EE(4:6)); % das war vor anpassung
+    K2 = sum(I_EE(4:6));
+    Phipphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_Gradx(I_EE(4:6),I_EE(4:6)); % das war vor anpassung
   end
 end

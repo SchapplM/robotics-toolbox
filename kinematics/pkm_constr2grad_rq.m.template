@@ -45,7 +45,6 @@ function [Phipq_red, Phipq] = %PN%_constr2grad_rq(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
