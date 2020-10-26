@@ -6,11 +6,9 @@
 % 
 % Ergebnis bei erfolgreichem Durchlauf:
 % * Alle Dynamikmodellierungen sind konsistent
-
-% TODO:
-% * Falsches Ergebnis, wenn Transformation T_P_E gesetzt ist
 % 
 % Siehe auch: ParRob_mdltest_invdyn_energy_consistency.m (ähnlich)
+% [A] Aufzeichnungen Schappler vom 25.10.2020
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-11
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
@@ -25,10 +23,11 @@ usr_debug = true;
 usr_testselection = true; % Teste jeweils nur eine vorausgewählte PKM
 usr_num_tests_per_dof = 5;
 %% Initialisierung
-EEFG_Ges = [1 1 0 0 0 1; ...
-            1 1 1 0 0 0; ...
-            1 1 1 0 0 1; ...
-            1 1 1 1 1 1];
+EEFG_Ges = logical( ...
+   [1 1 0 0 0 1; ...
+    1 1 1 0 0 0; ...
+    1 1 1 0 0 1; ...
+    1 1 1 1 1 1]);
 EE_FG_Mask = [1 1 1 1 1 1];
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
@@ -43,15 +42,16 @@ s = struct( ...
        'n_max', 1000, ... % Maximale Anzahl Iterationen
        'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
        'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-% Setze eine künstliche Transformation des Endeffektors zum Testen
-% (darf am Ergebnis nichts ändern)
-% TODO: Hier noch Fehler. Darf eigentlich nicht sein.
-delta_r_P_E = 0*[1; -2; 3]*1e-3;
-delta_phi_P_E = 0*[5;-3;4]*pi/180;
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
 for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 EE_FG = EEFG_Ges(i_FG,:);
 fprintf('Untersuche PKM mit FG [%s]\n', char(48+EE_FG));
+% Setze eine künstliche Transformation des Endeffektors zum Testen
+% (darf am Ergebnis nichts ändern)
+delta_r_P_E = [-2; 1; 4]*1e-3;
+delta_phi_P_E = [.5;-.3;.4]*pi/180;
+delta_r_P_E(~EE_FG(1:3)) = 0;
+delta_phi_P_E(~EE_FG(4:6)) = 0;
 if usr_testselection
   % Gebe die PKM vor, da das auslesen der Datenbank sonst zu lange dauert
   % bei schnellen Iterationen der Tests.
@@ -167,10 +167,8 @@ for DynParMode = 2:4
         RP.Leg(il).update_mdh(params.pkin); 
         RP.Leg(il).qlim = params.qlim(RP.I1J_LEG(il):RP.I2J_LEG(il),:);
       end
-      r_P_E = params.r_P_E + delta_r_P_E;
-      phi_P_E = params.phi_P_E + delta_phi_P_E;
       RP.update_base(params.r_W_0, params.phi_W_0);
-      RP.update_EE(r_P_E, phi_P_E);
+      RP.update_EE(params.r_P_E, params.phi_P_E);
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
@@ -255,7 +253,10 @@ for DynParMode = 2:4
       fprintf('Maßsynthese beendet\n');
       Traj_0 = cds_transform_traj(RP, Traj_W);
     end
-
+    % EE-Transformation aktualisieren (damit unabhängig von Maßsynthese
+    % gerade durchgeführt oder vorab gespeicherte Parameter, in denen diese
+    % Zusätzliche Transformation nicht enthalten ist)
+    RP.update_EE(params.r_P_E+delta_r_P_E, params.phi_P_E+delta_phi_P_E);
     %% Parameter für Dynamik-Test
     RP.DynPar.mode = DynParMode;
     for il = 1:RP.NLEG, RP.Leg(il).DynPar.mode = DynParMode; end
@@ -294,6 +295,9 @@ for DynParMode = 2:4
     X_test0 = repmat(Traj_0.XE,ceil(n/size(Traj_0.XE,1)),1);
     X_test0 = X_test0(1:n,:);
     XD_test0 = rand(n,6); XDD_test0 = rand(n,6);
+%     Debuggen: Geschwindigkeit der ersten Einträge Null setzen
+%     XD_test0(1:2,:) = 0;
+%     XDD_test0(1,:) = 0;
     % Rechne in Plattform-Koordinaten um, füge Zufallszahlen dort hinzu und
     % wandle wieder in EE-Koordinaten zurück. Dadurch wird die Drehung der
     % PKM nach unten in der Maßsynthese ausgeglichen. Sonst Probleme mit
@@ -341,46 +345,77 @@ for DynParMode = 2:4
       RP.update_gravity(rand(3,1));
       % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
       RP2.update_gravity(rotx(pi)*RP.T_W_0(1:3,1:3)*RP.gravity);
-      
-      % Für Testkonfigurationen mit Null-Beschleunigung: Euler-Zeitableitung 
-      % verursacht auch Beschleunigung über die Kopplung der Koordinaten
-      % Effektiv ist es nur Null-Beschleunigung der Euler-Winkel. Es gibt
-      % eine Winkelbeschleunigung. Siehe euljacD
-      QDD_test_noacc(i,:) = JinvDE*XDE_test(i,RP.I_EE)' + JinvE*zeros(sum(RP.I_EE),1);
 
       %% Umrechnung der Jacobi-Matrix von EE-KS auf Plattform-KS
       % Bezogen auf xE, Euler-Winkel-Rotation
       JinvE_fullx = zeros(RP.NJ, 6);
       JinvE_fullx(:,RP.I_EE) = JinvE;
-      H_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(XE_test(i,4:6)', RP.phiconv_W_E)];
+      H_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(XE_test(i,4:6)', RP.phiconv_W_E)]; % [A]/(3)
       % Bezogen auf EE-Position, geometrische Rotation
-      JinvE_fulls = JinvE_fullx / H_xE;
+      JinvE_fulls = JinvE_fullx / H_xE; % [A]/(11)
       % Umrechnung der geometrischen Jacobi auf die Plattform (statt EE)
       T_0_E = RP.x2t(XE_test(i,:)');
-      A_P_E = adjoint_jacobian(T_0_E(1:3,1:3)*RP.T_P_E(1:3,4));
-      A_P_E_inv = adjoint_jacobian(-T_0_E(1:3,1:3)*RP.T_P_E(1:3,4));
-      JinvP_fulls = JinvE_fulls * A_P_E;
+      r_P_P_E = RP.T_P_E(1:3,4);
+      r_E_P_E = RP.T_P_E(1:3,1:3)' * r_P_P_E;
+      r_0_P_E = T_0_E(1:3,1:3)*r_E_P_E;
+      A_E_P = adjoint_jacobian(r_0_P_E); % [A]/(17)
+      A_E_P_inv = adjoint_jacobian(-r_0_P_E);
+      JinvP_fulls = JinvE_fulls * A_E_P; % [A]/(16)
       % Zurückrechnen auf die Euler-Winkel-Rotation (Plattform)
       H_xP = [eye(3,3), zeros(3,3); zeros(3,3), euljac(XP_test(i,4:6)', RP.phiconv_W_E)];
-      JinvP_fullx = JinvP_fulls * H_xP;
+      JinvP_fullx = JinvP_fulls * H_xP; % [A]/(12)
       JinvP = JinvP_fullx(:,RP.I_EE);
+      % Teste gegen berechnete Jacobi-Matrix
+      G_q_Ptest = RP.constr1grad_q(q, XP_test(i,:)', true);
+      G_x_Ptest = RP.constr1grad_x(q, XP_test(i,:)', true);
+      Jinv_Ptest = - G_q_Ptest \ G_x_Ptest;
+      Jinv_Ptest_full = zeros(size(JinvP_fulls));
+      Jinv_Ptest_full(:,RP.I_EE) = Jinv_Ptest;
+      test_JinvP = JinvP - Jinv_Ptest;
+      if any(abs(test_JinvP(:)) > 1e-10)
+        error('Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt nicht gegen constr1-Funktion');
+      end
+      
       % Zeitableitung xE
       JinvDE_fullx = zeros(RP.NJ, 6);
       JinvDE_fullx(:,RP.I_EE) = JinvDE;
       % Umrechnen auf Geometrische Darstellung (EE-Bezug)
-      HD_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljacD(XE_test(i,4:6)', XDE_test(i,4:6)', RP.phiconv_W_E)];
-      HD_xP = [eye(3,3), zeros(3,3); zeros(3,3), euljacD(XP_test(i,4:6)', XDP_test(i,4:6)', RP.phiconv_W_E)];
+      HD_xE = [zeros(3,3), zeros(3,3); zeros(3,3), euljacD(XE_test(i,4:6)', XDE_test(i,4:6)', RP.phiconv_W_E)];
+      HD_xP = [zeros(3,3), zeros(3,3); zeros(3,3), euljacD(XP_test(i,4:6)', XDP_test(i,4:6)', RP.phiconv_W_E)];
       JinvDE_fulls = JinvDE_fullx / H_xE - JinvE_fullx * (H_xE \ HD_xE / H_xE);
       % Umrechnen der Jacobi-Zeitableitung (geometrisch) auf die Plattform
-      AD_P_E = adjointD_jacobian(T_0_E(1:3,1:3)*RP.T_P_E(1:3,4), T_0_E(1:3,1:3)*RP.T_P_E(1:3,1:3), ...
-        euljac(XE_test(i,4:6)', RP.phiconv_W_E)*XDE_test(i,4:6)');
-      AD_P_E_inv = adjointD_jacobian(-T_0_E(1:3,1:3)*RP.T_P_E(1:3,4), T_0_E(1:3,1:3)*RP.T_P_E(1:3,1:3), ...
-        euljac(XE_test(i,4:6)', RP.phiconv_W_E)*XDE_test(i,4:6)');
-      JinvDP_fulls = (JinvDE_fulls - JinvP_fulls*AD_P_E_inv) * A_P_E;
+      r_P_P_E = RP.T_P_E(1:3,4);
+      R_0_P = T_0_E(1:3,1:3)*RP.T_P_E(1:3,1:3)';
+      omega_0_P = euljac(XP_test(i,4:6)', RP.phiconv_W_E)*XDP_test(i,4:6)';
+      AD_E_P = adjointD_jacobian(r_P_P_E, R_0_P, omega_0_P);
+      AD_E_P_inv2 = adjointD_jacobian(-r_P_P_E, R_0_P, omega_0_P);
+      AD_E_P_inv = -A_E_P_inv * AD_E_P * A_E_P_inv; % [A]/(26)
+      if any(abs(AD_E_P_inv2(:)-AD_E_P_inv(:)) > 1e-10)
+        error('Alternative Berechnungswege für AD_E_P_inv stimmen nicht');
+      end
+      JinvDP_fulls = (JinvDE_fulls - JinvP_fulls*AD_E_P_inv) * A_E_P; % [A]/(22)
       % Umrechnen auf die Euler-Winkel-Darstellung (xP)
-      JinvDP_fullx = (JinvDP_fulls + JinvP_fullx*(H_xP\HD_xP/H_xP))*H_xP;
+      JinvDP_fullx = (JinvDP_fulls + JinvP_fullx*(H_xP\HD_xP/H_xP))*H_xP; % [A]/(28)
       JinvDP = JinvDP_fullx(:,RP.I_EE);
-
+      % Teste gegen berechnete Jacobi-Matrix-Zeitableitung
+      G_qD_Ptest = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      G_xD_Ptest = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      JinvD_Ptest = G_q_Ptest\G_qD_Ptest/G_q_Ptest*G_x_Ptest - G_q_Ptest\G_xD_Ptest;
+      % Rechne zu geometrischer Form um
+      JinvD_Ptest_full = zeros(size(JinvDP_fulls));
+      JinvD_Ptest_full(:,RP.I_EE) = JinvD_Ptest;
+      JinvD_Pstest_full = JinvD_Ptest_full/H_xP + Jinv_Ptest_full*(-H_xP\HD_xP/H_xP); % [A]/(27)
+      test_JinvDPs = JinvDP_fulls(:,RP.I_EE) - JinvD_Pstest_full(:,RP.I_EE);
+      if any(abs(test_JinvDPs(:)) > 1e-8)
+        disp(test_JinvDPs);
+        error('Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion');
+      end
+      test_JinvDP = JinvDP - JinvD_Ptest;
+      if any(abs(test_JinvDP(:)) > 1e-8)
+        disp(test_JinvDP);
+        error('Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf xP stimmt nicht gegen constr1-Funktion');
+      end
+      
       %% Teste symbolischen Aufruf der Jacobi-Matrix gegen numerischen
       JinvE_num_qa_x = JinvE(RP.I_qa,:);
       JinvE_sym_qa_x = RP.jacobi_qa_x(q, XE_test(i,:)');
@@ -396,6 +431,13 @@ for DynParMode = 2:4
         RP.plot(q, XE_test(i,:)', s_plot);
         error('Inverse Jacobi-Matrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_Jinv(:))));
       end
+      
+      %% Testkonfiguration (Teil 2)
+      % Für Testkonfigurationen mit Null-Beschleunigung: Euler-Zeitableitung 
+      % verursacht auch Beschleunigung über die Kopplung der Koordinaten
+      % Effektiv ist es nur Null-Beschleunigung der Euler-Winkel. Es gibt
+      % eine Winkelbeschleunigung. Siehe euljacD
+      QDD_test_noacc(i,:) = JinvDP*XDP_test(i,RP.I_EE)' + JinvP*zeros(sum(RP.I_EE),1);
       
       %% Dynamik numerisch vs symbolisch testen
       % Berechne Dynamik-Terme auf zwei Arten:
@@ -561,9 +603,13 @@ for DynParMode = 2:4
         Jinv_4 = -G4_q\G4_x;
         JinvD_4 = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
         % Prüfe Jacobi-Matrix
+        test_J = JinvP - Jinv_4;
+        if max(abs(test_J(:))) > 1e-4
+          warning('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
+        end
         test_JD = JinvDP - JinvD_4;
         if max(abs(test_JD(:))) > 1e-4
-          warning('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
+          warning('Modell 4 für die Jacobi-Matrix-Zeitableitung stimmt nicht gegen Modell 1');
         end
         % Dynamik damit berechnen
         Mx2_J4input = RP.inertia2_platform(Q_test(i,:)' , XP_test(i,:)', Jinv_4);
