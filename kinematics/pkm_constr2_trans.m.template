@@ -36,26 +36,24 @@ function [Phix_red, Phix] = %PN%_constr2_trans(q, xE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs   'Leg_T_0_W_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
-
-NLEG = s.NLEG;
+NLEG = %NLEG%;
+I_EE = %I_EE%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
 
 Phix = NaN(3*NLEG,1);
-Phix_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
+Phix_red = NaN(sum(I_EE(1:3))*NLEG,1);
 
 %% Berechnung
 r_0_0_E_x = xE(1:3); % [2_SchapplerTapOrt2019a]/(14)
@@ -63,7 +61,7 @@ r_0_0_E_x = xE(1:3); % [2_SchapplerTapOrt2019a]/(14)
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   % Direkte Kinematik der Beinkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
   
   % Fußpunktkoordinaten
@@ -75,7 +73,7 @@ for iLeg = 1:NLEG
   
   Tc_0 = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(qs, s.Leg_pkin_gen(iLeg,:)');
   Leg_T_N_E = [eulxyz2r(s.Leg_T_N_E_vec(1:3,iLeg)),s.Leg_T_N_E_vec(4:6,iLeg);[0 0 0 1]];
-  T_0i_Bi = Tc_0(:,:,s.Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
+  T_0i_Bi = Tc_0(:,:,Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
   r_0i_Ai_Bi_q = T_0i_Bi(1:3,4);
   r_0_Ai_Bi_q = R_0_0i * r_0i_Ai_Bi_q; % Zweiter Term in [2_SchapplerTapOrt2019a]/(17)
   
@@ -90,11 +88,11 @@ for iLeg = 1:NLEG
   
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;
-  K1 = 1+sum(s.I_EE(1:3))*(iLeg-1);
-  K2 = K1+sum(s.I_EE(1:3))-1;
+  K1 = 1+sum(I_EE(1:3))*(iLeg-1);
+  K2 = K1+sum(I_EE(1:3))-1;
 
   % [2_SchapplerTapOrt2019a]/(16); Gl. (A.23, B.22)
   Phix(J1:J2,:) = r_0_0_E_q([1 2 3]) - r_0_0_E_x;
-  Phix_red(K1:K2,:) = r_0_0_E_q(s.I_EE(1:3)) - r_0_0_E_x(s.I_EE(1:3));
+  Phix_red(K1:K2,:) = r_0_0_E_q(I_EE(1:3)) - r_0_0_E_x(I_EE(1:3));
 end
 

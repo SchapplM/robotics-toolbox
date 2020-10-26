@@ -33,17 +33,16 @@ function [PhiD_rr_red, PhiD_rr] = %PN%_constr4gradD_rr(xE,xDE,s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(6,1), zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
-%$cgargs            'NLEG', 0,
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6))}
 
 %% Initialisierung
-NLEG = s.NLEG;
+NLEG = %NLEG%;
+I_EE = %I_EE%;
 
 PhiD_rr = zeros(3*NLEG,3);
-PhiD_rr_red = zeros(length(s.I_constr_r_red), sum(s.I_EE(4:6)));
+PhiD_rr_red = zeros(length(s.I_constr_r_red), sum(I_EE(4:6)));
 
 % Zeitableitung der Euler-Jacobi-Matrix für EE-Orientierung
 JwD = euljacD(xE(4:6), xDE(4:6), s.phiconv_W_E); % Euler-Jacobi-Matrix für EE-Orientierung
@@ -57,6 +56,6 @@ for i = 1:NLEG
   PhiD_rr(I1:I1+2,:) = phi;
   
   K2 = K1+sum(s.Leg_I_EE_Task(i,4:6))-1;
-  PhiD_rr_red(K1:K2,:) = phi(s.Leg_I_EE_Task(i,4:6), s.I_EE(4:6));
+  PhiD_rr_red(K1:K2,:) = phi(s.Leg_I_EE_Task(i,4:6), I_EE(4:6));
   K1 = K2+1;
 end

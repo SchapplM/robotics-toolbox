@@ -38,20 +38,13 @@ function [PhitD_red, PhitD] = %PN%_constr1D_trans(q, qD, xE ,xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1), zeros(6,1), zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs           'T_P_E', eye(4),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
-%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)),
-%$cgargs         'Leg_NQJ', zeros(%NLEG%,1))}
+%$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [%NJ% 1]), ...
@@ -64,9 +57,14 @@ assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   '%PN%_constr1D_trans: xDE muss 6x1 sein');
 
 % Allgemeine Definitionen
-NLEG = s.NLEG;
+NLEG = %NLEG%;
+I_EE = %I_EE%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
+Leg_NQJ = %Leg_NQJ%;
 PhitD = NaN(3*NLEG,1);
-PhitD_red = NaN(sum(s.I_EE(1:3))*NLEG,1);
+PhitD_red = NaN(sum(I_EE(1:3))*NLEG,1);
 I1 = 1;
 phi = xE(4:6); % Euler-Winkel
 Jw = eulxyzjac(phi); % Euler-Jacobi-Matrix für EE-Orientierung
@@ -80,7 +78,7 @@ Leg_phiconv_W_0 = s.Leg_phiconv_W_0;
 %% Berechnung
 for i = 1:NLEG
   % Definitionen für Beinkette i
-  IJ_i = s.I1J_LEG(i):s.I2J_LEG(i);
+  IJ_i = I1J_LEG(i):I2J_LEG(i);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette 
   qsD = qD(IJ_i);
   phi_0_Ai = Leg_phi_W_0(:,i);
@@ -90,7 +88,7 @@ for i = 1:NLEG
   
   % Geschwindigkeit des Koppelpunktes auf Seite der Beinkette
   r_N_E = s.Leg_T_N_E_vec(4:6,i);
-  J0i_i_trans = %SN%_jacobia_transl_sym_varpar(qs, uint8(s.Leg_I_EElink(i)),r_N_E,s.Leg_pkin_gen(i,:)');
+  J0i_i_trans = %SN%_jacobia_transl_sym_varpar(qs, Leg_I_EElink(i),r_N_E,s.Leg_pkin_gen(i,:)');
   J0_i_trans = R_0_0i*J0i_i_trans; % Bezug auf das Basis-KS der PKM
   J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
   V_bein = J_Ai_Bi*qsD;
@@ -102,6 +100,6 @@ for i = 1:NLEG
   PhitD(I1:I1+2) = V_diff;
   I1 = I1+3;
   % Ausgabe mit reduzierten Einträgen
-  J1 = sum(s.I_EE(1:3))*(i-1)+1;
-  PhitD_red(J1:J1+sum(s.I_EE(1:3))-1) = V_diff(s.I_EE(1:3));
+  J1 = sum(I_EE(1:3))*(i-1)+1;
+  PhitD_red(J1:J1+sum(I_EE(1:3))-1) = V_diff(I_EE(1:3));
 end

@@ -47,26 +47,24 @@ function [Phipq_red, Phipq] = %PN%_constr2gradD_rq(q, qD, xE, xDE, s)
 %% Coder Information
 %#codegen
 %$cgargs {zeros(%NJ%,1),zeros(%NJ%,1),zeros(6,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
 %$cgargs       'I_EE_Task', true(1,6),
-%$cgargs            'NLEG', 0,
-%$cgargs              'NJ', 0,
-%$cgargs         'I1J_LEG', zeros(%NLEG%,1),
-%$cgargs         'I2J_LEG', zeros(%NLEG%,1),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs           'T_P_E', zeros(4,4),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
 %$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
-%$cgargs    'Leg_I_EElink', zeros(%NLEG%,1),
 %$cgargs   'Leg_I_EE_Task', true(%NLEG%,6),
 %$cgargs     'Leg_phi_W_0', zeros(3,%NLEG%),
 %$cgargs 'Leg_phiconv_W_0', uint8(zeros(%NLEG%,1)))}
 
 %% Initialisierung
+NLEG = %NLEG%;
+I_EE = %I_EE%;
+NJ = %NJ%;
+I1J_LEG = %I1J_LEG%;
+I2J_LEG = %I2J_LEG%;
+Leg_I_EElink = %Leg_I_EElink%;
 
-NLEG = s.NLEG;
-NJ = s.NJ;
 Phipq = zeros(3*NLEG,NJ);
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
@@ -74,7 +72,6 @@ I_constr_red = 1:3*NLEG;
 if NJ==25 % Workaround um symmetrische 3T2R-PKM zu erkennen.
   I_constr_red(1:3:end) = [];
 end
-
 
 %% Berechnung
 R_P_E = s.T_P_E(1:3,1:3);
@@ -88,7 +85,7 @@ K1 = 1;
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
-  IJ_i = s.I1J_LEG(iLeg):s.I2J_LEG(iLeg);
+  IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qi = q(IJ_i); % Gelenkwinkel dieser Kette
   qDi= qD(IJ_i); % velocity of the joint coordinate for the serial chain 
   
@@ -100,12 +97,12 @@ for iLeg = 1:NLEG
   % Kinematik, Definitionen
   Tc_0 = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(qi, s.Leg_pkin_gen(iLeg,:)');
   Leg_T_N_E = [eulxyz2r(s.Leg_T_N_E_vec(1:3,iLeg)),s.Leg_T_N_E_vec(4:6,iLeg);[0 0 0 1]];
-  T_0i_Bi = Tc_0(:,:,s.Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
+  T_0i_Bi = Tc_0(:,:,Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
   R_0i_E_q = T_0i_Bi(1:3,1:3) * R_Bi_P * R_P_E;
   R_0_E_q = R_0_0i * R_0i_E_q;
   R_Ex_Eq = R_0_E_x' * R_0_E_q; % Argument in [2_SchapplerTapOrt2019a]/(19)
   % Ableitungen der Rotationsmatrizen berechnen
-  omega_0i_Bi = %SN%_jacobig_rot_sym_varpar(qi, uint8(s.Leg_I_EElink(iLeg)), s.Leg_pkin_gen(iLeg,:)') * qDi;
+  omega_0i_Bi = %SN%_jacobig_rot_sym_varpar(qi, Leg_I_EElink(iLeg), s.Leg_pkin_gen(iLeg,:)') * qDi;
   RD_0i_Bi = skew(omega_0i_Bi) * T_0i_Bi(1:3,1:3);
   RD_0_E_q = R_0_0i * RD_0i_Bi * R_Bi_P * R_P_E;
 
@@ -125,8 +122,8 @@ for iLeg = 1:NLEG
   b31=R_Ni_E(3,1);b32=R_Ni_E(3,2);b33=R_Ni_E(3,3);
   % Matrix-Produkt-Gradient siehe [2_SchapplerTapOrt2019a]/(A24)
   dPidRb1 = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
-  dRb_0iN_dq = %SN%_jacobiR_rot_sym_varpar(qi,  uint8(s.Leg_I_EElink(iLeg)), s.Leg_pkin_gen(iLeg,:)');
-  dDRb_0iN_dq = %SN%_jacobiRD_rot_sym_varpar(qi, qDi, uint8(s.Leg_I_EElink(iLeg)), s.Leg_pkin_gen(iLeg,:)');
+  dRb_0iN_dq = %SN%_jacobiR_rot_sym_varpar(qi,  Leg_I_EElink(iLeg), s.Leg_pkin_gen(iLeg,:)');
+  dDRb_0iN_dq = %SN%_jacobiRD_rot_sym_varpar(qi, qDi, Leg_I_EElink(iLeg), s.Leg_pkin_gen(iLeg,:)');
   
   dRb_0iE_dq = dPidRb1 * dRb_0iN_dq;
   dDRb_0iE_dq = dPidRb1 * dDRb_0iN_dq;
@@ -172,8 +169,8 @@ for iLeg = 1:NLEG
   %% In Endergebnis einsetzen
   I1 = 1+3*(iLeg-1); % I: Zeilen der Ergebnisvariable: Alle rotatorischen ZB
   I2 = I1+2; % drei rotatorische Einträge
-  J1 = s.I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
-  J2 = s.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
+  J1 = I1J_LEG(iLeg); % J: Spalten der Ergebnisvariable: Alle Gelenke
+  J2 = I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
   Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
 end
 Phipq_red = Phipq(I_constr_red,:);

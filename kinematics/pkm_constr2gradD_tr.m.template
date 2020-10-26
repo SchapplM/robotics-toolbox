@@ -3,11 +3,7 @@
 % Variante 2:
 % * Implementierung mit Vektor 0-E statt A-B
 % 
-% Eingabe:
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
-% xDE [6x1]
-%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% Eingabe: Keine
 % 
 % Ausgabe:
 % Phix_phi_red
@@ -26,19 +22,17 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiDx_phi_red, PhiDx_phi] = %PN%_constr2gradD_tr(xE, xDE, s)
+function [PhiDx_phi_red, PhiDx_phi] = %PN%_constr2gradD_tr()
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(6,1),zeros(6,1), struct(
-%$cgargs            'I_EE', true(1,6),
-%$cgargs            'NLEG', 0)}
 
-NLEG = s.NLEG;
+NLEG = %NLEG%;
+I_EE = %I_EE%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 dim_P_tr = [3*NLEG,3];
-dim_P_tr_red = [sum(s.I_EE(1:3))*NLEG, sum(s.I_EE(4:6))];
+dim_P_tr_red = [sum(I_EE(1:3))*NLEG, sum(I_EE(4:6))];
 
 PhiDx_phi = zeros(dim_P_tr);
 PhiDx_phi_red = zeros(dim_P_tr_red);
