@@ -13,7 +13,7 @@
 %   * P: Plattform-KS des Roboters, an dem der Endeffektor befestigt ist.
 %        Es werden nur parallele Roboter betrachtet, bei denen die
 %        Plattform am Ende aller Beinketten sitzt (also ohne zusätzliches
-%        serielles "Ende" an der Plattform).
+%        serielles "Ende" an der Plattform). Bezugs-KS für Dynamik.
 %        Entspricht KS "N" bei SerRob.
 %   * E: Endeffektor-KS des Roboters (z.B. Bohrerspitze), auf dieses KS
 %        bezieht sich die Bahnplanung und Kinematik
@@ -378,19 +378,23 @@ classdef ParRob < RobBase
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function [Jinv_qD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE)
+    function [Jinv_qD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE, platform_frame)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Endeffektorkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
       % xE: EE-Koordinaten (6x1) (nicht: Plattform-Koordinaten) (im Basis-KS)
+      % platform_frame: Beziehe Jacobi-Matrix auf Plattform-KS. Dann auch
+      % Übergabe von x in Plattform-Koordinaten
       %
       % Ausgabe:
       % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Endeffektor-Geschw. mit Euler-Zeitableitung)
+      if nargin == 3, platform_frame = false; end
       
       if R.extfcn_available(1) && nargout ~= 2
         % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
-        xP = R.xE2xP(xE);
+        if platform_frame, xP = xE;
+        else,              xP = R.xE2xP(xE); end
         [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
         % Aufruf der symbolisch generierten Funktion. Diese enthält den
         % Bezug von Antriebsgeschwindigkeiten zur Plattform-Geschwindigkeit.
@@ -407,8 +411,8 @@ classdef ParRob < RobBase
         % Reduziere die FG wiede rauf 2T1R o.ä.
         Jinv_qD_xD = Jinv_qD_xDvoll(:,R.I_EE);
       else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
-        G_q  = R.constr1grad_q(q, xE);
-        G_x = R.constr1grad_x(q, xE);
+        G_q  = R.constr1grad_q(q, xE, platform_frame);
+        G_x = R.constr1grad_x(q, xE, platform_frame);
         Jinv_num_voll = -G_q \ G_x;
         Jinv_qD_xD = Jinv_num_voll(R.I_qa,:);
       end
@@ -453,32 +457,32 @@ classdef ParRob < RobBase
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
     end
-    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xE, xDE, xDDE, Jinv)
+    function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xP, xDP, xDDP, JinvP)
       % Berechne Antriebskraft aufgrund der Effekte der inversen Dynamik
       % Eingabe:
       % q: Gelenkkoordinaten
       % qD: Gelenkgeschwindigkeiten
       % qDD: Gelenkbeschleunigungen
-      % xE: Endeffektor-Koordinaten
-      % xDE: Endeffektor-Geschwindigkeit
-      % xDDE: Endeffektor-Beschleunigung
-      % Jinv: Inverse Jacobi-Matrix (bezogen auf EE-Koordinaten und alle
-      % Gelenke). Siehe ParRob/jacobi_qa_x
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % xDP: Plattform-Geschwindigkeit
+      % xDDP: Plattform-Beschleunigung
+      % JinvP: Inverse Jacobi-Matrix (bezogen auf Plattform-Koordinaten und
+      % alle Gelenke). Siehe ParRob/jacobi_qa_x
       %
       % Ausgabe:
       % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
       % Fa_reg: Regressor-Matrix der Kraft
       % Inversdynamik-Kräfte in Endeffektor-Koordinaten berechnen
       if nargout == 1
-        Fx = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
+        Fx = Rob.invdyn2_platform(q, qD, qDD, xP, xDP, xDDP, JinvP);
       else
-        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, qDD, xE, xDE, xDDE, Jinv);
+        [Fx, Fx_reg] = Rob.invdyn2_platform(q, qD, qDD, xP, xDP, xDDP, JinvP);
       end
       % Umrechnen der vollständigen inversen Jacobi
-      Jinv_qaD_xD = Jinv(Rob.I_qa,:);
+      Jinv_qaD_xD = JinvP(Rob.I_qa,:);
       % Jacobi-Matrix auf Winkelgeschwindigkeiten beziehen. Siehe ParRob/jacobi_qa_x
       if size(Jinv_qaD_xD,2) == 6
-        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), Rob.phiconv_W_E)];
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), Rob.phiconv_W_E)];
         Jinv_qaD_sD = Jinv_qaD_xD / T;
       else
         % Nehme an, dass keine räumliche Drehung vorliegt. TODO: Fall 3T2R
@@ -507,17 +511,17 @@ classdef ParRob < RobBase
         Fx_traj(i,:) = R.invdyn_platform(Q(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)');
       end
     end
-    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
+    function [Fx_traj,Fx_traj_reg] = invdyn2_platform_traj(R, Q, QD, QDD, XP, XPD, XPDD, JinvP_ges)
       % Inverse Dynamik in Endeffektor-Koordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
       % QDD: Gelenkbeschleunigungen (Trajektorie)
-      % XE: Endeffektor-Koordinaten (Trajektorie)
-      % XED: Endeffektor-Geschwindigkeit (Trajektorie)
-      % XEDD: Endeffektor-Beschleunigung (Trajektorie)
-      % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
-      % (siehe jacobi_qa_x)
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % xDP: Plattform-Geschwindigkeit
+      % xDDP: Plattform-Beschleunigung
+      % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
       %
       % Ausgabe:
       % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
@@ -531,28 +535,28 @@ classdef ParRob < RobBase
         end
       end
       for i = 1:size(Q,1)
-        Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
+        Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
           Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', QD(i,:)', QDD(i,:)', ...
-            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
         else
           [Fx_traj(i,:), Fx_traj_reg_i] = R.invdyn2_platform(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
           Fx_traj_reg(i,:) = Fx_traj_reg_i(:);
         end
       end
     end
-    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
+    function [Fa_traj,Fa_traj_reg] = invdyn2_actjoint_traj(R, Q, QD, QDD, XP, XPD, XPDD, JinvP_ges)
       % Inverse Dynamik in Antriebskoordinaten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
       % QDD: Gelenkbeschleunigungen (Trajektorie)
-      % XE: Endeffektor-Koordinaten (Trajektorie)
-      % XED: Endeffektor-Geschwindigkeit (Trajektorie)
-      % XEDD: Endeffektor-Beschleunigung (Trajektorie)
-      % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
-      % (siehe jacobi_qa_x)
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % xDP: Plattform-Geschwindigkeit
+      % xDDP: Plattform-Beschleunigung
+      % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
       %
       % Ausgabe:
       % Fa_traj: Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
@@ -566,13 +570,13 @@ classdef ParRob < RobBase
         end
       end
       for i = 1:size(Q,1)
-        Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
+        Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2
           Fa_traj(i,:) = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', QDD(i,:)', ...
-            XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
         else
           [Fa_traj(i,:), Fa_traj_reg_i] = R.invdyn2_actjoint(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
           Fa_traj_reg(i,:) = Fa_traj_reg_i(:);
         end
       end
@@ -691,7 +695,6 @@ classdef ParRob < RobBase
       if R.phiconv_W_E ~= 2
         error('Für Winkelkonvention %d nicht definiert', R.phiconv_W_E);
       end
-      % TODO: Abgrenzung EE-KS, Plattform-KS
       T_legs = NaN(R.NLEG,1);
       T_plattform = rigidbody_energykin_floatb_eulxyz_slag_vp2(xP(1:3), xPD, ...
         R.DynPar.mges(end), R.DynPar.mrSges(end,:), R.DynPar.Ifges(end,:));
@@ -742,17 +745,17 @@ classdef ParRob < RobBase
                         reshape(w_all_stack_i(R.Leg(1).NL*3+1:end), 3, R.Leg(1).NL)];
       end
     end
-    function [Regmatl_traj, Regmat0_traj] = internforce_regmat_traj(R, Q, QD, QDD, XE, XED, XEDD, Jinv_ges)
+    function [Regmatl_traj, Regmat0_traj] = internforce_regmat_traj(R, Q, QD, QDD, XP, XPD, XPDD, JinvP_ges)
       % Zeitreihe der Schnittkraft-Dynamik-Regressor-Matrix (Trajektorie)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
       % QDD: Gelenkbeschleunigungen (Trajektorie)
-      % XE: Endeffektor-Koordinaten (Trajektorie)
-      % XED: Endeffektor-Geschwindigkeit (Trajektorie)
-      % XEDD: Endeffektor-Beschleunigung (Trajektorie)
-      % Jinv_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
-      % (siehe jacobi_qa_x)
+      % XP: Plattform-Koordinaten (nicht: Endeffektor) (Trajektorie)
+      % XPD: Endeffektor-Geschwindigkeit (Trajektorie)
+      % XPDD: Endeffektor-Beschleunigung (Trajektorie)
+      % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (siehe jacobi_qa_x). Hier Bezug auf Plattform-KS und Euler-Winkel
       %
       % Ausgabe:
       % Regmatl_traj: Regressormatrizen (als Zeitreihe; zeilenweise)
@@ -764,17 +767,17 @@ classdef ParRob < RobBase
       end
       for i = 1:size(Q,1)
         if nargin < 8
-          [~,Jinv_full] = R.jacobi_qa_x(Q(i,:)', XE(i,:)');
+          [~,Jinv_full] = R.jacobi_qa_x(Q(i,:)', XP(i,:)');
         else
-          Jinv_full = reshape(Jinv_ges(i,:), R.NJ, sum(R.I_EE));
+          Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
         end
         if nargout == 2
           [~, w_all_linkframe_reg, w_all_baseframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
           Regmat0_traj(i,:) = w_all_baseframe_reg(:);
         else
           [~, w_all_linkframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XE(i,:)', XED(i,:)', XEDD(i,:)', Jinv_full);
+            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
         end
         Regmatl_traj(i,:) = w_all_linkframe_reg(:);
       end
@@ -1270,7 +1273,6 @@ classdef ParRob < RobBase
       % Quelle: Aufzeichnungen Schappler, 23.08.2019
       
       % Initialisierung der Ausgabevariablen mit Dimension der Eingabe
-
       if all(all(R.T_P_E==eye(4)))
         xE = xP;
         if nargout > 1, xED = xPD;   end
