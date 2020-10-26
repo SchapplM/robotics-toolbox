@@ -15,7 +15,7 @@
 
 clc
 clear
-
+warning('off', 'MATLAB:illConditionedMatrix'); % für invdyn2_actjoint
 %% Benutzereingaben
 usr_only_check_symvsnum = true;
 usr_test_constr4 = true;
@@ -288,6 +288,11 @@ for DynParMode = 2:4
     RP2 = copy(RP);
     RP2.update_base([],r2eulxyz(RP.T_W_0(1:3,1:3)*rotx(pi)));
     RP2.update_EE([],  r2eulxyz(RP.T_P_E(1:3,1:3)*rotx(pi)));
+    
+    % Gravitationsvektor zufällig setzen
+    RP.update_gravity(rand(3,1));
+    % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
+    RP2.update_gravity(rotx(pi)*RP.T_W_0(1:3,1:3)*RP.gravity);
     %% Dynamik-Test Symbolisch gegen numerisch
     n = 10; % Anzahl der Test-Konfigurationen
     % Nehme Eckpunkte der Trajektorie aus der Maßsynthese und füge
@@ -310,10 +315,10 @@ for DynParMode = 2:4
     delta_xP_test(2,[4 5]) = 0; % Nur Drehung um z-Achse (falls möglich)
     delta_xP_test(3,[4 6]) = 0; % Nur Drehung um y-Achse (falls möglich)
     delta_xP_test(4,[5 6]) = 0; % Nur Drehung um x-Achse (falls möglich)
-    XP_test = XP_test + delta_xP_test;
+    XP_test = XP_test + delta_xP_test(1:n,:);
     XP_test(:,~RP.I_EE) = 0; XDP_test(:,~RP.I_EE) = 0; XDDP_test(:,~RP.I_EE) = 0;
     % Zurück nach EE-KS umrechnen
-    [XE_test, XDE_test, XDDE_test] = RP.xP2xE_traj(XP_test, XDP_test, XDDP_test);
+    [XE_test, XDE_test, XDDE_test] = RP.xP2xE_traj(XP_test(1:n,:), XDP_test(1:n,:), XDDP_test(1:n,:));
     % Numerik-Fehler durch Umrechnung wieder entfernen
     XE_test(abs(XE_test)<1e-12)=0; XDE_test(abs(XDE_test)<1e-12)=0;
     XDDE_test(abs(XDDE_test)<1e-12)=0;
@@ -321,7 +326,7 @@ for DynParMode = 2:4
     
     % Berechne zusätzliche EE-Trajektorie für die gedrehte PKM (soll sonst
     % gleich sein)
-    [XE_test2, XDE_test2, XDDE_test2] = RP2.xP2xE_traj(XP_test, XDP_test, XDDP_test);
+    [XE_test2, XDE_test2, XDDE_test2] = RP2.xP2xE_traj(XP_test(1:n,:), XDP_test(1:n,:), XDDP_test(1:n,:));
     % Numerik-Fehler durch Umrechnung wieder entfernen
     XE_test2(abs(XE_test2)<1e-12)=0; XDE_test2(abs(XDE_test2)<1e-12)=0;
     XDDE_test2(abs(XDDE_test2)<1e-12)=0;
@@ -330,6 +335,8 @@ for DynParMode = 2:4
     % Dynamik berechnen (mit den Zufallswerten)
     n_succ = 0;
     n_fail = 0;
+    Fx_traj = NaN(n,sum(RP.I_EE));
+    JinvP_ges = NaN(n,sum(RP.I_EE)*RP.NJ);
     for i = 1:n
       %% IK für Testkonfiguration berechnen
       [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s);
@@ -340,11 +347,6 @@ for DynParMode = 2:4
       
       [~, JinvDE] = RP.jacobiD_qa_x(q, QD_test(i,:)', XE_test(i,:)', XDE_test(i,:)');
       QDD_test(i,:) = JinvDE*XDE_test(i,RP.I_EE)' + JinvE*XDDE_test(i,RP.I_EE)';
-      
-      % Gravitationsvektor zufällig setzen
-      RP.update_gravity(rand(3,1));
-      % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
-      RP2.update_gravity(rotx(pi)*RP.T_W_0(1:3,1:3)*RP.gravity);
 
       %% Umrechnung der Jacobi-Matrix von EE-KS auf Plattform-KS
       % Bezogen auf xE, Euler-Winkel-Rotation
@@ -375,6 +377,7 @@ for DynParMode = 2:4
       if any(abs(test_JinvP(:)) > 1e-10)
         error('Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt nicht gegen constr1-Funktion');
       end
+      JinvP_ges(i,:) = JinvP(:); % Für Trajektorien-Funktionen weiter unten
       
       % Zeitableitung xE
       JinvDE_fullx = zeros(RP.NJ, 6);
@@ -497,6 +500,7 @@ for DynParMode = 2:4
         warning('Coriolis-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FC(:))));
         fail = true;
       end
+      Fx_traj(i,:) = Fx1;
       %% Prüfe Aufruf des gedrehten Roboters
       % (muss die gleiche Dynamik haben)
       Mx2_mount = RP2.inertia2_platform(Q_test(i,:)' , XP_test(i,:)');
@@ -675,6 +679,35 @@ for DynParMode = 2:4
         n_fail = n_fail + 1;
       else
         n_succ = n_succ + 1;
+      end
+    end
+    % Teste Trajektorien-Funktionen
+    if DynParMode == 2
+      Fx_traj1 = RP.invdyn2_platform_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
+      Fa_traj1 = RP.invdyn2_actjoint_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
+    else % DynParMode == 3 || DynParMode == 4
+      [Fx_traj1, Fx_traj1_reg] = RP.invdyn2_platform_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
+      [Fa_traj1, Fa_traj2_reg] = RP.invdyn2_actjoint_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
+      Fx_traj2 = RP.invdyn3_platform_traj(Fx_traj1_reg);
+      Fa_traj2 = RP.invdyn3_actjoint_traj(Fa_traj2_reg);
+    end
+    test_Fxtraj1 = Fx_traj1 - Fx_traj;
+    if any(abs(test_Fxtraj1(:)) > 1e-6)
+      disp(test_Fxtraj1)
+      error('Trajektorien-Funktion invdyn2_platform_traj stimmt nicht gegen vorherige Berechnung');
+    end
+    if DynParMode == 3 || DynParMode == 4
+      test_Fxtraj_reg = Fx_traj2 - Fx_traj1;
+      if any(abs(test_Fxtraj_reg(:)) > 1e-6)
+        error('Trajektorien-Funktion invdyn3_platform_traj stimmt nicht in sich');
+      end
+      test_Fatraj_reg = Fa_traj2 - Fa_traj1;
+      if any(abs(test_Fatraj_reg(:)) > 1e-6)
+        error('Trajektorien-Funktion invdyn3_actjoint_traj stimmt nicht in sich');
+      end
+      test_Fxtraj1 = Fx_traj2 - Fx_traj;
+      if any(abs(test_Fxtraj1(:)) > 1e-6)
+        error('Trajektorien-Funktion invdyn3_platform_traj stimmt nicht gegen vorherige Berechnung');
       end
     end
     fprintf('%s: %d/%d Kombinationen getestet (%d i.O., %d n.i.O) (bei restlichen %d IK falsch).\n', ...
