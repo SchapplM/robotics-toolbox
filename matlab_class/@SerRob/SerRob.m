@@ -422,12 +422,13 @@ classdef SerRob < RobBase
       % QDD: Gelenkbeschleunigung (Trajektorie)
       %
       % Ausgabe:
-      % X: EE-Lage (als Zeitreihe)
+      % X: EE-Lage bzgl Basis-KS (als Zeitreihe)
+      % XD, XDD: Zeitableitungen
       X = NaN(size(Q,1),6);
       XD = X; XDD = X;
       for i = 1:size(Q,1)
-        [~, T_W_E_i] = fkineEE(R, Q(i,:)');
-        X(i,:) = R.t2x(T_W_E_i);
+        T_0_E_i = fkineEE(R, Q(i,:)');
+        X(i,:) = R.t2x(T_0_E_i);
         Ja = jacobia(R, Q(i,:)');
         XD(i,:) = Ja*QD(i,:)';
         JaD = jacobiaD(R, Q(i,:)', QD(i,:)');
