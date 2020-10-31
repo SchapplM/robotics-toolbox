@@ -5,12 +5,8 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS (nicht:
-%   Plattform-Pose xP)
-% Jinv [N x Nx] (optional zur Rechenersparnis)
-%   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
-%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
+% xP [6x1]
+%   Plattform-Pose des Roboters bezüglich des Basis-KS (Nicht: EE-KS)
 % 
 % Ausgabe:
 % M_full
@@ -32,18 +28,16 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [M_full, M_full_reg] = inertia2_platform_full(Rob, q, xE, Jinv)
+function [M_full, M_full_reg] = inertia2_platform_full(Rob, q, xP)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/inertia2_platform: q muss %dx1 sein', Rob.NJ);
-assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/inertia2_platform: xE muss 6x1 sein');
-if nargin == 4
-  assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
-    'ParRob/inertia2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
-end
-% Dynamik-Parameter der Endeffektor-Plattform
+assert(isreal(xP) && all(size(xP) == [6 1]), ...
+  'ParRob/inertia2_platform: xP muss 6x1 sein');
+
+% Dynamik-Parameter der Endeffektor-Plattform (bezogen auf Plattform-KS,
+% nicht: Endeffektor-KS)
 m_P = Rob.DynPar.mges(end);
 mrSges = Rob.DynPar.mrSges(end,:);
 Ifges = Rob.DynPar.Ifges(end,:);
@@ -70,12 +64,12 @@ end
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode == 2
-  M_plf_full = rigidbody_inertiaB_floatb_eulxyz_slag_vp2_mex(xE(4:6), m_P, mrSges, Ifges);
+  M_plf_full = rigidbody_inertiaB_floatb_eulxyz_slag_vp2_mex(xP(4:6), m_P, mrSges, Ifges);
 else
   % Regressor-Matrix für allgemeine Starrkörper (nutze nicht-symmetrische
   % Form der Ausgabe, obwohl die Matrix symm. ist. Macht Rechnung unten
   % einfacher.
-  [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6));
+  [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6));
   if Rob.DynPar.mode == 3
     delta = Rob.DynPar.ipv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   else

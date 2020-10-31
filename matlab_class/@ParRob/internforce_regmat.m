@@ -5,6 +5,12 @@
 %   Gelenkkoordinaten aller Gelenke aller Beinketten der PKM
 % tauA
 %   Antriebskräfte der PKM (nur bezogen auf aktuierte Gelenke)
+% xP, xDP, xDDP
+%   Plattform-Koordinaten (nicht: Endeffektor), Plattform-Geschwindigkeit,
+%   Plattform-Beschleunigung (Rotationskomponente sind Euler-Winkel)
+% JinvP
+%   Inverse Jacobi-Matrix für alle Gelenke
+%   (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
 % 
 % Ausgabe:
 % w_B [6*NLEG x NDP]
@@ -24,10 +30,10 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [w_B_reg, w_all_linkframe_reg, w_all_baseframe_reg] = internforce_regmat(RP, q, qD, qDD, xE, xDE, xDDE, Jinv)
+function [w_B_reg, w_all_linkframe_reg, w_all_baseframe_reg] = internforce_regmat(RP, q, qD, qDD, xP, xDP, xDDP, JinvP)
 
 % Antriebskraft-Regressor bestimmen
-[~, Fa_reg] = RP.invdyn2_actjoint(q, qD, qDD, xE, xDE, xDDE, Jinv);
+[~, Fa_reg] = RP.invdyn2_actjoint(q, qD, qDD, xP, xDP, xDDP, JinvP);
 % Ausgabevariablen initialisieren
 w_B_reg = NaN(6*RP.NLEG, length(RP.DynPar.ipv_n1s));
 w_all_linkframe_reg = NaN(6*RP.Leg(1).NL*RP.NLEG, length(RP.DynPar.ipv_n1s)); % TODO: Aktuell nur symmetrische PKM

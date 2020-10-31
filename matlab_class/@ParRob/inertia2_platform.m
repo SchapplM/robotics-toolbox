@@ -3,12 +3,12 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS (nicht:
-%   Plattform-Pose xP)
+% xP [6x1]
+%   Plattform-Pose des Roboters bezüglich des Basis-KS (Nicht: EE-KS)
 % Jinv [N x Nx] (optional zur Rechenersparnis)
 %   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
-%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
+%   und passiven Gelenke und die bewegliche Plattform-Koordinaten xP).
+%   Nicht bezogen auf die EE-Koordinaten (nicht identisch zu Matrix aus InvKin)
 % M_full (optional zur Rechenersparnis)
 %   Vollständige Massenmatrix der PKM (für alle Subsysteme, Kräfte und
 %   Beschleunigungen in x-Koordinaten)
@@ -40,13 +40,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Mred_Fs, Mredvec_Fs_reg] = inertia2_platform(Rob, q, xE, Jinv, M_full, M_full_reg)
+function [Mred_Fs, Mredvec_Fs_reg] = inertia2_platform(Rob, q, xP, Jinv, M_full, M_full_reg)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/inertia2_platform: q muss %dx1 sein', Rob.NJ);
-assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/inertia2_platform: xE muss 6x1 sein');
+assert(isreal(xP) && all(size(xP) == [6 1]), ...
+  'ParRob/inertia2_platform: xP muss 6x1 sein');
 if nargin == 4
   assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
     'ParRob/inertia2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
@@ -61,8 +61,8 @@ end
 %% Projektionsmatrizen
 % Gradientenmatrix der vollständigen Zwangsbedingungen
 if nargin < 4
-  G_q = Rob.constr1grad_q(q, xE);
-  G_x = Rob.constr1grad_x(q, xE);
+  G_q = Rob.constr1grad_q(q, xP, true);
+  G_x = Rob.constr1grad_x(q, xP, true);
   % Inverse Jacobi-Matrix
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
@@ -73,9 +73,9 @@ R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 %% Massenmatrix des vollständigen Systems (alle Subsysteme)
 % Ausgelagert in andere Funktion, da Term auch für Coriolis-Kräfte benötigt
 if nargin < 5 && nargout == 1
-  M_full = Rob.inertia2_platform_full(q, xE, Jinv);
+  M_full = Rob.inertia2_platform_full(q, xP);
 elseif nargin < 6 && nargout == 2
-  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xE, Jinv);
+  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xP);
 end
 
 %% Projektion auf Subsysteme
@@ -93,7 +93,7 @@ if nargout == 2
 end
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)
-Tw = euljac(xE(4:6), Rob.phiconv_W_E);
+Tw = euljac(xP(4:6), Rob.phiconv_W_E);
 H = [eye(3), zeros(3,3); zeros(3,3), Tw];
 Mred_Fs = H(Rob.I_EE,Rob.I_EE)'\ Mred_Fx;
 if nargout == 2

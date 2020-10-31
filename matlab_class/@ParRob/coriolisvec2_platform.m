@@ -5,13 +5,14 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % qD [Nx1]
 %   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
-% xDE [6x1]
-%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% xP [6x1]
+%   Plattform-Pose des Roboters bezüglich des Basis-KS (Nicht: EE-KS)
+% xDP [6x1]
+%   Zeitableitung der Plattform-Pose des Roboters bezüglich des Basis-KS
 % Jinv [N x Nx] (optional zur Rechenersparnis)
 %   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
-%   und passiven Gelenke und die bewegliche EE-Koordinaten xE)
+%   und passiven Gelenke und die bewegliche Plattform-Koordinaten xP).
+%   Nicht bezogen auf die EE-Koordinaten (nicht identisch zu Matrix aus InvKin)
 % JinvD [N x Nx] (optional zur Rechenersparnis)
 %   Zeitableitung von Jinv
 % M_full (optional zur Rechenersparnis)
@@ -42,17 +43,17 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xE, xDE, Jinv, JinvD, M_full, M_full_reg)
+function [Cred_Fs, Cred_Fs_reg] = coriolisvec2_platform(Rob, q, qD, xP, xDP, Jinv, JinvD, M_full, M_full_reg)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/coriolisvec2_platform: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
   'ParRob/coriolisvec2_platform: qD muss %dx1 sein', Rob.NJ);
-assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/coriolisvec2_platform: xE muss 6x1 sein');
-assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/coriolisvec2_platform: xDE muss 6x1 sein');
+assert(isreal(xP) && all(size(xP) == [6 1]), ...
+  'ParRob/coriolisvec2_platform: xP muss 6x1 sein');
+assert(isreal(xDP) && all(size(xDP) == [6 1]), ...
+  'ParRob/coriolisvec2_platform: xDP muss 6x1 sein');
 if nargin >= 6
   assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
     'ParRob/coriolisvec2_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
@@ -61,7 +62,8 @@ if nargin == 7
   assert(isreal(JinvD) && all(size(JinvD) == [Rob.NJ sum(Rob.I_EE)]), ...
     'ParRob/coriolisvec2_platform: JinvD muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
 end
-% Dynamik-Parameter der Endeffektor-Plattform
+% Dynamik-Parameter der Endeffektor-Plattform (bezogen auf Plattform-KS,
+% nicht: Endeffektor-KS)
 m_P = Rob.DynPar.mges(end);
 mrS_P = Rob.DynPar.mrSges(end,:);
 If_P = Rob.DynPar.Ifges(end,:);
@@ -85,13 +87,13 @@ if nargout == 2
 end
 %% Projektionsmatrizen
 if nargin < 7
-  G_q = Rob.constr1grad_q(q, xE);
-  G_x = Rob.constr1grad_x(q, xE);
+  G_q = Rob.constr1grad_q(q, xP, true);
+  G_x = Rob.constr1grad_x(q, xP, true);
   Jinv = - G_q \ G_x; % Siehe: ParRob/jacobi_qa_x
 end
 if nargin < 7
-  G_qD = Rob.constr1gradD_q(q, qD, xE, xDE);
-  G_xD = Rob.constr1gradD_x(q, qD, xE, xDE);
+  G_qD = Rob.constr1gradD_q(q, qD, xP, xDP, true);
+  G_xD = Rob.constr1gradD_x(q, qD, xP, xDP, true);
   JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 end
 % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
@@ -101,9 +103,9 @@ R1D = [JinvD; zeros(NLEG)]; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
 if Rob.DynPar.mode==2
-  Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2_mex(xE(4:6), xDE, m_P ,mrS_P,If_P) ;
+  Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2_mex(xP(4:6), xDP, m_P, mrS_P, If_P) ;
 else
-  Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp_mex(xE(4:6), xDE);
+  Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6), xDP);
   if Rob.DynPar.mode == 3
     delta = Rob.DynPar.ipv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
   else
@@ -141,15 +143,15 @@ if nargout == 2
 end
 % Massenmatrix-Komponenten aller Subsysteme
 if nargout == 1 && nargin < 8
-  [M_full] = Rob.inertia2_platform_full(q, xE, Jinv);
+  [M_full] = Rob.inertia2_platform_full(q, xP);
 elseif nargout == 2 && nargin < 9
   % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
-  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xE, Jinv);
+  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xP);
 end
 % Projektion aller Terme der Subsysteme [DT09]/(23)
 % Die Momente liegen noch bezogen auf die Euler-Winkel vor (entsprechend der
 % EE-Koordinaten)
-Cred_Fx = R1'* C_full + R1' * M_full * R1D * xDE(Rob.I_EE);
+Cred_Fx = R1'* C_full + R1' * M_full * R1D * xDP(Rob.I_EE);
 if nargout == 2
   % Erster Summand der vorherigen Gleichung (direkt Spaltenweise auf
   % Regressor-Matrix anwendbar)
@@ -160,14 +162,14 @@ if nargout == 2
     % Volle Massenmatrix aller Subsysteme bezogen auf diesen Parameter `jj`
     M_full_jj = reshape(M_full_reg(:,:,jj), size(M_full));
     % Projektion wie oben
-    Cred_regadd = R1' * M_full_jj * R1D * xDE(Rob.I_EE);
+    Cred_regadd = R1' * M_full_jj * R1D * xDP(Rob.I_EE);
     Cred_Fx_reg(:,jj) = Cred_Fx_reg(:,jj) + Cred_regadd;
   end
 end
 
 % Umrechnung der Momente auf kartesische Koordinaten (Basis-KS des
 % Roboters)
-Tw = euljac(xE(4:6), Rob.phiconv_W_E);
+Tw = euljac(xP(4:6), Rob.phiconv_W_E);
 H = [eye(3), zeros(3,3); zeros(3,3), Tw];
 Cred_Fs = H(Rob.I_EE,Rob.I_EE)'\Cred_Fx;
 if nargout == 2

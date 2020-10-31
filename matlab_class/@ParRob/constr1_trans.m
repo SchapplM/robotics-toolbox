@@ -10,6 +10,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_red
@@ -30,13 +32,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_red, Phi] = constr1_trans(Rob, q, xE)
+function [Phi_red, Phi] = constr1_trans(Rob, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr_trans: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr1_trans: xE muss 6x1 sein');
+if nargin == 3, platform_frame = false; end
 
 NLEG = Rob.NLEG;
 
@@ -47,7 +50,12 @@ Phi_red = NaN(length(Rob.I_constr_t_red),1);
 r_0_0_E = xE(1:3);
 R_0_E = eul2r(xE(4:6), Rob.phiconv_W_E);
 T_0_E = transl(r_0_0_E)*r2t(R_0_E);
-T_0_P = T_0_E * invtr(Rob.T_P_E);
+if platform_frame
+  T_P_E = eye(4);
+else
+  T_P_E = Rob.T_P_E;
+end
+T_0_P = T_0_E * invtr(T_P_E);
 R_0_P = T_0_P(1:3,1:3);
 r_0_0_P = T_0_P(1:3,4);
 

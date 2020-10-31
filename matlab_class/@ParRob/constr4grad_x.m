@@ -10,6 +10,8 @@
 % Eingabe:
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_x_red
@@ -24,17 +26,18 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_x_red, Phi_x] = constr4grad_x(Rob, xE)
+function [Phi_x_red, Phi_x] = constr4grad_x(Rob, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr4grad_x: xE muss 6x1 sein');
+if nargin == 2, platform_frame = false; end
 
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [Phi_tt_red,Phi_tt]=Rob.constr1grad_tt(); % Für Translation identisch mit ...
-[Phi_tr_red,Phi_tr]=Rob.constr1grad_tr(xE); % ... Methode 1
+[Phi_tr_red,Phi_tr]=Rob.constr1grad_tr(xE, platform_frame); % ... Methode 1
 [Phi_rt_red,Phi_rt]=Rob.constr1grad_rt(); % Ist sowieso nur Null, auch bei Methode 4
 [Phi_rr_red,Phi_rr]=Rob.constr4grad_rr(xE); % Methode 4
 
