@@ -239,14 +239,16 @@ classdef ParRob < RobBase
       % Phi: Kinematische Zwangsbedingungen für die Lösung.
       [q, Phi] = R.invkin_ser(xE_soll, q0);
     end
-    function [q, Phi, Tc_stack_PKM] = invkin2(R, x, q0, s_in_ser)
+    function [q, Phi, Tc_stack_PKM] = invkin2(R, x, q0, s_in_ser, s_in_par)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch etwas schneller als durch die
       % Klassen-Methode `invkin_ser`, die nur teilweise kompilierbar ist.
+      % Ruft Vorlagen_Funktion pkm_invkin.m.template auf.
       % Eingabe:
       % x: EE-Lage (Soll)
       % q0: Start-Pose
       % s_in_ser: Parameter s in Seriell-IK
+      % s_in_par: Parameter für Parallel-IK
       % Ausgabe:
       % q: Gelenkposition
       % Phi: Residuum
@@ -290,7 +292,8 @@ classdef ParRob < RobBase
         'I_EE_Task', R.I_EE_Task,...
         'Leg_sigmaJ',Leg_sigmaJ,...
         'Leg_qlim',Leg_qlim,...
-        'Leg_phiconv_W_E',Leg_phiconv_W_E);
+        'Leg_phiconv_W_E',Leg_phiconv_W_E, ...
+        'abort_firstlegerror', false);
       
       % Einstellungen für IK. Siehe auch: SerRob/invkin2
       K_def = 0.5*ones(R.Leg(1).NQJ,1);
@@ -311,7 +314,6 @@ classdef ParRob < RobBase
       % Alle Standard-Einstellungen in s_ser mit in s_in_ser übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen.
-      % Für s_par nicht benötigt.
       if nargin == 4
         for ff = fields(s_in_ser)'
           if ~isfield(s_ser, ff{1})
@@ -321,7 +323,16 @@ classdef ParRob < RobBase
           end
         end
       end
-      % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
+      if nargin == 5 && ~isempty(s_in_par)
+        for ff = fields(s_in_par)'
+          if ~isfield(s_par, ff{1})
+            error('Feld %s kann nicht übergeben werden');
+          else
+            s_par.(ff{1}) = s_in_par.(ff{1});
+          end
+        end
+      end
+      % Funktionsaufruf. Entspricht pkm_invkin.m.template
       if nargout == 3
         [q, Phi, Tc_stack_PKM] = R.invkinfcnhdl(x, q0, s_par, s_ser);
       else 

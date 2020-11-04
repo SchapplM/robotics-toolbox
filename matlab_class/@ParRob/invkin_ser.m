@@ -37,33 +37,43 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = invkin_ser(Rob, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
   'ParRob/invkin1: xE_soll muss 6x1 sein');
 assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
   'ParRob/invkin1: q0 muss %dx1 sein', Rob.NJ);
-s_std = struct( ...
-             'n_min', 0, ... % Minimale Anzahl Iterationen
-             'n_max', 1000, ... % Maximale Anzahl Iterationen
-             'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
-             'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
-             'reci', false, ... % Keine reziproken Winkel für ZB-Def.
-             'retry_limit', 100); % Anzahl der Neuversuche
-
-if nargin < 4
-  % Keine Einstellungen übergeben. Standard-Einstellungen
-  s = s_std;
-end
+s_ser_std = struct( ...
+  'n_min', 0, ... % Minimale Anzahl Iterationen
+  'n_max', 1000, ... % Maximale Anzahl Iterationen
+  'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
+  'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
+  'reci', false, ... % Keine reziproken Winkel für ZB-Def.
+  'retry_limit', 100); % Anzahl der Neuversuche
+s_par_std = struct( ...
+  'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
 % Fehler aufgeworfen werden wg zu vieler Felder
-if nargin == 4
-  s = s_in;
-  for f = fields(s_std)'
+if nargin < 4
+  % Keine Einstellungen übergeben. Standard-Einstellungen
+  s = s_ser_std;
+else
+  s = s_ser_in;
+  for f = fields(s_ser_std)'
     if ~isfield(s, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
-      s.(f{1}) = s_std.(f{1});
+      s.(f{1}) = s_ser_std.(f{1});
+    end
+  end
+end
+if nargin < 5
+  s_par = s_par_std;
+elseif nargin == 5
+  s_par = s_par_in;
+  for f = fields(s_par_std)'
+    if ~isfield(s, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
+      s_par.(f{1}) = s_par_std.(f{1});
     end
   end
 end
@@ -155,6 +165,11 @@ for i = 1:Rob.NLEG
     % Eintragen in Ergebnis-Variable
     Tc_stack_PKM(out3_ind1+(1:3*Rob.Leg(i).NL),:) = Tc_stack_0;
     out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
+  end
+  if s_par.abort_firstlegerror && (any(isnan(Phi_i)) || ...
+      any(Phi_ser(Rob.I1constr_t_red(i):Rob.I2constr_t_red(i)) > s.Phit_tol) || ...
+      any(Phi_ser(Rob.I1constr_r_red(i):Rob.I2constr_r_red(i)) > s.Phir_tol))
+    break; % Erste Beinkette funktioniert nicht. Restliche sind egal. Abbruch
   end
 end
 Phi = Phi_ser;
