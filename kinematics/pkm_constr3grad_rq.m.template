@@ -87,9 +87,9 @@ for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
   IJ_i = I1J_LEG(iLeg):I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
-  Tc_0 = %SN%_fkine_fixb_rotmat_mdh_sym_varpar(qs, s.Leg_pkin_gen(iLeg,:)');
+  T_0i_Ni = %SN%_fkine_fixb_body_rotmat_mdh_sym_varpar(qs, Leg_I_EElink(iLeg), s.Leg_pkin_gen(iLeg,:)');
   Leg_T_N_E = [eulxyz2r(s.Leg_T_N_E_vec(1:3,iLeg)),s.Leg_T_N_E_vec(4:6,iLeg);[0 0 0 1]];
-  T_0i_Bi = Tc_0(:,:,Leg_I_EElink(iLeg)+1)*Leg_T_N_E;
+  T_0i_Bi = T_0i_Ni*Leg_T_N_E;
   
   phi_0_Ai = s.Leg_phi_W_0(:,iLeg);
   R_0_0i = eul2r(phi_0_Ai, s.Leg_phiconv_W_0(iLeg));
