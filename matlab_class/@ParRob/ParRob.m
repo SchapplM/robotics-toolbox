@@ -314,7 +314,7 @@ classdef ParRob < RobBase
       % Alle Standard-Einstellungen in s_ser mit in s_in_ser übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen.
-      if nargin == 4
+      if nargin >= 4
         for ff = fields(s_in_ser)'
           if ~isfield(s_ser, ff{1})
             error('Feld %s kann nicht übergeben werden');

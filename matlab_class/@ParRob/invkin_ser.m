@@ -72,7 +72,7 @@ if nargin < 5
 elseif nargin == 5
   s_par = s_par_in;
   for f = fields(s_par_std)'
-    if ~isfield(s, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
+    if ~isfield(s_par, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
       s_par.(f{1}) = s_par_std.(f{1});
     end
   end
