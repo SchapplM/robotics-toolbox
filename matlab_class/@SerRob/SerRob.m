@@ -624,7 +624,11 @@ classdef SerRob < RobBase
         end
       end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
-      [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
+      if nargout == 3
+        [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
+      else
+        [q, Phi] = R.invkinfcnhdl(x, q0, s);
+      end
     end
     function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter

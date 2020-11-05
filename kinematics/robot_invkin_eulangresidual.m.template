@@ -124,7 +124,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  [Phi_voll, Tc_stack] = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
 
@@ -203,7 +203,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     q1 = q2;
     
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    [Phi_voll, Tc_stack] = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Phi_voll = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
@@ -227,5 +227,8 @@ q = q1;
 if s.normalize
   sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren
+end
+if nargout == 3
+  [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
 end
 

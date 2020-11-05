@@ -61,8 +61,8 @@ else
 end
 
 % Kinematik, Definitionen
-Tc_ges = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
-R_0_E_q = Tc_ges(1:3,1:3,I_EElink+1) * T_N_E(1:3,1:3);
+T_0_N_q = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q, I_EElink, pkin);
+R_0_E_q = T_0_N_q(1:3,1:3) * T_N_E(1:3,1:3);
 R_Ex_Eq = R_0_E_x' * R_0_E_q;
 
 % Ableitung der Rotationsmatrix R_0_E nach q
