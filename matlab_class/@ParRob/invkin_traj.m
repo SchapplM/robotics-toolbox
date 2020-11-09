@@ -184,6 +184,9 @@ if ~dof_3T2R
   nsoptim = false;
   % Deaktiviere limits_qD_set, wenn es keinen Nullraum gibt
   limits_qD_set = false;
+elseif all(Rob.I_EE == [1 1 1 1 1 0])
+  % Strukturelle 3T2R-PKM: Es gibt keinen Nullraum
+  limits_qD_set = false; % qD nicht beeinflussbar
 end
 % Altwerte für die Bildung des Differenzenquotienten initialisieren
 if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
@@ -294,9 +297,14 @@ for k = 1:nt
       end
     end
   end
-  if ~dof_3T2R || ~all(Rob.I_EE == [1 1 1 1 1 1])
+  if ~dof_3T2R
+    % Die Rechnung mit Zeitableitung der inversen Jacobi funktioniert nur
+    % bei vollem Rang. Bei strukturell 3T2R mit Rangverlust ist die
+    % Rechnung numerisch ungünstig (Vermutung). Nutze diese Formel daher
+    % nur für 2T1R, 3T0R, 3T1R, 3T3R ohne AR. Mit dieser Formel ist die
+    % Beschleunigung für 3T2R-PKM sonst bei Rangverlust nicht konsistent.
     qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
-  else
+  else % 3T3R mit Aufgabenredundanz oder strukturell 3T2R-PKM
     % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
     % Siehe [3]. JD_x_inv ist nicht im Fall der Aufgabenredundanz definiert.
     qDD_k_T = -Phi_q\(Phi_qD*qD_k+Phi_xD*xD_k(I_EE)+Phi_x*xDD_k(I_EE));
