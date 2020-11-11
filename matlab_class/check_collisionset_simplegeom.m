@@ -42,6 +42,8 @@
 %           Führung eines Schubgelenks (Gegensatz zu 3)
 %     * 14 Punkt im Basis-KS (3 Parameter) (im Gegensatz zu 9). Kann einem
 %          Kollisionsobjekt an der Roboterbasis entsprechen
+%     * 15 Kugel im Basis-KS (4 Parameter) (im Gegensatz zu 4). Kann einem
+%          Kollisionsobjekt an der Roboterbasis entsprechen
 %   params [M x 10 double]
 %     Parameter für die Kollisionskörper. Je nachdem wie viele Parameter
 %     die obigen Kollisionsgeometrien haben, werden Spalten mit NaN aufgefüllt
@@ -106,6 +108,8 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
       collcase = uint8(3);
     elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 13 % Punkt+Kapsel
       collcase = uint8(4);
+    elseif any(cb.type(cc(i,1)) == [6,13]) && cb.type(cc(i,2)) == 15
+      collcase = uint8(5); % Kapsel+Kugel (Basis-KS)
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
     end
@@ -155,6 +159,8 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
           % Interpretiere den Punkt als Kugel mit Radius Null und nehme die
           % existierende Funktion für Kapsel+Kugel.
           [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, [b1_cbparam,0.0]);
+        case 5
+          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b1_cbparam, b2_cbparam);
         otherwise
           error('Fall nicht definiert. Dieser Fehler darf gar nicht auftreten');
       end
@@ -179,6 +185,10 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
       if collcase == 1
         drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
         drawCapsule(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
+        plot3(pkol(:,1), pkol(:,2), pkol(:,3), '-kx', 'MarkerSize', 5, 'LineWidth', 3);
+      elseif collcase == 5
+        drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
+        drawSphere(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
         plot3(pkol(:,1), pkol(:,2), pkol(:,3), '-kx', 'MarkerSize', 5, 'LineWidth', 3);
       end
     end
@@ -269,6 +279,11 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
       aabbdata = [b_pt;b_pt]; % Bounding-Box ist auch nur ein Punkt
       % Parameter sind die Punktkoordinaten
       cb_param = b_pt;
+    case 15 % Kugel im Basis-KS 
+      c = b_param(1:3); % Mittelpunkt bezogen auf Basis-KS
+      r = b_param(4); % Radius
+      aabbdata = [c-[1,1,1]*r;c+[1,1,1]*r]; % unten links und oben rechts zum Aufspannen der Box
+      cb_param = b_param(1:4);
     otherwise
       error('Fall %d fuer Kollisionskoerper nicht definiert', type);
   end
