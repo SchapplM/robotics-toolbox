@@ -198,7 +198,8 @@ for i = 1:NLEG
     Tc_stack_PKM(out3_ind1+(1:3*(Leg_NQJ(i)+1)),:) = Tc_stack_0;
     out3_ind1 = out3_ind1 + 3*(Leg_NQJ(i)+1);
   end
-  if s_par.abort_firstlegerror && any(Phi_i > max([s_ser.Phit_tol; s_ser.Phir_tol]))
+  if s_par.abort_firstlegerror && any(any(isnan(Phi_i)) || ...
+      any(Phi_i > max([s_ser.Phit_tol; s_ser.Phir_tol]))) % TODO: Unterscheidung transl./rot. ZB.
     break; % Erste Beinkette funktioniert nicht. Restliche sind egal. Abbruch
   end
 end

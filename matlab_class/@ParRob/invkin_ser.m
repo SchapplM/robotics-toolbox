@@ -167,8 +167,7 @@ for i = 1:Rob.NLEG
     out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
   end
   if s_par.abort_firstlegerror && (any(isnan(Phi_i)) || ...
-      any(Phi_ser(Rob.I1constr_t_red(i):Rob.I2constr_t_red(i)) > s.Phit_tol) || ...
-      any(Phi_ser(Rob.I1constr_r_red(i):Rob.I2constr_r_red(i)) > s.Phir_tol))
+      any(Phi_i > max([s.Phit_tol;s.Phir_tol])))
     break; % Erste Beinkette funktioniert nicht. Restliche sind egal. Abbruch
   end
 end
