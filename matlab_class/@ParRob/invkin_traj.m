@@ -53,6 +53,7 @@
 
 function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
+%% Initialisierung
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
@@ -63,6 +64,7 @@ if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
 end
+debug = s.debug;
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt
 for f = fields(s_std)'
@@ -90,8 +92,6 @@ else
 end
 
 nt = length(T);
-
-
 Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
@@ -188,11 +188,11 @@ elseif all(Rob.I_EE == [1 1 1 1 1 0])
   % Strukturelle 3T2R-PKM: Es gibt keinen Nullraum
   limits_qD_set = false; % qD nicht beeinflussbar
 end
-% Altwerte für die Bildung des Differenzenquotienten initialisieren
+% Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
 if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  J_x_inv_alt = zeros(Rob.NJ,6); % konsistent zur obigen Initialisierung
+  JD_x_inv = NaN(Rob.NJ,6); % konsistent zur obigen Initialisierung von JinvD_ges
 else
-  J_x_inv_alt = zeros(Rob.NJ,sum(Rob.I_EE));
+  JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
 end
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
 Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_EE));
@@ -260,43 +260,48 @@ for k = 1:nt
     PhiD_korr = -PhiD_pre - Phi_x*xD_k(I_EE);
     qD_korr = Phi_q\PhiD_korr;
     qD_k = qDk0 + qD_korr;
-    if s.debug % Erneuter Test
+    if debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
       if any(abs(PhiD_test) > 1e-10)
         error('Korrektur der Geschwindigkeit hat nicht funktioniert');
       end
     end
   end
-  %% Gelenk-Beschleunigung berechnen
-  if simplify_acc
-    if k > 1
-      % linksseitiger Differenzenquotient
-      JD_x_inv = (J_x_inv-J_x_inv_alt)/(T(k)-T(k-1));
+  %% Zeitableitung der Zwangsbedingungs-Gradienten und der Jacobi-Matrix
+  % Zeitableitung der Zwangsbedingungs-Gradienten zuerst
+  if simplify_acc % Keine explizite Berechnung der Zeitableitung (Zeitersparnis)
+    if k > 1 % linksseitiger Differenzenquotient
       Phi_qD = (Phi_q - Phi_q_alt)/(T(k)-T(k-1));
+      Phi_xD = (Phi_x - Phi_x_alt)/(T(k)-T(k-1));
     else
-      JD_x_inv = zeros(size(J_x_inv_alt));
       Phi_qD = Phi_q_alt; % Mit Null initialisiert
       Phi_xD = Phi_x_alt;
     end
-  else
+  else % Vollständige Berechnung
     if ~dof_3T2R
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
-      JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
       [Phi_qD,     Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
       [Phi_xD_tmp, Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
       Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
-      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-      % spielt die Aufgabenredundanz keine Rolle.
-      if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
-        JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
-      else % strukturell 3T2R-PKM
-        JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
-      end
     end
   end
+  % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
+  % quotienten genauer, wenn nicht JD_x_inv damit gebildet wird.
+  if ~dof_3T2R
+    JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
+  elseif nargout >= 6
+    % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+    % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+    % spielt die Aufgabenredundanz keine Rolle.
+    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+    else % strukturell 3T2R-PKM
+      JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
+    end
+  end
+  %% Gelenk-Beschleunigung berechnen
   if ~dof_3T2R
     % Die Rechnung mit Zeitableitung der inversen Jacobi funktioniert nur
     % bei vollem Rang. Bei strukturell 3T2R mit Rangverlust ist die
@@ -309,11 +314,12 @@ for k = 1:nt
     % Siehe [3]. JD_x_inv ist nicht im Fall der Aufgabenredundanz definiert.
     qDD_k_T = -Phi_q\(Phi_qD*qD_k+Phi_xD*xD_k(I_EE)+Phi_x*xDD_k(I_EE));
   end
-  if s.debug % Erneuter Test
+  if debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
     if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
-      error('Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen nicht');
+      error(['Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen ', ...
+        'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
   end
   if nsoptim % Nullraumbewegung
@@ -377,7 +383,7 @@ for k = 1:nt
   qDD_k = qDD_k_T + qDD_N_post;
   
   % Teste die Beschleunigung (darf die Zwangsbedingungen nicht verändern)
-  if s.debug
+  if debug
     % Das wäre eigentlich gar nicht notwendig, wenn die Beschleunigung
     % eine korrekte Nullraumbewegung ausführt.
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
