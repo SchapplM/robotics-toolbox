@@ -72,6 +72,7 @@ I_EElink = s.I_EElink;
 T_N_E = s.T_N_E;
 pkin = s.pkin;
 NQJ = s.NQJ;
+sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
 qmin = s.qlim(:,1);
 qmax = s.qlim(:,2);
 if all(~isnan(s.qlim(:)))
@@ -156,8 +157,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     
+    % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
+    % Raphson-Verfahren basiert auf Linearisierung. Kleinwinkelnäherung
+    % wird verlassen, wenn alle Gelenkwinkel in Summe mehr als 10° drehen.
+    % (eher konservative Annahme, dass die Gelenke gleichgerichtet drehen)
+    sum_abs_delta_qrev = sum(abs(delta_q(sigmaJ==0))); % nur Drehgelenke
+    if sum_abs_delta_qrev > 0.175 % 0.175rad=10°
+      % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
+      % danach 10° ist.
+      delta_q = delta_q .* 0.175/sum_abs_delta_qrev;
+    end
     % Reduziere Schrittweite auf einen Maximalwert bezogen auf
-    % Winkelgrenzen
+    % Winkelgrenzen (bzw. auf die mögliche Spannweite)
     if limits_set && ~isnan(maxrelstep)
       % Bestimme Inkrement relativ zur Spannbreite der Grenzen
       abs_delta_q_rel = abs(delta_q ./ delta_qlim);
@@ -225,7 +236,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 end
 q = q1;
 if s.normalize
-  sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren
 end
 if nargout == 3

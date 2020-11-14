@@ -215,6 +215,16 @@ for rr = 0:retry_limit
     % Inkrement der Gelenkwinkel
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
     
+    % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
+    % Raphson-Verfahren basiert auf Linearisierung. Kleinwinkelnäherung
+    % wird verlassen, wenn Gelenkwinkel mehr als 3° drehen. Hier keine
+    % Betrachtung der Summe, wie bei seriellen Robotern.
+    abs_delta_qrev = abs(delta_q(sigma_PKM==0)); % nur Drehgelenke
+    if any(abs_delta_qrev > 0.05) % 0.05rad=3°
+      % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
+      % Winkelinkrement danach 3° hat.
+      delta_q = delta_q .* 0.05/max(abs_delta_qrev);
+    end
     % Reduziere Schrittweite auf einen Maximalwert bezogen auf
     % Winkelgrenzen
     if limits_set && ~isnan(maxrelstep)
