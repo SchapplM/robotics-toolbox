@@ -21,7 +21,7 @@ if isempty(which('parroblib_path_init.m'))
 end
 %% Mögliche PKM bestimmen (zur Planung)
 % Mögliche PKM anzeigen
-[PNames_Kin, PNames_Akt] = parroblib_filter_robots(3, [1 1 1 0 0 0], [1 1 1 1 1 1], 0);
+[PNames_Kin, PNames_Akt] = parroblib_filter_robots([1 1 1 0 0 0], 0);
 % Filtere nach PRRRR
 PNames_Akt = PNames_Akt(contains(PNames_Akt,'P3PRRRR'));
 % Filtere nach G1 (z-Achse senkrecht zur Ebene) und G4 (pyramidale z-Achse)

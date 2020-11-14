@@ -40,7 +40,6 @@ EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 1; ...
             1 1 1 1 1 0; ...
             1 1 1 1 1 1];
-EE_FG_Mask = [1 1 1 1 1 0];
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
 tmpdir_params = fullfile(rob_path, 'examples_tests', 'tmp_ParRob', 'param_dimsynthres');
@@ -59,7 +58,7 @@ for i_FG = 1:size(EEFG_Ges,1)
   robot_list_fail = {};
   EE_FG = EEFG_Ges(i_FG,:);
   fprintf('Untersuche Energiekonsistenz für %dT%dR-PKM\n', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
-  [PNames_Kin, ~] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+  [PNames_Kin, ~] = parroblib_filter_robots(EE_FG, 6);
   if isempty(PNames_Kin)
     continue % Es gibt keine PKM mit diesen FG.
   end

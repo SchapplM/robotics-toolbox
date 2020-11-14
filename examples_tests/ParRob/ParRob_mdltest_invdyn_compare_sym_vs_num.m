@@ -28,7 +28,6 @@ EEFG_Ges = logical( ...
     1 1 1 0 0 0; ...
     1 1 1 0 0 1; ...
     1 1 1 1 1 1]);
-EE_FG_Mask = [1 1 1 1 1 1];
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
 tmpdir_params = fullfile(rob_path, 'examples_tests', 'tmp_ParRob', 'param_dimsynthres');
@@ -67,7 +66,7 @@ if usr_testselection
   end
   PNames_Akt = {[PNames_Kin{1}, 'A1']};
 else
-  [PNames_Kin, PNames_Akt] = parroblib_filter_robots(sum(EE_FG), EE_FG, EE_FG_Mask, 6);
+  [PNames_Kin, PNames_Akt] = parroblib_filter_robots(EE_FG, 6);
 end
 if isempty(PNames_Kin)
   fprintf('Keine Roboter mit FG [%s] in Datenbank\n', disp_array(EE_FG, '%1.0f'));
