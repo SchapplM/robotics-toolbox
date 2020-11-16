@@ -293,16 +293,16 @@ for i_FG = 1:size(EEFG_Ges,1)
         if jm == 1
           GD1_q = RP.constr1gradD_q(q, qD, x, xD);
           GD1_x = RP.constr1gradD_x(q, qD, x, xD);
-          JinvD_voll = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+          JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
         elseif jm == 2
           % Nehme Modellierung 4 der Jacobi für die Dynamik
           GD4_q = RP.constr4gradD_q(q, qD);
           GD4_x = RP.constr4gradD_x(x, xD);
-          JinvD_voll = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+          JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
         else
           GD2_q = RP.constr2gradD_q(q, qD, x, xD);
           GD2_x = RP.constr2gradD_x(q, qD, x, xD);
-          JinvD_voll = G2_q\GD2_q/G2_q*G2_x - G2_q\GD2_x;
+          JinvD_voll = G2_q\(GD2_q*(G2_q\G2_x)) - G2_q\GD2_x;
         end
 
         % Kennzahlen für Singularitäten
@@ -414,8 +414,8 @@ for i_FG = 1:size(EEFG_Ges,1)
           GD4_x = RP.constr4gradD_x(x, xD);
           GD1_q = RP.constr1gradD_q(q, qD, x, xD);
           GD1_x = RP.constr1gradD_x(q, qD, x, xD);
-          JinvD_voll1 = G1_q\GD1_q/G1_q*G1_x - G1_q\GD1_x;
-          JinvD_voll4 = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+          JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
+          JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
           % Vergleiche Jacobi-Zeitableitung nach beiden Methoden
           JinvD_voll1(abs(JinvD_voll1(:))<1e-10) = 0;
           JinvD_voll4(abs(JinvD_voll4(:))<1e-10) = 0;

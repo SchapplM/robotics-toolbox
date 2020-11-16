@@ -64,7 +64,6 @@ if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
 end
-debug = s.debug;
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt
 for f = fields(s_std)'
@@ -72,7 +71,7 @@ for f = fields(s_std)'
     s.(f{1}) = s_std.(f{1});
   end
 end
-
+debug = s.debug;
 I_EE = Rob.I_EE_Task;
 mode_IK = s.mode_IK;
 dof_3T2R = false;
@@ -296,9 +295,9 @@ for k = 1:nt
     % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
     % spielt die Aufgabenredundanz keine Rolle.
     if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
+      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll) - Phi_xD_voll);
     else % strukturell 3T2R-PKM
-      JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
+      JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
   end
   %% Gelenk-Beschleunigung berechnen
@@ -417,7 +416,6 @@ for k = 1:nt
   if nargout >= 6
     JinvD_ges(k,:) = JD_x_inv(:);
   end
-  J_x_inv_alt = J_x_inv;
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
 end

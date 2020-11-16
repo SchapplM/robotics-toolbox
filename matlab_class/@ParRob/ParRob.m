@@ -443,7 +443,7 @@ classdef ParRob < RobBase
       G_x = R.constr1grad_x(q, xE);
       GD_q = R.constr1gradD_q(q, qD, xE, xED);
       GD_x = R.constr1gradD_x(q, qD, xE, xED);
-      JinvD_num_voll = G_q\GD_q/G_q*G_x - G_q\GD_x;
+      JinvD_num_voll = G_q\(GD_q*(G_q\G_x)) - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)

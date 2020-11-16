@@ -396,7 +396,7 @@ for DynParMode = 2:4
       % Teste gegen berechnete Jacobi-Matrix-Zeitableitung
       G_qD_Ptest = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
       G_xD_Ptest = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
-      JinvD_Ptest = G_q_Ptest\G_qD_Ptest/G_q_Ptest*G_x_Ptest - G_q_Ptest\G_xD_Ptest;
+      JinvD_Ptest = (G_q_Ptest\G_qD_Ptest)*(G_q_Ptest\G_x_Ptest) - G_q_Ptest\G_xD_Ptest;
       % Rechne zu geometrischer Form um
       JinvD_Ptest_full = zeros(size(JinvDP_fulls));
       JinvD_Ptest_full(:,RP.I_EE) = JinvD_Ptest;
@@ -598,7 +598,7 @@ for DynParMode = 2:4
         GD4_q = RP.constr4gradD_q(Q_test(i,:)', QD_test(i,:)');
         GD4_x = RP.constr4gradD_x(XP_test(i,:)', XDP_test(i,:)', true);
         Jinv_4 = -G4_q\G4_x;
-        JinvD_4 = G4_q\GD4_q/G4_q*G4_x - G4_q\GD4_x;
+        JinvD_4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
         % Prüfe Jacobi-Matrix
         test_J = JinvP - Jinv_4;
         if max(abs(test_J(:))) > 1e-4

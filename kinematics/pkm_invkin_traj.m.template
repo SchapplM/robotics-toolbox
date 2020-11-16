@@ -422,7 +422,7 @@ for k = 1:nt
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
   % quotienten genauer, wenn nicht JD_x_inv damit gebildet wird.
   if ~dof_3T2R
-    JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
+    JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
   elseif nargout >= 6
     % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
     % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
@@ -430,7 +430,7 @@ for k = 1:nt
     if all(s_I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
       JD_x_inv = Phi_q_voll\(Phi_qD_voll/Phi_q_voll*Phi_x_voll - Phi_xD_voll);
     else % strukturell 3T2R-PKM
-      JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD);
+      JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
   end
   %% Gelenk-Beschleunigung berechnen
@@ -549,7 +549,6 @@ for k = 1:nt
   if nargout >= 6
     JinvD_ges(k,:) = JD_x_inv(:);
   end
-  J_x_inv_alt = J_x_inv;
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
 end
