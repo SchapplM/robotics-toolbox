@@ -194,7 +194,11 @@ else
   JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
 end
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
+Phi_q_voll_alt = zeros(6*Rob.NLEG, Rob.NJ);
+Phi_qD_voll = Phi_q_voll_alt;
 Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_EE));
+Phi_x_voll_alt = zeros(6*Rob.NLEG, 6);
+Phi_xD_voll = Phi_x_voll_alt;
 
 N = eye(Rob.NJ);
 for k = 1:nt
@@ -272,9 +276,15 @@ for k = 1:nt
     if k > 1 % linksseitiger Differenzenquotient
       Phi_qD = (Phi_q - Phi_q_alt)/(T(k)-T(k-1));
       Phi_xD = (Phi_x - Phi_x_alt)/(T(k)-T(k-1));
+      if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+        Phi_qD_voll = (Phi_q_voll - Phi_q_voll_alt)/(T(k)-T(k-1));
+        Phi_xD_voll = (Phi_x_voll - Phi_x_voll_alt)/(T(k)-T(k-1));
+      end
     else
       Phi_qD = Phi_q_alt; % Mit Null initialisiert
       Phi_xD = Phi_x_alt;
+      Phi_qD_voll = Phi_q_voll_alt;
+      Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
     if ~dof_3T2R
@@ -287,32 +297,31 @@ for k = 1:nt
     end
   end
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
-  % quotienten genauer, wenn nicht JD_x_inv damit gebildet wird.
-  if ~dof_3T2R
-    JD_x_inv = Phi_q\(Phi_qD/Phi_q*Phi_x - Phi_xD); % Siehe: ParRob/jacobiD_qa_x
-  elseif nargout >= 6
-    % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
-    % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
-    % spielt die Aufgabenredundanz keine Rolle.
-    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+  % quotienten genauer, wenn JD_x_inv über Phi_qD und Phi_xD gebildet wird
+  % und nicht über einen eigenen Differenzenquotienten.
+  if nargout >= 6
+    if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+      % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
+      % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
+      % spielt die Aufgabenredundanz keine Rolle.
       JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll) - Phi_xD_voll);
-    else % strukturell 3T2R-PKM
+    else % alle anderen
       JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
   end
   %% Gelenk-Beschleunigung berechnen
-  if ~dof_3T2R
-    % Die Rechnung mit Zeitableitung der inversen Jacobi funktioniert nur
-    % bei vollem Rang. Bei strukturell 3T2R mit Rangverlust ist die
-    % Rechnung numerisch ungünstig (Vermutung). Nutze diese Formel daher
-    % nur für 2T1R, 3T0R, 3T1R, 3T3R ohne AR. Mit dieser Formel ist die
-    % Beschleunigung für 3T2R-PKM sonst bei Rangverlust nicht konsistent.
-    qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE); % Gilt nur ohne AR.
-  else % 3T3R mit Aufgabenredundanz oder strukturell 3T2R-PKM
-    % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
-    % Siehe [3]. JD_x_inv ist nicht im Fall der Aufgabenredundanz definiert.
-    qDD_k_T = -Phi_q\(Phi_qD*qD_k+Phi_xD*xD_k(I_EE)+Phi_x*xDD_k(I_EE));
-  end
+  % Direkte Berechnung aus der zweiten Ableitung der Zwangsbedingungen.
+  % Siehe [3]. JD_x_inv ist nicht im Fall der Aufgabenredundanz definiert.
+  qDD_k_T = -Phi_q\(Phi_qD*qD_k+Phi_xD*xD_k(I_EE)+Phi_x*xDD_k(I_EE));
+  % Alternative Berechnung:
+  % Die Rechnung mit Zeitableitung der inversen Jacobi funktioniert nur
+  % bei vollem Rang. Bei strukturell 3T2R mit Rangverlust ist die
+  % Rechnung numerisch ungünstig (Vermutung). Nutze die folgende Formel
+  % daher nicht mehr. Mit dieser Formel ist die Beschleunigung für
+  % 3T2R-PKM sonst bei Rangverlust nicht konsistent. Auch bei 3T0R
+  % problematisch (da numerische Implementierung der beiden Formeln für
+  % qDD_k_T anders ist. Gilt nur ohne AR und bei Beingelenkzahl=Anzahl EE-FG
+  % qDD_k_T =  J_x_inv * xDD_k(I_EE) + JD_x_inv * xD_k(I_EE);
   if debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
