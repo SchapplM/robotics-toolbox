@@ -147,6 +147,25 @@ for rr = 0:retry_limit
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       delta_q_N = (eye(Rob.NQJ) - pinv(Jdk)* Jdk) * v;
     end
+    
+    % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
+    % Raphson-Verfahren basiert auf Linearisierung. Kleinwinkelnäherung
+    % wird verlassen, wenn alle Gelenkwinkel in Summe mehr als 10° drehen.
+    % (eher konservative Annahme, dass die Gelenke gleichgerichtet drehen)
+    % Führe das getrennt für delta_q_T und delta_q_N durch, damit die 
+    % Nullraumbewegung nicht die Aufgabenbewegung dominieren kann.
+    sum_abs_delta_qTrev = sum(abs(delta_q_T(sigmaJ==0))); % nur Drehgelenke
+    if sum_abs_delta_qTrev > 0.175 % 0.175rad=10°
+      % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
+      % danach 10° ist.
+      delta_q_T = delta_q_T .* 0.175/sum_abs_delta_qTrev;
+    end
+    sum_abs_delta_qNrev = sum(abs(delta_q_N(sigmaJ==0))); % nur Drehgelenke
+    if sum_abs_delta_qNrev > 0.175 % 0.175rad=10°
+      % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
+      % danach 10° ist.
+      delta_q_N = delta_q_N .* 0.175/sum_abs_delta_qNrev;
+    end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
     delta_q = K.*delta_q_T + Kn.*delta_q_N;
