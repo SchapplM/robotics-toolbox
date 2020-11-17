@@ -877,35 +877,48 @@ classdef ParRob < RobBase
         I_EE_Task = I_EE;
       end
       if nargin < 4
-        % TODO: Bei 3T2R stimmt das eventuell nicht, wenn Beinketten 5
-        % Gelenke haben
-        % TODO: Diese Eingabe kann entfernt werden.
-        I_EE_Legs = logical(repmat(I_EE_Task, R.NLEG,1));
-      end
-      R.I_EE_Task = logical(I_EE_Task);
-      
-      if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && nargin < 4
-        % Führungs-Beinkette muss auch die 3T2R-FG haben.
-        R.Leg(1).I_EE_Task = R.I_EE_Task;
-        for i = 2:R.NLEG
+        % Lasse die FG der Beinkette so wie sie sind. Annahme: Bei
+        % Initialisierung des Roboters wurden diese Indizes korrekt
+        % gesetzt. Wird für IK der einzelnen Beinketten benutzt.
+        I_EE_Legs = false(R.NLEG,6); % Initialisierung
+        if all(I_EE == [1 1 0 0 0 1]) % 2T1R (planar)
+          % Annahme: Alle Beinketten sind auch 2T1R (planar) und haben
+          % keine FG außerhalb der xy-Ebene der Basis
+          I_EE_Legs = logical(repmat(logical(I_EE),R.NLEG,1));
+        elseif all(I_EE == [1 1 1 1 1 0])
+          % 3T2R-PKM (strukturell) benutze constr3-Methode.
+          I_EE_Legs(1,:) = I_EE; % Führungsbeinkette hat 3T2R-FG
           % Folge-Beinketten: Setze vollständige FG. Bei Aufgabenredundanz
           % oder bei normalen 3T2R-PKM muss die Orientierung der Folge- 
           % ketten vollständig vorgegeben werden
-          R.Leg(i).I_EE_Task = logical([1 1 1 1 1 1]);
-        end  
-      else%if all(R.I_EE_Task == logical([1 1 1 1 1 1]))
-        for i = 1:R.NLEG
-          % Anderer Fall als 3T2R: Setze die Aufgaben-FG auch für die
-          % Beinketten auf die der PKM.
-          % TODO: Muss für überbestimmte PKM angepasst werden
-          R.Leg(i).I_EE_Task = I_EE_Legs(i,:);
+          I_EE_Legs(2:end,:) = true;
+        elseif all(I_EE == [1 1 1 0 0 0]) || all(I_EE == [1 1 1 0 0 1])
+          % Bei 3T0R, 3T1R wird bei Beinketten immer volle 3T3R-Sollvorgabe
+          % gegeben. Dadurch entstehen überbestimmte Zwangsbedingungen
+          % (mehr Zwangsbedingungen als Gelenke für die Beinketten). Ist in
+          % InvKin mit Pseudo-Inverse lösbar.
+          I_EE_Legs(:) = true;
+        elseif all(I_EE == [1 1 1 1 1 1]) && all(I_EE_Task == [1 1 1 1 1 0])
+          I_EE_Legs(1,:) = I_EE_Task; % Führungskette 3T2R
+          I_EE_Legs(2:end,:) = true; % Folgeketten 3T3R
+        elseif all(I_EE == [1 1 1 1 1 1])
+          % 3T3R-PKM: Volle Vorgabe für alle Beinketten
+          I_EE_Legs(:) = true;
+        else
+          error('Fall noch nicht vorgesehen');
         end
+      end
+      R.I_EE_Task = logical(I_EE_Task);
+      
+      % Setze die Aufgaben-FG der PKM-Beinketten
+      for i = 1:R.NLEG
+        R.Leg(i).I_EE_Task = I_EE_Legs(i,:);
       end
       
       % Anzahl der kinematischen Zwangsbedingungen der Beinketten
-      % feststellen. Annahme: Beinketten haben selbe FG wie Plattform
-      % TODO: Das ändert sich evtl bei überbestimmten PKM
-      % Indizes der relevanten Zwangsbedingungen daraus ableiten
+      % feststellen. Annahme: Beinketten haben nicht die selben FG wie
+      % Plattform (bei überbestimmten PKM). Wurde oben festgelegt.
+      % Indizes der relevanten Zwangsbedingungen daraus ableiten.
       % Werden benötigt für Ausgabe von constr1
       R.I_constr_t = zeros(1,0); % Initialisierung 1x0 für mex-Eingangsprüfung
       R.I_constr_r = zeros(1,0);
@@ -961,8 +974,8 @@ classdef ParRob < RobBase
         i_red = i_red + nPhi;
         ii_tred = ii_tred + nPhi;
       end
-      % Speichere einen Index-Vektor aus, mit dem die für die PKM-Dynamik
-      % relevanten Dynamikparameter der Plattform gewählt werden
+      % Speichere einen Index-Vektor, mit dem die für die PKM-Dynamik
+      % relevanten Dynamikparameter der Plattform gewählt werden.
       % Dies dient zur Reduzierung des Dynamik-Parametervektors
       % Reihenfolge der vollständigen Parameter:
       % (XX, XY, XZ, YY, YZ, ZZ, MX, MY, MZ, M)
