@@ -23,7 +23,7 @@ s_std = struct( ...
              'straight', 1, ...
              'ks_platform', Rob.NLEG+2, ... % EE-KS
              'ks_legs', Rob.I2L_LEG); % nur Basis- und EE-KS jedes Beins
-if nargin < 3
+if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
 end
