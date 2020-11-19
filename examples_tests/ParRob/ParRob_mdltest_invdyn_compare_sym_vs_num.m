@@ -20,8 +20,8 @@ warning('off', 'MATLAB:illConditionedMatrix'); % für invdyn2_actjoint
 usr_only_check_symvsnum = true;
 usr_test_constr4 = true;
 usr_debug = true;
-usr_testselection = true; % Teste jeweils nur eine vorausgewählte PKM
-usr_num_tests_per_dof = 5;
+usr_testselection = false; % Teste jeweils nur eine vorausgewählte PKM
+usr_num_tests_per_dof = 10;
 %% Initialisierung
 EEFG_Ges = logical( ...
    [1 1 0 0 0 1; ...
@@ -195,7 +195,7 @@ for DynParMode = 2:4
     end
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
-      Set.optimization.objective = 'valid_act';
+      Set.optimization.objective = 'condition';
       % TODO: Folgendes sollte aktiviert werden, funktioniert aber noch nicht.
       Set.optimization.ee_rotation = false; % darf beliebige Werte einnehmen ....
       Set.optimization.ee_translation = false; % ... muss für Dynamik egal sein
@@ -203,14 +203,9 @@ for DynParMode = 2:4
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
-      % TODO: Deckenmontage funktioniert noch nicht richtig.
-      Set.structures.mounting_parallel = 'floor';
-%       if all(EE_FG==[1 1 1 0 0 0]) || all(EE_FG==[1 1 1 1 1 1])
-%         % Deckenmontage funktioniert für diese FG schon.
-%         Set.structures.mounting_parallel = {'ceiling'};
-%       else
-%         Set.structures.mounting_parallel = 'floor';
-%       end
+      Set.optimization.obj_limit = 1e3; % Sofort abbrechen, falls Ergebnis irgendwie funktionierend (hinsichtlich IK der Beingelenke)
+      % Deckenmontage ist der kompliziertere Fall und wird daher getestet
+      Set.structures.mounting_parallel = 'ceiling';
       Set.structures.use_parallel_rankdef = 6; % Rangdefizit ist egal
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -225,16 +220,15 @@ for DynParMode = 2:4
       for i = 1:length(Structures) % alle Ergebnisse durchgehen (falls mehrere theta-Varianten)
         resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
         tmp = load(resfile, 'RobotOptRes');
-        if tmp.RobotOptRes.fval < 1000
+        if tmp.RobotOptRes.fval <= 1000 % auch singuläre Stellungen hinsichtlich Antriebe erlaubt
           i_select = i;
           RobotOptRes = tmp.RobotOptRes;
           break;
         end
       end
       if isempty(Structures) || i_select == 0
-        % Die Methode valid_act nimmt die erstbeste bestimmbare Kinematik.
-        % Die Wahl der aktuierten Gelenke muss nicht zu vollem Rang führen.
-        % Kriterium ist daher nur die Bestimmbarkeit des Rangs (fval <1000)
+        % Die Methode Maßsynthese nimmt die erstbeste bestimmbare Kinematik.
+        % Falls das nicht geht, sind folgende Berechnungen nicht möglich.
         warning('Etwas ist bei der Maßsynthese schiefgelaufen. Keine Lösung.');
         continue
       end
@@ -700,8 +694,16 @@ for DynParMode = 2:4
       if any(abs(test_Fxtraj_reg(:)) > 1e-6)
         error('Trajektorien-Funktion invdyn3_platform_traj stimmt nicht in sich');
       end
-      test_Fatraj_reg = Fa_traj2 - Fa_traj1;
-      if any(abs(test_Fatraj_reg(:)) > 1e-6)
+      % Prüfe auf Singularität der Jacobi-Matrix
+      I_sing = false(size(JinvP_ges,1),1);
+      for i = 1:size(JinvP_ges,1)
+        Jinv_i = reshape(JinvP_ges(i,:), size(JinvP,1), size(JinvP,2));
+        if any(isnan(Jinv_i(:))) || cond(Jinv_i(RP.I_qa,:)) > 1e3
+          I_sing(i) = true;
+        end
+      end
+      test_Fatraj_reg = Fa_traj2(~I_sing,:) - Fa_traj1(~I_sing,:);
+      if any(abs(test_Fatraj_reg(:)) > 1e-6) % Nur außerhalb singulärer Stellungen testbar
         error('Trajektorien-Funktion invdyn3_actjoint_traj stimmt nicht in sich');
       end
       test_Fxtraj1 = Fx_traj2 - Fx_traj;

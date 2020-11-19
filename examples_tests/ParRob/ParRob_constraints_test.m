@@ -328,9 +328,15 @@ for NNN = RobotNames
       q1 = q0 + delta_q1;
       x1 = x0 + delta_x1;
       Phi1_1 = RP.constr1(q1, x1);
-      test_Phi1 = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
-      if max(abs(test_Phi1)) > 1e11*eps(1+max(abs(Phi1_0)))
-        error('%s: Inverse PKM-Jacobi-Matrix ist nicht mit Zwangsbedingungen konsistent.', PName);
+      test_Phi1_abs = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
+      % Teste auch relativen Fehler, da bei großem Zahlenwert von Phi der
+      % absolute Fehler durch numerische Einflüsse auch größer wird.
+      test_Phi1_rel = test_Phi1_abs ./ Phi1_0;
+      I_abserr = abs(test_Phi1_abs) > 1e12*eps(1+max(abs(Phi1_0)));
+      I_relerr = abs(test_Phi1_rel) > 1e-3;
+      if any(I_abserr & I_relerr)
+        error(['%s: Inverse PKM-Jacobi-Matrix ist nicht mit Zwangsbedingungen ', ...
+          'konsistent. Max Fehler %1.2e'], PName, max(abs(test_Phi1_abs)));
       end
       
       % Wie sieht das Ergebnis bei zufälliger Wahl von delta_q aus?
@@ -346,7 +352,7 @@ for NNN = RobotNames
         % Speichere den größten Fehler ab und vergleiche mit Lösung oben
         test_rand_worst(abs(test_rand_worst)<abs(test_rand)) = test_rand(abs(test_rand_worst)<abs(test_rand));
       end
-      if max(abs(test_Phi1)) > 0.5*max(abs(test_rand_worst))
+      if max(abs(test_Phi1_abs)) > 0.5*max(abs(test_rand_worst))
         warning('%s: Bei zufälliger Wahl von delta_q ist das Ergebnis nicht viel besser als bei gegebener Berechnung. Wahrscheinlich Singularität.', PName);
       end
       
