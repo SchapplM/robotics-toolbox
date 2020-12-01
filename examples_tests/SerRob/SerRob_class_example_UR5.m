@@ -5,6 +5,8 @@
 % * Umrechnung zwischen Standard und modifizierter DH Notation (SDH/MDH)
 % * Plausibilisierung mit Zeichnung des Roboters
 % * Inverse Kinematik für Beispiel-Trajektorie
+%   (mit 3T3R- und 3T2R-Algorithmus. Beide haben hier fast identisches
+%   Ergebnis, da die Nullraumbewegung nur mit dem letzten Gelenk passiert)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-09
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
@@ -71,11 +73,11 @@ RS.fill_fcn_handles(true, true); % kompilierte Funktionen benutzen
 % Definiere eine EE-Transformation. Es muss eine Drehung zwischen letzter
 % Gelenkachse und der EE-z-Achse geben. Ansonsten funktioniert die
 % Aufgabenredundanz in der inversen Kinematik nicht
-RS.update_EE([0;0;0.200], [pi/2;0;0]);
+RS.update_EE([0;0;-0.0], [pi;0;0]);
 %% Transformation zwischen MDH und SDH KS
 % Diese Transformation kann benutzt werden, um das STL-Modell richtig ein-
 % zustellen (siehe S6RRRRRR10V4_UR5_init_CAD) oder zum Vergleich zu SDH.
-q0 = pi/180*[0; -90; 60; -150; 90; 0];
+q0 = pi/180*[0; -90; 60; -60; -90; 0];
 Tc_mdh = RS.fkine(q0);
 % Umrechnung von MDH auf SDH. alpha und a sind um eins verschoben (s.o.)
 a_sdh = [RS.MDH.a(2:RS.NJ);0];
@@ -109,7 +111,13 @@ RS.plot( q0, s_plot );
 sgtitle('UR 5 CAD-Modell');
 %% Trajektorie definieren
 % Würfel-Trajektorie erstellen
-q1 = q0+[0;-45;45;0;0;0]*pi/180; % etwas zurückgehen mit Roboter, damit Arbeitsraum günstiger
+q1 = q0+[0;5;35;-40;0;0]*pi/180; % damit Arbeitsraum günstiger
+% Debug: Prüfen
+% figure(3);clf;hold on; grid on;
+% xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
+% view(3);
+% RS.plot( q1, s_plot );
+
 fprintf('Konditionszahl der Jacobi in IK-Anfangswert: %1.2f\n', cond(RS.jacobig(q1)));
 T_E = RS.fkineEE(q1);
 x0 = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
@@ -117,7 +125,7 @@ x0 = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
 k=1; XE = x0';
 % Fahrt in Startstellung
 % k=k+1; XE(k,:) = XE(k-1,:) + [ -0.2,0.1,0, 0,0,0];
-% Beginne Würfel-Trajektorie
+% Beginne Quader-Trajektorie
 d1=0.25;
 k=k+1; XE(k,:) = XE(k-1,:) + [ d1,0,0, 0,0,0];
 k=k+1; XE(k,:) = XE(k-1,:) + [0,-d1,0  0,0,0];
@@ -133,8 +141,10 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0, -0.1, 0,0,pi/4];
 k=k+1; XE(k,:) = XE(k-1,:) + [-d1,0,0, 0,0,0];
 k=k+1; XE(k,:) = XE(k-1,:) + [0,d1,0,  0,0,0];
 k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0.1, 0,0,0];
-[X,XD,XDD,T,IL] = traj_trapez2_multipoint(XE, 1, 1e-1, 1e-2, 5e-3, 0.1);
-
+[X,XD,XDD,T,IL] = traj_trapez2_multipoint(XE, 0.5, 1e-1, 1e-2, 5e-3, 0.1);
+% In vorheriges Bild einzeichnen
+change_current_figure(3);
+plot3(X(:,1), X(:,2), X(:,3), 'k-');
 %% Inverse Kinematik der Eckpunkte berechnen
 for i = 1:size(XE,1)
   % Mit 3T3R-IK
@@ -158,7 +168,7 @@ fprintf('IK für alle %d Eckpunkte der Trajektorie berechnet.\n', size(XE,1));
 fprintf('Berechne IK für Trajektorie mit %d Punkten.\n', length(T));
 % Berechne die IK mit vollständigen Rotations-FG (wie in X vorgegeben)
 t1=tic();
-[Q_3T3R, ~, ~, PHI_3T3R] = RS.invkin2_traj(X,XD,XDD,T,q1);
+[Q_3T3R, QD_3T3R, ~, PHI_3T3R] = RS.invkin2_traj(X,XD,XDD,T,q1);
 fprintf('Dauer der IK-Berechnung (3T3R): %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
   toc(t1), 1e3*toc(t1)/length(T));
 
@@ -166,12 +176,14 @@ fprintf('Dauer der IK-Berechnung (3T3R): %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
 t1=tic();
 s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'retry_limit', 0, ...
   'wn', [0;1;0;0]); % Hyperbolischer Abstand der Gelenkpositionen von ihren Grenzen
-[Q, ~, ~, PHI] = RS.invkin2_traj(X,XD,XDD,T,q1,s_ik);
+[Q, QD, ~, PHI_3T2R] = RS.invkin2_traj(X,XD,XDD,T,q1,s_ik);
 fprintf('Dauer der IK-Berechnung: %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
   toc(t1), 1e3*toc(t1)/length(T));
 % Prüfe, ob IK erfolgreich
+Jcond_all = NaN(length(T),2);
 for i = 1:length(T)
-  if max(abs( PHI_3T3R(i,:) )) > 1e-4
+  if max(abs( PHI_3T3R(i,:) )) > 1e-4 || any(isnan(PHI_3T3R(i,:))) ||...
+     max(abs( PHI_3T2R(i,:) )) > 1e-4 || any(isnan(PHI_3T2R(i,:)))
     [~,iE_next] = min(abs(T(IL)-T(i)));
     warning(['IK stimmt nicht. Fehler bei Zeitschritt %d (t=%1.3fs). Nach Eckpunkt %d. ', ...
       'Trajektorie nicht durchführbar?'], i, T(i), iE_next);
@@ -183,25 +195,14 @@ for i = 1:length(T)
     view(3);
     RS.plot(Q_3T3R(i-1,:)', s_plot);
     title('Letzter funktionierender Trajektorienpunkt');
-    % Kürze Trajektorie auf machbaren Bereich und mache damit weiter
-    Q = Q(1:i-1,:); %#ok<NASGU>
-    X = X(1:i-1,:); %#ok<NASGU>
-    T = T(1:i-1); %#ok<NASGU>
     % Folgender Fehler wird auskommentiert, falls neue Traj. ausprobiert wird.
     error('Fehler in Trajektorien IK. Das muss funktionieren');
     break %#ok<UNRCH>
   end
+  Jcond_all(i,1) = cond(RS.jacobig(Q_3T3R(i,:)'));
+  Jcond_all(i,2) = cond(RS.jacobig(Q(i,:)'));
 end
-% Zeige, dass das Ergebnis identisch ist, wenn die aufgabenredundante
-% Koordinate beliebig geändert wird
-X_test = X; X_test(:,6) = rand(length(T),1);
-XD_test = XD; XD_test(:,6) = rand(length(T),1);
-XDD_test = XDD; XDD_test(:,6) = rand(length(T),1);
-[Q_test, ~, ~, PHI] = RS.invkin2_traj(X_test,XD_test,XDD_test,T,q1,s_ik);
-test_Q_AR = Q_test - Q;
-if any(abs(test_Q_AR(:))>1e-10)
-  error('IK hat anderes Ergebnis bei Änderung der redundanten Koordinate. Darf nicht sein.');
-end
+
 %% Zeitverlauf der Trajektorie
 figure(7);clf;
 for k = 1:RS.NQJ
@@ -215,13 +216,44 @@ for k = 1:RS.NQJ
   grid on;
 end
 legend([hdl1;hdl2], {'3T3R', '3T2R'});
-linkxaxes
 sgtitle(sprintf('Zeitverlauf der Gelenkwinkel'));
+linkxaxes
+figure(8);clf;
+for k = 1:RS.NQJ
+  subplot(2,3,k);hold on;
+  hdl1=plot(T, QD_3T3R(:,k)/RS.qunitmult_eng_sci(k));
+  hdl2=plot(T, QD(:,k)/RS.qunitmult_eng_sci(k));
+  plot([0;T(end)], RS.qDlim(k,1)*[1;1]/RS.qunitmult_eng_sci(k), 'r-');
+  plot([0;T(end)], RS.qDlim(k,2)*[1;1]/RS.qunitmult_eng_sci(k), 'r-');
+  xlabel('t in s');
+  ylabel(sprintf('qD_%d in %s', k, RS.qunit_eng{k}));
+  grid on;
+end
+legend([hdl1;hdl2], {'3T3R', '3T2R'});
+sgtitle(sprintf('Zeitverlauf der Gelenkgeschwindigkeit'));
+linkxaxes
+figure(9);clf;
+plot(T, Jcond_all);
+grid on
+sgtitle(sprintf('Zeitverlauf Konditionszahl Jacobi'));
+
+%% Test
+% Zeige, dass das Ergebnis identisch ist, wenn die aufgabenredundante
+% Koordinate beliebig geändert wird
+X_test = X; X_test(:,6) = rand(length(T),1);
+XD_test = XD; XD_test(:,6) = rand(length(T),1);
+XDD_test = XDD; XDD_test(:,6) = rand(length(T),1);
+[Q_test, ~, ~, PHI] = RS.invkin2_traj(X_test,XD_test,XDD_test,T,q1,s_ik);
+test_Q_AR = Q_test - Q;
+if any(abs(test_Q_AR(:))>1e-10)
+  error('IK hat anderes Ergebnis bei Änderung der redundanten Koordinate. Darf nicht sein.');
+end
+
 %% Animation
 s_anim = struct( 'mp4_name', fullfile(resdir,'UR5_Traj.mp4')); % als mp4 speichern
-s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'mode', 1); % alle KS zeichnen, als Strich-Modell. TODO: Als CAD
-figure(9);clf;
-set(9,'units','normalized','outerposition',[0 0 1 1], 'color','w'); % Vollbild
+s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'mode', 2); % alle KS zeichnen, als Strich-Modell.
+figure(10);clf;
+set(10,'units','normalized','outerposition',[0 0 1 1], 'color','w'); % Vollbild
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));
 grid on;
