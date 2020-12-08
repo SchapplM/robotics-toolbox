@@ -205,7 +205,7 @@ end
 % [Gautier1990], Gl. (18)
 test = W2 - W1*(R1\R2);
 if any(abs(test(:))>1e-10)
-  error('[Gautier1990], Gl. (18) stimmt nicht');
+  warning('[Gautier1990], Gl. (18) stimmt nicht. Fehler: %1.3e', max(abs(test(:))));
 end
 
 % Minimalparametern nach Gautier1990
@@ -218,13 +218,15 @@ P1 = P_g1(:,1:b);
 P2 = P_g1(:,b+1:end);
 Wb = W_g*P1; % [Sousa2014], Gl. (33),(34)
 test = Wb*XB1 - W_g*PV2;% [Sousa2014], Gl. (35)
-if any(abs(test(:)) > 1e-10)
-  error('Minimalparameterform nach [Gautier1990] stimmt nicht');
+if any(abs(test(:)) > 1e-8)
+  error(['Minimalparameterform nach [Gautier1990] stimmt nicht. Fehler: ', ...
+    '%1.2e'], max(abs(test)));
 end
 
 % Prüfe MPV
-if any(abs( XB1-MPVsym ) > 1e-10)
-  error('MPV aus num. und symb. Berechnung stimmen nicht überein');
+if any(abs( XB1-MPVsym ) > 1e-8)
+  error(['MPV aus num. und symb. Berechnung stimmen nicht überein. Fehler: ', ...
+    '%1.3e'], max(abs(XB1-MPVsym)));
 end
 %% Transformationsmatrizen zwischen Inertial und Min.-Parametern prüfen
 % Prüfe Zusammenhang zwischen Inertialparametern und Minimalparametern für
