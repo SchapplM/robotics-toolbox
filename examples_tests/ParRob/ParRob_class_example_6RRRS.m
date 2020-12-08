@@ -19,7 +19,7 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 RP = parroblib_create_robot_class('P6RRRRRR10V3G1P1A2', 1.5, 0.3);
-RP.fill_fcn_handles(true, true);
+RP.fill_fcn_handles(false, false); % keine mex-Funktionen, einfache Rechnung
 % Lade Kinematik-Parameter des KR 30-3 und schreibe sie in die
 % Kinematikparameter dieses Robotermodells. Durch Umweg über das allgemeine
 % Modell werden die Handgelenksparameter zu Null gesetzt (Kugelgelenk).
@@ -29,7 +29,10 @@ pkin_tmp = S6RRRRRR10V3_pkin_gen2var(pkin_gen);
 for i = 1:RP.NLEG
   RP.Leg(i).update_mdh(pkin_tmp);
 end
-
+% Markiere Kugelgelenk (zum Plotten)
+for i = 1:RP.NLEG
+  RP.Leg(i).DesPar.joint_type(4:6) = 3;
+end
 %% Grenzen für die Gelenkpositionen setzen
 % Dadurch wird die Schrittweite bei der inversen Kinematik begrenzt (auf 5%
 % der Spannbreite der Gelenkgrenzen) und die Konfiguration klappt nicht um.

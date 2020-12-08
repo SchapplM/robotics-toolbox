@@ -24,6 +24,8 @@ RS.update_mdh(RS.pkin*scale);
 RS.fill_fcn_handles(true, true);
 % RS.mex_dep()
 RS.I_EE = logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
+RS.DesPar.joint_type(6:8) = 3; % Kugelgelenk für Plot markieren
+
 %% Klasse für PKM erstellen
 RP = ParRob('P2FB1');
 RP.create_symmetric_robot(3, RS, 3*scale, 2*scale);

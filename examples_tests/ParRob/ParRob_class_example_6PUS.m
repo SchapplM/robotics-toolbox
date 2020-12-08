@@ -98,6 +98,18 @@ if any(abs(Phi1) > 1e-6)
   error('ZB in Startpose ungleich Null');
 end
 
+%% Entwurfsparameter festlegen (Hauptsächlich für Plot)
+for i = 1:RP.NLEG
+  % Setze Schubgelenke als Linearachsen mit Führungsschiene
+  RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 4;
+  % Setze Segmente als Hohlzylinder mit Durchmesser 100mm
+  RP.Leg(i).DesPar.seg_par=repmat([5e-3,100e-3],RP.Leg(i).NL,1);
+  % Markiere Kardan- und Kugelgelenk (zum Plotten)
+  RP.Leg(i).DesPar.joint_type(2:3) = 2;
+  RP.Leg(i).DesPar.joint_type(4:6) = 3;
+end
+RP.DesPar.platform_par(end) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
+
 %% Roboter in Startpose plotten
 figure(1); clf; hold on; grid on; % Bild als Kinematik-Skizze
 xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
@@ -105,22 +117,13 @@ s_plot = struct( 'ks_legs', [RP.I1L_LEG+3;RP.I1L_LEG+4;RP.I2L_LEG], 'straight', 
 RP.plot( q, X, s_plot );
 title('6PUS in Startkonfiguration als Kinematik-Skizze');
 
-figure(2); clf; hold on; grid on;% Bild der Entwurfsparameter
-for i = 1:RP.NLEG
-  % Setze Schubgelenke als Linearachsen mit Führungsschiene
-  RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 4;
-  % Setze Segmente als Hohlzylinder mit Durchmesser 100mm
-  RP.Leg(i).DesPar.seg_par=repmat([5e-3,100e-3],RP.Leg(i).NL,1);
-end
-RP.DesPar.platform_par(end) = 5e-3; % Dicke der Plattform (als Kreisscheibe)
-
+figure(2); clf; hold on; grid on; % Bild der Entwurfsparameter
 xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
 RP.plot( q, X, s_plot );
 title('6PUS in Startkonfiguration mit Ersatzkörpern');
 
 %% Jacobi-Matrizen auswerten
-
 G_q = RP.constr1grad_q(q, X);
 G_x = RP.constr1grad_x(q, X);
 
