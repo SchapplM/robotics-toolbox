@@ -857,6 +857,22 @@ classdef ParRob < RobBase
         end
       end
     end
+    function [U_ges, U_legs] = epotspring(R, q)
+      % Potentielle Energie von in Gelenken angebrachten Drehfedern
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      %
+      % Ausgabe:
+      % U_ges: Potentielle Energie aller Gelenk-Federn der gesamten PKM
+      % U_legs: Potentielle Energie der der Federn in jedem Bein einzeln.
+      U_legs = NaN(R.NLEG,1);
+      for i = 1:R.NLEG
+        I = R.I1J_LEG(i):R.I2J_LEG(i);
+        U_legs(i) = R.Leg(i).epotspring(q(I));
+      end
+      U_ges = sum(U_legs);
+    end
+
     function update_mdh_legs(R, pkin)
       % Aktualisiere die Kinematik-Parameter aller Beinketten
       % Nehme eine symmetrische PKM an
