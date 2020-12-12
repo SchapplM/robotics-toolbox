@@ -25,6 +25,7 @@ SerRob_class_example_SCARA; close all;
 SerRob_class_example_Palettierer; close all;
 SerRob_class_example_LBR; close all;
 SerRob_class_example_Industrieroboter; close all;
+SerRob_joint_stiffness_fdyn_test; close all;
 
 %% Parallele Roboter
 ParRob_class_example_3RPR; close all;
