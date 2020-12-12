@@ -16,9 +16,6 @@
 % Bilder werden in Unterordner für EE-FG und PKM gespeichert.
 % Zusätzlich Speicherung einer Ergebnis-Tabelle
 % 
-% TODO: Die Energiekonsistenz sollte besser mit einem Simulink-Modell mit
-% variabler Schrittweite (ode45) berechnet werden.
-% 
 % Siehe auch: ParRob_mdltest_invdyn_compare_sym_vs_num.m (ähnlich)
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-11
@@ -30,8 +27,10 @@ clear
 %% Benutzereingaben
 usr_plot_figures = true;
 usr_save_figures = true;
-usr_plot_animation = true;
+usr_testselection = false;
+usr_plot_animation = false;
 usr_debug = true;
+usr_jointspring = true; % Setze Feder in passive Gelenke, damit PKM um Arbeitspunkt schwingt (kein freier Fall)
 usr_num_tests_per_dof = 5;
 usr_test_constr4_JinvD = false; % zum Debuggen der constr4gradD-Funktionen
 %% Initialisierung
@@ -62,8 +61,23 @@ for i_FG = 1:size(EEFG_Ges,1)
   if isempty(PNames_Kin)
     continue % Es gibt keine PKM mit diesen FG.
   end
-  % III = find(strcmp(PNames_Kin, 'P3RRR1G1P1')); % Debug; P6RRPRRR14V3G1P4
-  for ii = 1:length(PNames_Kin)
+  if usr_testselection % Debug
+    switch i_FG
+      case 1
+        III = find(strcmp(PNames_Kin, 'P3RRR1G1P1'));
+      case 2
+        III = find(strcmp(PNames_Kin, 'P3PRRRR8V2G1P2'));
+      case 3
+        III = find(strcmp(PNames_Kin, 'P4PRRRR8V1G3P1'));
+      case 4
+        III = find(strcmp(PNames_Kin, 'P5RRRPR4V1G9P8'));
+      case 5
+        III = find(strcmp(PNames_Kin, 'P6PRRRRR6V2G8P1'));
+    end
+  else
+    III = 1:length(PNames_Kin);
+  end
+  for ii = III
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
     fprintf('Untersuche PKM %d/%d: %s\n', ii, length(PNames_Kin), PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
@@ -137,8 +151,6 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
-      % TODO: Deckenmontage funktioniert noch nicht richtig.
-      Set.structures.mounting_parallel = 'floor';
       Set.structures.use_parallel_rankdef = 6;
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -192,18 +204,26 @@ for i_FG = 1:size(EEFG_Ges,1)
 
     %% Dynamik-Test: Energiekonsistenz
     % Test-Konfiguration
-    n = 1;
-    X_test = repmat(Traj_0.X(1,:),n,1) + 1e-10*rand(n,6);
+    n = 2;
+    XE_test = repmat(Traj_0.X(1,:),n,1) + 1e-10*rand(n,6);
 
     Q_test = NaN(n, RP.NJ);
-    XD_test = rand(n,6);
-    XD_test(:,~RP.I_EE) = 0;
+    QD_test = NaN(n, RP.NJ);
+    XPD_test = rand(n,6);
+    XPD_test(:,~RP.I_EE) = 0;
     % IK für Testkonfiguration berechnen
     for i = 1:n
-      [q,Phi] = RP.invkin_ser(X_test(i,:)', q0);
-      if any(abs(Phi) > 1e-8) || any(isnan(Phi)), X_test(i,:)=X_test(i,:)*NaN; continue; end
+      [q, Phi] = RP.invkin_ser(XE_test(i,:)', q0);
+      if any(abs(Phi) > 1e-8) || any(isnan(Phi)), XE_test(i,:)=XE_test(i,:)*NaN; continue; end
       Q_test(i,:) = q;
-      [~, Jinv_voll] = RP.jacobi_qa_x(q, X_test(i,:)');
+      if ~all(RP.I_EE == [1 1 1 1 1 0])
+        [~, Jinv_voll] = RP.jacobi_qa_x(q, XE_test(i,:)', true);
+      else % 3T2R: Eigene Modellierung
+        G2_q = RP.constr2grad_q(q, XE_test(i,:)');
+        G2_x = RP.constr2grad_x(q, XE_test(i,:)');
+        Jinv_voll = -G2_q\G2_x;
+      end
+      QD_test(i,:) = Jinv_voll*XPD_test(i,RP.I_EE)';
     end
     
     if usr_debug
@@ -229,55 +249,108 @@ for i_FG = 1:size(EEFG_Ges,1)
     n_succ = 0;
     n_fail = 0;
     for i_tk = 1:n % Testkonfigurationen ("tk")
-      if any(isnan(X_test(i_tk,:))), continue; end % IK für diese Pose nicht erfolgreich
+      if any(isnan(XE_test(i_tk,:))), continue; end % IK für diese Pose nicht erfolgreich
       
       if i_tk > 1
         RP.update_base([0;0;1], rand(3,1));
       end
       RP.update_gravity([0;0;-9.81]);
-      % Initialisierung
+
+      % Anfangswerte für iterativen Algorithmus
+      q0 = Q_test(i_tk,:)'; % Anfangswert für t=0 bzw. i=0
+      qD0 = QD_test(i_tk,:)';
+      xP = RP.xE2xP(XE_test(i_tk,:)'); % Anfangswert (passend zu q)
+      if any(abs(xP(~RP.I_EE)) > 1e-7)
+        error('EE-Pose zwischen EE und Plattform-KS ist nicht konsistent');
+      end
+      xP_red0 = xP(RP.I_EE);
+      xPD = XPD_test(i_tk,:)'; % Anfangswert (Geschwindigkeit t=0)
+      xPD_red0 = xPD(RP.I_EE);
+      T_end = 0.5;
+      % Feder in passive Gelenke einsetzen
+      if usr_jointspring
+        for k = 1:RP.NLEG
+          I_k = RP.I1J_LEG(k):RP.I2J_LEG(k);
+          % Ruhelage der Feder ist die Startkonfiguration
+          RP.Leg(k).DesPar.joint_stiffness_qref = q(I_k);
+          % Federsteifigkeit auf moderaten Wert
+          RP.Leg(k).DesPar.joint_stiffness = ones(length(I_k),1)*100;
+        end
+      end
       dt = 1000e-6;
-      T_end = 2;
-      nt = T_end/dt;
-      Tges = zeros(nt,1);
-      xD_red_old = XD_test(i_tk,RP.I_EE)';
-      E_ges = NaN(nt,3+2+RP.NLEG*2); % 3 gesamt, 2 Plattform, 2 für jede Beinkette
-      X_ges = NaN(nt,6);
-      XD_ges = NaN(nt,6);
-      XDD_ges = NaN(nt,6);
+      %% Vorwärtsdynamik mit ode45 berechnen
+      fprintf('Berechne Vorwärtsdynamik mit ode45\n'); t1=tic();
+      fdynstruct = struct( ...
+        'q0', q0, ...
+        'x0red', xP_red0, ...
+        'qD0', qD0, ...
+        'xD0', xPD_red0, ...
+        'dtmax', dt, ...
+        't_End', T_end, ...
+        'J_method', jm);
+      fdynoutput = RP.fdyn(fdynstruct);
+      nt = length(fdynoutput.Tges);
+      fprintf(['Vorwärtsdynamik mit ode45 gerechnet. %d Schritte in %1.3fs. ', ...
+        'Echtzeitfaktor %1.1f%%.\n'], nt, toc(t1), 100*T_end/toc(t1));
+
+      %% Ergebnisse auslesen und weitere Variablen initialisieren
+      Tges = fdynoutput.Tges;     
+      E_ges = NaN(nt,4+2+RP.NLEG*3); % 4 gesamt, 2 Plattform, 3 für jede Beinkette (s.u.)
+      Q_ges = fdynoutput.Qges;
+      QD_ges = fdynoutput.QDges;
+      XP_ges = zeros(nt,6);
+      XPD_ges = zeros(nt,6);
+      XP_ges(:,RP.I_EE) = fdynoutput.XPredges;
+      XPD_ges(:,RP.I_EE) = fdynoutput.XPDredges;
+      XPDD_ges = NaN(nt,6);
       PHI_ges = NaN(nt, RP.I2constr_red(end));
       PHI_ges2 = NaN(nt, RP.I2constr_red(end));
-      Q_ges = NaN(nt,RP.NJ);
-      QD_ges = NaN(nt,RP.NJ);
       QDD_ges = NaN(nt,RP.NJ);
       SingDet = NaN(nt,6);
       Facc_ges = NaN(nt,6);
       P_diss_ges = zeros(nt,3);
-
-      % Anfangswerte für iterativen Algorithmus
-      q = Q_test(i_tk,:)'; % Anfangswert für t=0 bzw. i=0
-      q_old = q; % Variable für Altwert
-      x = X_test(i_tk,:)'; % Anfangswert (passend zu q)
-      x_red_old = x(RP.I_EE);
-      xD = XD_test(i_tk,:)'; % Anfangswert (Geschwindigkeit t=0)
-      xD_red = xD(RP.I_EE);
-      t1 = tic;
+      % Einstellung für IK
       s = struct( ...
-             'n_min', 25, ... % Minimale Anzahl Iterationen
-             'n_max', 1000, ... % Maximale Anzahl Iterationen
-             'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-             'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
+        'normalize', false, ... % Winkel nicht normalisieren, da sonst Federmoment falsch.
+        'n_min', 25, ... % Minimale Anzahl Iterationen
+        'n_max', 1000, ... % Maximale Anzahl Iterationen
+        'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
+        'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
       
+      %% Nachverarbeitung der Ergebnisse
+      t2 = tic();
       for i = 1:nt
-        Tges(i) = (i-1)*dt;
+        q_ode = Q_ges(i,:)';
+        qD_ode = QD_ges(i,:)';
+        xP = XP_ges(i,:)';
+        xPD = XPD_ges(i,:)';
+        xPD_red = xPD(RP.I_EE);
+        if any(isnan([q_ode;qD_ode;xP;xPD]))
+          warning(['i=%d/%d: Abbruch der Berechnung in ode45. Vermutlich ', ...
+            'aufgrund von IK-Inkonsistenz.'], i, nt);
+          nt = i - 1;
+          break
+        end
+        [xE, xDE] = RP.xP2xE(xP, xPD);
+        
+        % Prüfe, ob Zwangsbedingungen noch stimmen und berechne korrigierte
+        % Gelenkwinkel, da in ODE Integrationsfehler auftreten können (und
+        % dort intern auch mit anderen Winkeln gerechnet wird)
+        [q,Phi] = RP.invkin_ser(xE, q_ode, s);
+        if any(isnan(q)) || any(abs(Phi) > 1e-6) || any(isnan(Phi))
+          warning('i=%d/%d: IK kann nicht berechnet werden. Roboter verlässt vermutlich den Arbeitsraum.', i, nt);
+          nt = i - 1;
+          break
+        end
+        
         % Kinematik für Zeitschritt i berechnen:
         % Berechnung der Gelenk-Geschwindigkeit und Jacobi-Matrix
-        [G1_q, G1_q_voll] = RP.constr1grad_q(q, x); % Für Konditionszahl weiter unten
-        [G1_x, G1_x_voll] = RP.constr1grad_x(q, x);
-        G2_q = RP.constr2grad_q(q, x);
-        G2_x = RP.constr2grad_x(q, x);
+        [G1_q, G1_q_voll] = RP.constr1grad_q(q, xP, true); % Für Konditionszahl weiter unten
+        [G1_x, G1_x_voll] = RP.constr1grad_x(q, xP, true);
+        G2_q = RP.constr2grad_q(q, xE);
+        G2_x = RP.constr2grad_x(q, xE);
         [G4_q, G4_q_voll] = RP.constr4grad_q(q);
-        [G4_x, G4_x_voll] = RP.constr4grad_x(x);
+        [G4_x, G4_x_voll] = RP.constr4grad_x(xP, true);
         if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
           Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
         elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
@@ -288,20 +361,22 @@ for i_FG = 1:size(EEFG_Ges,1)
           % bank genommen werden, funktionieren. Nehmer daher constr2.
           Jinv_voll = -G2_q\G2_x;
         end
-        qD = Jinv_voll*xD_red;
+        % Berechne Gelenkwinkel neu (und ignoriere die aus der ode45).
+        qD = Jinv_voll*xPD_red;
+        
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
         if jm == 1
-          GD1_q = RP.constr1gradD_q(q, qD, x, xD);
-          GD1_x = RP.constr1gradD_x(q, qD, x, xD);
+          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
+          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD, true);
           JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
         elseif jm == 2
           % Nehme Modellierung 4 der Jacobi für die Dynamik
           GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(x, xD);
+          GD4_x = RP.constr4gradD_x(xP, xPD, true);
           JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
         else
-          GD2_q = RP.constr2gradD_q(q, qD, x, xD);
-          GD2_x = RP.constr2gradD_x(q, qD, x, xD);
+          GD2_q = RP.constr2gradD_q(q, qD, xE, xDE);
+          GD2_x = RP.constr2gradD_x(q, qD, xE, xDE);
           JinvD_voll = G2_q\(GD2_q*(G2_q\G2_x)) - G2_q\GD2_x;
         end
 
@@ -323,29 +398,31 @@ for i_FG = 1:size(EEFG_Ges,1)
         SingDet(i,6) = cond(G2_x);
         %% Dynamik und Energie
         % Dynamik-Terme berechnen (Beschleunigung und Kraft im Zeitschritt i)
-        Mx = RP.inertia2_platform(q, x, Jinv_voll);
-        Gx = RP.gravload2_platform(q, x, Jinv_voll);
-        Cx = RP.coriolisvec2_platform(q, qD, x, xD, Jinv_voll, JinvD_voll);
-        Facc_ges(i,RP.I_EE) = -Gx - Cx;
+        Mx = RP.inertia2_platform(q, xP, Jinv_voll);
+        Gx = RP.gravload2_platform(q, xP, Jinv_voll);
+        Cx = RP.coriolisvec2_platform(q, qD, xP, xPD, Jinv_voll, JinvD_voll);
+        Kx = RP.springtorque_platform(q, xP, Jinv_voll);
+        Facc_ges(i,RP.I_EE) = -Gx - Cx - Kx;
   
         % Beschleunigung der Plattform berechnen
-        xDD_red = Mx \ (-Gx - Cx);
-        XDD = zeros(6,1); % 6x1-Vektor, falls reduzierte Plattform-FG
-        XDD(RP.I_EE) = xDD_red;
+        xPDD_red = Mx \ (-Gx - Cx - Kx);
+        XPDD = zeros(6,1); % 6x1-Vektor, falls reduzierte Plattform-FG
+        XPDD(RP.I_EE) = xPDD_red;
         % Beschleunigung der Beingelenke
-        qDD = Jinv_voll*xDD_red + JinvD_voll*xD_red;
+        qDD = Jinv_voll*xPDD_red + JinvD_voll*xPD_red;
         
         % Berechnung der Systemenergie
-        [T_i, T_legs_i, T_platform_i] = RP.ekin(q, qD, x, xD);
-        [U_i, U_legs_i, U_platform_i] = RP.epot(q, x);
-
+        [T_i, T_legs_i, T_platform_i] = RP.ekin(q, qD, xP, xPD);
+        [Ugrav_i, Ugrav_legs_i, Ugrav_platform_i] = RP.epot(q, xP);
+        [Uspr_i, Uspr_legs_i] = RP.epotspring(q);
         %% Werte für diesen Zeitschritt abspeichern
-        E_ges(i,1:3) = [T_i, U_i, T_i+U_i];
-        E_ges(i,4:4+RP.NLEG) = [T_platform_i; T_legs_i];
-        E_ges(i,4+RP.NLEG+1:4+RP.NLEG*2+1) = [U_platform_i; U_legs_i];
-        X_ges(i,:) = x;
-        XD_ges(i,:) = xD;
-        XDD_ges(i,:) = XDD;
+        E_ges(i,1:4) = [T_i, Ugrav_i, Uspr_i, T_i+Ugrav_i+Uspr_i];
+        E_ges(i,5:5+RP.NLEG) = [T_platform_i; T_legs_i];
+        E_ges(i,5+RP.NLEG+1:5+RP.NLEG*2+1) = [Ugrav_platform_i; Ugrav_legs_i];
+        E_ges(i,5+RP.NLEG*2+2:5+RP.NLEG*3+1) = Uspr_legs_i;
+        XP_ges(i,:) = xP;
+        XPD_ges(i,:) = xPD;
+        XPDD_ges(i,:) = XPDD;
         Q_ges(i,:) = q;
         QD_ges(i,:) = qD;
         QDD_ges(i,:) = qDD;
@@ -353,9 +430,9 @@ for i_FG = 1:size(EEFG_Ges,1)
         % Berechne die zwischen den Teilsystemen umgesetzte Energie als Leistung
         % Der numerische Fehler entspricht Dissipation
         if i > 1
-          P_diff = (E_ges(i, :) - E_ges(i-1, :)) / dt; % Leistung aus Energiedifferenz
-          p_komp = sum(abs(P_diff([1 2 4:end]))); % Summe der Differenzen aller Teilsysteme (Beinketten, Plattform (kinetisch/potentiell)); entspricht umgesetzter Leistung
-          p_sys = abs(P_diff(3)); % Differenz der Gesamt-Energie (entspricht Dissipation)
+          P_diff = (E_ges(i, :) - E_ges(i-1, :)) / (Tges(i)-Tges(i-1)); % Leistung aus Energiedifferenz
+          p_komp = sum(abs(P_diff([1 2 3 5:end]))); % Summe der Differenzen aller Teilsysteme (Beinketten, Plattform (kinetisch/potentiell)); entspricht umgesetzter Leistung
+          p_sys = abs(P_diff(4)); % Differenz der Gesamt-Energie (entspricht Dissipation)
           P_diss_ges(i,1:2) = [p_sys, p_komp];
           % Gleitender Maximalwert des Leistungsflusses zwischen den
           % Komponenten. Dadurch wird die fehlerbedingte Dissipation ins
@@ -365,13 +442,12 @@ for i_FG = 1:size(EEFG_Ges,1)
         
         % Kinematische Zwangsbedingungen prüfen
         if ~all(EE_FG == [1 1 1 1 1 0])
-          PHI_ges(i,:) = RP.constr1(q, x);
+          PHI_ges(i,:) = RP.constr1(q, xE);
         else
           % Nehme constr3, um sicher festzustellen, ob die PKM noch konsistent ist.
-          PHI_ges(i,:) = RP.constr3(q, x);
+          PHI_ges(i,:) = RP.constr3(q, xE);
         end
-        
-        PHI_ges2(i,:) = Phi;
+        PHI_ges2(i,:) = Phi; % Residuum aus IK oben
         
         %% Zusätzliche Prüfung für constr4 vs constr1 (Optional)
         if ~all(EE_FG == [1 1 1 1 1 0]) && ... % nicht für 3T2R-PKM testen
@@ -382,15 +458,15 @@ for i_FG = 1:size(EEFG_Ges,1)
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
           % Methoden:
           G4_q = RP.constr4grad_q(q);
-          G4_x = RP.constr4grad_x(x);
+          G4_x = RP.constr4grad_x(xP);
           Jinv_voll4 = -G4_q\G4_x;
-          G1_q = RP.constr1grad_q(q,x);
-          G1_x = RP.constr1grad_x(q,x);
+          G1_q = RP.constr1grad_q(q,xP);
+          G1_x = RP.constr1grad_x(q,xP);
           Jinv_voll1 = -G1_q\G1_x;
           if ~all(EE_FG==[1 1 1 1 1 0])
           % Vergleiche gegen symbolische Herleitung der Jacobi-Matrix
           % (existiert nicht für 3T2R)
-          Jinv_sym_qa_x = RP.jacobi_qa_x(q, x);
+          Jinv_sym_qa_x = RP.jacobi_qa_x(q, xP);
           Jinv4_num_qa_x = Jinv_voll4(RP.I_qa,:);
           Jinv1_num_qa_x = Jinv_voll1(RP.I_qa,:);
           if any(abs(Jinv_sym_qa_x(:)-Jinv1_num_qa_x(:))>1e-2) % TODO: Noch hohe Toleranz
@@ -411,9 +487,9 @@ for i_FG = 1:size(EEFG_Ges,1)
           end
           % Alle Zeitableitungen der ZB-Gradienten mit Methode 1 und 4
           GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(x, xD);
-          GD1_q = RP.constr1gradD_q(q, qD, x, xD);
-          GD1_x = RP.constr1gradD_x(q, qD, x, xD);
+          GD4_x = RP.constr4gradD_x(xP, xPD);
+          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD);
+          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD);
           JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
           JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
           % Vergleiche Jacobi-Zeitableitung nach beiden Methoden
@@ -430,40 +506,15 @@ for i_FG = 1:size(EEFG_Ges,1)
             error('i=%d/%d: Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1', i, nt);
           end        
         end
-        
-        %% Berechne Kinematik des nächsten Zeitschritts
-        % Die folgenden Größen werden für den nächsten Zeitschritt (i+1)
-        % berechnet:
-        % Integration der Beschleunigung
-        xD_red = xD_red_old + xDD_red*dt;
-        xD = zeros(6,1);
-        xD(RP.I_EE) = xD_red;
-
-        % Integration der Geschwindigkeit (Euler-Winkel-Zeitableitung lässt
-        % sich so integrieren, ohne Betrachtung der Winkelgeschwindigkeit)
-        x_red = x_red_old + xD_red_old*dt + 0.5*xDD_red*dt^2;
-        x = zeros(6,1);
-        x(RP.I_EE) = x_red;
-        
-        % Integration der Gelenk-Geschwindigkeit und IK
-        q_dik = q_old + qD*dt + 0.5*qDD*dt^2; % nur als Startwert
-        [q_ik,Phi] = RP.invkin_ser(x, q_dik, s);
-        if any(isnan(q_ik)) || any(abs(Phi) > 1e-6)
-          warning('i=%d/%d: IK kann nicht berechnet werden. Roboter verlässt vermutlich den Arbeitsraum.', i, nt);
-          break
-        end
-        % Gelenkwinkel korrigieren mit IK (Differenzenquotient driftet weg)
-        q = q_ik;
-        
-        % Altwerte abspeichern für nächsten Zeitschritt
-        x_red_old = x_red;
-        xD_red_old = xD_red;
-        q_old = q;
       end
-      Ip_end = i;
-      RTratio = Tges(Ip_end)/toc(t1);
-      fprintf(['Dauer für %d Simulationsschritte (%1.2fs simulierte Zeit): ', ...
-        '%1.2fs (%1.0f%% Echtzeit)\n'], Ip_end, Tges(Ip_end), toc(t1), 100*RTratio);
+      if nt == 0
+        warning('Bereits der Startwert konnte nicht berechnet werden');
+        continue;
+      end
+      Ip_end = nt;
+      RTratio = Tges(Ip_end)/toc(t2);
+      fprintf(['Dauer für Nachverarbeitung von %d Simulationsschritten (%1.2fs simulierte Zeit): ', ...
+        '%1.2fs (%1.0f%% Echtzeit)\n'], Ip_end, Tges(Ip_end), toc(t2), 100*RTratio);
       %% Konsistenz der PKM berechnen
       % Falls es hier einen Fehler gibt, hat die differentielle Kinematik
       % oben nicht funktioniert. PKM-EE für jede Beinkette einzeln berechnen
@@ -477,10 +528,12 @@ for i_FG = 1:size(EEFG_Ges,1)
           % Teste nur bis zum vorletzten Zeitpunkt. Der letzte kann schon
           % durch eine Singularität beeinträchtigt sein
           test_X = X_fromlegs(1:end-1,1:5, 1) - X_fromlegs(1:end-1,1:5, j);
+          test_X(abs(abs(test_X)-2*pi) < 1e-2) = 0; %2pi-Fehler entfernen
           if any(abs(test_X(:))>1e-6)
+            Ifirst = find(any(abs(test_X)>1e-6,2),1,'first');
             error(['Die Endeffektor-Trajektorie X aus Beinkette %d stimmt nicht ', ...
-              'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
-              find(any(abs(test_X)>1e-6,2),1,'first'), nt);
+              'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d. Fehler dort %1.2e'], j, ...
+              Ifirst, nt, max(abs(test_X(Ifirst,:))));
           end
           test_XD = XD_fromlegs(1:end-1,1:6,1) - XD_fromlegs(1:end-1,1:6,j);
           if any(abs(test_XD(:))>1e-6)
@@ -497,13 +550,14 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
       end
       % Prüfe, ob die Integration der Zeitableitungen konsistent ist
-      Q_ges_num = repmat(Q_ges(1,:),nt,1)+cumtrapz(Tges, QD_ges);
+      Q_ges_num = repmat(Q_ges(1,:),size(Q_ges,1),1)+cumtrapz(Tges, QD_ges);
       QD_ges_num = zeros(size(Q_ges));
+      QD_ges_num(1,:) = qD0;
       QD_ges_num(2:end,RP.MDH.sigma==1) = diff(Q_ges(:,RP.MDH.sigma==1))./...
         repmat(diff(Tges), 1, sum(RP.MDH.sigma==1)); % Differenzenquotient
       QD_ges_num(2:end,RP.MDH.sigma==0) = (mod(diff(Q_ges(:,RP.MDH.sigma==0))+pi, 2*pi)-pi)./...
         repmat(diff(Tges), 1, sum(RP.MDH.sigma==0)); % Siehe angdiff.m
-      QD_ges_num2 = repmat(QD_ges(1,:),nt,1)+cumtrapz(Tges, QDD_ges);
+      QD_ges_num2 = repmat(QD_ges(1,:),size(QD_ges,1),1)+cumtrapz(Tges, QDD_ges);
       %% Weitere Berechnungen
       % Gleitender Maximalwert des Leistungsflusses zwischen den
       % Komponenten. Dadurch wird die fehlerbedingte Dissipation ins
@@ -524,17 +578,18 @@ for i_FG = 1:size(EEFG_Ges,1)
         plot(Tges(1:Ip_end), E_ges(1:Ip_end,1));
         plot(Tges(1:Ip_end), E_ges(1:Ip_end,2));
         plot(Tges(1:Ip_end), E_ges(1:Ip_end,3));
-        legend({'Kinetisch', 'Potentiell', 'Gesamt'});
+        plot(Tges(1:Ip_end), E_ges(1:Ip_end,4));
+        legend({'Kinetisch', 'Grav-Pot.', 'Feder-Pot.', 'Gesamt'});
         grid on; ylabel('Teil-Energien in J');
         subplot(2,3,2);
-        plot(Tges(1:Ip_end), E_ges(1:Ip_end,3)-E_ges(1,3));
+        plot(Tges(1:Ip_end), E_ges(1:Ip_end,4)-E_ges(1,4));
         grid on; ylabel('Energiedifferenz in J (bezgl t=0)');
         subplot(2,3,3);
-        plot(Tges(1:Ip_end), E_ges(1:Ip_end,4:4+RP.NLEG));
+        plot(Tges(1:Ip_end), E_ges(1:Ip_end,5:5+RP.NLEG));
         grid on; ylabel('Kinetische Energie der Komponenten in J');
         legend(kompleg);
         subplot(2,3,4);
-        plot(Tges(1:Ip_end), E_ges(1:Ip_end,4+RP.NLEG+1:4+RP.NLEG*2+1));
+        plot(Tges(1:Ip_end), E_ges(1:Ip_end,5+RP.NLEG+1:5+RP.NLEG*2+1));
         grid on; ylabel('Potentielle Energie der Komponenten in J');
         legend(kompleg);
         subplot(2,3,5);
@@ -618,16 +673,16 @@ for i_FG = 1:size(EEFG_Ges,1)
         change_current_figure(7);clf;
         subplot(2,2,1);
         xpos_leg = {'rx', 'ry', 'rz', 'phix', 'phiy', 'phiz'};
-        plot(Tges, X_ges(:,RP.I_EE));
+        plot(Tges, XP_ges(:,RP.I_EE));
         grid on; ylabel('Plattform-Position (im Basis-KS)');
         legend(xpos_leg(RP.I_EE));
         subplot(2,2,2);
         xvel_leg = {'vx', 'vy', 'vz', 'phiDx', 'phiDy', 'phiDz'};
-        plot(Tges, XD_ges(:,RP.I_EE));
+        plot(Tges, XPD_ges(:,RP.I_EE));
         grid on; ylabel('Plattform-Geschwindigkeit (im Basis-KS)');
         legend(xvel_leg(RP.I_EE));
         subplot(2,2,3);
-        plot(Tges, XDD_ges(:,RP.I_EE));
+        plot(Tges, XPDD_ges(:,RP.I_EE));
         grid on; ylabel('Plattform-Beschleunigung (im Basis-KS)');
         subplot(2,2,4);
         Facc_leg = {'Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'};
@@ -685,7 +740,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         axis auto
         hold on;grid on;
         s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-        RP.plot(Q_ges(1,:)', X_ges(1,:)', s_plot);
+        RP.plot(Q_ges(1,:)', XP_ges(1,:)', s_plot);
         title(sprintf('%s in Startkonfiguration',PName));
         %% Animation des bewegten Roboters
         i_end_vis = Ip_end-1;
@@ -701,7 +756,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         hold on;grid on;
         xlabel('x in m');ylabel('y in m');zlabel('z in m');
         title(sprintf('%s Dynamik-Simulation ',PName));
-        RP.anim( Q_ges(1:i_diff:i_end_vis,:), X_ges(1:i_diff:i_end_vis,:), s_anim, s_plot);
+        RP.anim( Q_ges(1:i_diff:i_end_vis,:), XP_ges(1:i_diff:i_end_vis,:), s_anim, s_plot);
         fprintf('Animation der Bewegung gespeichert: %s\n', s_anim.gif_name);
       end
       %% Auswertung
