@@ -872,7 +872,64 @@ classdef ParRob < RobBase
       end
       U_ges = sum(U_legs);
     end
-
+    function Fa = springtorque_actjoint(R, q, xP, JinvP)
+      % Berechne Antriebskraft aufgrund der Effekte der inversen Dynamik
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % JinvP: Inverse Jacobi-Matrix (bezogen auf Plattform-Koordinaten und
+      % alle Gelenke). Siehe ParRob/jacobi_qa_x
+      %
+      % Ausgabe:
+      % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
+      % Feder-Kräfte in Endeffektor-Koordinaten berechnen
+      Fx = R.springtorque_platform(q, xP, JinvP);
+      % Umrechnen der vollständigen inversen Jacobi
+      Jinv_qaD_xD = JinvP(R.I_qa,:);
+      % Jacobi-Matrix auf Winkelgeschwindigkeiten beziehen. Siehe ParRob/jacobi_qa_x
+      if size(Jinv_qaD_xD,2) == 6
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+        Jinv_qaD_sD = Jinv_qaD_xD / T;
+      else
+        % Nehme an, dass keine räumliche Drehung vorliegt. TODO: Fall 3T2R
+        % genauer prüfen, wenn Roboter verfügbar sind.
+        Jinv_qaD_sD = Jinv_qaD_xD;
+      end
+      % Umrechnen auf Antriebskoordinaten. [AbdellatifHei2009], Text nach Gl. (37)
+      Fa = Jinv_qaD_sD' \ Fx;
+    end
+    function Fx_traj = springtorque_platform_traj(R, Q, XP, JinvP_ges)
+      % Inverse Dynamik in Endeffektor-Koordinaten als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
+      %
+      % Ausgabe:
+      % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      for i = 1:size(Q,1)
+        Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
+        Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', XP(i,:)', Jinv_full);
+      end
+    end
+    function Fa_traj = springtorque_actjoint_traj(R, Q, XP, JinvP_ges)
+      % Inverse Dynamik in Antriebskoordinaten als Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
+      % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
+      %
+      % Ausgabe:
+      % Fa_traj: Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
+      Fa_traj = NaN(size(Q,1),sum(R.I_qa));
+      for i = 1:size(Q,1)
+        Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
+        Fa_traj(i,:) = R.springtorque_actjoint(Q(i,:)', XP(i,:)', Jinv_full);
+      end
+    end
     function update_mdh_legs(R, pkin)
       % Aktualisiere die Kinematik-Parameter aller Beinketten
       % Nehme eine symmetrische PKM an

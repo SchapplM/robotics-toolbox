@@ -39,6 +39,10 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Gelenkmomente aufgrund interner Dynamik
   tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
           (RP.Leg(j).MDH.sigma==1) .* W_j_l_int(3, 2:end)';
+  % Gelenkmomente aufgrund einer Feder in den Gelenken (auch interne Dyn.)
+  if any(RP.Leg(j).DesPar.joint_stiffness)
+    tau_j = tau_j + RP.Leg(j).springtorque(q_j);
+  end
   % Antriebsmomente dieses Beins (passive sind Null)
   tau_m_j = zeros(RP.Leg(j).NQJ,1);
   tau_m_j(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j))) = tauA(j); % TODO: Aktuell nur ein Antrieb pro Bein
