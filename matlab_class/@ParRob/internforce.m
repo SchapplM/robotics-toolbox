@@ -36,13 +36,19 @@ for j = 1:RP.NLEG % Für alle Beinketten
   qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
   % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
   W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
+  % Zähle eine Drehfeder in Gelenken zu der internen Dynamik hinzu. Wird in
+  % der Funktion SerRob.internforce ignoriert. Dort nur M,c,g. Hier Ergänzung.
+  if any(RP.Leg(j).DesPar.joint_stiffness)
+    tau_j_spring = RP.Leg(j).springtorque(q_j);
+    W_j_l_int(3,[false;RP.Leg(j).MDH.sigma==1]) = ... % Schubgelenke
+      W_j_l_int(3,[false;RP.Leg(j).MDH.sigma==1]) + tau_j_spring(RP.Leg(j).MDH.sigma==1)';
+    W_j_l_int(6,[false;RP.Leg(j).MDH.sigma==0]) = ... % Drehgelenke
+      W_j_l_int(6,[false;RP.Leg(j).MDH.sigma==0]) + tau_j_spring(RP.Leg(j).MDH.sigma==0)';
+  end
   % Gelenkmomente aufgrund interner Dynamik
   tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
           (RP.Leg(j).MDH.sigma==1) .* W_j_l_int(3, 2:end)';
-  % Gelenkmomente aufgrund einer Feder in den Gelenken (auch interne Dyn.)
-  if any(RP.Leg(j).DesPar.joint_stiffness)
-    tau_j = tau_j + RP.Leg(j).springtorque(q_j);
-  end
+
   % Antriebsmomente dieses Beins (passive sind Null)
   tau_m_j = zeros(RP.Leg(j).NQJ,1);
   tau_m_j(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j))) = tauA(j); % TODO: Aktuell nur ein Antrieb pro Bein

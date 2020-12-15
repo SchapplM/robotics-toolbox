@@ -23,7 +23,7 @@ if isempty(which('parroblib_path_init.m'))
 end
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
-
+usr_jointspring = true;
 %% Definiere Roboter
 RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
 % Beinketten und PKM mit kompilierten Funktionen
@@ -94,6 +94,18 @@ if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > 1e-10)) || ...
 end
 fprintf('IK berechnet. Dauer: %1.1fs\n', toc(t1));
 
+%% Debug: Gelenksteifigkeit setzen
+% Annahme einer Drefeder in den Gelenken. Dadurch Änderung der Schnittkräfte.
+if usr_jointspring
+  for k = 1:RP.NLEG
+    I_k = RP.I1J_LEG(k):RP.I2J_LEG(k);
+    % Ruhelage der Feder ist die Startkonfiguration
+    RP.Leg(k).DesPar.joint_stiffness_qref = q0(I_k);
+    % Federsteifigkeit auf moderaten Wert
+    RP.Leg(k).DesPar.joint_stiffness = ones(length(I_k),1)*100;
+  end
+end
+
 %% Roboter in Startpose plotten
 figure(1);clf;set(1, 'Name', 'Startpose', 'NumberTitle', 'off');
 hold on;grid on;
@@ -158,6 +170,10 @@ for i = 1:nt
   Jinv_sym = Jinv_num / T_euljac;
   % Berechne Dynamik in Plattform-Koordinaten (unabhängig von Aktuierung)
   tauX = RP.invdyn_platform(q,x,xD,xDD);
+  if usr_jointspring
+    tauX = tauX + RP.springtorque_platform(q, x);
+  end
+  
   % Projiziere die Dynamik in die Koordinaten der Antriebsgelenke
   % [AbdellatifHei2009], Text nach Gl. (37)
   tauA = (Jinv_sym') \ tauX;
@@ -193,6 +209,10 @@ for i = 1:nt
     qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
     qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
     tau_j = RP.Leg(j).invdyn(q_j, qD_j, qDD_j);
+    if usr_jointspring
+      tau_j_spring = RP.Leg(j).springtorque(q_j);
+      tau_j = tau_j + tau_j_spring;
+    end
     tau_m_j = zeros(RP.Leg(j).NQJ,1); tau_m_j(II_qai(j)) = tauA(j); % Antriebsmomente dieses Beins (passive sind Null)
     R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
     % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
@@ -224,7 +244,15 @@ for i = 1:nt
     W_j_l_ext = RP.Leg(j).internforce_ext(q_j, F_B_j_0j, RP.Leg(j).NL-1, zeros(3,1));
     % Schnittkräfte aufgrund der internen Kräfte
     W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
-
+    if usr_jointspring
+      for k = 2:RP.Leg(j).NJ+1
+        if RP.Leg(j).MDH.sigma(k-1) == 0 % Drehgelenk: 6. Eintrag
+          W_j_l_int(6,k) = W_j_l_int(6,k) + tau_j_spring(k-1);
+        else % Schubgelenk: 3. Eintrag
+          W_j_l_int(3,k) = W_j_l_int(3,k) + tau_j_spring(k-1);
+        end
+      end
+    end
     % Teste Schnittkräfte in Koppelpunkten mit den Schnittkräften im
     % letzten Segment. Müssen übereinstimmen
     if max(abs( norm(FB_j_0(1:3)) - norm(W_j_l_ext(1:3,end)) )) > 10*max(eps(1+abs(FB_j_0(1:3))))
@@ -507,6 +535,7 @@ end
 s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
 figure(5);clf;hold all;set(5, 'Name', 'Animation', 'NumberTitle', 'off');
+set(5, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);
 view(3);
 axis auto
 hold on;grid on;
@@ -517,6 +546,9 @@ fprintf('Test für 6UPS beendet\n');
 
 save(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 %% Debug: Vergleich verschiedener Implementierungen mit Parameterlinearer Form
+if usr_jointspring
+  return % TODO: Regressorform für Gelenkfeder nicht implementiert.
+end
 t1=tic();
 % load(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 % Optional: Berechne Klassenmethode mit anderen Dynamik-Parametern
@@ -550,19 +582,19 @@ for i=1:size(Q_t,1)
   cf_w_B_fromreg = reshape(cf_w_B_reg*RP.DynPar.ipv_n1s, 6, RP.NLEG);
   test_cf_w_B = cf_w_B - cf_w_B_fromreg;
   if any(abs(test_cf_w_B(:)) > 1e-8)
-    error('Schnittkraft in Plattform-Koppelgelenken stimmt nicht');
+    error('Schnittkraft in Plattform-Koppelgelenken stimmt nicht mit parameterlinearer Form');
   end
   % Teste Implementierung der Schnittkraft in Körper-KS
   cf_w_all_linkframe_fromreg = RP.internforce3(cf_w_all_linkframe_reg);
   test_cf_w_all_linkframe = cf_w_all_linkframe_fromreg - cf_w_all_linkframe;
   if any(abs(test_cf_w_all_linkframe(:)) > 1e-8)
-    error('Gesamtheit der Schnittkräfte (in Körper-KS) stimmt nicht');
+    error('Gesamtheit der Schnittkräfte (in Körper-KS) stimmt nicht mit parameterlinearer Form');
   end
   % Teste Implementierung der Schnittkraft im PKM-Basis-KS
   cf_w_all_baseframe_fromreg = RP.internforce3(cf_w_all_baseframe_reg);
   test_cf_w_all_baseframe = cf_w_all_baseframe_fromreg - cf_w_all_baseframe;
   if any(abs(test_cf_w_all_baseframe(:)) > 1e-8)
-    error('Gesamtheit der Schnittkräfte (in Basis-KS) stimmt nicht');
+    error('Gesamtheit der Schnittkräfte (in Basis-KS) stimmt nicht mit parameterlinearer Form');
   end
 end
 % Trajektorien-Funktion testen
