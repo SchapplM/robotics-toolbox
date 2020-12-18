@@ -72,7 +72,7 @@ R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Massenmatrix des vollständigen Systems (alle Subsysteme)
 % Ausgelagert in andere Funktion, da Term auch für Coriolis-Kräfte benötigt
-if nargin < 5 && nargout == 1
+if nargin < 5 && nargout <= 1 % falls Aufruf in Zeile, ist nargout=0
   M_full = Rob.inertia2_platform_full(q, xP);
 elseif nargin < 6 && nargout == 2
   [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xP);

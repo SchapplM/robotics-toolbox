@@ -263,8 +263,8 @@ classdef SerRob < RobBase
           tauunit_sci{i} = 'Nm';
           qunitmult_eng_sci(i) = pi/180;
         else
-          qunit_eng{i} = 'm';
-          qunit_sci{i} = 'mm';
+          qunit_eng{i} = 'mm';
+          qunit_sci{i} = 'm';
           tauunit_sci{i} = 'N';
           qunitmult_eng_sci(i) = 1/1000;
         end

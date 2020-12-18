@@ -142,7 +142,7 @@ if nargout == 2
   C_full_reg(NJ+1:end,end-sum(Rob.I_platform_dynpar)+1:end) = Fc_plf_reg(Rob.I_EE,Rob.I_platform_dynpar);
 end
 % Massenmatrix-Komponenten aller Subsysteme
-if nargout == 1 && nargin < 8
+if nargout <= 1 && nargin < 8
   [M_full] = Rob.inertia2_platform_full(q, xP);
 elseif nargout == 2 && nargin < 9
   % Regressor-Matrix soll berechnet werden. Benötigt Regressor-Matrix der Massenmatrix
