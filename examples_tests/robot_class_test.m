@@ -43,6 +43,7 @@ ParRob_class_example_3T2R_asym; close all;
 ParRob_class_example_3T2R_passive_constrleg; close all;
 ParRob_class_example_3T2R_sym; close all;
 ParRob_cutforce_example; close all;
+ParRob_springtorque_example; close all;
 ParRob_constraints_test; close all;
 ParRob_constraintsD_test; close all;
 ParRob_mdltest_invdyn_energy_consistency; close all;

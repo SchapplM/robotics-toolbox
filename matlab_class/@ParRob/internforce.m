@@ -5,6 +5,12 @@
 %   Gelenkkoordinaten aller Gelenke aller Beinketten der PKM
 % tauA
 %   Antriebskräfte der PKM (nur bezogen auf aktuierte Gelenke)
+% tau_add
+%   Zusätzliche Gelenkmomente der PKM (bezogen auf alle Gelenkkoordinaten).
+%   Enthält z.B. Reibung oder Gelenkfedern. Wenn gesetzt, wird die inverse
+%   Dynamik (Massenträgheit, Coriolis, Gravitation) nicht berechnet.
+%   Die Eingabe tau_A sollte so gesetzt werden, dass sie die Gelenkmomente 
+%   kompensieren (siehe ParRob/jointtorque_actjoint).
 % 
 % Ausgabe:
 % w_B [6xNLEG]
@@ -21,7 +27,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [w_B, w_all_linkframe, w_all_baseframe] = internforce(RP, q, qD, qDD, tauA)
+function [w_B, w_all_linkframe, w_all_baseframe] = internforce(RP, q, qD, qDD, tauA, tau_add)
 
 % Ausgabevariablen initialisieren
 w_B = NaN(6, RP.NLEG);
@@ -34,16 +40,20 @@ for j = 1:RP.NLEG % Für alle Beinketten
   q_j = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
-  % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
-  W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
-  % Zähle eine Drehfeder in Gelenken zu der internen Dynamik hinzu. Wird in
-  % der Funktion SerRob.internforce ignoriert. Dort nur M,c,g. Hier Ergänzung.
-  if any(RP.Leg(j).DesPar.joint_stiffness)
-    tau_j_spring = RP.Leg(j).springtorque(q_j);
+  if nargin < 6
+    % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
+    % der inversen Dynamik (Massenträgheit, Coriolis, Gravitation)
+    W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
+  else
+    % Zähle die zusätzlich gegebenen Gelenkmomente für die Berechnung der
+    % Schnittkräfte und ignoriere die inverse Dynamik. Diese Momente sind
+    % bspw. Reibkräfte (in allen Gelenken) oder Federmomente
+    W_j_l_int = zeros(6, RP.Leg(1).NL);
+    tau_j_add = tau_add(RP.I1J_LEG(j):RP.I2J_LEG(j));
     W_j_l_int(3,[false;RP.Leg(j).MDH.sigma==1]) = ... % Schubgelenke
-      W_j_l_int(3,[false;RP.Leg(j).MDH.sigma==1]) + tau_j_spring(RP.Leg(j).MDH.sigma==1)';
+      tau_j_add(RP.Leg(j).MDH.sigma==1)';
     W_j_l_int(6,[false;RP.Leg(j).MDH.sigma==0]) = ... % Drehgelenke
-      W_j_l_int(6,[false;RP.Leg(j).MDH.sigma==0]) + tau_j_spring(RP.Leg(j).MDH.sigma==0)';
+      tau_j_add(RP.Leg(j).MDH.sigma==0)';
   end
   % Gelenkmomente aufgrund interner Dynamik
   tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
@@ -76,7 +86,18 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Gesamte Schnittkräfte: Differenz entspricht Schnittkraft im Gelenk.
   % Je nach Gelenktyp in der Struktur aufgefangen oder in Richtung des
   % Gelenk-FG
-  W_j_l = -W_j_l_ext + W_j_l_int;
+  if nargin < 6
+    % Schnittkräfte durch die Dynamik der Beinkette selbst, Antriebskräfte
+    % sowie die Kopplung durch die geschlossene kinematische Ketten.
+    W_j_l = -W_j_l_ext + W_j_l_int;
+  else
+    % Anderer Berechnungsmodus: Zähle nur die Schnittkräfte durch die Gelenk-
+    % momente, die vorgegeben sind. Kein Zählen als interne Dynamik. Damit
+    % bspw. auch Schnittmomente in passiven Drehgelenken möglich.
+    % Es wird trotzdem die PKM-Kopplung mit berücksichtigt.
+    % TODO: Es fehlt noch eine gute mathematische Herleitung.
+    W_j_l = W_j_l_ext;
+  end
   w_all_linkframe(:,:,j) = W_j_l;
   
   % Schnittkräfte wieder in Basis-KS zurückrechnen (sind vorher im

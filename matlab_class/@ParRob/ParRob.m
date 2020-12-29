@@ -736,27 +736,34 @@ classdef ParRob < RobBase
       end
       U_ges = U_plattform + sum(U_legs);
     end   
-    function w_all = internforce3(R, Fintreg)
+    function w_all = internforce3(R, Fintreg, tau_add)
       % Berechne interne Schnittkräfte basierend auf gegebenem Regressor
       % Eingabe
       % Fintreg: Regressor der Schnittkräfte, aus internforce_regmat
       % (egal, ob w_all_linkframe_reg oder w_all_baseframe_reg)
+      % tau_add: Vektor zusätzlicher Gelenkmomente. Dient als Umschalter
+      % zur Berechnung der Schnittkräfte ohne Dynamik, mit Zusatz-Momenten
       % 
       % Ausgabe:
-      % Fint: Alle Schnittkräfte und -momente
+      % w_all: Alle Schnittkräfte und -momente
       % Indizes: Wie ParRob.internforce
       % 1: Kräfte, dann Momente (immer 6 Einträge)
       % 2: Segmente der Beine
       % 3: Einzelne Beinketten der PKM
       w_all = NaN(6, R.Leg(1).NL, R.NLEG);
-      w_all_stack = Fintreg * R.DynPar.ipv_n1s;
+      if nargin < 3
+        w_all_stack = Fintreg * R.DynPar.ipv_n1s;
+      else
+        w_all_stack = Fintreg * tau_add;
+      end
       for i = 1:R.NLEG
         w_all_stack_i = w_all_stack(6*R.Leg(1).NL*(i-1)+1 : R.Leg(1).NL*6*i);
         w_all(:,:,i) = [reshape(w_all_stack_i(1:R.Leg(1).NL*3), 3, R.Leg(1).NL); ...
                         reshape(w_all_stack_i(R.Leg(1).NL*3+1:end), 3, R.Leg(1).NL)];
       end
     end
-    function [Regmatl_traj, Regmat0_traj] = internforce_regmat_traj(R, Q, QD, QDD, XP, XPD, XPDD, JinvP_ges)
+    function [Regmatl_traj, Regmat0_traj] = internforce_regmat_traj(R, ...
+        Q, QD, QDD, XP, XPD, XPDD, JinvP_ges, TAU_add)
       % Zeitreihe der Schnittkraft-Dynamik-Regressor-Matrix (Trajektorie)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
@@ -767,12 +774,21 @@ classdef ParRob < RobBase
       % XPDD: Endeffektor-Beschleunigung (Trajektorie)
       % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (siehe jacobi_qa_x). Hier Bezug auf Plattform-KS und Euler-Winkel
+      % TAU_add: Zusätzliche Gelenkmomente (als Umschalter); Trajektorie.
       %
       % Ausgabe:
       % Regmatl_traj: Regressormatrizen (als Zeitreihe; zeilenweise)
       % (bezogen auf Schnittkräfte im Körper-KS)
       % Regmat0_traj: Bezogen auf Schnittkräfte im PKM-Basis-KS
-      Regmatl_traj = NaN(size(Q,1), 6*R.Leg(1).NL*R.NLEG*length(R.DynPar.ipv_n1s));
+      if nargin < 9
+        % Keine zusätzlichen Momente gegeben. Regressor der inversen Dynamik
+        % bezüglich der Dynamik-Parameter (Inertialparameter)
+        Regmatl_traj = NaN(size(Q,1), 6*R.Leg(1).NL*R.NLEG*length(R.DynPar.ipv_n1s));
+      else
+        % Zusätzliche Momente gegeben. Regressor bezüglich der Gelenkmomente.
+        % Nicht bezüglich Dynamik-Parameter. Also auch keine Inversdynamik-Effekte.
+        Regmatl_traj = NaN(size(Q,1), 6*R.Leg(1).NL*R.NLEG*size(TAU_add,2));
+      end
       if nargout == 2
         Regmat0_traj = Regmatl_traj;
       end
@@ -782,24 +798,36 @@ classdef ParRob < RobBase
         else
           Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
         end
-        if nargout == 2
-          [~, w_all_linkframe_reg, w_all_baseframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
+        if nargout == 2 % auch Kräfte im Basis-KS fordern.
+          % Übergebe den optionalen Parameter, je nachdem ob er da ist.
+          if nargin < 9
+            [~, w_all_linkframe_reg, w_all_baseframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+              QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
+          else
+            [~, w_all_linkframe_reg, w_all_baseframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+              QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full, TAU_add(i,:)');
+          end
           Regmat0_traj(i,:) = w_all_baseframe_reg(:);
-        else
-          [~, w_all_linkframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
-            QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
+        else % nur eine Ausgabe. Keine Schnittkräfte im Basis-KS anfordern (einfachere Rechnung).
+          if nargin < 9
+            [~, w_all_linkframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+              QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full);
+          else
+            [~, w_all_linkframe_reg] = R.internforce_regmat(Q(i,:)', QD(i,:)', ...
+              QDD(i,:)', XP(i,:)', XPD(i,:)', XPDD(i,:)', Jinv_full, TAU_add(i,:)');
+          end
         end
         Regmatl_traj(i,:) = w_all_linkframe_reg(:);
       end
     end
-    function [FLegl_t, FLeg0_t] = internforce_traj(R, Q, QD, QDD, TAU)
+    function [FLegl_t, FLeg0_t] = internforce_traj(R, Q, QD, QDD, TAU, TAU_add)
       % Schnittkräfte der inversen Dynamik als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
       % QD: Gelenkgeschwindigkeiten (Trajektorie)
       % QDD: Gelenkbeschleunigungen (Trajektorie)
       % TAU: Antriebskräfte
+      % TAU_add: Zusätzliche Gelenkmomente (als Umschalter); Trajektorie.
       %
       % Ausgabe:
       % FLegl_t: Schnittkräfte und -momente (Inverse Dynamik, als Zeitreihe)
@@ -815,10 +843,19 @@ classdef ParRob < RobBase
         FLeg0_t = FLegl_t;
       end
       for i = 1:size(Q,1)
+        % Aufruf der Funktion und Modus der Berechnung je nachdem, ob zusätzliche Gelenkmomente gegeben.
         if nargout == 2 % vollständiger Aufruf (mehr Berechnungen)
-          [~,cf_w_all_linkframe,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+          if nargin < 6
+            [~,cf_w_all_linkframe,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+          else
+            [~,cf_w_all_linkframe,cf_w_all_baseframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)', TAU_add(i,:)');
+          end
         else % einfacher Aufruf
-          [~,cf_w_all_linkframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+          if nargin < 6
+            [~,cf_w_all_linkframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)');
+          else
+            [~,cf_w_all_linkframe] = R.internforce(Q(i,:)', QD(i,:)', QDD(i,:)', TAU(i,:)', TAU_add(i,:)');
+          end
         end
         for j = 1:R.NLEG
           W_j_l = cf_w_all_linkframe(:,:,j);
@@ -834,20 +871,30 @@ classdef ParRob < RobBase
         end
       end
     end
-    function FLeg0_t = internforce3_traj(R, Regmat_traj)
+    function FLeg0_t = internforce3_traj(R, Regmat_traj, TAU_add)
       % Schnittkräfte der inversen Dynamik als Trajektorie (Zeit als Zeilen)
       % Eingabe:
-      % Fintreg_traj: Regressor der Schnittkräfte, aus internforce_regmat
-      %               (Zeitschritte als Zeilen)
+      % Regmat_traj: Regressor der Schnittkräfte, aus internforce_regmat
+      %              (Zeitschritte als Zeilen, Spalten je nachdem, welcher Regressor-Modus)
+      % TAU_add: Zusätzliche Gelenkmomente (als Umschalter für Regressor-Modus); Trajektorie.
       % 
       % Ausgabe:
       % FLeg0_t: Alle Schnittkräfte und -momente
       % Indizes: Wie in ParRob.internforce3
       FLeg0_t = NaN(R.NLEG, 6*R.Leg(1).NL, size(Regmat_traj,1)); % Schnittkräfte in allen Gelenken (Basis-KS)
       for i = 1:size(Regmat_traj,1)
-        w_all_linkframe_reg_i = reshape(Regmat_traj(i,:), ...
-          6*R.Leg(1).NL*R.NLEG, length(R.DynPar.ipv_n1s));
-        cf_w_all_linkframe = R.internforce3(w_all_linkframe_reg_i);
+        if nargin < 3
+          % Normaler Modus: Regressor bezüglich Inertialparameter
+          w_all_linkframe_reg_i = reshape(Regmat_traj(i,:), ...
+            6*R.Leg(1).NL*R.NLEG, length(R.DynPar.ipv_n1s));
+          cf_w_all_linkframe = R.internforce3(w_all_linkframe_reg_i);
+        else
+          % Regressor bezüglich Gelenkmomente (z.B. Reibung, Gelenkfeder)
+          w_all_linkframe_reg_i = reshape(Regmat_traj(i,:), ...
+            6*R.Leg(1).NL*R.NLEG, size(TAU_add,2));
+          cf_w_all_linkframe = R.internforce3(w_all_linkframe_reg_i, TAU_add(i,:)');
+        end
+        
         for j = 1:R.NLEG
           % Umrechnung in anderes Format
           W_j_l = cf_w_all_linkframe(:,:,j);
@@ -872,18 +919,53 @@ classdef ParRob < RobBase
       end
       U_ges = sum(U_legs);
     end
-    function Fa = springtorque_actjoint(R, q, xP, JinvP)
-      % Berechne Antriebskraft aufgrund der Effekte der inversen Dynamik
+    function tau = springtorque(R, q)
+      % Gestapeltes Gelenkmoment aller Drehfedern in den Gelenken
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      %
+      % Ausgabe:
+      % tau: Gestapeltes Gelenkmoment (nicht auf PKM bezogen).
+      tau = NaN(R.NJ,1);
+      for i = 1:R.NLEG
+        q_i = q(R.I1J_LEG(i):R.I2J_LEG(i));
+        tau_i = R.Leg(i).springtorque(q_i);
+        tau(R.I1J_LEG(i):R.I2J_LEG(i)) = tau_i;
+      end
+    end
+    function TAU = springtorque_traj(R, Q)
+      % Gestapeltes Gelenkmoment aller Drehfedern in den Gelenken als
+      % Zeitreihe
+      % Eingabe:
+      % Q: Gelenkkoordinaten als Zeitreihe (Zeile: Zeit)
+      %
+      % Ausgabe:
+      % TAU: Zeitreihe der Gelenkmomente
+      TAU = NaN(size(Q,1), R.NJ);
+      for i = 1:size(Q,1)
+        TAU(i,:) = R.springtorque(Q(i,:)');
+      end
+    end
+    function [Fa, Fa_reg] = jointtorque_actjoint(R, q, xP, tau, JinvP)
+      % Berechne Antriebskraft aufgrund von Gelenkmomenten (unabhängig
+      % von inverser Dynamik). Z.B. Gelenkfeder oder Reibung.
       % Eingabe:
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % tau: Gelenkmomente in den Gelenken der Beinketten
       % JinvP: Inverse Jacobi-Matrix (bezogen auf Plattform-Koordinaten und
       % alle Gelenke). Siehe ParRob/jacobi_qa_x
       %
       % Ausgabe:
       % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
-      % Feder-Kräfte in Endeffektor-Koordinaten berechnen
-      Fx = R.springtorque_platform(q, xP, JinvP);
+      % Fa_reg: Regressor-Matrix der Kraft (bezogen auf Gelenke)
+      % 
+      % Siehe auch: invdyn2_actjoint
+      if nargout == 1 % keine Regressorform
+        Fx = R.jointtorque_platform(q, xP, tau, JinvP);
+      else % mit Regressorform
+        [Fx, Fx_reg] = R.jointtorque_platform(q, xP, tau, JinvP);
+      end
       % Umrechnen der vollständigen inversen Jacobi
       Jinv_qaD_xD = JinvP(R.I_qa,:);
       % Jacobi-Matrix auf Winkelgeschwindigkeiten beziehen. Siehe ParRob/jacobi_qa_x
@@ -897,38 +979,92 @@ classdef ParRob < RobBase
       end
       % Umrechnen auf Antriebskoordinaten. [AbdellatifHei2009], Text nach Gl. (37)
       Fa = Jinv_qaD_sD' \ Fx;
+      % Umrechnen der Regressor-Matrix
+      if nargout == 2
+        Fa_reg = Jinv_qaD_sD' \ Fx_reg;
+      end
     end
-    function Fx_traj = springtorque_platform_traj(R, Q, XP, JinvP_ges)
-      % Inverse Dynamik in Endeffektor-Koordinaten als Trajektorie (Zeit als Zeilen)
+    function [Fx_traj,Fx_traj_reg] = jointtorque_platform_traj(R, Q, XP, TAU, JinvP_ges)
+      % Plattform-Kraft aufgrund von Gelenkmomenten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
-      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % XP: Plattform-Koordinaten (nicht: Endeffektor), Trajektorie
+      % TAU: Gelenkmomente (Trajektorie)
       % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
       %
       % Ausgabe:
-      % Fx_traj: Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      % Fx_traj: äquivalente Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      % Fx_traj_reg: Regressormatrizen von Fx_traj (als Zeitreihe)
       Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      if nargout == 2
+        Fx_traj_reg = NaN(size(Q,1), size(JinvP_ges,2));
+      end
       for i = 1:size(Q,1)
         Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
-        Fx_traj(i,:) = R.invdyn2_platform(Q(i,:)', XP(i,:)', Jinv_full);
+        if nargout < 2 % ohne Regressorform
+          Fx_traj(i,:) = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+        else % mit Regressorform
+          [Fx_traj(i,:),Fx_traj_reg_i] = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+          Fx_traj_reg(i,:) = Fx_traj_reg_i(:);
+        end
       end
     end
-    function Fa_traj = springtorque_actjoint_traj(R, Q, XP, JinvP_ges)
-      % Inverse Dynamik in Antriebskoordinaten als Trajektorie (Zeit als Zeilen)
+    function [Fa_traj, Fa_traj_reg] = jointtorque_actjoint_traj(R, Q, XP, TAU, JinvP_ges)
+      % Antriebskräfte für gegebene Gelenkmomente als Trajektorie (Zeit als Zeilen)
       % Eingabe:
       % Q: Gelenkkoordinaten (Trajektorie)
-      % xP: Plattform-Koordinaten (nicht: Endeffektor)
+      % XP: Plattform-Koordinaten (nicht: Endeffektor); als Trajektorie
+      % TAU: Trajektorie der Gelenkmomente
       % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
       %
       % Ausgabe:
-      % Fa_traj: Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
+      % Fa_traj: Äquivalente Kraft auf Antriebe (Inverse Dynamik, als Zeitreihe)
+      % Fa_traj_reg: Regressormatrizen von Fa_traj (als Zeitreihe)
+      %
+      % Siehe auch: invdyn2_actjoint_traj
       Fa_traj = NaN(size(Q,1),sum(R.I_qa));
+      if nargout == 2
+        Fa_traj_reg = NaN(size(Q,1), size(JinvP_ges,2));
+      end
       for i = 1:size(Q,1)
         Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
-        Fa_traj(i,:) = R.springtorque_actjoint(Q(i,:)', XP(i,:)', Jinv_full);
+        if nargout < 2
+          Fa_traj(i,:) = R.jointtorque_actjoint(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+        else
+          [Fa_traj(i,:), Fa_traj_reg_i] = R.jointtorque_actjoint(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+          Fa_traj_reg(i,:) = Fa_traj_reg_i(:);
+        end
       end
+    end
+    function Fx_traj = jointtorque2_platform_traj(R, Fx_traj_reg, TAU)
+      % Vektor der Plattform-Kraft aus Gelenkkräften (EE-Koordinaten) als
+      % Trajektorie (Zeit als Zeilen)
+      % Eingabe:
+      % Fx_traj_reg: Regressormatrizen (als Zeitreihe); aus jointtorque_platform_traj
+      % TAU: Zeitreihe von Gelenkmomenten
+      %
+      % Ausgabe:
+      % Fx_traj: Äquivalente Plattformkraft zu Eingabe TAU
+      Fx_traj = NaN(size(Fx_traj_reg,1),sum(R.I_EE));
+      for i = 1:size(Fx_traj_reg,1)
+        tau_i = TAU(i,:)';
+        Fx_traj_reg_i = reshape(Fx_traj_reg(i,:), sum(R.I_EE), R.NJ);
+        Fx_traj(i,:) = Fx_traj_reg_i*tau_i;
+      end
+    end
+    function Fa_traj = jointtorque2_actjoint_traj(R, Fa_traj_reg, TAU)
+      % Vektor der Antriebskräfte aus Gelenkkräften als Trajektorie
+      % Eingabe:
+      % Fa_traj_reg: Regressormatrizen (als Zeitreihe); aus jointtorque_actjoint_traj
+      % TAU: Zeitreihe von Gelenkmomenten
+      %
+      % Ausgabe:
+      % Fa_traj: Antriebskräfte zur Kompensation von TAU (als Zeitreihe)
+      % Identische Berechnung wie für Plattform. Nur eigene Funktion zur
+      % besseren Nachvollziehbarkeit beim Aufruf der Funktion.
+      Fa_traj = R.jointtorque2_platform_traj(Fa_traj_reg, TAU);
     end
     function update_mdh_legs(R, pkin)
       % Aktualisiere die Kinematik-Parameter aller Beinketten
