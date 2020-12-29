@@ -31,7 +31,8 @@ function fdynoutput = fdyn(RP, fdynstruct)
   odefun = @(t, y) odefun2(t, y, RP, jm);
   
   % Numerische Integration konfigurieren und durchführen
-  options = odeset('MaxStep',fdynstruct.dtmax); % mit automatischer Schrittweite ist der Fehler zu groß
+  options = odeset( ...
+    'MaxStep',fdynstruct.dtmax); % mit automatischer Schrittweite ist der Fehler zu groß
   SolverOutput = ode45(odefun, [0 t_End], y0, options);
   
   % Ausgabe zusammenstellen
@@ -43,7 +44,7 @@ function fdynoutput = fdyn(RP, fdynstruct)
     'XPDredges', SolverOutput.y(RP.NJ+sum(RP.I_EE)+RP.NJ+1:end,:)');
 end
 
-function f = odefun2(~,y,RP,jm)
+function f = odefun2(t,y,RP,jm) %#ok<INUSL>
   % Eingabe:
   % t: Zeit, Vorgabe in ode45, hier kein Einfluss
   % y: Zustandsvektor: Position und Geschwindigkeit Gelenke und Plattform
@@ -63,7 +64,7 @@ function f = odefun2(~,y,RP,jm)
   % (xE). Dadurch gibt es keine Probleme bei Deckenmontage o.ä.
   q_state = y(1:RP.NJ);
   xP_red = y(RP.NJ+1:RP.NJ+sum(RP.I_EE));
-  qD_state = y(RP.NJ+sum(RP.I_EE)+1:RP.NJ+sum(RP.I_EE)+RP.NJ);
+  qD_state = y(RP.NJ+sum(RP.I_EE)+1:RP.NJ+sum(RP.I_EE)+RP.NJ); %#ok<NASGU>
   xDP_red = y(RP.NJ+sum(RP.I_EE)+RP.NJ+1:end);
   
   % Vollständiger Vektor der Plattform- und EE-Koordinaten.
@@ -122,11 +123,17 @@ function f = odefun2(~,y,RP,jm)
   Mx = RP.inertia2_platform(q, xP, Jinv_voll);
   Gx = RP.gravload2_platform(q, xP, Jinv_voll);
   Cx = RP.coriolisvec2_platform(q, qD, xP, xPD, Jinv_voll, JinvD_voll);
-  Kx = RP.springtorque_platform(q, xP, Jinv_voll);
+  Kx = RP.jointtorque_platform(q, xP, RP.springtorque(q), Jinv_voll);
   % Beschleunigung der Plattform berechnen
   xDDP_red = Mx \ (-Gx - Cx - Kx);
   % Beschleunigung der Beingelenke
   qDD = Jinv_voll*xDDP_red + JinvD_voll*xDP_red;
   % Zeitableitung des Zustandsvektors enthält Geschw. und Beschl.
   f = [qD; xDP_red; qDD; xDDP_red];
+  if any(abs(f) > 1e6)
+    % Abbruch bei sehr großen Zahlenwerten (deutet auf eine Singularität
+    % hin). Ansonsten geht die Schrittweite gegen Null und die
+    % ode-Simulation dauert Tage.
+    f(:) = NaN;
+  end
 end

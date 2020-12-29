@@ -401,7 +401,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         Mx = RP.inertia2_platform(q, xP, Jinv_voll);
         Gx = RP.gravload2_platform(q, xP, Jinv_voll);
         Cx = RP.coriolisvec2_platform(q, qD, xP, xPD, Jinv_voll, JinvD_voll);
-        Kx = RP.springtorque_platform(q, xP, Jinv_voll);
+        Kx = RP.jointtorque_platform(q, xP, RP.springtorque(q), Jinv_voll);
         Facc_ges(i,RP.I_EE) = -Gx - Cx - Kx;
   
         % Beschleunigung der Plattform berechnen
