@@ -76,7 +76,6 @@ for j = 1:RP.NLEG % Für alle Beinketten
     % Gelenkmomente aufgrund interner Dynamik
     tau_j_reg = W_j_l_int_reg(I_joints,:);
   else
-
     % Einfachster Fall: Setze überall eine "1", wo die Schnittkraft direkt
     % dem Gelenk entspricht. Dann ergibt der Regressor multipliziert mit dem
     % Gelenkmoment-Vektor wieder die richtige Schnittkraft. Benutze den
@@ -86,12 +85,12 @@ for j = 1:RP.NLEG % Für alle Beinketten
       tau_j_reg(k, RP.I1J_LEG(j)+k-1) = tau_add_mult(RP.I1J_LEG(j)+k-1);
     end
   end
-
   % Antriebsmomente dieses Beins (passive sind Null)
   % Anzahl der Spalten bei Dynamik: RP.Leg(j).NJ*10+sum(RP.I_platform_dynpar); erste Spalten für Parameter der Beinkette, letzte für die der Plattform
   % Anzahl der Spalten bei Gelenkmoment: RP.NJ
   tau_m_j_reg = zeros( RP.Leg(j).NQJ, size(Fa_reg,2) );
   tau_m_j_reg(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j)),:) = Fa_reg(j,:); % TODO: Aktuell nur ein Antrieb pro Bein
+
   R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
 
   % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
@@ -134,8 +133,9 @@ for j = 1:RP.NLEG % Für alle Beinketten
     % als innere Kräfte)
     W_j_l_reg = -W_j_l_ext_reg + W_j_l_int_reg;
   else
-    % Nur Betrachtung der zusätzlichen Gelenkmoment als externe Kraft
-    W_j_l_reg = W_j_l_ext_reg;
+    % Nur Betrachtung der zusätzlichen Gelenkmoment als externe Kraft.
+    % Gleiche Formel wie im anderen Fall, aber W_j_l_int_reg=0.
+    W_j_l_reg = -W_j_l_ext_reg;
   end
   % Ergebnisse für diese Beinkette eintragen
   sblock = size(W_j_l_reg,1);

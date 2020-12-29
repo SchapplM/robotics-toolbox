@@ -59,6 +59,9 @@ ISges_PKM = rand(size(RP.DynPar.Icges));
 mges_PKM(end,:) = 0; % Masselose Plattform (für Plausibilitäts-Test der Gravitation)
 rSges_PKM(end,:) = 0;
 ISges_PKM(end,:) = 0;
+mges_PKM(end-1,:) = 0; % Masseloser virtueller Körper nach Koppelgelenk
+rSges_PKM(end-1,:) = 0; % (für Prüfung der Koppelgelenk-Schnittkraft)
+ISges_PKM(end-1,:) = 0;
 RP.update_dynpar1 (mges_PKM, rSges_PKM, ISges_PKM);
 % Inertial-Parameter als Dynamik-Parameter benutzen (notwendig für
 % Regressorform der Schnittkräfte).
@@ -191,6 +194,17 @@ fprintf(['Getestet: jointtorque_actjoint_traj mit einer Ausgabe (%1.1fms) ', ...
 % Antriebskraft.
 t1 = tic();
 [w_B, w_all_linkframe, w_all_baseframe] = RP.internforce(q, qD, qDD, tauA);
+% Plausibilisiere Schnittkräfte am Plattform-Koppelgelenk
+for i = 1:RP.NLEG
+  test_fB1 = norm(w_B(1:3,i))-norm(w_all_linkframe(1:3,end,i));
+  test_mB1 = norm(w_B(4:6,i))-norm(w_all_linkframe(4:6,end,i));
+  test_fB2 = norm(w_all_baseframe(1:3,end,i))-norm(w_all_linkframe(1:3,end,i));
+  test_mB2 = norm(w_all_baseframe(4:6,end,i))-norm(w_all_linkframe(4:6,end,i));
+  assert(all([test_fB1;test_fB2]<1e-9), ['Koppelgelenk-Schnittkraft nach ', ...
+    'zwei Berechnungen ungleich']);
+  assert(all([test_mB1;test_mB2]<1e-9), ['Koppelgelenk-Schnittmoment nach ', ...
+    'zwei Berechnungen ungleich']);
+end
 T_internforce = toc(t1);
 % Prüfe die Komponenten der Schnittkräfte/-momente, die den
 % Antriebsgelenken entsprechen. Muss identisch mit Antriebskraft sein.
@@ -242,9 +256,29 @@ tauA_Grav = RP.invdyn2_actjoint(q, 0*qD, 0*qDD, xP,0*xDP,0*xDDP,JinvP);
 % Schnittkräfte zur Kompensation des Vektors der Gelenkmomente aus den
 % Beinketten-Gravitationsmomenten (inkl dafür notwendige Antriebskraft).
 [w_B_grav, w_all_linkframe_grav, w_all_baseframe_grav] = RP.internforce(q, 0*qD, 0*qDD, tauA_Grav, tau_Grav);
+for i = 1:RP.NLEG
+  test_fB1 = norm(w_B_grav(1:3,i))-norm(w_all_linkframe_grav(1:3,end,i));
+  test_mB1 = norm(w_B_grav(4:6,i))-norm(w_all_linkframe_grav(4:6,end,i));
+  test_fB2 = norm(w_all_baseframe_grav(1:3,end,i))-norm(w_all_linkframe_grav(1:3,end,i));
+  test_mB2 = norm(w_all_baseframe_grav(4:6,end,i))-norm(w_all_linkframe_grav(4:6,end,i));
+  assert(all([test_fB1;test_fB2]<1e-9), ['Koppelgelenk-Schnittkraft nach ', ...
+    'zwei Berechnungen ungleich']);
+  assert(all([test_mB1;test_mB2]<1e-9), ['Koppelgelenk-Schnittmoment nach ', ...
+    'zwei Berechnungen ungleich']);
+end
 % Schnittkräfte aufgrund der Gravitation (und damit verbundener Antriebs-
 % kräfte). Hier ist die PKM im statischen Gleichgewicht.
 [w_B_grav2, w_all_linkframe_grav2, w_all_baseframe_grav2] = RP.internforce(q, 0*qD, 0*qDD, tauA_Grav);
+for i = 1:RP.NLEG
+  test_fB1 = norm(w_B_grav2(1:3,i))-norm(w_all_linkframe_grav2(1:3,end,i));
+  test_mB1 = norm(w_B_grav2(4:6,i))-norm(w_all_linkframe_grav2(4:6,end,i));
+  test_fB2 = norm(w_all_baseframe_grav2(1:3,end,i))-norm(w_all_linkframe_grav2(1:3,end,i));
+  test_mB2 = norm(w_all_baseframe_grav2(4:6,end,i))-norm(w_all_linkframe_grav2(4:6,end,i));
+  assert(all([test_fB1;test_fB2]<1e-9), ['Koppelgelenk-Schnittkraft nach ', ...
+    'zwei Berechnungen ungleich']);
+  assert(all([test_mB1;test_mB2]<1e-9), ['Koppelgelenk-Schnittmoment nach ', ...
+    'zwei Berechnungen ungleich']);
+end
 % Prüfe, in wie weit die beiden Ergebnisse übereinstimmen
 test_w_B_grav = w_B_grav-w_B_grav2;
 % test_w_all_linkframe_grav = w_all_linkframe_grav-w_all_linkframe_grav2;
@@ -266,6 +300,8 @@ for i = 1:RP.NLEG
 %   test_w_all_linkframe_grav(:,1,i) = NaN;
 %   test_w_all_baseframe_grav(:,1,i) = NaN;
 end
+% Entferne die Antriebskräfte
+tau_Grav2(RP.I_qa) = tau_Grav2(RP.I_qa) - tauA_Grav;
 % Die Kräfte an den Plattform-Koppelgelenken müssen gleich sein
 assert(all(abs(test_w_B_grav(:))<1e-10), 'Erste Ausgabe von internforce (mit Gravitation) stimmt nicht');
 % Der Vergleich der Schnittkräfte mit den beiden Berechnungen ist nicht
@@ -282,13 +318,11 @@ assert(all(abs(test_w_B_grav(:))<1e-10), 'Erste Ausgabe von internforce (mit Gra
 % die Schnittkraft, die der Antriebskraft entspricht (in Gelenkkoordinate)
 assert(all(abs(tau_Grav3(~RP.I_qa)) < 1e-10), 'Passive Gelenke haben keine Schnittkraft von Null');
 assert(all(abs(tau_Grav3( RP.I_qa)-tauA_Grav) < 1e-10), 'Schnittkraft der aktiven Gelenke entspricht nicht der Antriebskraft');
-% Berechnung für Gelenkmoment-Vektor. Schnittkraft in passiven Gelenken
-% muss jetzt dem vorgegebenen Vektor entsprechen. Bei aktiven Gelenken
-% zusätzlich die vorgegebene Antriebskraft zur Kompensation des Effekts.
-assert(all(abs(tau_Grav2(~RP.I_qa) - tau_Grav(~RP.I_qa)) < 1e-10), ...
-  'Vorgegebene Schnittmomente lassen sich nicht für passive Gelenke rekonstruieren');
-assert(all(abs(tau_Grav2(RP.I_qa) + tauA_Grav - tau_Grav(RP.I_qa)) < 1e-10), ...
-  'Vorgegebene Schnittmomente lassen sich nicht für aktive Gelenke rekonstruieren');
+% Berechnung für Gelenkmoment-Vektor. Schnittkraft muss jetzt dem vorgege-
+% benen Vektor entsprechen. Negatives Vorzeichen, da Bezug in andere
+% Richtung als Antriebsmoment.
+assert(all(abs(tau_Grav - (-tau_Grav2)) < 1e-10), ...
+  'Vorgegebene Schnittmomente lassen sich nicht rekonstruieren');
 fprintf('Getestet: Plausibilität von internforce mit Gravitationsmomenten\n');
 
 %% Test: Schnittkraft aus Gelenkfeder
@@ -309,9 +343,13 @@ for i = 1:RP.NLEG
     tau_add2(RP.I1J_LEG(i)+j-1) = w_all_linkframe_spring(Row_j, Col_j, i);
   end
 end
-test_tau_add = NaN(length(tau_add),1);
-test_tau_add(~RP.I_qa) = tau_add(~RP.I_qa) - tau_add2(~RP.I_qa); % passiv
-test_tau_add(RP.I_qa) = tau_add(RP.I_qa) - (tau_add2(RP.I_qa)+Fa); % aktiv
+% Ziehe Antriebskraft hier ab. Übrig bleiben muss das vorgegebene Gelenk-
+% moment.
+tau_add2(RP.I_qa) = tau_add2(RP.I_qa) - Fa;
+% Vergleiche die Gelenkmomente aus den Schnittkräften und aus Eingabe.
+% Das Vorzeichen in den Schnittkräften muss gedreht sein, da das
+% Federmoment auf der linken Seite der Dynamik-Gleichung steht.
+test_tau_add = tau_add - (-tau_add2);
 assert(all(abs(test_tau_add) < 1e-10), 'Schnittkraft stimmt nicht gegen Gelenkmoment in internforce');
 
 % Gleiche Berechnung nur mit Regressorform. Ergebnis muss gleich sein.
@@ -335,10 +373,9 @@ for i = 1:RP.NLEG
     tau_add3(RP.I1J_LEG(i)+j-1) = w_all_linkframe_spring_fromreg(Row_j, Col_j, i);
   end
 end
+tau_add3(RP.I_qa) = tau_add3(RP.I_qa) - Fa; % Antriebskräfte abziehen
 % Erneute Prüfung, ob Gelenkmomente in Schnittkraft enthalten.
-test_tau_add2 = NaN(length(tau_add),1);
-test_tau_add2(~RP.I_qa) = tau_add(~RP.I_qa) - tau_add3(~RP.I_qa);
-test_tau_add2(RP.I_qa) = tau_add(RP.I_qa) - (tau_add3(RP.I_qa)+Fa);
+test_tau_add2 = tau_add - (-tau_add3);
 assert(all(abs(test_tau_add2) < 1e-10), 'Schnittkraft stimmt nicht gegen Gelenkmoment in internforce_regmat');
 % Prüfe, ob Regressorform und direkte Berechnung zu gleichen Ergebnis führen.
 assert(all(abs(test_w_B_spring(:))<1e-10), 'Erste Ausgabe von internforce (mit Feder) stimmt nicht gegen internforce_regmat');

@@ -11,6 +11,8 @@
 %   Dynamik (Massenträgheit, Coriolis, Gravitation) nicht berechnet.
 %   Die Eingabe tau_A sollte so gesetzt werden, dass sie die Gelenkmomente 
 %   kompensieren (siehe ParRob/jointtorque_actjoint).
+%   Definition entgegengesetzt zu tau_m: MqDD + c + g = tau_m - tau_add
+%   (verallgemeinerte Gleichung; tau_m entspricht tauA).
 % 
 % Ausgabe:
 % w_B [6xNLEG]
@@ -44,21 +46,16 @@ for j = 1:RP.NLEG % Für alle Beinketten
     % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
     % der inversen Dynamik (Massenträgheit, Coriolis, Gravitation)
     W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
+    % Gelenkmomente aufgrund interner Dynamik
+    tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
+            (RP.Leg(j).MDH.sigma==1) .* W_j_l_int(3, 2:end)';
   else
     % Zähle die zusätzlich gegebenen Gelenkmomente für die Berechnung der
     % Schnittkräfte und ignoriere die inverse Dynamik. Diese Momente sind
-    % bspw. Reibkräfte (in allen Gelenken) oder Federmomente
-    W_j_l_int = zeros(6, RP.Leg(1).NL);
-    tau_j_add = tau_add(RP.I1J_LEG(j):RP.I2J_LEG(j));
-    W_j_l_int(3,[false;RP.Leg(j).MDH.sigma==1]) = ... % Schubgelenke
-      tau_j_add(RP.Leg(j).MDH.sigma==1)';
-    W_j_l_int(6,[false;RP.Leg(j).MDH.sigma==0]) = ... % Drehgelenke
-      tau_j_add(RP.Leg(j).MDH.sigma==0)';
+    % bspw. Reibkräfte (in allen Gelenken) oder Federmomente.
+    % Keine internen Schnittkräfte; W_j_l_int daher Null und nicht benutzt.
+    tau_j = tau_add(RP.I1J_LEG(j):RP.I2J_LEG(j));
   end
-  % Gelenkmomente aufgrund interner Dynamik
-  tau_j = (RP.Leg(j).MDH.sigma==0) .* W_j_l_int(6, 2:end)' + ...
-          (RP.Leg(j).MDH.sigma==1) .* W_j_l_int(3, 2:end)';
-
   % Antriebsmomente dieses Beins (passive sind Null)
   tau_m_j = zeros(RP.Leg(j).NQJ,1);
   tau_m_j(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j))) = tauA(j); % TODO: Aktuell nur ein Antrieb pro Bein
@@ -94,9 +91,8 @@ for j = 1:RP.NLEG % Für alle Beinketten
     % Anderer Berechnungsmodus: Zähle nur die Schnittkräfte durch die Gelenk-
     % momente, die vorgegeben sind. Kein Zählen als interne Dynamik. Damit
     % bspw. auch Schnittmomente in passiven Drehgelenken möglich.
-    % Es wird trotzdem die PKM-Kopplung mit berücksichtigt.
-    % TODO: Es fehlt noch eine gute mathematische Herleitung.
-    W_j_l = W_j_l_ext;
+    % Gleiche Formel wie im anderen Fall, aber W_j_l_int=0.
+    W_j_l = -W_j_l_ext;
   end
   w_all_linkframe(:,:,j) = W_j_l;
   

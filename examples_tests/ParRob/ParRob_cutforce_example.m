@@ -3,7 +3,7 @@
 % * Definition Roboter (6UPS) und Beispieltrajektorie (singularitätsfrei)
 % * Berechnung inverse Dynamik, Antriebs- und Schnittkräfte
 % * Prüfe energetische Konsistenz für die Umrechnung Antriebe/Plattform
-% * Zeichne Auswertungsbilder zur Prüfung der Plausibilität
+% * Zeichne Auswertungsbilder zur Prüfung der Plausibilität (optional)
 % 
 % Siehe auch: ParRob_class_example_6UPS.m
 %
@@ -23,7 +23,8 @@ if isempty(which('parroblib_path_init.m'))
 end
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
-usr_jointspring = true;
+usr_jointspring = true; % <-- hier false, um die Gelenkelastizität zu deaktivieren
+usr_nofigures = true; % <-- hier false, falls Bilder gezeichnet werden sollen
 %% Definiere Roboter
 RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
 % Beinketten und PKM mit kompilierten Funktionen
@@ -87,7 +88,7 @@ s = struct( ...
              'n_max', 1000, ... % Maximale Anzahl Iterationen
              'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
              'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-[Q_t, QD_t, QDD_t, Phi_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, T, q0, s);
+[Q_t, QD_t, QDD_t, Phi_t, Jinv_t] = RP.invkin2_traj(X_t, XD_t, XDD_t, T, q0, s);
 if any(any(abs(Phi_t(:,RP.I_constr_t_red)) > 1e-10)) || ...
    any(any(abs(Phi_t(:,RP.I_constr_r_red)) > 1e-10))
    error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
@@ -107,13 +108,14 @@ if usr_jointspring
 end
 
 %% Roboter in Startpose plotten
-figure(1);clf;set(1, 'Name', 'Startpose', 'NumberTitle', 'off');
-hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-view(3);
-s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-RP.plot( q0, X0, s_plot );
-
+if ~usr_nofigures
+  figure(1);clf;set(1, 'Name', 'Startpose', 'NumberTitle', 'off');
+  hold on;grid on;
+  xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+  view(3);
+  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
+  RP.plot( q0, X0, s_plot );
+end
 %% Dynamik-Parameter
 mges = zeros(size(RP.DynPar.mges));
 rSges = zeros(size(RP.DynPar.rSges));
@@ -171,7 +173,7 @@ for i = 1:nt
   % Berechne Dynamik in Plattform-Koordinaten (unabhängig von Aktuierung)
   tauX = RP.invdyn_platform(q,x,xD,xDD);
   if usr_jointspring
-    tauX = tauX + RP.springtorque_platform(q, x);
+    tauX = tauX + RP.jointtorque_platform(q, x, RP.springtorque(q));
   end
   
   % Projiziere die Dynamik in die Koordinaten der Antriebsgelenke
@@ -200,6 +202,15 @@ for i = 1:nt
   
   % Berechne die Schnittkräfte mit der Klassenmethode
   [cf_w_B, cf_w_all_linkframe, cf_w_all_baseframe] = RP.internforce(q, qD, qDD, tauA);
+  if usr_jointspring
+    % Schnittkräfte verursacht durch Federmomente zusätzlich berechnen.
+    % Nicht in vorherigem Aufruf enthalten.
+    [cf_w_B_spring, cf_w_all_linkframe_spring, cf_w_all_baseframe_spring] = ...
+      RP.internforce(q, 0*qD, 0*qDD, 0*tauA, RP.springtorque(q));
+    cf_w_B = cf_w_B + cf_w_B_spring;
+    cf_w_all_linkframe = cf_w_all_linkframe + cf_w_all_linkframe_spring;
+    cf_w_all_baseframe = cf_w_all_baseframe + cf_w_all_baseframe_spring;
+  end
   
   % Berechne die Schnittkräfte. Siehe Aufzeichnungen Schappler, 9.5.19
   Fx_sumB = zeros(6,1); % Kraftsumme der Beine auf die Plattform
@@ -242,17 +253,8 @@ for i = 1:nt
     F_B_j_0j = rotate_wrench(FB_j_0, R_0_0j');
     % Schnittkräfte des Beins im Bein-KS berechnen ("l"=Linkframe)
     W_j_l_ext = RP.Leg(j).internforce_ext(q_j, F_B_j_0j, RP.Leg(j).NL-1, zeros(3,1));
-    % Schnittkräfte aufgrund der internen Kräfte
+    % Schnittkräfte aufgrund der internen Kräfte (M, c, g; keine Feder)
     W_j_l_int = RP.Leg(j).internforce(q_j, qD_j, qDD_j);
-    if usr_jointspring
-      for k = 2:RP.Leg(j).NJ+1
-        if RP.Leg(j).MDH.sigma(k-1) == 0 % Drehgelenk: 6. Eintrag
-          W_j_l_int(6,k) = W_j_l_int(6,k) + tau_j_spring(k-1);
-        else % Schubgelenk: 3. Eintrag
-          W_j_l_int(3,k) = W_j_l_int(3,k) + tau_j_spring(k-1);
-        end
-      end
-    end
     % Teste Schnittkräfte in Koppelpunkten mit den Schnittkräften im
     % letzten Segment. Müssen übereinstimmen
     if max(abs( norm(FB_j_0(1:3)) - norm(W_j_l_ext(1:3,end)) )) > 10*max(eps(1+abs(FB_j_0(1:3))))
@@ -296,6 +298,11 @@ for i = 1:nt
         tau_m_j_from_W(k-1) = W_j_l(3,k);
       end
     end
+    if usr_jointspring
+      % Zähle die Federmomente als virtuelle Aktuierung. Auf die Schnittkräfte
+      % wirken die Gelenkmomente entgegengesetzt zu tau_m. Daher "doppeltes Minus".
+      tau_m_j_from_W = tau_m_j_from_W + tau_j_spring;
+    end
     test_taum = tau_m_j - tau_m_j_from_W;
     if any( abs(test_taum) > 1e4*max(eps(1+abs(tau_m_j))) )
       error('Schnittkräfte in den Gelenken stimmen nicht mit Antriebskräften der Beinkette überein');
@@ -338,8 +345,9 @@ end
 fprintf('Inverse Dynamik berechnet. Dauer: %1.1fs\n', toc(t1));
 
 %% Ergebnisse plotten: Zeitverlauf der Plattform-Trajektorie
-figure(8);clf;set(8, 'Name', 'Plattform', 'NumberTitle', 'off');
-for k = 1:6
+if ~usr_nofigures
+  figure(8);clf;set(8, 'Name', 'Plattform', 'NumberTitle', 'off');
+  for k = 1:6
     subplot(4,6,sprc2no(4,6,1,k));hold on;
     plot(T, X_t(:,k));
     plot(T(X_sp), X_t(X_sp,k), 'o');
@@ -365,13 +373,14 @@ for k = 1:6
     if k < 4, ylabel(sprintf('F_{P%s} in N', char(119+k)));
     else,     ylabel(sprintf('M_{P%s} in Nm', char(119+k-3))); end
     grid on;
+  end
+  linkxaxes
 end
-linkxaxes
-
 %% Ergebnisse plotten: Zeitverlauf der Antriebsgelenke
 II_qa = find(RP.I_qa);
-figure(7);clf;set(7, 'Name', 'Antriebsgelenke', 'NumberTitle', 'off');
-for k = 1:6
+if ~usr_nofigures
+  figure(7);clf;set(7, 'Name', 'Antriebsgelenke', 'NumberTitle', 'off');
+  for k = 1:6
     subplot(4,6,sprc2no(4,6,1,k));hold on;
     plot(T, Q_t(:,II_qa(k)));
     plot(T(X_sp), Q_t(X_sp,II_qa(k)), 'o');
@@ -394,161 +403,164 @@ for k = 1:6
     xlabel('t in s');
     ylabel(sprintf('\\tau_{a%d} in %s', k, RP.Leg(k).tauunit_sci{II_qai(k)}));
     grid on;
-end
-linkxaxes
-
-%% Ergebnisse plotten: Zeitverlauf weiterer Kenndaten der PKM
-figure(4);clf;set(4, 'Name', 'Diagnose', 'NumberTitle', 'off');
-subplot(2,3,sprc2no(2,3,1,1)); hold on;
-plot(T, log10(abs(Det_t(:,1:4))));
-plot(T, log10(abs(Det_t(:,5))), '--');
-ylabel('Log. Determinante der Jacobi-Matrizen');
-xlabel('t in s');
-grid on;
-legend({'Phi_{dx}', 'Phi_{q}', 'J_{num}', 'Jinv_{num}', 'Jinv_{sym}'});
-title('Determinante (für Singularität)');
-subplot(2,3,sprc2no(2,3,2,1)); hold on;
-plot(T, log10(abs(Det_t(:,6:end))));
-ylabel('Log. Determinante der IK-Jacobis');
-xlabel('t in s');
-title('Determinante der Beinketten');
-grid on;
-legend({'Jinv_{1}', 'Jinv_{2}', 'Jinv_{3}', 'Jinv_{4}', 'Jinv_{5}', 'Jinv_{6}'});
-subplot(2,3,sprc2no(2,3,1,2)); hold on;
-plot(T, Phi_t(:,RP.I_constr_t));
-plot(T([1 end]), s.Phit_tol*[1;1], 'r--');
-plot(T([1 end]),-s.Phit_tol*[1;1], 'r--');
-grid on;
-ylabel('\Phi_{trans} in m');
-xlabel('t in s');
-title('Zwangsbedingungen (transl.)');
-subplot(2,3,sprc2no(2,3,2,2)); hold on;
-plot(T, Phi_t(:,RP.I_constr_r));
-plot(T([1 end]), s.Phir_tol*[1;1], 'r--');
-plot(T([1 end]),-s.Phir_tol*[1;1], 'r--');
-grid on;
-ylabel('\Phi_{rot} in rad');
-xlabel('t in s');
-title('Zwangsbedingungen (rot.)');
-subplot(2,3,sprc2no(2,3,1,3)); hold on;
-plot(T, P_ges_t(:,1:6));
-plot(T, P_ges_t(:,13), '--');
-ylabel('Leistung in Antriebskoord. in W');
-xlabel('t in s'); grid on;
-legend({'A1','A2','A3','A4','A5','A6','Summe'});
-title('Mech. Leistung (Plausibilität)');
-subplot(2,3,sprc2no(2,3,2,3)); hold on;
-plot(T, P_ges_t(:,7:12));
-plot(T, P_ges_t(:,14), '--');
-ylabel('Leistung in Plattformkoord. in W');
-xlabel('t in s'); grid on;
-legend({'Pfx','Pfy','Pfz','Pmx','Pmy','Pmz','Summe'});
-linkxaxes
-
-%% Ergebnisse plotten: Zeitverlauf der Schnittkräfte
-figure(10);clf;set(10, 'Name', 'Schnittkräfte_Koppelpunkte', 'NumberTitle', 'off');
-for j = 1:RP.NLEG
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,1,j)); hold on;
-  plot(T, FA_t(:, (j-1)*8+1:(j*8)-5))
-  plot(T, FA_t(:, (j-1)*8+7))
-  if j == RP.NLEG, legend({'fx', 'fy', 'fz', 'norm'}); end
-  ylabel(sprintf('Schnittkraft A%d in N', j));
-  grid on;
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,2,j)); hold on;
-  plot(T, FA_t(:, (j-1)*8+4:(j*8)-2));
-  plot(T, FA_t(:, (j-1)*8+8));
-  if j == RP.NLEG, legend({'mx', 'my', 'mz', 'norm'}); end
-  ylabel(sprintf('Schnittmoment A%d in Nm', j));
-  grid on;
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,3,j)); hold on;
-  plot(T, FB_t(:, (j-1)*8+1:(j*8)-5))
-  plot(T, FB_t(:, (j-1)*8+7))
-  if j == RP.NLEG, legend({'fx', 'fy', 'fz', 'norm'}); end
-  ylabel(sprintf('Schnittkraft B%d in N', j));
-  grid on;
-  subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,4,j)); hold on;
-  plot(T, FB_t(:, (j-1)*8+4:(j*8)-2));
-  plot(T, FB_t(:, (j-1)*8+8));
-  if j == RP.NLEG, legend({'mx', 'my', 'mz', 'norm'}); end
-  ylabel(sprintf('Schnittmoment B%d in Nm', j));
-  xlabel('t in s'); grid on;
-end
-linkxaxes
-
-%% Ergebnisse plotten: Zeitverlauf der Schnittkräfte und -momente aller Beingelenke aller Beine
-for ks = [2 4]
-  if ks == 2
-    ksstr = '0';
-  else
-    ksstr = 'i';
   end
-  for fm = [0 1]
-    figure(11+fm+ks);clf;
-    if fm == 0
-      set(11+fm+ks, 'Name', sprintf('Schnittkräfte_Beine_KS%s',ksstr), 'NumberTitle', 'off');
+  linkxaxes
+end
+%% Ergebnisse plotten: Zeitverlauf weiterer Kenndaten der PKM
+if ~usr_nofigures
+  figure(4);clf;set(4, 'Name', 'Diagnose', 'NumberTitle', 'off');
+  subplot(2,3,sprc2no(2,3,1,1)); hold on;
+  plot(T, log10(abs(Det_t(:,1:4))));
+  plot(T, log10(abs(Det_t(:,5))), '--');
+  ylabel('Log. Determinante der Jacobi-Matrizen');
+  xlabel('t in s');
+  grid on;
+  legend({'Phi_{dx}', 'Phi_{q}', 'J_{num}', 'Jinv_{num}', 'Jinv_{sym}'});
+  title('Determinante (für Singularität)');
+  subplot(2,3,sprc2no(2,3,2,1)); hold on;
+  plot(T, log10(abs(Det_t(:,6:end))));
+  ylabel('Log. Determinante der IK-Jacobis');
+  xlabel('t in s');
+  title('Determinante der Beinketten');
+  grid on;
+  legend({'Jinv_{1}', 'Jinv_{2}', 'Jinv_{3}', 'Jinv_{4}', 'Jinv_{5}', 'Jinv_{6}'});
+  subplot(2,3,sprc2no(2,3,1,2)); hold on;
+  plot(T, Phi_t(:,RP.I_constr_t));
+  plot(T([1 end]), s.Phit_tol*[1;1], 'r--');
+  plot(T([1 end]),-s.Phit_tol*[1;1], 'r--');
+  grid on;
+  ylabel('\Phi_{trans} in m');
+  xlabel('t in s');
+  title('Zwangsbedingungen (transl.)');
+  subplot(2,3,sprc2no(2,3,2,2)); hold on;
+  plot(T, Phi_t(:,RP.I_constr_r));
+  plot(T([1 end]), s.Phir_tol*[1;1], 'r--');
+  plot(T([1 end]),-s.Phir_tol*[1;1], 'r--');
+  grid on;
+  ylabel('\Phi_{rot} in rad');
+  xlabel('t in s');
+  title('Zwangsbedingungen (rot.)');
+  subplot(2,3,sprc2no(2,3,1,3)); hold on;
+  plot(T, P_ges_t(:,1:6));
+  plot(T, P_ges_t(:,13), '--');
+  ylabel('Leistung in Antriebskoord. in W');
+  xlabel('t in s'); grid on;
+  legend({'A1','A2','A3','A4','A5','A6','Summe'});
+  title('Mech. Leistung (Plausibilität)');
+  subplot(2,3,sprc2no(2,3,2,3)); hold on;
+  plot(T, P_ges_t(:,7:12));
+  plot(T, P_ges_t(:,14), '--');
+  ylabel('Leistung in Plattformkoord. in W');
+  xlabel('t in s'); grid on;
+  legend({'Pfx','Pfy','Pfz','Pmx','Pmy','Pmz','Summe'});
+  linkxaxes
+end
+%% Ergebnisse plotten: Zeitverlauf der Schnittkräfte
+if ~usr_nofigures
+  figure(10);clf;set(10, 'Name', 'Schnittkräfte_Koppelpunkte', 'NumberTitle', 'off');
+  for j = 1:RP.NLEG
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,1,j)); hold on;
+    plot(T, FA_t(:, (j-1)*8+1:(j*8)-5))
+    plot(T, FA_t(:, (j-1)*8+7))
+    if j == RP.NLEG, legend({'fx', 'fy', 'fz', 'norm'}); end
+    ylabel(sprintf('Schnittkraft A%d in N', j));
+    grid on;
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,2,j)); hold on;
+    plot(T, FA_t(:, (j-1)*8+4:(j*8)-2));
+    plot(T, FA_t(:, (j-1)*8+8));
+    if j == RP.NLEG, legend({'mx', 'my', 'mz', 'norm'}); end
+    ylabel(sprintf('Schnittmoment A%d in Nm', j));
+    grid on;
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,3,j)); hold on;
+    plot(T, FB_t(:, (j-1)*8+1:(j*8)-5))
+    plot(T, FB_t(:, (j-1)*8+7))
+    if j == RP.NLEG, legend({'fx', 'fy', 'fz', 'norm'}); end
+    ylabel(sprintf('Schnittkraft B%d in N', j));
+    grid on;
+    subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,4,j)); hold on;
+    plot(T, FB_t(:, (j-1)*8+4:(j*8)-2));
+    plot(T, FB_t(:, (j-1)*8+8));
+    if j == RP.NLEG, legend({'mx', 'my', 'mz', 'norm'}); end
+    ylabel(sprintf('Schnittmoment B%d in Nm', j));
+    xlabel('t in s'); grid on;
+  end
+  linkxaxes
+end
+%% Ergebnisse plotten: Zeitverlauf der Schnittkräfte und -momente aller Beingelenke aller Beine
+if ~usr_nofigures
+  for ks = [2 4]
+    if ks == 2
+      ksstr = '0';
     else
-      set(11+fm+ks, 'Name', sprintf('Schnittmoment_Beine_KS%s',ksstr), 'NumberTitle', 'off');
+      ksstr = 'i';
     end
-    sphdl=NaN(RP.Leg(1).NL, RP.NLEG);
-    for k = 1:RP.NLEG % Beine in den Spalten des Bildes
-      % Vektor der Schnittkräfte für aktuelles Bein extrahieren
-      if ks == 2
-        W_k = squeeze(FLeg0_t(:,k,:))';
+    for fm = [0 1]
+      figure(11+fm+ks);clf;
+      if fm == 0
+        set(11+fm+ks, 'Name', sprintf('Schnittkräfte_Beine_KS%s',ksstr), 'NumberTitle', 'off');
       else
-        W_k = squeeze(FLegl_t(:,k,:))';
+        set(11+fm+ks, 'Name', sprintf('Schnittmoment_Beine_KS%s',ksstr), 'NumberTitle', 'off');
       end
-      for j = 1:RP.Leg(1).NL % Beingelenke in den Zeilen des Bildes
-        % Indizes zur Auswahl der Kräfte und Momente in den Gesamtdaten
-        IIfm = ((j-1)*6+1:(j-1)*6+3);
-        if fm ==1, IIfm = IIfm+3; end
-        % Betrag bilden
-        fmnorm_ges_jk = sum(W_k(:,IIfm).^2,2).^0.5;
-        % Plotten
-        sphdl(j,k)=subplot(size(sphdl,1),size(sphdl,2),sprc2no(size(sphdl,1),size(sphdl,2),j,k)); hold on;
-        plot(T, [W_k(:,IIfm), fmnorm_ges_jk]);
-        % Formatierung
-        grid on;
-        if j == 1
-          title(sprintf('Beinkette %d', k));
+      sphdl=NaN(RP.Leg(1).NL, RP.NLEG);
+      for k = 1:RP.NLEG % Beine in den Spalten des Bildes
+        % Vektor der Schnittkräfte für aktuelles Bein extrahieren
+        if ks == 2
+          W_k = squeeze(FLeg0_t(:,k,:))';
+        else
+          W_k = squeeze(FLegl_t(:,k,:))';
         end
-        if k == 1
-          if fm == 0
-            ylabel(sprintf('Kraft KS %d in N', j-1));
-          else
-            ylabel(sprintf('Moment KS %d in Nm', j-1));
+        for j = 1:RP.Leg(1).NL % Beingelenke in den Zeilen des Bildes
+          % Indizes zur Auswahl der Kräfte und Momente in den Gesamtdaten
+          IIfm = ((j-1)*6+1:(j-1)*6+3);
+          if fm ==1, IIfm = IIfm+3; end
+          % Betrag bilden
+          fmnorm_ges_jk = sum(W_k(:,IIfm).^2,2).^0.5;
+          % Plotten
+          sphdl(j,k)=subplot(size(sphdl,1),size(sphdl,2),sprc2no(size(sphdl,1),size(sphdl,2),j,k)); hold on;
+          plot(T, [W_k(:,IIfm), fmnorm_ges_jk]);
+          % Formatierung
+          grid on;
+          if j == 1
+            title(sprintf('Beinkette %d', k));
+          end
+          if k == 1
+            if fm == 0
+              ylabel(sprintf('Kraft KS %d in N', j-1));
+            else
+              ylabel(sprintf('Moment KS %d in Nm', j-1));
+            end
+          end
+          if k == RP.NLEG && j == RP.Leg(1).NL
+            if fm == 0
+              legend({'fx', 'fy', 'fz', 'norm'});
+            else
+              legend({'mx', 'my', 'mz', 'norm'});
+            end
           end
         end
-        if k == RP.NLEG && j == RP.Leg(1).NL
-          if fm == 0
-            legend({'fx', 'fy', 'fz', 'norm'});
-          else
-            legend({'mx', 'my', 'mz', 'norm'});
-          end
-        end
       end
+      linkxaxes
+      remove_inner_labels(sphdl,1); 
     end
-    linkxaxes
-    remove_inner_labels(sphdl,1); 
   end
 end
 %% Animation des bewegten Roboters
-s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
-s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-figure(5);clf;hold all;set(5, 'Name', 'Animation', 'NumberTitle', 'off');
-set(5, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);
-view(3);
-axis auto
-hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
-RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
-fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_cutforce_6UPS_traj.gif'));
-fprintf('Test für 6UPS beendet\n');
-
+if ~usr_nofigures
+  s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
+  s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
+  figure(5);clf;hold all;set(5, 'Name', 'Animation', 'NumberTitle', 'off');
+  set(5, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);
+  view(3);
+  axis auto
+  hold on;grid on;
+  xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+  RP.anim( Q_t(1:20:end,:), X_t(1:20:end,:), s_anim, s_plot);
+  fprintf('Animation der Bewegung gespeichert: %s\n', fullfile(respath, 'ParRob_cutforce_6UPS_traj.gif'));
+  fprintf('Test für 6UPS beendet\n');
+end
 save(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 %% Debug: Vergleich verschiedener Implementierungen mit Parameterlinearer Form
-if usr_jointspring
-  return % TODO: Regressorform für Gelenkfeder nicht implementiert.
-end
+
 t1=tic();
 % load(fullfile(respath, 'ParRob_cutforce_example_final_workspace.mat'));
 % Optional: Berechne Klassenmethode mit anderen Dynamik-Parametern
@@ -563,7 +575,8 @@ for j = 1:RP.NLEG
   RP.Leg(j).DynPar.mode = 3;
 end
 
-% Daten aus Trajektorie nochmal durchgehen
+% Daten aus Trajektorie nochmal durchgehen. Berechne nur die inverse
+% Dynamik, keine Berücksichtigung der Gelenkfeder (egal ob gesetzt).
 for i=1:size(Q_t,1)
   % Initialisierung
   q = Q_t(i,:)';
@@ -597,16 +610,23 @@ for i=1:size(Q_t,1)
     error('Gesamtheit der Schnittkräfte (in Basis-KS) stimmt nicht mit parameterlinearer Form');
   end
 end
-% Trajektorien-Funktion testen
+% Trajektorien-Funktion testen. Entferne den Einfluss der Gelenkfeder
+% wieder
+TAUa_spring = RP.jointtorque_actjoint_traj(Q_t, X_t, RP.springtorque_traj(Q_t), Jinv_t);
 I = 1:size(Q_t,1);
-[FLegl_t, FLeg0_t] = RP.internforce_traj(Q_t(I,:), QD_t(I,:), QDD_t(I,:), TAUa_t(I,:));
+[FLegl_t, FLeg0_t] = RP.internforce_traj(Q_t(I,:), QD_t(I,:), QDD_t(I,:), TAUa_t(I,:)-TAUa_spring(I,:));
 [Regmatl_traj, Regmat0_traj] = RP.internforce_regmat_traj(Q_t(I,:), QD_t(I,:), QDD_t(I,:), X_t(I,:), XD_t(I,:), XDD_t(I,:));
 % Schnittkräfte wieder aus Regressor-Trajektorie erzeugen und dann vergleichen
 FLegl_t_fromreg = RP.internforce3_traj(Regmatl_traj);
 FLeg0_t_fromreg = RP.internforce3_traj(Regmat0_traj);
 test_FLeg0_t = FLeg0_t - FLeg0_t_fromreg;
 test_FLegl_t = FLegl_t - FLegl_t_fromreg;
-if any(abs(test_FLeg0_t(:)) > 1e-8) || any(abs(test_FLegl_t(:)) > 1e-8)
+I_abserr_0 = abs(test_FLeg0_t(:)) > 1e-7;
+I_rellerr_0 = abs(test_FLeg0_t(:)./FLeg0_t(:)) > 1e-3;
+I_abserr_l = abs(test_FLegl_t(:)) > 1e-7;
+I_rellerr_l = abs(test_FLegl_t(:)./FLegl_t(:)) > 1e-3;
+
+if any(I_abserr_0 & I_rellerr_0) || any(I_abserr_l & I_rellerr_l)
   error('Trajektorie der Schnittkräfte stimmt nicht mit verschiedenen Berechnungen');
 end
 fprintf('Trajektorien-Funktionen für Schnittkräfte und deren Regressor-Matrizen getestet. Dauer: %1.1fs\n', toc(t1));
