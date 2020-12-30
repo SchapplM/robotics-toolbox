@@ -33,6 +33,7 @@ usr_debug = true;
 usr_jointspring = true; % Setze Feder in passive Gelenke, damit PKM um Arbeitspunkt schwingt (kein freier Fall)
 usr_num_tests_per_dof = 5;
 usr_test_constr4_JinvD = false; % zum Debuggen der constr4gradD-Funktionen
+usr_shuffle_pkm_selection = true; % Zufällige Auswahl der PKM.
 %% Initialisierung
 EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 0; ...
@@ -76,6 +77,9 @@ for i_FG = 1:size(EEFG_Ges,1)
     end
   else
     III = 1:length(PNames_Kin);
+    if usr_shuffle_pkm_selection
+      III = III(randperm(length(III)));
+    end
   end
   for ii = III
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
@@ -164,11 +168,13 @@ for i_FG = 1:size(EEFG_Ges,1)
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
       i_select = 0;
       for i = 1:length(Structures) % alle Ergebnisse durchgehen (falls mehrere theta-Varianten)
-        resfile = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
-        tmp = load(resfile, 'RobotOptRes');
-        if tmp.RobotOptRes.fval < 1000
+        resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Details.mat', Structures{i}.Number, PName));
+        tmp1 = load(resfile1, 'RobotOptDetails');
+        resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
+        tmp2 = load(resfile1, 'RobotOptRes');
+        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
           i_select = i;
-          RobotOptRes = tmp.RobotOptRes;
+          RobotOptDetails = tmp1.RobotOptDetails;
           break;
         end
       end
@@ -180,14 +186,14 @@ for i_FG = 1:size(EEFG_Ges,1)
         continue
       end
       % Funktionierende Parameter abspeichern (für nächstes Mal)
-      RP = RobotOptRes.R;
+      RP = RobotOptDetails.R;
       r_W_0 = RP.r_W_0;
       phi_W_0 = RP.phi_W_0;
       phi_P_E = RP.phi_P_E;
       r_P_E = RP.r_P_E;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
-      q0 = RobotOptRes.q0;
+      q0 = RobotOptDetails.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
       save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
       fprintf('Maßsynthese beendet\n');
@@ -638,7 +644,7 @@ for i_FG = 1:size(EEFG_Ges,1)
           subplot(ceil(sqrt(RP.NJ)), ceil(RP.NJ/ceil(sqrt(RP.NJ))), i);
           hold on; grid on;
           hdl1=plot(Tges, Q_ges(:,i), '-');
-          hdl3=plot(Tges, Q_ges_num(:,i), '-');
+          hdl3=plot(Tges, Q_ges_num(:,i), '--');
           title(sprintf('q %d L%d,J%d', i, legnum, legjointnum));
           if i == length(q), legend([hdl1;hdl3], {'q','int(qD)'}); end
         end
@@ -656,8 +662,8 @@ for i_FG = 1:size(EEFG_Ges,1)
           subplot(ceil(sqrt(RP.NJ)), ceil(RP.NJ/ceil(sqrt(RP.NJ))), i);
           hold on; grid on;
           hdl1=plot(Tges, QD_ges(:,i), '-');
-          hdl2=plot(Tges, QD_ges_num(:,i), '-');
-          hdl3=plot(Tges, QD_ges_num2(:,i), '-');
+          hdl2=plot(Tges, QD_ges_num(:,i), '--');
+          hdl3=plot(Tges, QD_ges_num2(:,i), ':');
           title(sprintf('qD %d L%d,J%d', i, legnum, legjointnum));
           if i == length(qD), legend([hdl1;hdl2;hdl3], {'qD','diff(q)', 'int(qDD)'}); end
         end
