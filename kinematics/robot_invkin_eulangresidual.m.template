@@ -128,15 +128,24 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
-
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
 
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
-    % Normale Invertierung der Jacobi-Matrix der seriellen Kette
-    delta_q_T = Jdk \ (-Phi);
+    % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
+    condJ = cond(Jdk);
+    if condJ <= 500
+      % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
+      delta_q_T = Jdk \ (-Phi);
+    else
+      % Passe die Dämpfung im DLS-Verfahren an. Wähle die Konditionszahl
+      % als Kriterium, da z.B. Grenzen für Singulärwerte nicht bekannt sind.
+      % lambda zwischen 0 (Grenzfall cond=500) und 1 (komplett singulär).
+      lambda = -1+2*2/pi*atan(condJ/500);
+      delta_q_T = (Jdk'*Jdk + lambda^2*eye(NQJ))\(Jdk')*(-Phi);
+    end
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && jj < n_max-10 % die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
@@ -156,28 +165,31 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
     % Raphson-Verfahren basiert auf Linearisierung. Kleinwinkelnäherung
-    % wird verlassen, wenn alle Gelenkwinkel in Summe mehr als 10° drehen.
-    % (eher konservative Annahme, dass die Gelenke gleichgerichtet drehen)
+    % wird verlassen, wenn alle Gelenkwinkel in Summe mehr als 20° drehen.
+    % (moderate Annahme, dass die Gelenke einigermaßen gleichgerichtet drehen)
     % Führe das getrennt für delta_q_T und delta_q_N durch, damit die 
     % Nullraumbewegung nicht die Aufgabenbewegung dominieren kann.
+    delta_q_T = K.*delta_q_T;
+    delta_q_N = Kn.*delta_q_N;
     sum_abs_delta_qTrev = sum(abs(delta_q_T(sigmaJ==0))); % nur Drehgelenke
-    if sum_abs_delta_qTrev > 0.175 % 0.175rad=10°
+    if sum_abs_delta_qTrev > 0.35 % 0.35rad=20°
       % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
-      % danach 10° ist.
-      delta_q_T = delta_q_T .* 0.175/sum_abs_delta_qTrev;
+      % danach 20° ist.
+      delta_q_T = delta_q_T .* 0.35/sum_abs_delta_qTrev;
     end
     sum_abs_delta_qNrev = sum(abs(delta_q_N(sigmaJ==0))); % nur Drehgelenke
-    if sum_abs_delta_qNrev > 0.175 % 0.175rad=10°
+    if sum_abs_delta_qNrev > 0.35 % 0.35rad=20°
       % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
-      % danach 10° ist.
-      delta_q_N = delta_q_N .* 0.175/sum_abs_delta_qNrev;
+      % danach 20° ist.
+      delta_q_N = delta_q_N .* 0.35/sum_abs_delta_qNrev;
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
-    delta_q = K.*delta_q_T + Kn.*delta_q_N;
+    % Verstärkungsfaktoren K und Kn oben bereits angewendet.
+    delta_q = delta_q_T + delta_q_N;
     
-    % Reduziere Schrittweite auf einen Maximalwert bezogen auf
-    % Winkelgrenzen (bzw. auf die mögliche Spannweite)
+    % Reduziere Schrittweite (qT+qN gemeinsam) auf einen Maximalwert
+    % bezogen auf Winkelgrenzen (bzw. auf die mögliche Spannweite)
     if limits_set && ~isnan(maxrelstep)
       % Bestimme Inkrement relativ zur Spannbreite der Grenzen
       abs_delta_q_rel = abs(delta_q ./ delta_qlim);
