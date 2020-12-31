@@ -17,18 +17,26 @@
 % Tc_stack [(%NJ%+1)*3 x 4]
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
 %   (enthält alle Koordinatensysteme aus direkter Kinematik)
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
 % Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
 % Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [1] Aufzeichnungen Schappler vom 3.8.2018
+% [ChiaveriniSicEge1994] S. Chiaverini and B. Siciliano, O. Egeland: 
+% Review of the damped least-squares inverse kinematics with experiments 
+% on an industrial robot manipulator, 1994
+% [NakamuraHan1986] Y. Nakamura, H. Hanafusa: Inverse Kinematic Solutions 
+% With Singularity Robustness for Robot Manipulator Control, 1986
+% [CorkeIK] Peter Corke, Robotics Toolbox, ikine.m
 
 % %VERSIONINFO%
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
+function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 
 %% Coder Information
 %#codegen
@@ -119,14 +127,19 @@ end
 % Ausgabe belegen
 success = false;
 
+if nargout == 4
+  Stats = struct('Q', NaN(n_max, NQJ), 'PHI', NaN(n_max, 6), 'iter', n_max, ...
+    'retry_number', 0, 'condJ', NaN(n_max,1));
+end
+
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
-
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
   Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  lambda_mult = 1.0;
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
@@ -136,15 +149,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
     condJ = cond(Jdk);
-    if condJ <= 500
+    if condJ <= 50
       % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
       delta_q_T = Jdk \ (-Phi);
     else
       % Passe die Dämpfung im DLS-Verfahren an. Wähle die Konditionszahl
       % als Kriterium, da z.B. Grenzen für Singulärwerte nicht bekannt sind.
-      % lambda zwischen 0 (Grenzfall cond=500) und 1 (komplett singulär).
-      lambda = -1+2*2/pi*atan(condJ/500);
-      delta_q_T = (Jdk'*Jdk + lambda^2*eye(NQJ))\(Jdk')*(-Phi);
+      % lambda zwischen 0 (Grenzfall cond=50) und 1 (komplett singulär).
+      % Reduziere den lambda-Wert dann sehr stark (1/1000) und erhöhe bei
+      % wiederholter Verschlechterung im Iterationsschritt
+      lambda = (-1+2*2/pi*atan(condJ/50))*0.001*lambda_mult;
+      delta_q_T = (Jdk'*Jdk + lambda*eye(NQJ))\(Jdk')*(-Phi);
     end
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
@@ -231,22 +246,52 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
-    % Nachverarbeitung der Ergebnisse der Iteration
-    q1 = q2;
-    
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    Phi_voll = %RN%_constr2(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-    Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+    Phi_voll = %RN%_constr2(q2, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
+    % Altwert von Phi noch verfügbar ist)
+    if norm(Phi_voll(I_IK)) < norm(Phi)
+      % Erfolgreich.
+      lambda_mult = 1;
+      % Nachverarbeitung der Ergebnisse der Iteration
+      q1 = q2;
+      % Behalte Wert für Phi nur in diesem Fall. Dadurch wird die Verbesserung
+      % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
+      Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      rejcount = 0;
+    else
+      % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.
+      % Setzt voraus, dass die Konditionszahl so schlecht ist, dass
+      % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
+      lambda_mult = lambda_mult*2;
+      rejcount = rejcount + 1;
+      if condJ < 50 || rejcount > 100
+        % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+        % Abbruch. Keine Verbesserung mit Algorithmus möglich.
+        break;
+      end
+    end
+    if nargout == 4
+      Stats.Q(jj,:) = q1;
+      Stats.PHI(jj,:) = Phi_voll;
+      Stats.condJ(jj) = condJ;
+    end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) < 1e-10) ) % oder die Nullraumoptimierung läuft noch
       success = true;
+      if nargout == 4
+        Stats.iter = jj;
+      end
       break;
     end
   end
   if success
+    if nargout == 4
+      Stats.retry_number = rr;
+    end
     break;
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
@@ -255,6 +300,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   end
   q0(:) = qmin + rand(NQJ,1).*(qmax-qmin); % "(:)" notwendig für mex
 end
+
 q = q1;
 if s.normalize
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren

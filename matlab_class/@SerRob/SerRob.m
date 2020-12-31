@@ -575,7 +575,7 @@ classdef SerRob < RobBase
       % Gesamtmatrix
       JaD = [JtD; JeD];
     end
-    function [q, Phi, Tc_stack0] = invkin2(R, x, q0, s_in)
+    function [q, Phi, Tc_stack0, Stats] = invkin2(R, x, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin`, die nicht kompilierbar ist.
@@ -588,6 +588,8 @@ classdef SerRob < RobBase
       % q: Gelenkposition
       % Phi: Residuum
       % Tc_stack0: Gestapelte Transformationsmatrizen; siehe SerRob/fkine
+      % Stats
+      %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
       % 
       % Siehe auch: invkin
 
@@ -633,8 +635,10 @@ classdef SerRob < RobBase
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
-      else
+      elseif nargout == 2
         [q, Phi] = R.invkinfcnhdl(x, q0, s);
+      else
+        [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
       end
     end
     function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
