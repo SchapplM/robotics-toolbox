@@ -117,6 +117,7 @@ I_IK = I_IK2(s.I_EE);
 q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
+rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
@@ -129,7 +130,7 @@ success = false;
 
 if nargout == 4
   Stats = struct('Q', NaN(n_max, NQJ), 'PHI', NaN(n_max, 6), 'iter', n_max, ...
-    'retry_number', 0, 'condJ', NaN(n_max,1));
+    'retry_number', 0, 'condJ', NaN(n_max,1), 'lambda', NaN(n_max,2));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -139,7 +140,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Fehlermaß für Startwerte
   Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
-  lambda_mult = 1.0;
+  lambda_mult = 1.0; % Zurücksetzen der Dämpfung
+  lambda = 0.0;
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
@@ -149,17 +151,26 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
     condJ = cond(Jdk);
+    % manipJ = det(Jdk*Jdk'); % Manipulierbarkeit; nicht weiter verfolgt.
     if condJ <= 50
       % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
       delta_q_T = Jdk \ (-Phi);
+      lambda = 0.0;
+      lambda_mult = 1.0; % Zurücksetzen. Alles (wieder) i.O.
     else
       % Passe die Dämpfung im DLS-Verfahren an. Wähle die Konditionszahl
       % als Kriterium, da z.B. Grenzen für Singulärwerte nicht bekannt sind.
       % lambda zwischen 0 (Grenzfall cond=50) und 1 (komplett singulär).
       % Reduziere den lambda-Wert dann sehr stark (1/1000) und erhöhe bei
-      % wiederholter Verschlechterung im Iterationsschritt
-      lambda = (-1+2*2/pi*atan(condJ/50))*0.001*lambda_mult;
-      delta_q_T = (Jdk'*Jdk + lambda*eye(NQJ))\(Jdk')*(-Phi);
+      % wiederholter Verschlechterung im Iterationsschritt.
+      % Nehme einen Mindestwert für die Dämpfung und einen sich bei Stagnation
+      % erhöhenden Aufschlag.
+      lambda = (-1+2*2/pi*atan(condJ/50))*(1e-3+lambda_mult);
+      % Alternative Berechnung nach [NakamuraHan1986] (nicht weiter verfolgt):
+      % manipJ0 = 1e-3;
+      % lambda = 0.1*(1e-3+lambda_mult)*(1-manipJ/manipJ0)^2;
+      % [NakamuraHan1986], Gl. 22. Kleinere Dimension bei Redundanz als andere pinv.
+      delta_q_T = ((Jdk')/(Jdk*Jdk' + lambda*eye(length(Phi))))*(-Phi);
     end
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
@@ -249,10 +260,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
     Phi_voll = %RN%_constr2(q2, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
-    % Altwert von Phi noch verfügbar ist)
+    % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
     if norm(Phi_voll(I_IK)) < norm(Phi)
       % Erfolgreich.
-      lambda_mult = 1;
+      lambda_mult = lambda_mult/2;
       % Nachverarbeitung der Ergebnisse der Iteration
       q1 = q2;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird die Verbesserung
@@ -265,8 +276,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
       lambda_mult = lambda_mult*2;
       rejcount = rejcount + 1;
-      if condJ < 50 || rejcount > 100
-        % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+      if condJ < 50 || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+       rejcount > 20 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
         break;
       end
@@ -275,6 +286,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.Q(jj,:) = q1;
       Stats.PHI(jj,:) = Phi_voll;
       Stats.condJ(jj) = condJ;
+      Stats.lambda(jj,:) = [lambda, lambda_mult];
     end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
