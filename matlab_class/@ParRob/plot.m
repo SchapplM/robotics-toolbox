@@ -73,6 +73,13 @@ for iLeg = 1:Rob.NLEG
   T_0_0i_old = Rob.Leg(iLeg).T_W_0;
   Rob.Leg(iLeg).T_W_0 = T_W_0 * T_0_0i_old;
   Rob.Leg(iLeg).plot(qs, s_ser);
+  % Umbenennung der gezeichneten 3D-Körper (Ziel: "Leg1_Link2").
+  for c = get(gca, 'children')'
+    [~,tokens] = regexp(get(c, 'DisplayName'), '^Link_([\d]+)$', 'tokens', 'match');
+    if ~isempty(tokens)
+      set(c, 'DisplayName', sprintf('Leg_%d_%s', iLeg, tokens{1}));
+    end
+  end
   Rob.Leg(iLeg).T_W_0 = T_0_0i_old;
 end
 
