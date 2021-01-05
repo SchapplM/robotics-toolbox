@@ -36,8 +36,10 @@
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-05
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = invkin4(R, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin4(R, xE_soll, q0, s_in)
 
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 Leg_I_EE_Task = true(R.NLEG,6);
@@ -66,14 +68,14 @@ for i = 1:R.NLEG
   Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
 end
 sigma_PKM = R.MDH.sigma; % Marker für Dreh-/Schubgelenk
-K = 0.6*ones(R.NJ,1);
-K(sigma_PKM==1) = K(sigma_PKM==1) / 5;
+K = 1.0*ones(R.NJ,1);
+K(sigma_PKM==1) = 0.5;
 
 s = struct(...
       'I_EE_Task', R.I_EE_Task,...
           'sigma', R.MDH.sigma,...
               'K', K, ... % Verstärkung
-             'Kn', 0.4*ones(R.NJ,1), ... % Verstärkung
+             'Kn', 1.0*ones(R.NJ,1), ... % Verstärkung
              'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
       'normalize', false, ... % Normalisieren auf +/- 180°
@@ -117,6 +119,8 @@ end
 % Entspricht robot_invkin_eulangresidual.m.template
 if nargout == 3
   [q, Phi, Tc_stack_PKM] = R.invkin3fcnhdl(xE_soll, q0, s);
-else
+elseif nargout == 2
   [q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
+else
+  [q, Phi, Tc_stack_PKM, Stats] = R.invkin3fcnhdl(xE_soll, q0, s);
 end
