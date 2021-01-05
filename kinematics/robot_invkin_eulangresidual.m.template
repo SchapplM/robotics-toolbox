@@ -43,7 +43,6 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 %$cgargs {zeros(6,1),zeros(%NQJ%,1),struct(
 %$cgargs            'pkin', zeros(%NKP%,1),
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
-%$cgargs             'NQJ', 0,
 %$cgargs            'qlim', zeros(%NQJ%,2),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -79,7 +78,7 @@ reci = s.reci;
 I_EElink = s.I_EElink;
 T_N_E = s.T_N_E;
 pkin = s.pkin;
-NQJ = s.NQJ;
+NQJ = %NQJ%;
 sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
 qmin = s.qlim(:,1);
 qmax = s.qlim(:,2);

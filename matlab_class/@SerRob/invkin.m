@@ -37,12 +37,12 @@ end
 % Standard-Einstellung der Verstärkungs-Faktoren: Die Schubgelenke müssen
 % langsamer konvergieren als die Drehgelenke, da die Rotation die Position
 % beeinflusst, aber nicht umgekehrt.
-K_def = 0.1*ones(Rob.NQJ,1); % TODO: Wert ist noch sehr konservativ gewählt
-
+K_def = 1.0*ones(Rob.NQJ,1);
+K_def(sigmaJ) = 0.5;
 s_std = struct( ...
              'I_EE', Rob.I_EE_Task, ... % FG für die IK
              'K', K_def, ... % Verstärkung
-             'Kn', 1e-2*ones(Rob.NQJ,1), ... % Verstärkung
+             'Kn', 1.0*ones(Rob.NQJ,1), ... % Verstärkung
              'wn', 0, ... % Gewichtung der Nebenbedingung
              'n_min', 0, ... % Minimale Anzahl Iterationen
              'n_max', 1000, ... % Maximale Anzahl Iterationen

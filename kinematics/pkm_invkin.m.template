@@ -139,7 +139,6 @@ for i = 1:NLEG
   s.I_EE = Leg_I_EE_Task(i,:);
   s.pkin = Leg_pkin_gen(i,:)';
   s.sigmaJ = s_par.Leg_sigmaJ(:,i);
-  s.NQJ = Leg_NQJ(i);
   s.qlim = s_par.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   s.phiconv_W_E = s_par.Leg_phiconv_W_E(i);
   s.I_EElink = Leg_I_EElink(i);

@@ -317,11 +317,12 @@ classdef ParRob < RobBase
         'abort_firstlegerror', false);
       
       % Einstellungen für IK. Siehe auch: SerRob/invkin2
-      K_def = 0.5*ones(R.Leg(1).NQJ,1);
+      K_def = 1.0*ones(R.Leg(1).NQJ,1);
+      K_def(R.Leg(1).MDH.sigma==1) = 0.5;
       s_ser = struct( ...
         'reci', true, ...
         'K', K_def, ... % Verstärkung
-        'Kn', 1e-2*ones(R.Leg(1).NQJ,1), ... % Verstärkung
+        'Kn', 1.0*ones(R.Leg(1).NQJ,1), ... % Verstärkung
         'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
