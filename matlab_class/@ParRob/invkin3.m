@@ -137,6 +137,7 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4);  % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
+rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 
 if nargout == 4
   Stats = struct('Q', NaN(n_max, Rob.NJ), 'PHI', NaN(n_max, 6*Rob.NLEG), ...
@@ -272,8 +273,7 @@ for rr = 0:retry_limit
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
-    q1 = q2;
-    [~,Phi_voll] = Rob.constr3(q1, xE_soll);
+    [~,Phi_voll] = Rob.constr3(q2, xE_soll);
     if norm(Phi_voll(I_IK)) < norm(Phi) % Erfolgreich
       lambda_mult = lambda_mult/2;
       % Nachverarbeitung der Ergebnisse der Iteration

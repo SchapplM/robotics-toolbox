@@ -129,7 +129,7 @@ success = false;
 
 if nargout == 4
   Stats = struct('Q', NaN(n_max, NQJ), 'PHI', NaN(n_max, 6), 'iter', n_max, ...
-    'retry_number', 0, 'condJ', NaN(n_max,1), 'lambda', NaN(n_max,2));
+    'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', NaN(n_max,2));
 end
 
 %% Iterative Berechnung der inversen Kinematik

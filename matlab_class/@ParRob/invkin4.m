@@ -119,7 +119,7 @@ end
 % Entspricht robot_invkin_eulangresidual.m.template
 if nargout == 3
   [q, Phi, Tc_stack_PKM] = R.invkin3fcnhdl(xE_soll, q0, s);
-elseif nargout == 2
+elseif nargout <= 2
   [q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
 else
   [q, Phi, Tc_stack_PKM, Stats] = R.invkin3fcnhdl(xE_soll, q0, s);

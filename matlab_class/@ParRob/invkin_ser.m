@@ -27,6 +27,8 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 %
 % Siehe auch: SerRob/invkin.m
 %
@@ -37,7 +39,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
@@ -97,6 +99,12 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
+
+if nargout == 4
+  Stats = struct('Q', NaN(s.n_max, Rob.NJ), 'PHI', NaN(s.n_max, Rob.I2constr_red(end)), ...
+    'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
+    'condJ', NaN(s.n_max,1), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
@@ -141,8 +149,17 @@ for i = 1:Rob.NLEG
     s.Kn = Kn(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   end
   % Inverse Kinematik für die serielle Beinkette berechnen
-  [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
-
+  if nargout < 4
+    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+  else % Aufruf und Verarbeitung der Statistik
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s);
+    Stats.Q(:,Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Stats_i.Q;
+    Stats.PHI(:,Rob.I1constr(i):Rob.I2constr(i)) = Stats_i.PHI;
+    Stats.iter(i)= Stats_i.iter;
+    Stats.retry_number(i) = Stats_i.retry_number;
+    Stats.condJ(:,i) = Stats_i.condJ;
+    Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
+  end
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
       % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich

@@ -595,10 +595,6 @@ classdef SerRob < RobBase
 
       % Einstellungen zusammenstellen:
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
-      % Einstellungen für IK. Schubgelenke schwächer, da die Länge
-      % teilweise zu schnell ansteigt.
-      K_def = 1.0*ones(R.NQJ,1);
-      K_def(sigmaJ==1) = 0.5;
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
       s = struct('pkin', R.pkin_gen, ...
@@ -609,8 +605,8 @@ classdef SerRob < RobBase
                  'I_EElink', uint8(R.I_EElink), ...
                  'reci', true, ...
                  'T_N_E', R.T_N_E, ...
-                 'K', K_def, ... % Verstärkung
-                 'Kn', 1.0*ones(R.NQJ,1), ... % Verstärkung
+                 'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
+                 'Kn', ones(R.NQJ,1), ... % Verstärkung 1 am besten
                  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
                  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
                  'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
@@ -636,7 +632,7 @@ classdef SerRob < RobBase
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
-      elseif nargout == 2
+      elseif nargout <= 2
         [q, Phi] = R.invkinfcnhdl(x, q0, s);
       else
         [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
@@ -665,8 +661,6 @@ classdef SerRob < RobBase
       
       % Einstellungen zusammenstellen
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
-      K_def = 1.0*ones(R.NQJ,1);
-      K_def(sigmaJ==1) = 0.5; % Verstärkung für Schubgelenke kleiner
       s = struct( ...
          'pkin', R.pkin_gen, ...
          'sigmaJ', sigmaJ, ...
@@ -678,7 +672,7 @@ classdef SerRob < RobBase
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'T_N_E', R.T_N_E, ...
-         'K', K_def, ... % Verstärkung
+         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
          'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
