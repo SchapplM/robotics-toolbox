@@ -4,22 +4,22 @@
 % (daher die Bezeichnung "simple geometry").
 % 
 % Eingabe:
-% v [N x 1 uint8]
-%   Vorgänger-Indizes für alle N Koordinatensysteme des Roboters.
-%   Das Gelenk, das einen Körper bewegt, bildet eine Relativbewegung mit
-%   dem aktuellen Körper (Zeile in v) und dem durch den Wert in v
-%   angegebenen Vorgänger
-%   Die Basis hat eigentlich keinen Vorgänger. Erhält aber zur einfacheren
-%   Implementierung einen Dummy-Eintrag (ist eigener Vorgänger)
 % cb (collbodies)
 %   Struktur der M Kollisionskörper des Roboters mit Feldern:
-%   link [M X 1 uint8]
-%     Nummer des zugehörigen Starrkörpers des Roboters
+%   link [M X 2 uint8]
+%     Erster Eintrag: Nummer des zugehörigen Starrkörpers des Roboters.
+%     Zweiter Eintrag: Zweiter zugehöriger Starrkörper. Normalfall: Vor-
+%     gänger-Indizes für alle N Koordinatensysteme des Roboters.
+%     Basis des Roboters hat den Eintrag 0. Dann fortlaufend nummeriert.
+%     Auch Verbindung von KS-Ursprüngen nicht aufeinanderfolgender Segmente
+%     des Roboter möglich (z.B. für Gestell und Plattform von PKM).
 %   type [M X 1 uint8]
 %     Art des Kollisionskörpers. Nummern konsistent mit Variable collbodies
 %     in Klasse SerRob. Allerdings nur wenige Nummern implementiert
 %     Alle anderen Typen erfordern umfangreichere Eingaben und haben
-%     höheren Rechenaufwand
+%     höheren Rechenaufwand. Bei den einfachen Körpern ist keine Eingabe
+%     von Koordinaten als Parameter notwendig, da die Körper direkt die
+%     in JP gegebenen KS-Ursprünge entsprechend cb.link verbinden.
 %     *  1 Quader (10 Parameter: Aufpunkt, 2 Kantenvektoren, Länge 3. Kante)
 %          (erfordert vollständiges Körper-KS. Aktuell nicht möglich)
 %     *  2 Zylinder (7 Parameter: Punkt 1, Punkt 2, Radius)
@@ -53,7 +53,7 @@
 % JP [NT x 3*N]
 %   Zeitreihe mit NT Zeitschritten von Gelenkpositionen des Roboters.
 %   Die einzelnen KS des Roboters werden jeweils mit der Ursprungsposition
-%   angegeben. Entspricht den Zeilen der Eingangsgröße v.
+%   angegeben. Entspricht den Indizes in cb.link.
 %   Der erste Eintrag entspricht einer nicht angetriebenen Roboterbasis
 % Set
 %   Struktur mit Einstellungen zur Arbeitsweise der Funktion
@@ -73,10 +73,9 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-05
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, Set)
+function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
 %#codegen
-%$cgargs {coder.newtype('uint8',[inf,1]), struct(
-%$cgargs 'link', coder.newtype('uint8',[inf,1]),
+%$cgargs {struct('link', coder.newtype('uint8',[inf,2]),
 %$cgargs 'type', coder.newtype('uint8',[inf,1]),
 %$cgargs 'params', coder.newtype('double',[inf,10])),
 %$cgargs coder.newtype('uint8',[inf,2]),
@@ -84,11 +83,6 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
 %$cgargs 'collsearch', true)}
 
   %% Initialisierung
-  if length(v)*3 ~= size(JP,2)
-    error(['Jeder Zeile aus v (%dx1) muessen 3 Spalten in JP zugeordnet sein. ', ...
-      'Basis enthaelt Platzhalter-Eintrag. Ist: %dx%d, Soll: %dx%d.'], ...
-      length(v), size(JP,1), size(JP,2), size(JP,1), 3*(length(v)));
-  end
   % Arbeitsmodus der Funktion. Bei true werden Kollisionen gesucht. Bei
   % erwiesener Nicht-Kollision wird abgebrochen. Bei false wird geprüft, ob
   % es keine Kollision gibt (z.B. zur Bauraumüberprüfung)
@@ -119,13 +113,14 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(v, cb, cc, JP, S
                cb.params(cc(i,2),:)];
     %% Generiere die Koordinaten
     % Nummern der Körper herausfinden (Notation: 0=Basis)
-    b_ilink = [cb.link(cc(i,1)); ... % Körper 1
-               cb.link(cc(i,2))];    % Körper 2
+    b_ilink = [cb.link(cc(i,1),1); ... % Körper 1
+               cb.link(cc(i,2),1)];    % Körper 2
     % Indizes der beteiligten Punkte bestimmen
     % (+1 für 1-Indizierung in Matlab)
     % erste Spalte: Segment, zweite Spalte: Vorgänger-Segment
-    b_idx_pt = [1+b_ilink(1), 1+v(1+b_ilink(1)); ... % Körper 1
-                1+b_ilink(2), 1+v(1+b_ilink(2))];    % Körper 2
+    % Zeilen sind die beiden an der Kollision beteiligten Körper.
+    b_idx_pt = [1+b_ilink(1), 1+cb.link(cc(i,1),2); ... % Körper 1
+                1+b_ilink(2), 1+cb.link(cc(i,2),2)];    % Körper 2
     for j = 1:size(JP, 1) % alle Zeitschritte durchgehen
       % Bestimme Parameter der AABB und des Kollisionsobjektes für beide an
       % der Kollision beteiligte Geometrien
