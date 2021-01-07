@@ -183,6 +183,8 @@ classdef SerRob < RobBase
         'seg_type', ones(R.NL,1), ... % Modellierungsart Segmente (1=Hohlzylinder)
         'seg_par', zeros(R.NL,2), ... % Parameter dafür (Wandstärke, Durchmesser)
         'joint_offset', zeros(R.NJ,1), ... % Offset-Parameter für zusätzliches Segment nach Schubgelenk. Verschiebt die Linearachse.
+        'joint_stiffness', zeros(R.NJ,1), ...% Steifigkeit einer im Gelenk angebrachten Drehfeder (Sonderfall für Festkörpergelenke; für normale Roboter oder PKM-Beinketten nicht belegt)
+        'joint_stiffness_qref', zeros(R.NJ,1), ... % Nullstellung der Ersatzfedern in den Gelenken
         'gear_index', uint8(zeros(R.NJ,1)), ... % Nr des Getriebes (aus Datenbank)
         'motor_index', uint8(zeros(R.NJ,1)), ... % Nr des Motors (aus Datenbank)
         'joint_index', uint8(zeros(R.NJ,1)), ... % Nr des passiven Gelenks (aus Datenbank)
@@ -1016,6 +1018,28 @@ classdef SerRob < RobBase
         W_reg_i = reshape(W_traj_reg(i,:), R.NL*6, length(R.DynPar.ipv_floatb));
         W_traj(i,:) = W_reg_i*R.DynPar.ipv_floatb;
       end
+    end
+    function tau_s = springtorque(R, q)
+      % Federmoment einer in den Gelenken angebrachten Drehfeder
+      % Eingabe:
+      % q: Gelenk-Koordinaten
+      %
+      % Ausgabe:
+      % tau_s: Gelenkmoment aus Federkraft (M*qDD+c+g+tau_s=tau_m+tau_ext)
+      % Das Federmoment wirkt rückstellend bei Auslenkung der Feder.
+      % Die resultierende Gl. ist M*qDD+...+K*(q-q0) = tau_ext
+      tau_s = R.DesPar.joint_stiffness(:).*(q-R.DesPar.joint_stiffness_qref(:));
+    end
+    function U_s = epotspring(R, q)
+      % Energie der in der in Gelenken angebrachten Drehfeder
+      % Eingabe:
+      % q: Gelenk-Koordinaten
+      %
+      % Ausgabe:
+      % U: Energie der Drehfeder
+      % Die Funktion springtorque und das Vorzeichen dort ergibt sich durch
+      % Ableitung dieser Energie nach q.
+      U_s = 0.5*R.DesPar.joint_stiffness(:)'*(q-R.DesPar.joint_stiffness_qref(:)).^2;
     end
     function jv = jointvar(R, qJ)
       % Vektor der Gelenkkoordinaten aller (auch passiver) Gelenke
