@@ -10,8 +10,14 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_q_red_l
@@ -40,13 +46,18 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phipq_red, Phipq] = constr3gradD_rq(Rob, q, qD, xE, xDE)
+function [Phipq_red, Phipq] = constr3gradD_rq(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr2grad_rq: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3gradD_rq: q muss %dx1 sein', Rob.NJ);
+assert(isreal(q) && all(size(qD) == [Rob.NJ 1]), ...
+  'ParRob/constr3gradD_rq: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2grad_rq: xE muss 6x1 sein');
+  'ParRob/constr3gradD_rq: xE muss 6x1 sein');
+assert(isreal(xE) && all(size(xDE) == [6 1]), ...
+  'ParRob/constr3gradD_rq: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
@@ -63,12 +74,15 @@ else
 end
 
 %% Berechnung
-R_P_E = Rob.T_P_E(1:3,1:3);
+if ~platform_frame
+  R_P_E = Rob.T_P_E(1:3,1:3);
+else
+  R_P_E = eye(3);
+end
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 omega_0_Ex = euljac(xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
 RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
-R_Bi_P  = eye(3,3);
 % Index der Phi_red 
 K1 = 1;
 

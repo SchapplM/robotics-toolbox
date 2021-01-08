@@ -13,6 +13,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 %
 % Ausgabe:
 % PhiD_x_red
@@ -26,7 +28,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiD_x_red, PhiD_x] = constr3gradD_x(Rob, q, qD, xE, xDE )
+function [PhiD_x_red, PhiD_x] = constr3gradD_x(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -37,14 +39,14 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr3gradD_x: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr3gradD_x: xDE muss 6x1 sein');
-
+if nargin == 5, platform_frame = false; end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [~, PhiD_tt]=Rob.constr2gradD_tt();
-[~, PhiD_tr]=Rob.constr2gradD_tr(xE, xDE);
+[~, PhiD_tr]=Rob.constr2gradD_tr();
 [~, PhiD_rt]=Rob.constr3grad_rt(); % Term und Ableitung Null.
-[~, PhiD_rr]=Rob.constr3gradD_rr(q, qD, xE, xDE);
+[~, PhiD_rr]=Rob.constr3gradD_rr(q, qD, xE, xDE, platform_frame);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe

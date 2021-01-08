@@ -7,6 +7,8 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_q_legs_red
@@ -28,14 +30,20 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_q_legs_red, Phi_q_legs] = constr2grad_tq(Rob, q)
+function [Phi_q_legs_red, Phi_q_legs] = constr2grad_tq(Rob, q, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr2grad_tq: q muss %dx1 sein', Rob.NJ);
+if nargin == 2, platform_frame = false; end
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
+if ~platform_frame
+  r_P_E = Rob.r_P_E;
+else
+  r_P_E = zeros(3,1);
+end
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 if ~Rob.issym
   Phi_q_legs = NaN(3*NLEG,NJ);
@@ -73,7 +81,7 @@ for i = 1:NLEG
   
   r_P_P_Bi = Rob.r_P_B_all(:,i);
   r_P_Bi_P = -  r_P_P_Bi;
-  r_B_E = R_0_P * (r_P_Bi_P + Rob.r_P_E);  
+  r_B_E = R_0_P * (r_P_Bi_P + r_P_E);  
   % Umrechnung der vorher auf Koppelpunkt bezogenen Jacobi auf den Endeffektor
   % Siehe dazu adjoint_jacobian.m
   J_0_E = J_Ai_Bi + -skew(r_B_E) * J0_i_rot;

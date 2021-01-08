@@ -17,6 +17,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_q_red
@@ -40,7 +42,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phipq_red, Phipq] = constr2gradD_rq(Rob, q, qD, xE, xDE)
+function [Phipq_red, Phipq] = constr2gradD_rq(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
@@ -51,6 +53,7 @@ assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2gradD_rq: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
   'ParRob/constr2gradD_rq: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
@@ -71,14 +74,15 @@ else
 end
 
 %% Berechnung
-R_P_E = Rob.T_P_E(1:3,1:3);
+if ~platform_frame
+  R_P_E = Rob.T_P_E(1:3,1:3);
+else
+  R_P_E = eye(3);
+end
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 omega_0_Ex = euljac(xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
 RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
-R_Bi_P  = eye(3,3);
-% Index der Phi_red 
-K1 = 1;
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
