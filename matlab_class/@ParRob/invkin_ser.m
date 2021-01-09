@@ -52,11 +52,12 @@ s_ser_std = struct( ...
   'reci', false, ... % Keine reziproken Winkel für ZB-Def.
   'retry_limit', 100); % Anzahl der Neuversuche
 s_par_std = struct( ...
+  'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
 % Fehler aufgeworfen werden wg zu vieler Felder
-if nargin < 4
+if nargin < 4 || isempty(s_ser_in)
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_ser_std;
 else
@@ -102,7 +103,11 @@ Phi_ser = NaN(Rob.I2constr_red(end),1);
 Phi = Phi_ser;
 q = q0;
 r_P_P_B_ges = Rob.r_P_B_all;
-T_P_E = Rob.T_P_E;
+if ~s_par.platform_frame
+  T_P_E = Rob.T_P_E;
+else
+  T_P_E = eye(4);
+end
 T_0_E = Rob.x2t(xE_soll);
 % IK für alle Beine einzeln berechnen
 for i = 1:Rob.NLEG

@@ -22,8 +22,9 @@
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function fdynoutput = fdyn(RP, fdynstruct)
-  % Eingabestruktur auslesen und Einstellungen für ode45 belegen
-  y0 = [fdynstruct.q0; fdynstruct.x0red; fdynstruct.qD0; fdynstruct.xD0];
+  % Eingabestruktur auslesen und Einstellungen für ode45 belegen. Gelenk-
+  % geschwindigkeit wird nicht benötigt und zu Null gesetzt
+  y0 = [fdynstruct.q0; fdynstruct.x0red; zeros(size(fdynstruct.qD0)); fdynstruct.xD0];
   jm = fdynstruct.J_method;
   t_End = fdynstruct.t_End;
   % Zu integrierende Funktion definieren (anonym zur Übergabe von
@@ -67,13 +68,11 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
   qD_state = y(RP.NJ+sum(RP.I_EE)+1:RP.NJ+sum(RP.I_EE)+RP.NJ); %#ok<NASGU>
   xDP_red = y(RP.NJ+sum(RP.I_EE)+RP.NJ+1:end);
   
-  % Vollständiger Vektor der Plattform- und EE-Koordinaten.
+  % Vollständiger Vektor der Plattform-Koordinaten.
   xP = zeros(6,1);
-  xP(RP.I_EE) = xP_red;
+  xP(RP.I_EE) = xP_red; % bei 3T2R kann die sechste Komponente ungleich Null sein. Ist hier egal.
   xPD = zeros(6,1);
-  xPD(RP.I_EE) = xDP_red;
-  [xE, xED] = RP.xP2xE(xP, xPD);
-  
+  xPD(RP.I_EE) = xDP_red; % bei 3T2R x6~=0 möglich. Egal.
   % Korrektur der Gelenkwinkel (wenn IK nicht erfüllbar, ergeben folgende
   % Rechnungen keinen Sinn)
   s = struct( ...
@@ -82,11 +81,15 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
     'n_max', 1000, ... % Maximale Anzahl Iterationen
     'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
     'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-  [q,Phi] = RP.invkin_ser(xE, q_state, s);
+  s_par = struct( ...
+    'platform_frame', true); % IK bezogen auf Plattform-KS
+  [q, Phi] = RP.invkin_ser(xP, q_state, s, s_par);
   if any(isnan(q)) || any(abs(Phi) > 1e-6) || any(isnan(Phi))
     return;
   end
   % Berechne die Jacobi-Matrizen bezogen auf das Plattform-KS
+  % Gelenkgeschwindigkeit ist komplett abhängig von Plattform- 
+  % Geschwindigkeit und braucht nicht integriert werden.
   if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
     [G1_q, ~] = RP.constr1grad_q(q, xP, true);
     [G1_x, ~] = RP.constr1grad_x(q, xP, true);
@@ -96,12 +99,10 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
     [G4_x, ~] = RP.constr4grad_x(xP, true);
     Jinv_voll = -G4_q\G4_x;
   else % Modellierung für 3T2R-PKM
-    G2_q = RP.constr2grad_q(q, xE);
-    G2_x = RP.constr2grad_x(q, xE);
+    G2_q = RP.constr2grad_q(q, xP, true);
+    G2_x = RP.constr2grad_x(q, xP, true);
     Jinv_voll = -G2_q\G2_x;
   end
-  % Gelenkgeschwindigkeit ist komplett abhängig von Plattform- 
-  % Geschwindigkeit und braucht nicht integriert werden.
   qD = Jinv_voll*xDP_red;
   % Berechne Jacobi-Zeitableitung
   if jm == 1
@@ -114,8 +115,8 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
     GD4_x = RP.constr4gradD_x(xP, xPD, true);
     JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
   else
-    GD2_q = RP.constr2gradD_q(q, qD, xP, xED);
-    GD2_x = RP.constr2gradD_x(q, qD, xP, xED);
+    GD2_q = RP.constr2gradD_q(q, qD, xP, xPD, true);
+    GD2_x = RP.constr2gradD_x(q, qD, xP, xPD, true);
     JinvD_voll = G2_q\(GD2_q*(G2_q\G2_x)) - G2_q\GD2_x;
   end
   % Berechne Terme der Dynamik-Gleichung. Übergabe der Jacobi, damit nicht
