@@ -7,7 +7,7 @@
 % q0
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
-%   Struktur mit Eingabedaten. Felder, siehe Quelltext.
+%   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %
 % Ausgabe:
 % q [%NJ% x 1]
@@ -55,6 +55,8 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
+%$cgargs      'condlimDLS', 60,
+%$cgargs      'lambda_min', 2e-4,
 %$cgargs           'n_min', 0,
 %$cgargs           'n_max', 1000,
 %$cgargs        'rng_seed', NaN,
@@ -91,7 +93,8 @@ else
   limits_set = false;
 end
 delta_qlim = qmax - qmin;
-
+condlimDLS = s.condlimDLS;
+lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
@@ -139,7 +142,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Fehlermaß für Startwerte
   Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
-  lambda_mult = 1.0; % Zurücksetzen der Dämpfung
+  lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
@@ -151,20 +154,20 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
     condJ = cond(Jdk);
     % manipJ = det(Jdk*Jdk'); % Manipulierbarkeit; nicht weiter verfolgt.
-    if condJ <= 50
+    if condJ <= condlimDLS
       % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
       delta_q_T = Jdk \ (-Phi);
       lambda = 0.0;
-      lambda_mult = 1.0; % Zurücksetzen. Alles (wieder) i.O.
+      lambda_mult = lambda_min; % Zurücksetzen. Alles (wieder) i.O.
     else
       % Passe die Dämpfung im DLS-Verfahren an. Wähle die Konditionszahl
       % als Kriterium, da z.B. Grenzen für Singulärwerte nicht bekannt sind.
-      % lambda zwischen 0 (Grenzfall cond=50) und 1 (komplett singulär).
+      % lambda zwischen 0 (z.B. Grenzfall cond=60) und 1 (komplett singulär).
       % Reduziere den lambda-Wert dann sehr stark (1/1000) und erhöhe bei
       % wiederholter Verschlechterung im Iterationsschritt.
       % Nehme einen Mindestwert für die Dämpfung und einen sich bei Stagnation
       % erhöhenden Aufschlag.
-      lambda = (-1+2*2/pi*atan(condJ/50))*(1e-3+lambda_mult);
+      lambda = (-1+2*2/pi*atan(condJ/condlimDLS))*(lambda_min+lambda_mult)/2;
       % Alternative Berechnung nach [NakamuraHan1986] (nicht weiter verfolgt):
       % manipJ0 = 1e-3;
       % lambda = 0.1*(1e-3+lambda_mult)*(1-manipJ/manipJ0)^2;
@@ -203,10 +206,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_q_T = delta_q_T .* 0.35/sum_abs_delta_qTrev;
     end
     sum_abs_delta_qNrev = sum(abs(delta_q_N(sigmaJ==0))); % nur Drehgelenke
-    if sum_abs_delta_qNrev > 0.35 % 0.35rad=20°
+    if sum_abs_delta_qNrev > 0.035 % 0.035rad=2°
       % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
-      % danach 20° ist.
-      delta_q_N = delta_q_N .* 0.35/sum_abs_delta_qNrev;
+      % danach 2° ist.
+      delta_q_N = delta_q_N .* 0.035/sum_abs_delta_qNrev;
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
@@ -261,11 +264,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
     if norm(Phi_voll(I_IK)) < norm(Phi)
-      % Erfolgreich.
-      lambda_mult = lambda_mult/2;
-      % Nachverarbeitung der Ergebnisse der Iteration
+      % Erfolgreich. Verringere lambda bis auf Minimalwert.
+      lambda_mult = max(lambda_mult/2, lambda_min);
+      % Behalte Ergebnis der Iteration für weitere Iterationen.
       q1 = q2;
-      % Behalte Wert für Phi nur in diesem Fall. Dadurch wird die Verbesserung
+      % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
       Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
       rejcount = 0;
@@ -275,8 +278,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
       lambda_mult = lambda_mult*2;
       rejcount = rejcount + 1;
-      if condJ < 50 || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
-       rejcount > 20 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
+      if condJ <= condlimDLS || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+       rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
         break;
       end

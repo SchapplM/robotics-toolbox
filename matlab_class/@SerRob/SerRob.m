@@ -597,26 +597,29 @@ classdef SerRob < RobBase
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
-      s = struct('pkin', R.pkin_gen, ...
-                 'sigmaJ', sigmaJ, ...
-                 'qlim', R.qlim, ...
-                 'I_EE', R.I_EE_Task, ...
-                 'phiconv_W_E', R.phiconv_W_E, ...
-                 'I_EElink', uint8(R.I_EElink), ...
-                 'reci', true, ...
-                 'T_N_E', R.T_N_E, ...
-                 'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-                 'Kn', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-                 'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
-                 'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-                 'normalize', true, ... % Normalisieren auf +/- 180°
-                 'n_min', 0, ... % Minimale Anzahl Iterationen
-                 'n_max', 1000, ... % Maximale Anzahl Iterationen
-                 'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
-                 'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
-                 'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
-                 'retry_limit', 100); % Anzahl der Neuversuche);
+      s = struct( ...
+        'pkin', R.pkin_gen, ... % Kinematik-Parameter
+        'sigmaJ', sigmaJ, ... % Marker für Schubgelenke der Minimalkoordinaten (für hybride Roboter wichtig)
+        'qlim', R.qlim, ... % Gelenkwinkel-Grenzen
+        'I_EE', R.I_EE_Task, ... % Indizes der EE-FG der Aufgabe
+        'phiconv_W_E', R.phiconv_W_E, ... % Euler-Winkel-Konvention
+        'I_EElink', uint8(R.I_EElink), ... % Nummer des EE-Segments
+        'reci', true, ... % Benutze reziproke Euler-Winkel (Residuum vs absolute Orientierung)
+        'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
+        'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
+        'Kn', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Nullraumbewegung)
+        'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+        'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+        'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+        'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
+        'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+        'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
+        'n_min', 0, ... % Minimale Anzahl Iterationen
+        'n_max', 1000, ... % Maximale Anzahl Iterationen
+        'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung der Neuversuche
+        'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
+        'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+        'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
