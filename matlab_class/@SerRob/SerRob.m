@@ -607,8 +607,8 @@ classdef SerRob < RobBase
         'reci', true, ... % Benutze reziproke Euler-Winkel (Residuum vs absolute Orientierung)
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
-        'Kn', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Nullraumbewegung)
-        'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+        'Kn', 0.1*ones(R.NQJ,1), ... % Verstärkung 1 am besten (Nullraumbewegung)
+        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
@@ -632,6 +632,7 @@ classdef SerRob < RobBase
           end
         end
       end
+      if length(s.wn) == 2, s.wn=[s.wn;0]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
