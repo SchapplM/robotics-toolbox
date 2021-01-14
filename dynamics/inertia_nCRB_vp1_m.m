@@ -4,12 +4,14 @@
 % T_stack [NJ*3x4]
 %   Stacked Transformation Matrices for all joint transformations (last
 %   line with [0 0 0 1] cut off.
-% RotAx_i [NJx3
-%   Rotation Axes of the joints in local frames of the bodies articulated
-%   by the joints (Joints have to be 1DoF revolute)
+% JointAx_i [NJx3
+%   Axes of the joints in local frames of the bodies articulated
+%   by the joints (Joints have to be 1DoF revolute or prismatic)
 % v [NJx1]
 %   Link Indices of predecessing links for the joints (joint i articulates
 %   body i, body 0 is the base)
+% sigma [NJx1]
+%   Join Type. revolute=0, prismatic=1
 % m_num_mdh [NLx1], rSges_num_mdh [NLx3], Icges_num_mdh [NLx6]
 %   dynamic parameters
 % 
@@ -19,7 +21,7 @@
 % Moritz Schappler, schappler@irt.uni-hannover.de, 2016-12
 % (C) Institut für Regelungstechnik, Universität Hannover
 
-function H = inertia_nCRB_vp1_m(T_stack, RotAx_i, v, m_num, rSges_num_mdh, Icges_num_mdh)
+function H = inertia_nCRB_vp1_m(T_stack, JointAx_i, v, sigma, m_num, rSges_num_mdh, Icges_num_mdh)
 
 %% Allgemein
 % Vorgänger-Segmente der Gelenke, [Featherstone2008] S. NJ1
@@ -99,8 +101,11 @@ for i = NJ:-1:1 % Wird die Schleife mit uint8 definiert, funktioniert der generi
 
   % Gelenk-Transformationsmatrix
   % Siehe [Featherstone2008] Gl. (3.33), Example 3.2
-  S_i = [RotAx_i(i,:)'; 0; 0; 0]; % Allgemeine Drehachse angenommen
-
+  if sigma(i) == 0
+    S_i = [JointAx_i(i,:)'; 0; 0; 0]; % Allgemeine Drehachse angenommen
+  else
+    S_i = [ 0; 0; 0; JointAx_i(i,:)'];
+  end
   % [Featherstone2008] T6.2, Line 9
   F = I_i_c*S_i;
   
@@ -136,12 +141,14 @@ for i = NJ:-1:1 % Wird die Schleife mit uint8 definiert, funktioniert der generi
     F = X_lj_j_s*F; % F war vorher in Koordinaten j, hiernach in lambda(j) (des Vorgängers)
     % [Featherstone2008] T6.2, Line 14
     j = (lambda(j)); % Kette weiter nach hinten durchgehen (bis zur Basis)
-
-    S_j = [RotAx_i(j,:)'; 0; 0; 0];% Siehe [Featherstone2008] Gl. (3.33), Example 3.2
+    if sigma(j) == 0 % Drehgelenk
+      S_j = [JointAx_i(j,:)'; 0; 0; 0];% Siehe [Featherstone2008] Gl. (3.33), Example 3.2
+    else % Schubgelenk
+      S_j = [0; 0; 0; JointAx_i(j,:)'];
+    end
     % [Featherstone2008] T6.2, Line 15
     H(i,j) = F' * S_j;
     % [Featherstone2008] T6.2, Line 16
     H(j,i) = H(i,j); % Symmetrie ausnutzen
   end
 end
-
