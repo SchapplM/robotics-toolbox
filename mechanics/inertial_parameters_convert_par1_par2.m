@@ -32,19 +32,19 @@ assert(size(ISges,2) == 6, 'Trägheitstensoren müssen zeilenweise vorliegen: Nx
 
 N = size(rSges,1);
 %% Erstes Moment
-mrSges = NaN(N,3);
+mrSges = rSges; % Initialisierung nicht mit NaN, damit für symbolische Ausdrücke möglich
 for i = 1:N
   mrSges(i,:) = mges(i) * rSges(i,:);
 end
 
 %% Trägheitstensor um das Körperkoordinatensystem
-Ifges = NaN(N,6);
+Ifges = ISges;
 for i = 1:N
   % Trägheitstensor um den Schwerpunkt
   I_iSi = inertiavector2matrix(ISges(i,:));
   
   % Steinerscher-Verschiebungssatz: Trägheitstensor um Koordinatensystem
-  I_ii = inertia_steiner(I_iSi, rSges(i,:)', mges(i));
+  I_ii = inertia_steiner(I_iSi, rSges(i,:).', mges(i));
   
   % Ausgabe zusammenstellen
   Ifges(i,:) = inertiamatrix2vector(I_ii);
