@@ -341,14 +341,19 @@ classdef SerRob < RobBase
       matlabfcn2mex(fcnhdl_str(1:k));
     end
     
-    function T = jtraf(R, q)
+    function [T, T_stack] = jtraf(R, q)
       % Homogene Transformationsmatrizen der einzelnen Gelenk-Transformationen
       % Eingabe:
       % q: Gelenkkoordinaten
       %
       % Ausgabe:
       % T: Transformationsmatrizen
-      T = R.jtraffcnhdl(q, R.pkin_gen);
+      % T_stack: Gestapelte Transformationsmatrizen (jew. ohne 0001-Zeile)
+      if nargout <= 1
+        T = R.jtraffcnhdl(q, R.pkin_gen);
+      else
+        [T, T_stack] = R.jtraffcnhdl(q, R.pkin_gen);
+      end
     end
 
     
