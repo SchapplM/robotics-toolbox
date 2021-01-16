@@ -120,22 +120,22 @@ if ~all(Ibsym==Ibnum) || ~all(Idsym==Idnum)
   IIbsym_diff = find((Ibsym~=Ibnum).*Ibsym); % ... bezogen auf unabhängige nach symbolischer Herleitung
   IIbnum_diff = find((Ibsym~=Ibnum).*Ibnum); % ... bezogen auf numerische Herleitung
   if any(IIbnum_diff)
-    fprintf('Dynamikparameter, die unabhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), sum(Ibsym))
+    fprintf('Dynamikparameter, die unabhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), length(MPVsym))
     disp(PV2_Names(IIbnum_diff)');
   end
   if any(IIbsym_diff)
-    fprintf('Dynamikparameter, die unabhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
+    fprintf('Dynamikparameter, die unabhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', length(MPVsym), sum(Ibnum))
     disp(PV2_Names(IIbsym_diff)');
   end
   % Unterschiedliche abhängige Einträge
   IIdsym_diff = find((Idsym~=Idnum).*Idsym); % ... bezogen auf symbolische Herleitung
   IIdnum_diff = find((Idsym~=Idnum).*Idnum); % ... bezogen auf numerische Herleitung
   if any(IIdnum_diff)
-    fprintf('Dynamikparameter, die abhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), sum(Ibsym))
+    fprintf('Dynamikparameter, die abhängig im numerischem MPV [%dx1] vorkommen, aber nicht im symbolischen [%dx1]:\n', sum(Ibnum), length(MPVsym))
     disp(PV2_Names(IIdnum_diff)');
   end
   if any(IIdsym_diff)
-    fprintf('Dynamikparameter, die abhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', sum(Ibsym), sum(Ibnum))
+    fprintf('Dynamikparameter, die abhängig im symbolischen MPV [%dx1] vorkommen, aber nicht im numerischen [%dx1]:\n', length(MPVsym), sum(Ibnum))
     disp(PV2_Names(IIdsym_diff)');
   end
   error('Die Aufteilung der Inertialparameter in linear abhängige und unabhängige ist zwischen num. und sym. Berechnung unterschiedlich');
@@ -200,7 +200,11 @@ end
 % if any(abs(R1(:)-R1_g2(:))>1e-10) || any(abs(R2(:)-R2_g2(:))>1e-10)
 %   error('Matrizen R1 oder R2 stimmen nicht in zweiter QR-Zerlegung');
 % end
-
+if cond(R1) > 1e6
+  warning(['Zu invertierende Matrix R1 ist schlecht konditioniert. Keine ', ...
+    'Berechnung der Minimalparameter möglich']);
+  return
+end
 %% Minimalparameter bestimmen
 % [Gautier1990], Gl. (18)
 test = W2 - W1*(R1\R2);
