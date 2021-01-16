@@ -7,6 +7,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_red
@@ -27,14 +29,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phix_red, Phix] = constr2_trans(Rob, q, xE)
+function [Phix_red, Phix] = constr2_trans(Rob, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr_trans: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2_trans: xE muss 6x1 sein');
-
+if nargin == 3, platform_frame = false; end
 NLEG = Rob.NLEG;
 
 Phix = NaN(3*NLEG,1);
@@ -42,6 +44,11 @@ Phix_red = NaN(sum(Rob.I_EE(1:3))*NLEG,1);
 
 %% Berechnung
 r_0_0_E_x = xE(1:3); % [2_SchapplerTapOrt2019a]/(14)
+if ~platform_frame
+  r_P_E = Rob.r_P_E;
+else
+  r_P_E = zeros(3,1);
+end
 
 for iLeg = 1:NLEG
   % Anteil der ZB-Gleichung der Gelenkkette
@@ -64,7 +71,7 @@ for iLeg = 1:NLEG
   R_Bi_P = eulxyz2r(Rob.phi_P_B_all(:,iLeg)).';
   r_0_Bi_P = R_0_Bi * R_Bi_P * (-r_P_P_Bi);
   r_0_0_P_q = r_0_0_Ai + r_0_Ai_Bi_q + r_0_Bi_P;
-  r_0_0_E_q = r_0_0_P_q + R_0_Bi * R_Bi_P * Rob.r_P_E;  % [2_SchapplerTapOrt2019a]/(17)
+  r_0_0_E_q = r_0_0_P_q + R_0_Bi * R_Bi_P * r_P_E;  % [2_SchapplerTapOrt2019a]/(17)
   
   J1 = 1+3*(iLeg-1);
   J2 = J1+2;

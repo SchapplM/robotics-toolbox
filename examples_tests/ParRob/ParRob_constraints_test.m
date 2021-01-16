@@ -32,10 +32,9 @@ phi_P_E = [20; 40; 50]*pi/180;
 % Basis-Transformation: Nehme auch hier irgendwelche Werte
 r_W_0   = [0.1;0.2;0.3];
 phi_W_0 = [20; 40; 50]*pi/180;
-% Zum Testen der Auswahl der Plattform-Koordinaten für die constr1-Funktion
-platform_frame = true;
 
 %% Alle Robotermodelle durchgehen
+for platform_frame = [true, false]%[false, true] % Zum Testen der Auswahl der Plattform-Koordinaten
 for NNN = RobotNames
   %% PKM initialisieren
   PName = NNN{1};
@@ -144,14 +143,14 @@ for NNN = RobotNames
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0, platform_frame);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0, platform_frame);
       
-      [~,Phi2_0] = RP.constr2(q0, x0);
-      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
-      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
+      [~,Phi2_0] = RP.constr2(q0, x0, platform_frame);
+      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0, platform_frame);
+      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0, platform_frame);
       
       if all(RP.I_EE == [1 1 1 1 1 1])
-      [~,Phi3_0] = RP.constr3(q0, x0);
-      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
-      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);   
+      [~,Phi3_0] = RP.constr3(q0, x0, platform_frame);
+      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
+      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);   
       else
       Phi3_0=NaN*Phi2_0; Phi3dq_0=NaN*Phi2dq_0;Phi3dx_0=NaN*Phi2dx_0;
       end
@@ -166,8 +165,8 @@ for NNN = RobotNames
 
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
         [~,Phi1_1] = RP.constr1(q1, x0, platform_frame);
-        [~,Phi2_1] = RP.constr2(q1, x0);
-        [~,Phi3_1] = RP.constr3(q1, x0);
+        [~,Phi2_1] = RP.constr2(q1, x0, platform_frame);
+        [~,Phi3_1] = RP.constr3(q1, x0, platform_frame);
         
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
@@ -229,8 +228,8 @@ for NNN = RobotNames
 
         % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
         [~,Phi1_1] = RP.constr1(q0, x1, platform_frame);
-        [~,Phi2_1] = RP.constr2(q0, x1);
-        [~,Phi3_1] = RP.constr3(q0, x1);
+        [~,Phi2_1] = RP.constr2(q0, x1, platform_frame);
+        [~,Phi3_1] = RP.constr3(q0, x1, platform_frame);
         
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
@@ -306,9 +305,9 @@ for NNN = RobotNames
       
       % Benutze hier die Zwangsbedingungen für die reduzierten
       % EE-Koordinaten (sonst schlägt der Test fehl).
-      Phi1_0 = RP.constr1(q0, x0);
-      Phi1dq_0 = RP.constr1grad_q(q0, x0);
-      Phi1dx_0 = RP.constr1grad_x(q0, x0);
+      Phi1_0 = RP.constr1(q0, x0, platform_frame);
+      Phi1dq_0 = RP.constr1grad_q(q0, x0, platform_frame);
+      Phi1dx_0 = RP.constr1grad_x(q0, x0, platform_frame);
       
       % Inverse PKM-Jacobi-Matrix
       Jinv1_voll = -Phi1dq_0 \ Phi1dx_0;
@@ -327,7 +326,7 @@ for NNN = RobotNames
       % Berechne neue Koordinaten q1,x1 konsistent mit den Zwangsbed.
       q1 = q0 + delta_q1;
       x1 = x0 + delta_x1;
-      Phi1_1 = RP.constr1(q1, x1);
+      Phi1_1 = RP.constr1(q1, x1, platform_frame);
       test_Phi1_abs = Phi1_0 - Phi1_1; % Fehler-Wert: Die ZB müssen gleich bleiben.
       % Teste auch relativen Fehler, da bei großem Zahlenwert von Phi der
       % absolute Fehler durch numerische Einflüsse auch größer wird.
@@ -358,12 +357,12 @@ for NNN = RobotNames
       
       % Andere ZB-Definitionen vergleichen:
       % Gradientenmatrizen und inverse Jacobi-Matrix
-      Phi2dq_0 = RP.constr2grad_q(q0, x0);
-      Phi2dx_0 = RP.constr2grad_x(q0, x0);
+      Phi2dq_0 = RP.constr2grad_q(q0, x0, platform_frame);
+      Phi2dx_0 = RP.constr2grad_x(q0, x0, platform_frame);
       Jinv2_voll = -Phi2dq_0 \ Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
       if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
-      Phi3dq_0 = RP.constr3grad_q(q0, x0);
-      Phi3dx_0 = RP.constr3grad_x(q0, x0);
+      Phi3dq_0 = RP.constr3grad_q(q0, x0, platform_frame);
+      Phi3dx_0 = RP.constr3grad_x(q0, x0, platform_frame);
       Jinv3_voll = -Phi3dq_0 \ Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
       else
       Phi3dq_0=Phi2dq_0*NaN; Phi3dx_0=Phi2dx_0*NaN;
@@ -386,10 +385,10 @@ for NNN = RobotNames
       delta_x3 = zeros(6,1);
       delta_x3(RP.I_EE) = delta_x_red3;
       % Daraus resultierende Änderung der Zwangsbedingungen
-      Phi2_0 = RP.constr2(q0, x0);
-      Phi2_1 = RP.constr2(q0 + delta_q2, x0+delta_x2);
-      Phi3_0 = RP.constr3(q0, x0);
-      Phi3_1 = RP.constr3(q0 + delta_q3, x0+delta_x3);
+      Phi2_0 = RP.constr2(q0, x0, platform_frame);
+      Phi2_1 = RP.constr2(q0 + delta_q2, x0+delta_x2, platform_frame);
+      Phi3_0 = RP.constr3(q0, x0, platform_frame);
+      Phi3_1 = RP.constr3(q0 + delta_q3, x0+delta_x3, platform_frame);
       test_Phi2 = Phi2_0 - Phi2_1;
       test_Phi3 = Phi3_0 - Phi3_1;
       if max(abs(test_Phi2)) > 5e11*eps(1+max(abs(Phi2_0)))
@@ -429,3 +428,4 @@ for NNN = RobotNames
   RS.phiconv_W_E = 2; % zurücksetzen auf Standard XYZ
   fprintf('fertig mit %s\n', PName);
 end
+end % Schleife für platform_frame

@@ -36,10 +36,9 @@ phi_P_E = [20; 40; 50]*pi/180;
 % Basis-Transformation: Nehme auch hier irgendwelche Werte
 r_W_0   = [0.1;0.2;0.3];
 phi_W_0 = [20; 40; 50]*pi/180;
-% Zum Testen der Auswahl der Plattform-Koordinaten für die constr1-Funktion
-platform_frame = true;
 
 %% Alle Robotermodelle durchgehen
+for platform_frame = [false, true] % Zum Testen der Auswahl der Plattform-Koordinaten
 for NNN = RobotNames
   %% PKM initialisieren
   PName = NNN{1};
@@ -160,12 +159,12 @@ for NNN = RobotNames
       [~,Phi1_0] = RP.constr1(q0, x0, platform_frame);
       [~,Phi1dq_0] = RP.constr1grad_q(q0, x0, platform_frame);
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0, platform_frame);
-      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0);
-      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0);
-      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0);
-      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0);
+      [~,Phi2dq_0] = RP.constr2grad_q(q0, x0, platform_frame);
+      [~,Phi2dx_0] = RP.constr2grad_x(q0, x0, platform_frame);
+      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
+      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);
       [~,Phi4dq_0] = RP.constr4grad_q(q0);
-      [~,Phi4dx_0] = RP.constr4grad_x(x0);
+      [~,Phi4dx_0] = RP.constr4grad_x(x0, platform_frame);
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
       for testcase = 1:2
@@ -189,9 +188,14 @@ for NNN = RobotNames
             q1 = q0 + qD0*dt; % Geschwindigkeit aus entspricht linksseitigem Differenzenquotient
             xD0 = zeros(6,1); % Hier gibt es nur eine Änderung der Gelenkwinkel
             % Indizes zum Debuggen
-            legnum = find(RP.I1J_LEG>=id,1);
-            II = RP.I1constr(legnum):RP.I2constr(legnum);
-            JJ = RP.I1J_LEG(legnum):RP.I2J_LEG(legnum);
+            if id <= id_loop_length
+              legnum = find(RP.I1J_LEG>=id,1);
+              II = RP.I1constr(legnum):RP.I2constr(legnum);
+              JJ = RP.I1J_LEG(legnum):RP.I2J_LEG(legnum);
+            else
+              II = 1:RP.I2constr(end);
+              JJ = 1:RP.I2J_LEG(end);
+            end
           else
             xD0 = zeros(6,1);
             if id <= id_loop_length
@@ -225,25 +229,25 @@ for NNN = RobotNames
           %% Berechne Zeitableitungen aus symbolischer Form und Differenzengleichung
           % Calculation of the differentiated term of the above gradient  
           [~,Phi1D_0] = RP.constr1D(q0, qD0, x0, xD0, platform_frame);
-          [~,Phi4D_0] = RP.constr4D(q0, qD0, x0, xD0); % Geschwindigkeitsdifferenz 
+          [~,Phi4D_0] = RP.constr4D(q0, qD0, x0, xD0, platform_frame); % Geschwindigkeitsdifferenz 
           [~,Phi1Ddq_0] = RP.constr1gradD_q(q0, qD0, x0, xD0, platform_frame);
           [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0, platform_frame);
-          [~,Phi2Ddq_0] = RP.constr2gradD_q(q0, qD0, x0, xD0);
-          [~,Phi2Ddx_0] = RP.constr2gradD_x(q0, qD0, x0, xD0);
-          [~,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0);
-          [~,Phi3Ddx_0] = RP.constr3gradD_x(q0, qD0, x0, xD0);
+          [~,Phi2Ddq_0] = RP.constr2gradD_q(q0, qD0, x0, xD0, platform_frame);
+          [~,Phi2Ddx_0] = RP.constr2gradD_x(q0, qD0, x0, xD0, platform_frame);
+          [~,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0, platform_frame);
+          [~,Phi3Ddx_0] = RP.constr3gradD_x(q0, qD0, x0, xD0, platform_frame);
           [~,Phi4Ddq_0] = RP.constr4gradD_q(q0, qD0);
-          [~,Phi4Ddx_0] = RP.constr4gradD_x(x0, xD0);
+          [~,Phi4Ddx_0] = RP.constr4gradD_x(x0, xD0, platform_frame);
           % Zwangsbedingungen und -Matrizen für verschobene Koordinaten q1 berechnen
           [~,Phi1_1] = RP.constr1(q1, x1, platform_frame);
           [~,Phi1dq_1] = RP.constr1grad_q(q1, x1, platform_frame);
           [~,Phi1dx_1] = RP.constr1grad_x(q1, x1, platform_frame);
-          [~,Phi2dq_1] = RP.constr2grad_q(q1, x1);
-          [~,Phi2dx_1] = RP.constr2grad_x(q1, x1);
-          [~,Phi3dq_1] = RP.constr3grad_q(q1, x1);
-          [~,Phi3dx_1] = RP.constr3grad_x(q1, x1);
+          [~,Phi2dq_1] = RP.constr2grad_q(q1, x1, platform_frame);
+          [~,Phi2dx_1] = RP.constr2grad_x(q1, x1, platform_frame);
+          [~,Phi3dq_1] = RP.constr3grad_q(q1, x1, platform_frame);
+          [~,Phi3dx_1] = RP.constr3grad_x(q1, x1, platform_frame);
           [~,Phi4dq_1] = RP.constr4grad_q(q1);
-          [~,Phi4dx_1] = RP.constr4grad_x(x1);
+          [~,Phi4dx_1] = RP.constr4grad_x(x1, platform_frame);
           % Ganzzahlige 2pi bei Winkelfehler entfernen: Wenn Phi1 +pi und
           % Phi0 -pi ist, ist der euklidische Abstand 2pi und die Näherung
           % funktioniert nicht. Daher Winkel-Differenz.
@@ -343,7 +347,7 @@ for NNN = RobotNames
           end
           %% Teste constr2gradD_rq gegen constr2grad_rq
           I_rq_relerr_2 = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_rq_abserr_2 = abs(test7(RP.I_constr_r,:)) > 1e10*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_rq_abserr_2 = abs(test7(RP.I_constr_r,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz. Ca. 1e-3
           if any( I_rq_relerr_2(:) & I_rq_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             disp(test7(II,JJ));
             error('%s: constr2gradD_rq stimmt nicht gegen constr2grad_rq', PName);
@@ -407,3 +411,4 @@ for NNN = RobotNames
     fprintf('%s: Konsistenz der Zeitableitung der Zwangsbedingungs-Gradienten erfolgreich getestet für %s-Euler-Winkel (%d Zufallskonfigurationen).\n', PName, eulstr, n_test);
   end % Schleife über alle Winkelkonventionen
 end % Schleife über alle Roboter
+end % Schleife für platform_frame

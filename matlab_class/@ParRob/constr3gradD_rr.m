@@ -9,8 +9,14 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phipphi_red
@@ -33,17 +39,18 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiDpphi_red, PhiDpphi] = constr3gradD_rr(Rob, q, qD, xE ,xDE)
+function [PhiDpphi_red, PhiDpphi] = constr3gradD_rr(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_rr: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3gradD_rr: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_rr: qD muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3gradD_rr: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr1gradD_rr: xE muss 6x1 sein');
+  'ParRob/constr3gradD_rr: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/constr1gradD_rr: xDE muss 6x1 sein');
+  'ParRob/constr3gradD_rr: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
@@ -61,12 +68,15 @@ else
 end
 
 %% Berechnung
-R_P_E = Rob.T_P_E(1:3,1:3);
+if ~platform_frame
+  R_P_E = Rob.T_P_E(1:3,1:3);
+else
+  R_P_E = eye(3);
+end
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 omega_0_Ex  = euljac (xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
 RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
-R_Bi_P = eye(3,3);
 
 for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTapOrt2019a]/(37)
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);

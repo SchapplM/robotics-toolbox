@@ -13,15 +13,14 @@
 % XDE
 %   Trajektorie von EE-Geschwindigkeiten
 %   (Die Orientierung wird durch Euler-Winkel-Zeitableitung dargestellt)
-% s:
-%   Struktur mit Einstellungen für diese Funktion. Enthält die Parameter
-%   des Roboters, die sonst in der ParRob-Klasse gespeichert sind.
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
-% PhiD
-%   Ableitung der kinematischen Zwangsbedingungen nach der Zeit
-%   für alle Zeitschritte der Trajektorie der Eingabedaten
-%   Keine reduzierten Einträge. Gebe immer alle möglichen Zwangsbedingungen an.
+% PHID
+%   Ableitung der kinematischen Zwangsbedingungen nach der Zeit für alle 
+%   Zeitschritte der Trajektorie der Eingabedaten. Keine reduzierten Ein-
+%   träge. Gebe immer alle möglichen Zwangsbedingungen an.
 % 
 % Diese Datei ist identisch mit: ParRob/constr4D.m mit dem Zusatz für Trajektorien
 % Hier Aufruf einer kompilierbaren Matlab-Funktion aus Vorlage:
@@ -31,13 +30,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-08
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function PHID = constr4D2_traj(R, Q, QD, X, XD)
+function PHID = constr4D2_traj(R, Q, QD, X, XD, platform_frame)
 
 assert(size(Q,2) == R.NJ, 'Q muss Trajektorie von Gelenkwinkeln sein');
 assert(size(QD,2) == R.NJ, 'QD muss Trajektorie von Gelenkwinkeln sein');
 assert(size(X,2) == 6, 'X muss Trajektorie von EE-Posen sein');
 assert(size(XD,2) == 6, 'XD muss Trajektorie von EE-Geschwindigkeiten sein');
-
+if nargin == 5, platform_frame = false; end
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 Leg_I_EE_Task = true(R.NLEG,6);
 Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
@@ -57,12 +56,17 @@ for i = 1:R.NLEG
   Leg_phiconv_W_0(i) = R.Leg(i).phiconv_W_0;
   Leg_NQJ(i) = R.Leg(i).NJ;
 end
+if ~platform_frame
+  T_P_E = R.T_P_E;
+else
+  T_P_E = eye(4);
+end
 s = struct( ...
   'I_constr_t', R.I_constr_t, ...
   'I_constr_r', R.I_constr_r, ...
   'I_constr_r_red', R.I_constr_r_red,...
   'r_P_B_all', R.r_P_B_all,...
-  'T_P_E', R.T_P_E, ...
+  'T_P_E', T_P_E, ...
   'Leg_pkin_gen', Leg_pkin_gen,...
   'Leg_T_N_E_vec', Leg_T_N_E_vec,...
   'Leg_I_EE_Task', Leg_I_EE_Task,...

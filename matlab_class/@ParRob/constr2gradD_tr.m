@@ -3,12 +3,6 @@
 % Variante 2:
 % * Implementierung mit Vektor 0-E statt A-B
 % 
-% Eingabe:
-% xE [6x1]
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
-% xDE [6x1]
-%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
-% 
 % Ausgabe:
 % Phix_phi_red
 %   Reduzierte Zeilen: Die Reduktion folgt aus der Klassenvariablen I_EE
@@ -23,13 +17,9 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiDx_phi_red, PhiDx_phi] = constr2gradD_tr(Rob, xE, xDE)
+function [PhiDx_phi_red, PhiDx_phi] = constr2gradD_tr(Rob)
 
 %% Initialisierung
-assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2grad_tr: xE muss 6x1 sein');
-assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/constr2grad_tr: xE muss 6x1 sein');
 NLEG = Rob.NLEG;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe

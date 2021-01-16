@@ -12,6 +12,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_x_red
@@ -23,13 +25,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_x_red, Phi_x] = constr2grad_x(Rob, q, xE)
+function [Phi_x_red, Phi_x] = constr2grad_x(Rob, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/constr2grad_x: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2grad_x: xE muss 6x1 sein');
+if nargin == 3, platform_frame = false; end
 
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
@@ -41,9 +44,9 @@ end
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
 [~, Phi_tt] = Rob.constr2grad_tt();
-[~, Phi_tr] = Rob.constr2grad_tr(xE);
+[~, Phi_tr] = Rob.constr2grad_tr();
 [~, Phi_rt] = Rob.constr2grad_rt();
-[~, Phi_rr] = Rob.constr2grad_rr(q, xE);
+[~, Phi_rr] = Rob.constr2grad_rr(q, xE, platform_frame);
 
 %% Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe

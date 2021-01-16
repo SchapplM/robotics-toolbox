@@ -147,14 +147,17 @@ for i_FG = 1:size(EEFG_Ges,1)
     end
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
-      Set.optimization.objective = 'valid_act';
-      % TODO: Folgende Terme sollten aktiviert werden (aktuell noch falsch)
+      Set.optimization.objective = 'condition';
+      % Führe Maßsynthese ohne EE-Transformation durch. Hat für dieses
+      % Skript aber keine Auswirkungen.
       Set.optimization.ee_rotation = false; % darf beliebige Werte einnehmen ....
       % Set.optimization.ee_translation = false; % ... muss für Dynamik egal sein
       % Set.optimization.ee_translation_only_serial = false; % damit obige Funktion wirkt
+      Set.general.debug_calc = true; % Dann auch Abbruch, wenn 3T2R nicht funktioniert.
       Set.optimization.movebase = false;
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
+      Set.optimization.obj_limit = 1e3; % Sofort abbrechen, falls Ergebnis irgendwie funktionierend (hinsichtlich IK der Beingelenke)
       Set.structures.use_parallel_rankdef = 6;
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
@@ -211,34 +214,152 @@ for i_FG = 1:size(EEFG_Ges,1)
     %% Dynamik-Test: Energiekonsistenz
     % Test-Konfiguration
     n = 2;
-    XE_test = repmat(Traj_0.X(1,:),n,1) + 1e-10*rand(n,6);
-
+    % Gebe die Startpose der Plattform in EE-Koordinaten vor, da diese
+    % Werte direkt aus den geladenen Daten der Maßsynthese kommen
+    XE_test_tmp = repmat(Traj_0.XE,ceil(n/size(Traj_0.XE,1)),1);
+    XE_test_tmp = XE_test_tmp(1:n,:);
+    XED_test = NaN(n, 6); % wird später belegt
+    % Rechne in Plattform-KS um (welches für die Dynamik benutzt wird).
+    % Benutze dafür noch die ursprüngliche Transformation P-E
+    XP_test = RP.xE2xP_traj(XE_test_tmp);
+    % Setze eine beliebige EE-Transformation. Diese Werte haben keinen
+    % Einfluss auf die weitere Berechnung, da die Dynamik nur mit dem
+    % Plattform-KS berechnet wird.
+    r_P_E   = [0.1;0.2;0.3];
+    phi_P_E = [45; 35; 10]*pi/180;
+    RP.update_EE(r_P_E, phi_P_E);
+    % Berechne die EE-Transformation neu (mit eventuell geänderter
+    % EE-Trafo P-E)
+    XE_test = RP.xP2xE_traj(XP_test);
     Q_test = NaN(n, RP.NJ);
     QD_test = NaN(n, RP.NJ);
-    XPD_test = rand(n,6);
-    XPD_test(:,~RP.I_EE) = 0;
+    % Definiere eine beliebige Geschwindigkeit, aber im Plattform-KS
+    XPD_test = rand(n, 6);
+    XPD_test(:,~RP.I_EE) = 0; % nicht belegte FG haben keine Geschw.
     % IK für Testkonfiguration berechnen
     for i = 1:n
-      [q, Phi] = RP.invkin_ser(XE_test(i,:)', q0);
-      if any(abs(Phi) > 1e-8) || any(isnan(Phi)), XE_test(i,:)=XE_test(i,:)*NaN; continue; end
+      % IK mit EE-Pose berechnen
+      [q, Phi] = RP.invkin_ser(XP_test(i,:)', q0, [], struct('platform_frame',true));
+      if any(abs(Phi) > 1e-8) || any(isnan(Phi))
+        XE_test(i,:) = NaN; XP_test(i,:) = NaN;
+        continue;
+      end
+      [q2, Phi2] = RP.invkin_ser(XE_test(i,:)', q0); % mit EE-KS
+      if any(abs(q-q2)>1e-8), error('IK mit KS P oder KS E gibt anderes Ergebnis'); end
+      % Plattform-Pose neu berechnen (wegen drittem Euler-Winkel, der sich evtl ändert
+      XP_test(i,:) = RP.fkineEE_traj(q', [], [], 1, true);
+      
       Q_test(i,:) = q;
+      % Berechne die Geschwindigkeit mit der Jacobi-Matrix. Beziehe die
+      % Matrix dafür auf das Plattform-KS (und nicht das EE-KS)
       if ~all(RP.I_EE == [1 1 1 1 1 0])
-        [~, Jinv_voll] = RP.jacobi_qa_x(q, XE_test(i,:)', true);
+        [~, Jinv_voll] = RP.jacobi_qa_x(q, XP_test(i,:)', true);
       else % 3T2R: Eigene Modellierung
-        G2_q = RP.constr2grad_q(q, XE_test(i,:)');
-        G2_x = RP.constr2grad_x(q, XE_test(i,:)');
+        G2_q = RP.constr2grad_q(q, XP_test(i,:)', true);
+        G2_x = RP.constr2grad_x(q, XP_test(i,:)', true);
         Jinv_voll = -G2_q\G2_x;
       end
       QD_test(i,:) = Jinv_voll*XPD_test(i,RP.I_EE)';
+      if all(RP.I_EE == [1 1 1 1 1 0])
+        % Berechne die EE-Geschwindigkeiten neu (notwendig)
+        [xE_i, xDE_i] = RP.fkineEE_traj(q', QD_test(i,:), [], 1, false);
+        XE_test(i,:) = xE_i;
+        XED_test(i,:) = xDE_i;
+        [XP_i, xDP_i] = RP.fkineEE_traj(q', QD_test(i,:), [], 1, true);
+        if any(abs(XP_test(i,1:6) - XP_i(1:6)) > 1e-6) % 6. Eintrag wurde oben schon geändert
+          error('Plattform-Lage xP hat sich verändert nach Geschw.-Berechnung');
+        end
+        if any(abs(XPD_test(i,1:5) - xDP_i(1:5)) > 1e-5)
+          error('Geschwindigkeit xPD hat sich verändert nach Geschw.-Berechnung');
+        end
+        % Ab hier Debuggen für 3T2R-PKM
+        % Direkte Berechnung mit Jacobi-Matrix, die zur Herleitung diente
+        Phi2D_test = G2_q*QD_test(i,:)' + G2_x*XPD_test(i,RP.I_EE)';
+        if any(abs(Phi2D_test) > 1e-10), error('Herleitung qD/xD stimmt nicht'); end
+        % Geschwindigkeit nochmal neu mit ZB-Def. 2 (Plattform-KS)
+        G2P_q = RP.constr2grad_q(q, XP_test(i,:)', true);
+        G2P_x = RP.constr2grad_x(q, XP_test(i,:)', true);
+        Jinv2P_voll = -G2P_q\G2P_x;
+        qD2P = Jinv2P_voll*XPD_test(i,RP.I_EE)';
+        % Geschwindigkeit auch mit ZB-Def. 2 und EE-KS
+        [~, G2E_q_voll] = RP.constr2grad_q(q, XE_test(i,:)', false);
+        [~, G2E_x_voll] = RP.constr2grad_x(q, XE_test(i,:)', false);
+        Jinv2E_voll = -G2E_q_voll\G2E_x_voll;
+        qD2E = Jinv2E_voll*xDE_i';
+        if any(abs(qD2P - qD2E) > 1e-6) || any(isnan([qD2P;qD2E]))
+          error('Gelenk-Geschwindigkeit stimmt nicht zwischen ZB Methode 2P vs 2E.');
+        end
+        % Geschwindigkeit aus anderer ZB-Definition (Plattform-KS)
+        [G3P_q, G3P_q_voll] = RP.constr3grad_q(q, XP_test(i,:)', true);
+        [G3P_x, G3P_x_voll] = RP.constr3grad_x(q, XP_test(i,:)', true);
+        Jinv3P_voll = -G3P_q_voll\G3P_x_voll;
+        qD3P = Jinv3P_voll*xDP_i';
+        if any(abs(qD3P - qD2P) > 1e-6) || any(isnan([qD3P;qD2P]))
+          error('Gelenk-Geschwindigkeit stimmt nicht zwischen ZB Methode 2P und 3P. 3T2R-PKM ungültig.');
+        end
+        Jinv3P_voll2 = -G3P_q\G3P_x(:,RP.I_EE);
+        qD3P2 = Jinv3P_voll2*XPD_test(i,RP.I_EE)';
+        if any(abs(qD3P - qD3P2) > 1e-6) || any(isnan([qD3P;qD3P2]))
+          error('Gelenk-Geschwindigkeit stimmt nicht mit Methode 3P.');
+        end
+        % Geschwindigkeit aus anderer ZB-Definition (EE-KS). Hier muss der
+        % vollständige EE-Geschwindigkeitsvektor benutzt werden. Es können
+        % nicht die sechsten Komponenten von xP und xE Null sein.
+        [G3E_q, G3E_q_voll] = RP.constr3grad_q(q, XE_test(i,:)', false);
+        [G3E_x, G3E_x_voll] = RP.constr3grad_x(q, XE_test(i,:)', false);
+        Jinv3E_voll = -G3E_q_voll\G3E_x_voll;
+        qD3E = Jinv3E_voll*xDE_i';
+        if any(abs(qD3E - qD2E) > 1e-6) || any(isnan([qD3E;qD2E]))
+          error('Gelenk-Geschwindigkeit stimmt nicht zwischen ZB Methode 2E und 3E. 3T2R-PKM ungültig.');
+        end
+        Jinv3E_voll2 = -G3E_q\G3E_x;
+        qD3E2 = Jinv3E_voll2*XED_test(i,RP.I_EE)';
+        if any(abs(qD3P - qD3E) > 1e-6) || any(isnan([qD3P;qD3E]))
+          error('Gelenk-Geschwindigkeit stimmt nicht zwischen ZB Methode 3P vs 3E.');
+        end
+      end
     end
-    
+    % Teste, ob die Start-Konfiguration überhaupt richtig ist. Der dritte
+    % Euler-Winkel wurde oben schon korrigiert.
+    if all(RP.I_EE_Task == [1 1 1 1 1 0])
+      for j = 1:RP.NLEG
+        [XP_korr, XPD_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, true);
+        [XE_korr, XED_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, false); 
+        % Vergleiche diese Beinkette gegen die Plattform (bzw. den EE)
+        test_XP = XP_korr(1:6) - XP_test(1:6);
+        test_XPD = XPD_korr(1:6) - XPD_test(1:6);
+        test_XE = XE_korr(1:6) - XE_test(1:6);
+        test_XED = XED_korr(1:6) - XED_test(1:6);
+        test_XP([false(size(test_XP,1),3),abs(abs(test_XP(:,4:end))-2*pi)<1e-3]) = 0; % 2pi-Fehler entfernen
+        test_XE([false(size(test_XE,1),3),abs(abs(test_XE(:,4:end))-2*pi)<1e-3]) = 0;
+        if max(abs(test_XP(:))) > 1e-6
+          error('Plattform-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+        end
+        if max(abs(test_XPD(:))) > 1e-6
+          error('Plattform-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+        end
+        if max(abs(test_XE(:))) > 1e-6
+          error('Endeffektor-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+        end
+        if max(abs(test_XED(:))) > 1e-6
+          error('Endeffektor-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+        end
+      end
+    end
+    % Prüfe mit anderer Methode, ob Geschwindigkeit korrekt berechnet wurde
+    PHID_testP = RP.constr4D2_traj(Q_test, QD_test, XP_test, XPD_test, true);
+    PHID_testE = RP.constr4D2_traj(Q_test, QD_test, XE_test, XED_test);
+    if any(abs(PHID_testP(:)) > 1e-6) || any(abs(PHID_testE(:)) > 1e-6)
+      error('Anfangswerte der Vorwärtsdynamik sind nicht konsistent');
+    end
     if usr_debug
       change_current_figure(2);clf;hold all;
       xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
       axis auto
       hold on;grid on;
-      s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-      RP.plot(Q_test(1,:)', Traj_0.X(1,:)', s_plot);
+      s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], ...
+        'ks_platform', RP.NLEG+1, 'straight', 0);
+      RP.plot(Q_test(1,:)', XE_test(1,:)', s_plot);
       title(sprintf('%s in Testkonfiguration 1',PName));
     end
     if ~all(EE_FG == [1 1 1 1 1 0])
@@ -261,11 +382,10 @@ for i_FG = 1:size(EEFG_Ges,1)
         RP.update_base([0;0;1], rand(3,1));
       end
       RP.update_gravity([0;0;-9.81]);
-
       % Anfangswerte für iterativen Algorithmus
       q0 = Q_test(i_tk,:)'; % Anfangswert für t=0 bzw. i=0
-      qD0 = QD_test(i_tk,:)';
-      xP = RP.xE2xP(XE_test(i_tk,:)'); % Anfangswert (passend zu q)
+      qD0 = NaN*q0; % wird in fdyn neu berechnet.
+      xP = XP_test(i_tk,:)'; % Anfangswert (passend zu q)
       if any(abs(xP(~RP.I_EE)) > 1e-7)
         error('EE-Pose zwischen EE und Plattform-KS ist nicht konsistent');
       end
@@ -322,7 +442,6 @@ for i_FG = 1:size(EEFG_Ges,1)
         'n_max', 1000, ... % Maximale Anzahl Iterationen
         'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
-      
       %% Nachverarbeitung der Ergebnisse
       t2 = tic();
       for i = 1:nt
@@ -336,25 +455,29 @@ for i_FG = 1:size(EEFG_Ges,1)
             'aufgrund von IK-Inkonsistenz.'], i, nt);
           nt = i - 1;
           break
-        end
-        [xE, xDE] = RP.xP2xE(xP, xPD);
-        
+        end   
         % Prüfe, ob Zwangsbedingungen noch stimmen und berechne korrigierte
         % Gelenkwinkel, da in ODE Integrationsfehler auftreten können (und
         % dort intern auch mit anderen Winkeln gerechnet wird)
-        [q,Phi] = RP.invkin_ser(xE, q_ode, s);
+        [q, Phi] = RP.invkin_ser(xP, q_ode, s, struct('platform_frame',true));
+        % Plattform-Pose neu berechnen (3. Euler-Winkel; eventuell bei
+        % manchen PKM abhängig und ungleich Null)
+        xP = RP.fkineEE_traj(q', [], [], 1, true)';
         if any(isnan(q)) || any(abs(Phi) > 1e-6) || any(isnan(Phi))
           warning('i=%d/%d: IK kann nicht berechnet werden. Roboter verlässt vermutlich den Arbeitsraum.', i, nt);
           nt = i - 1;
           break
+        end
+        if i == 1 && any(abs(xP - XP_test(i_tk,:)') > 1e-10)
+          error('Anfangswerte in der Vorwärtsdynamik stimmen nicht');          
         end
         
         % Kinematik für Zeitschritt i berechnen:
         % Berechnung der Gelenk-Geschwindigkeit und Jacobi-Matrix
         [G1_q, G1_q_voll] = RP.constr1grad_q(q, xP, true); % Für Konditionszahl weiter unten
         [G1_x, G1_x_voll] = RP.constr1grad_x(q, xP, true);
-        G2_q = RP.constr2grad_q(q, xE);
-        G2_x = RP.constr2grad_x(q, xE);
+        G2_q = RP.constr2grad_q(q, xP, true);
+        G2_x = RP.constr2grad_x(q, xP, true);
         [G4_q, G4_q_voll] = RP.constr4grad_q(q);
         [G4_x, G4_x_voll] = RP.constr4grad_x(xP, true);
         if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
@@ -369,7 +492,25 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         % Berechne Gelenkwinkel neu (und ignoriere die aus der ode45).
         qD = Jinv_voll*xPD_red;
-        
+        % Berechne Plattform-Geschwindigkeit neu (für 3T2R). Zusätzlicher Test.
+        if all(RP.I_EE_Task == [1 1 1 1 1 0])
+          for j = 1:RP.NLEG
+            [xP_korrT, xPD_korrT] = RP.fkineEE_traj(q', qD', 0*qD', j, true); 
+            if j == 1
+              test_x = xP_korrT(1:5)' - xP(1:5);
+              test_xD = xPD_korrT(1:5)' - xPD(1:5);
+              xP = xP_korrT';
+              xPD = xPD_korrT';
+            else
+              test_x = xP_korrT(1:6)' - xP(1:6);
+              test_xD = xPD_korrT(1:6)' - xPD(1:6);
+            end
+            test_x([false(size(test_x,1),3),abs(abs(test_x(:,4:end))-2*pi)<1e-3]) = 0; % 2pi-Fehler entfernen
+            if max(abs(test_x(:))) > 1e-6 || max(abs(test_xD(:))) > 1e-6
+              error('Plattform-Trajektorie stimmt nicht zwischen verschiedenen Beinkette %d und Referenz überein', j);
+            end
+          end
+        end
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
         if jm == 1
           GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
@@ -381,8 +522,8 @@ for i_FG = 1:size(EEFG_Ges,1)
           GD4_x = RP.constr4gradD_x(xP, xPD, true);
           JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
         else
-          GD2_q = RP.constr2gradD_q(q, qD, xE, xDE);
-          GD2_x = RP.constr2gradD_x(q, qD, xE, xDE);
+          GD2_q = RP.constr2gradD_q(q, qD, xP, xPD, true);
+          GD2_x = RP.constr2gradD_x(q, qD, xP, xPD, true);
           JinvD_voll = G2_q\(GD2_q*(G2_q\G2_x)) - G2_q\GD2_x;
         end
 
@@ -448,10 +589,10 @@ for i_FG = 1:size(EEFG_Ges,1)
         
         % Kinematische Zwangsbedingungen prüfen
         if ~all(EE_FG == [1 1 1 1 1 0])
-          PHI_ges(i,:) = RP.constr1(q, xE);
+          PHI_ges(i,:) = RP.constr1(q, xP, true);
         else
           % Nehme constr3, um sicher festzustellen, ob die PKM noch konsistent ist.
-          PHI_ges(i,:) = RP.constr3(q, xE);
+          PHI_ges(i,:) = RP.constr3(q, xP, true);
         end
         PHI_ges2(i,:) = Phi; % Residuum aus IK oben
         
@@ -804,7 +945,8 @@ for i_FG = 1:size(EEFG_Ges,1)
       TrajAchieved = Ip_end/nt; % Anteil der Simulationsdauer, die geschafft wurde
       % Ergebnis in Tabelle abspeichern
       ResStat = [ResStat; {PName, jm, Pdiss_relerrori1stsing, ...
-        Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, 100*TrajAchieved, 100*RTratio, double(~fail)}]; %#ok<AGROW>
+        Pdiss_relerror2080, Pdiss_relerror0530, 100*TrajUntil1stSing, ...
+        100*TrajAchieved, 100*RTratio, double(~fail)}]; %#ok<AGROW>
     end
     fprintf(['%d/%d Testkombinationen für %s getestet (%d i.O., %d n.i.O) ', ...
       '(bei restlichen %d IK falsch).\n'], n_succ+n_fail, n, PName, n_succ, n_fail, n-(n_succ+n_fail));
@@ -826,7 +968,7 @@ for i_FG = 1:size(EEFG_Ges,1)
   end
   ResStat.Properties.VariableNames = {'Name', 'JacobiMode', 'RelError_until1stSing', ...
     'RelError20_80', 'RelError05_30', 'PercentSimSingFree', 'PercentTraj', ...
-    'RealTimeRatio', 'Success'};
+    'RealTimeRatio_Percent', 'Success'};
   save(fullfile(respath, sprintf('ResStat_%dT%dR_FG.mat', sum(EE_FG(1:3)), sum(EE_FG(4:6)))), 'ResStat');
   fprintf('Energiekonsistenz für %d PKM mit FG [%s] getestet. %d Erfolgreich\n', ...
     num_robots_tested, disp_array(EE_FG, '%1.0f'), num_robots_success);
@@ -842,6 +984,8 @@ for i_FG = 1:size(EEFG_Ges,1)
     'Bewegung an der gesamten Simulationsdauer.\n']);
   fprintf(['PercentTraj: Prozentualer Anteil der erfolgreichen Simulation ', ...
     'an der geplanten Gesamtdauer der Simulation der freien Bewegung.\n']);
+  fprintf(['RealTimeRatio_Percent: Echtzeitfaktor der Vorwärtsdynamik. Ein ', ...
+    'Wert von 1(%%) bedeutet, 1s simulierte Zeit brauchen 100s Rechenzeit\n']);
   restabfile = fullfile(respath, sprintf('fdyn_energy_cons_test_DoF_%s.csv', ...
     char(48+EE_FG)));
   writetable(ResStat, restabfile, 'Delimiter', ';');

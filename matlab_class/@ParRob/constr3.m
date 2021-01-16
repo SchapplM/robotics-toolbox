@@ -13,6 +13,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_red
@@ -26,17 +28,18 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_red, Phi] = constr3(R, q, xE)
+function [Phi_red, Phi] = constr3(R, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [R.NJ 1]), ...
-  'ParRob/constr2: q muss %dx1 sein', R.NJ);
+  'ParRob/constr3: q muss %dx1 sein', R.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2: xE muss 6x1 sein');
+  'ParRob/constr3: xE muss 6x1 sein');
+if nargin == 3, platform_frame = false; end
 
 % rotatorischer und translatorischer Teil der ZB
-[Phit_red, Phit] = R.constr2_trans(q, xE); % Translation identisch mit Var. 2
-[Phir_red, Phir] = R.constr3_rot(q, xE);
+[Phit_red, Phit] = R.constr2_trans(q, xE, platform_frame); % Translation identisch mit Var. 2
+[Phir_red, Phir] = R.constr3_rot(q, xE, platform_frame);
 
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 Phi_red = NaN(size(Phit_red,1)+size(Phir_red,1), 1);

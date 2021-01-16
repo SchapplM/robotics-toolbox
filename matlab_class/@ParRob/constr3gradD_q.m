@@ -13,6 +13,8 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
 % xDE [6x1]
 %   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % PhiD_q_red
@@ -27,23 +29,23 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [PhiD_q_red, PhiD_q] = constr3gradD_q(Rob, q, qD, xE, xDE)
+function [PhiD_q_red, PhiD_q] = constr3gradD_q(Rob, q, qD, xE, xDE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_q: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3gradD_q: q muss %dx1 sein', Rob.NJ);
 assert(isreal(qD) && all(size(qD) == [Rob.NJ 1]), ...
-  'ParRob/constr1gradD_q: qD muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3gradD_q: qD muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr1gradD_q: xE muss 6x1 sein');
+  'ParRob/constr3gradD_q: xE muss 6x1 sein');
 assert(isreal(xDE) && all(size(xDE) == [6 1]), ...
-  'ParRob/constr1gradD_q: xDE muss 6x1 sein');
-
+  'ParRob/constr3gradD_q: xDE muss 6x1 sein');
+if nargin == 5, platform_frame = false; end
 %% Aufruf der Unterfunktionen
 % Die Unterfunktionen sind nach ZB-Art sortiert, in der Ausgabevariablen
 % ist die Sortierung nach Beingruppen (ZB Bein 1, ZB Bein 2, ...)
-[PhiD_tq_red,PhiD_tq]=Rob.constr2gradD_tq(q, qD); % calling of the differentiation of the translational kinematic constraints
-[PhiD_rq_red,PhiD_rq]=Rob.constr3gradD_rq(q, qD, xE, xDE); % calling of the differentiation of the rotational kinematic constraints
+[PhiD_tq_red,PhiD_tq]=Rob.constr2gradD_tq(q, qD, platform_frame); % calling of the differentiation of the translational kinematic constraints
+[PhiD_rq_red,PhiD_rq]=Rob.constr3gradD_rq(q, qD, xE, xDE, platform_frame); % calling of the differentiation of the rotational kinematic constraints
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art

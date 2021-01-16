@@ -12,6 +12,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_q_red_l
@@ -40,13 +42,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phipq_red, Phipq] = constr3grad_rq(Rob, q, xE)
+function [Phipq_red, Phipq] = constr3grad_rq(Rob, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
-  'ParRob/constr2grad_rq: q muss %dx1 sein', Rob.NJ);
+  'ParRob/constr3grad_rq: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
-  'ParRob/constr2grad_rq: xE muss 6x1 sein');
+  'ParRob/constr3grad_rq: xE muss 6x1 sein');
+if nargin == 3, platform_frame = false; end
 NLEG = Rob.NLEG;
 NJ = Rob.NJ;
 
@@ -63,7 +66,11 @@ else
 end
 
 %% Berechnung
-R_P_E = Rob.T_P_E(1:3,1:3);
+if ~platform_frame
+  R_P_E = Rob.T_P_E(1:3,1:3);
+else
+  R_P_E = eye(3);
+end
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 

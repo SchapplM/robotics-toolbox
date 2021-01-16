@@ -12,6 +12,8 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% platform_frame [1x1 logical]
+%   Benutze das Plattform-KS anstatt das EE-KS als Bezugsgröße für x
 % 
 % Ausgabe:
 % Phi_red
@@ -25,14 +27,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi_red, Phi] = constr2(R, q, xE)
+function [Phi_red, Phi] = constr2(R, q, xE, platform_frame)
 
 %% Initialisierung
 assert(isreal(q) && all(size(q) == [R.NJ 1]), ...
   'ParRob/constr2: q muss %dx1 sein', R.NJ);
 assert(isreal(xE) && all(size(xE) == [6 1]), ...
   'ParRob/constr2: xE muss 6x1 sein');
-
+if nargin == 3, platform_frame = false; end
 % Indizes für Reduktion der Zwangsbedingungen bei 3T2R: Nur für
 % symmetrische 3T2R-PKM
 I_constr_red = 1:6*R.NLEG;
@@ -41,8 +43,8 @@ if R.NJ == 25 % Behelf zur Erkennung symmetrischer 3T2R-PKM
 end
 
 % rotatorischer und translatorischer Teil der ZB
-[~, Phit] = R.constr2_trans(q, xE);
-[~, Phir] = R.constr2_rot(q, xE);
+[~, Phit] = R.constr2_trans(q, xE, platform_frame);
+[~, Phir] = R.constr2_rot(q, xE, platform_frame);
 
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
 Phi = NaN(6*R.NLEG, 1);
