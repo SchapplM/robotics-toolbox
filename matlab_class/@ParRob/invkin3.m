@@ -104,7 +104,9 @@ maxrelstep_ns = s.maxrelstep_ns;
 maxstep_ns = s.maxstep_ns;
 success = false;
 
-if any(wn ~= 0)
+if any(wn ~= 0) && sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+  % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
+  % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
   nsoptim = true;
 else
   % Keine zusätzlichen Optimierungskriterien

@@ -115,6 +115,12 @@ if nargin >= 3 && ~isempty(s_in)
     end
   end
 end
+
+if sum(R.I_EE) <= sum(R.I_EE_Task)
+  % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
+  % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
+  s.wn(:) = 0;
+end
 %% Funktionsaufruf. 
 % Entspricht robot_invkin_eulangresidual.m.template
 if nargout == 3
