@@ -112,19 +112,18 @@ s = struct('I_EE', R.I_EE,...
       'Leg_qDlim', Leg_qDlim, ...
 'Leg_phiconv_W_E', Leg_phiconv_W_E);
 %% Eingabestruktur für IK-Einstellungen
-% Einstellungen für IK
-K_def = 0.5*ones(R.Leg(1).NQJ,1);
+% Einstellungen für IK. Siehe SerRob/invkin2
 s_ser = struct( ...
   'reci', false, ... % Reziproke Euler-Winkel
-  'K', K_def, ... % Verstärkung
-  'Kn', 1e-2*ones(R.Leg(1).NQJ,1), ... % Verstärkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+  'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
   'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
   'normalize', true, ... % Normalisieren auf +/- 180°
+  'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+  'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
+  'rng_seed', NaN, ... % Initialwert für Zufallszahlengenerierung
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
   'retry_limit', 100); % Anzahl der Neuversuche);
@@ -148,9 +147,6 @@ end
 
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
-end
-if length(s_ser.Kn) == R.NJ
-  s_ser.Kn = s_ser.Kn(1:R.Leg(1).NQJ);
 end
 
 %% Funktionsaufruf. 

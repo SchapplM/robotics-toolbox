@@ -266,8 +266,8 @@ for k = 1:nt
     if debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
       if any(abs(PhiD_test) > 1e-10)
-        error(['Korrektur der Geschwindigkeit hat nicht funktioniert (k=%d).', ...
-          'Fehler %1.1f'], k, max(abs(PhiD_test)));
+        error(['Korrektur der Geschwindigkeit hat nicht funktioniert (k=%d). ', ...
+          'Fehler %1.1e'], k, max(abs(PhiD_test)));
       end
     end
   end

@@ -317,16 +317,16 @@ classdef ParRob < RobBase
         'abort_firstlegerror', false);
       
       % Einstellungen für IK. Siehe auch: SerRob/invkin2
-      K_def = 1.0*ones(R.Leg(1).NQJ,1);
-      K_def(R.Leg(1).MDH.sigma==1) = 0.5;
       s_ser = struct( ...
-        'reci', true, ...
-        'K', K_def, ... % Verstärkung
-        'Kn', 1.0*ones(R.Leg(1).NQJ,1), ... % Verstärkung
-        'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+        'reci', false, ... % Keine reziproken Winkel für ZB-Def.
+        'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
+        'Kn', 0.1*ones(R.Leg(1).NQJ,1), ... % Verstärkung
+        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°
+        'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+        'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
         'n_min', 0, ... % Minimale Anzahl Iterationen
         'n_max', 1000, ... % Maximale Anzahl Iterationen
         'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
@@ -339,7 +339,7 @@ classdef ParRob < RobBase
       if nargin >= 4
         for ff = fields(s_in_ser)'
           if ~isfield(s_ser, ff{1})
-            error('Feld %s kann nicht übergeben werden');
+            error('Feld %s kann nicht übergeben werden', ff{1});
           else
             s_ser.(ff{1}) = s_in_ser.(ff{1});
           end

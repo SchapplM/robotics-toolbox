@@ -43,9 +43,9 @@ function [q, Phi, Tc_stack_PKM, Stats] = invkin_ser(Rob, xE_soll, q0, s_ser_in, 
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
-  'ParRob/invkin1: xE_soll muss 6x1 sein');
+  'ParRob/invkin_ser: xE_soll muss 6x1 sein');
 assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
-  'ParRob/invkin1: q0 muss %dx1 sein', Rob.NJ);
+  'ParRob/invkin_ser: q0 muss %dx1 sein', Rob.NJ);
 s_ser_std = struct( ...
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -81,7 +81,7 @@ elseif nargin == 5
   end
 end
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  s.reci = true;
+  s.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
 end
 
 if isfield(s, 'K')
@@ -103,7 +103,7 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 if nargout == 4
   Stats = struct('Q', NaN(s.n_max, Rob.NJ), 'PHI', NaN(s.n_max, Rob.I2constr_red(end)), ...
     'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
-    'condJ', NaN(s.n_max,1), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+    'condJ', NaN(s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
 end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM

@@ -56,16 +56,19 @@ assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
 % Variablen zum Speichern der Zwischenergebnisse
 sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
 K = 1.0*ones(Rob.NJ,1);
-K(sigma_PKM==1) = 0.5; % Verstärkung für Schubgelenke kleiner
+% K(sigma_PKM==1) = 0.5; % Verstärkung für Schubgelenke kleiner
 
 s_std = struct(...
   'K', K, ... % Verstärkung
-  'Kn', 1.0*ones(Rob.NJ,1), ... % Verstärkung
+  'Kn', 0.1*ones(Rob.NJ,1), ... % Verstärkung
   'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
   'normalize', true, ...
+  'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+  'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
+  'rng_seed', NaN, ...  % Initialwert für Zufallszahlengenerierung
   'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
@@ -90,6 +93,8 @@ Kn = s.Kn;
 n_min = s.n_min;
 n_max = s.n_max;
 wn = s.wn;
+condlimDLS = s.condlimDLS;
+lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
 Phit_tol = s.Phit_tol;
 Phir_tol = s.Phir_tol;
@@ -141,14 +146,15 @@ rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [Cork
 
 if nargout == 4
   Stats = struct('Q', NaN(n_max, Rob.NJ), 'PHI', NaN(n_max, 6*Rob.NLEG), ...
-    'iter', n_max, 'retry_number', 0, 'condJ', NaN(n_max,1), 'lambda', NaN(n_max,2));
+    'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1));
 end
 %% Iterative Lösung der IK
 for rr = 0:retry_limit
   q1 = q0;
   [~,Phi_voll] = Rob.constr3(q1, xE_soll);
   Phi = Phi_voll(I_IK);
-  lambda_mult = 1.0; % Zurücksetzen der Dämpfung
+  lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
@@ -159,24 +165,29 @@ for rr = 0:retry_limit
     condJ = cond(Jik);
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
-    if condJ <= 50
-      % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
-      delta_q_T = Jik \ (-Phi);
-    else
-      % Passe die Dämpfung im DLS-Verfahren an. Wähle die Konditionszahl
-      % als Kriterium, da z.B. Grenzen für Singulärwerte nicht bekannt sind.
-      % lambda zwischen 0 (Grenzfall cond=50) und 1 (komplett singulär).
-      % Reduziere den lambda-Wert dann sehr stark (1/1000) und erhöhe bei
-      % wiederholter Verschlechterung im Iterationsschritt.
+    % Bei Redundanz nur benutzen, falls Nullraumprojektion erfolglos.
+    if condJ > condlimDLS && (~nsoptim || nsoptim && rejcount > 0)
+      % Pseudo-Inverse mit Dämpfung:
+      % Passe die Dämpfung lambda im DLS-Verfahren an. Wähle die Kon-
+      % ditionszahl als Kriterium, da z.B. Grenzen für Singulärwerte
+      % und Manipulierbarkeit nicht bekannt sind.
+      % Skalierung zwischen 0 (z.B. Grenzfall cond=60) und 1 (komplett singulär).
       % Nehme einen Mindestwert für die Dämpfung und einen sich bei Stagnation
-      % erhöhenden Aufschlag.
-      lambda = (-1+2*2/pi*atan(condJ/50))*(1e-3+lambda_mult);
+      % erhöhenden Aufschlag. Mit Aufschlag wird immer lambda_min benutzt.
+      lambda = (-1+2*2/pi*atan(condJ/condlimDLS))*(lambda_min+lambda_mult)/2;
       % [NakamuraHan1986], Gl. 22. Kleinere Dimension bei Redundanz als andere pinv.
       delta_q_T = ((Jik')/(Jik*Jik' + lambda*eye(length(Phi))))*(-Phi);
+    else
+      % Normale (Pseudo-)Invertierung der Jacobi-Matrix der seriellen Kette
+      delta_q_T = Jik \ (-Phi);
+      lambda = 0.0;
+      lambda_mult = lambda_min; % Zurücksetzen. Alles (wieder) i.O.
     end
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
-    if nsoptim && jj < n_max-10 % die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
+    if nsoptim && ... % Nullraum muss vorhanden sein und Kriterien gesetzt
+        jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
+        rejcount == 0 %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. Annahme: Schädlich für Konvergenz
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
@@ -190,26 +201,10 @@ for rr = 0:retry_limit
       % [SchapplerTapOrt2019], Gl. (43)
       delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
     end
-        
-    % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
-    % Bei nur gemeinsamer Reduzierung kann die Nullraumbewegung zu groß
-    % werden; Dokumentation siehe unten
-    if limits_set && ~isnan(maxrelstep)
-      abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim .* K);
-      if any(abs_delta_q_T_rel > maxrelstep)
-        delta_q_T = delta_q_T .* maxrelstep / max(abs_delta_q_T_rel);
-      end
-    end
-    if limits_set && ~isnan(maxrelstep_ns)
-      abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim .* Kn);
-      if any(abs_delta_q_N_rel > maxrelstep_ns)
-        delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
-      end
-    end
-    
+
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
     % Raphson-Verfahren basiert auf Linearisierung. Kleinwinkelnäherung
-    % wird verlassen, wenn Gelenkwinkel mehr als 30° drehen. Hier keine
+    % wird verlassen, wenn Gelenkwinkel mehr als 3° drehen. Hier keine
     % Betrachtung der Summe, wie bei seriellen Robotern.
     % Führe das getrennt für delta_q_T und delta_q_N durch, damit die 
     % Nullraumbewegung nicht die Aufgabenbewegung dominieren kann.
@@ -222,10 +217,26 @@ for rr = 0:retry_limit
       delta_q_T = delta_q_T .* 0.5/max(abs_delta_qTrev);
     end
     abs_delta_qNrev = abs(delta_q_N(sigma_PKM==0)); % nur Drehgelenke
-    if any(abs_delta_qNrev > 0.5) % 0.5rad=30°
+    if any(abs_delta_qNrev > 0.05) % 0.05rad=3°
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
-      % Winkelinkrement danach 30° hat.
-      delta_q_N = delta_q_N .* 0.5/max(abs_delta_qNrev);
+      % Winkelinkrement danach 3° hat.
+      delta_q_N = delta_q_N .* 0.05/max(abs_delta_qNrev);
+    end
+    
+    % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
+    % Bei nur gemeinsamer Reduzierung kann die Nullraumbewegung zu groß
+    % werden; Dokumentation siehe unten
+    if limits_set && ~isnan(maxrelstep)
+      abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim .* K);
+      if any(abs_delta_q_T_rel > maxrelstep)
+        delta_q_T = delta_q_T .* maxrelstep / max(abs_delta_q_T_rel);
+      end
+    end
+    if nsoptim && limits_set && ~isnan(maxrelstep_ns)
+      abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim .* Kn);
+      if any(abs_delta_q_N_rel > maxrelstep_ns)
+        delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
+      end
     end
     
     % Inkrement der Gelenkwinkel; [SchapplerTapOrt2019], Gl. (43)
@@ -248,25 +259,27 @@ for rr = 0:retry_limit
 
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist; [SchapplerTapOrt2019], Gl. (47)
-    delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
-    delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
-    if scale_lim && any([delta_ul_rel;delta_ll_rel] < 0)
-      % Berechne die prozentual stärkste Überschreitung
-      % und nutze diese als Skalierung für die Winkeländerung
-      % Reduziere die Winkeländerung so, dass die gröte Überschreitung auf
-      % das Erreichen der Grenzen reduziert wird.
-      if min(delta_ul_rel)<min(delta_ll_rel)
-        % Verletzung nach oben ist die größere
-        [~,I_max] = min(delta_ul_rel);
-        scale = (qmax(I_max)-q1(I_max))./(delta_q(I_max));
-      else
-        % Verletzung nach unten ist maßgeblich
-        [~,I_min] = min(delta_ll_rel);
-        scale = (qmin(I_min)-q1(I_min))./(delta_q(I_min));
+    if scale_lim
+      delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
+      delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
+      if any([delta_ul_rel;delta_ll_rel] < 0)
+        % Berechne die prozentual stärkste Überschreitung
+        % und nutze diese als Skalierung für die Winkeländerung
+        % Reduziere die Winkeländerung so, dass die gröte Überschreitung auf
+        % das Erreichen der Grenzen reduziert wird.
+        if min(delta_ul_rel)<min(delta_ll_rel)
+          % Verletzung nach oben ist die größere
+          [~,I_max] = min(delta_ul_rel);
+          scale = (qmax(I_max)-q1(I_max))./(delta_q(I_max));
+        else
+          % Verletzung nach unten ist maßgeblich
+          [~,I_min] = min(delta_ll_rel);
+          scale = (qmin(I_min)-q1(I_min))./(delta_q(I_min));
+        end
+        % Mit `scale` werden die Grenzen direkt für ein Gelenk erreicht.
+        % Durch `scale_lim` wird dieses Erreichen weiter nach "innen" gezogen
+        q2 = q1 + scale_lim*scale*delta_q;
       end
-      % Mit `scale` werden die Grenzen direkt für ein Gelenk erreicht.
-      % Durch `scale_lim` wird dieses Erreichen weiter nach "innen" gezogen
-      q2 = q1 + scale_lim*scale*delta_q;
     end
 
     if any(isnan(q2)) || any(isinf(q2))
@@ -274,11 +287,14 @@ for rr = 0:retry_limit
     end
 
     [~,Phi_voll] = Rob.constr3(q2, xE_soll);
+    % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
+    % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
     if norm(Phi_voll(I_IK)) < norm(Phi) % Erfolgreich
-      lambda_mult = lambda_mult/2;
-      % Nachverarbeitung der Ergebnisse der Iteration
+      % Erfolgreich. Verringere lambda bis auf Minimalwert.
+      lambda_mult = max(lambda_mult/2, lambda_min);
+      % Behalte Ergebnis der Iteration für weitere Iterationen.
       q1 = q2;
-      % Behalte Wert für Phi nur in diesem Fall. Dadurch wird die Verbesserung
+      % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
       Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
       rejcount = 0;
@@ -288,9 +304,12 @@ for rr = 0:retry_limit
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
       lambda_mult = lambda_mult*2;
       rejcount = rejcount + 1;
-      if condJ < 50 || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
-       rejcount > 20 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
+      if condJ <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+       rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
+        if nargout == 4
+          Stats.iter = jj;
+        end
         break;
       end
     end
@@ -299,6 +318,7 @@ for rr = 0:retry_limit
       Stats.PHI(jj,:) = Phi_voll;
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
+      Stats.rejcount(jj) = rejcount;
     end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
@@ -318,13 +338,16 @@ for rr = 0:retry_limit
     end
     break;
   end
+  % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
+  if rr == 0 && ~isnan(s.rng_seed)
+    rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
+  end
   q0 = qmin + rand(Rob.NJ,1).*(qmax-qmin); 
 end
-if s.normalize
-  q1(sigma_PKM==0) = normalize_angle(q1(sigma_PKM==0)); % nur Winkel normalisieren
-end
 q = q1;
-
+if s.normalize
+  q(sigma_PKM==0) = normalize_angle(q(sigma_PKM==0)); % nur Winkel normalisieren
+end
 if nargout == 3
   for i = 1:Rob.NLEG
   [~, ~, Tc_stack_0i] = Rob.Leg(i).fkine(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
