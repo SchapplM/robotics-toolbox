@@ -72,8 +72,8 @@ classdef ParRob < RobBase
       I_constr_t % Indizes der translatorischen Zwangsbedingungen in allen ZB
       I_constr_r % Indizes der rotatorischen ZB in allen ZB
       I_constr_red % Indizes der reduzierten ZB in allen ZB
-      I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
-      I_constr_r_red % ...                       (rotatorisch)
+      I_constr_t_red % Indizes der translatorischen ZB in den reduzierten ZB
+      I_constr_r_red % ... Indizes der rotatorischen ZB in den reduzierten ZB
       I_platform_dynpar % Auswahlvektor für Dynamikparameter der Plattform
   end
   properties (Access = private)
@@ -1191,10 +1191,6 @@ classdef ParRob < RobBase
           % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
           % Wahl von constr3 oder constr2 voraus.
           R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
-          % Berücksichtige in den Indizes der rotatorischen ZB, dass die
-          % reziproken Euler-Winkel benutzt werden. Vorher: Indizes 4 und 5
-          % in Gesamt-ZB, nachher: Indizes 5 und 6
-          R.I_constr_r_red(i_rred:i_rred+nPhir-1) = R.I_constr_r_red(i_rred:i_rred+nPhir-1)+1;
         else
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
@@ -1207,6 +1203,12 @@ classdef ParRob < RobBase
         i_red = i_red + nPhi;
         ii_tred = ii_tred + nPhi;
       end
+      % Prüfe die Index-Listen
+      assert(isempty(intersect(R.I_constr_t, R.I_constr_r)), ...
+          'Variablen I_constr_t und I_constr_r überschneiden sich');
+      assert(isempty(intersect(R.I_constr_t_red, R.I_constr_r_red)), ...
+          'Variablen I_constr_t_red und I_constr_r_red überschneiden sich');
+      
       % Speichere einen Index-Vektor, mit dem die für die PKM-Dynamik
       % relevanten Dynamikparameter der Plattform gewählt werden.
       % Dies dient zur Reduzierung des Dynamik-Parametervektors
