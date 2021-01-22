@@ -91,6 +91,7 @@ else
   qmin(:) = -Inf;
   qmax(:) =  Inf;
   limits_set = false;
+  retry_limit = 0; % keine zufällige Neubestimmung möglich.
 end
 delta_qlim = qmax - qmin;
 condlimDLS = s.condlimDLS;
@@ -145,6 +146,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
+  rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);

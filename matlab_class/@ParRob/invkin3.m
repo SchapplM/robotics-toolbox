@@ -158,6 +158,7 @@ for rr = 0:retry_limit
   Phi = Phi_voll(I_IK);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
+  rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     [~,Jik_voll]=Rob.constr3grad_q(q1, xE_soll);

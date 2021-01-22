@@ -161,6 +161,7 @@ else
   % Grenzen sind nicht wirksam
   qmin = -Inf(%NJ%,1);
   qmax =  Inf(%NJ%,1);
+  retry_limit = 0; % keine zufällige Neubestimmung möglich.
 end
 delta_qlim = NaN(%NJ%,1);
 delta_qlim = qmax - qmin;
@@ -196,6 +197,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   Phi = Phi_voll(I_IK);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
+  rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     [~,Jik_voll]=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
