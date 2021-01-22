@@ -114,7 +114,7 @@ s = struct('I_EE', R.I_EE,...
 %% Eingabestruktur für IK-Einstellungen
 % Einstellungen für IK. Siehe SerRob/invkin2
 s_ser = struct( ...
-  'reci', false, ... % Reziproke Euler-Winkel
+  'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
   'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
   'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite

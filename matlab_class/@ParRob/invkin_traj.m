@@ -116,7 +116,7 @@ qk0 = q0;
 qDk0 = zeros(Rob.NJ,1);
 % Eingabe s_inv3 struktuieren
 s_inv3= struct(...
-  'K', 0.6*ones(Rob.NJ,1), ... % Verstärkung
+  'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', 0*ones(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
   'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
@@ -137,8 +137,8 @@ end
 
 % Eingabe s_ser struktuieren
 s_ser = struct(...
-  'reci', false, ...
-  'K', 0.5*ones(Rob.NJ,1), ... % Verstärkung
+  'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
+  'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
   'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
   'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
