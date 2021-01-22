@@ -355,6 +355,13 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
       end
     end
+    % Gelenkgrenzen setzen, damit IK-Neuversuche möglich sind
+    for ii = 1:RP.NLEG
+      RP.Leg(ii).qlim(RP.Leg(ii).MDH.sigma==0,:) = ...
+        repmat([-pi,pi],sum(RP.Leg(ii).MDH.sigma==0),1);
+      RP.Leg(ii).qlim(RP.Leg(ii).MDH.sigma==1,:) = ...
+        repmat([-1,3],sum(RP.Leg(ii).MDH.sigma==1),1);
+    end
     % allgemeine Einstellungen
     RP.Leg(1).I_EE = logical([1 1 1 1 1 0]);
     RP.update_EE_FG(logical([1 1 1 1 1 0]));
@@ -366,6 +373,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     %% IK
     X0(6) = 0;
     [q,phi] = RP.invkin_ser(X0, q);
+    assert(all(abs(phi)<1e-6), 'IK funktioniert nicht, obwohl vorher ausprobiert');
     [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
     assert(all(size(Phi3_red)==[29,1]), 'Ausgabe 1 von constr3 muss 29x1 sein');
     assert(all(size(Phi3_voll)==[30,1]), 'Ausgabe 2 von constr3 muss 30x1 sein');

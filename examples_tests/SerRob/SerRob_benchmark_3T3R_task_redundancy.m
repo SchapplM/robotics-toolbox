@@ -101,7 +101,7 @@ for robnr = 1
   
   %% Startpose bestimmen
   s = struct('n_max', 1000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12, ...
-    'reci', true, 'K', 0.7*ones(RS.NQJ,1), 'scale_lim', 0);
+    'reci', true, 'scale_lim', 0); % keine Vorgabe von K oder Kn (Standard-Werte)
   % Werte aus [1]. TODO: Anpassen, falls andere Roboter getestet werden.
   x0Ref = NaN(6,1);
   T_part = transl([1.15; 0.2; -0.2;]);
@@ -117,8 +117,7 @@ for robnr = 1
   end
   s_ep = struct( ...
     'n_min', 1000, 'n_max', 2500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
-    'reci', true, 'wn', [1;0], 'K', 0.7*ones(RS.NQJ,1), ...
-    'Kn', 0.7*ones(RS.NQJ,1));
+    'reci', true, 'wn', [1;0]);% keine Vorgabe von K oder Kn (Standard-Werte)
   %% Initialisierung Teil 2
   % Roboter auf 3T2R einstellen
   RS.I_EE_Task = I_EE_3T2R;
@@ -314,8 +313,7 @@ for robnr = 1
   s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
       'I_EE', I_EE_3T2R, 'reci', true, ...
       'wn', [0;1;20;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
-      'K', 0.7*ones(RS.NQJ,1), ...
-      'Kn', 0.7*ones(RS.NQJ,1), 'normalize', false);
+      'normalize', false);
   % Ziehe 2 Prozent der Spannweite von den Geschw.-Grenzen ab.
   % Dadurch wird die Grenze durch numerische Fehler hoffentlich nicht über-
   % schritten

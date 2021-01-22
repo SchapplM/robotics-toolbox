@@ -48,6 +48,12 @@ mkdirs(tmpdir_params);
 respath = fullfile(rob_path, 'examples_tests', 'results', 'energy_consistency');
 mkdirs(respath);
 
+s = struct( ... % Einstellung für IK
+  'normalize', false, ... % Winkel nicht normalisieren, da sonst Federmoment falsch.
+  'n_min', 25, ... % Minimale Anzahl Iterationen: Damit möglichst Residuum wirklich Null (bzw. 1e-15)
+  'n_max', 1000, ... % Standard-Wert
+  'Phit_tol', 1e-12, ... % Sehr hohe Genauigkeit (Ausschluss als ...
+  'Phir_tol', 1e-12); % ... Fehlerquelle der Dynamik);
 %% Alle Roboter durchgehen
 
 for i_FG = 1:size(EEFG_Ges,1)
@@ -239,12 +245,12 @@ for i_FG = 1:size(EEFG_Ges,1)
     % IK für Testkonfiguration berechnen
     for i = 1:n
       % IK mit EE-Pose berechnen
-      [q, Phi] = RP.invkin_ser(XP_test(i,:)', q0, [], struct('platform_frame',true));
+      [q, Phi] = RP.invkin_ser(XP_test(i,:)', q0, s, struct('platform_frame',true));
       if any(abs(Phi) > 1e-8) || any(isnan(Phi))
         XE_test(i,:) = NaN; XP_test(i,:) = NaN;
         continue;
       end
-      [q2, Phi2] = RP.invkin_ser(XE_test(i,:)', q0); % mit EE-KS
+      [q2, Phi2] = RP.invkin_ser(XE_test(i,:)', q0, s); % mit EE-KS
       if any(abs(q-q2)>1e-8), error('IK mit KS P oder KS E gibt anderes Ergebnis'); end
       % Plattform-Pose neu berechnen (wegen drittem Euler-Winkel, der sich evtl ändert
       XP_test(i,:) = RP.fkineEE_traj(q', [], [], 1, true);
@@ -435,13 +441,6 @@ for i_FG = 1:size(EEFG_Ges,1)
       SingDet = NaN(nt,6);
       Facc_ges = NaN(nt,6);
       P_diss_ges = zeros(nt,3);
-      % Einstellung für IK
-      s = struct( ...
-        'normalize', false, ... % Winkel nicht normalisieren, da sonst Federmoment falsch.
-        'n_min', 25, ... % Minimale Anzahl Iterationen
-        'n_max', 1000, ... % Maximale Anzahl Iterationen
-        'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-        'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
       %% Nachverarbeitung der Ergebnisse
       t2 = tic();
       for i = 1:nt

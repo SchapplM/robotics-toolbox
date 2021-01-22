@@ -240,11 +240,27 @@ fprintf('Trajektorien-IK mit Funktion invkin2_traj berechnet. Dauer: %1.1fs.\n',
   toc(t1));
 % Debug: Vergleich template (invkin2_traj) und normale Funktion (invkin_traj)
 testq = Q_t - Q_t2;
+testq(abs(abs(testq)-2*pi)<1e-3) = 0;
+max(abs(testq))
 testp = Phi_t - Phi_t2;
-testq(abs(testq(:))== 2*pi ) = 0;
+testq(abs(testq(:))== 2*pi ) = 0; % 2pi-Fehler entfernen (möglich bei Rundungsfehlern und Winkel-Normalisierung)
 testqmax = max(abs(testq(:)));
 testpmax = max(abs(testp(:)));
 if testqmax > 1e-6 || testpmax > max(s.Phit_tol,s.Phir_tol)
+  figure(20);clf;
+  RPstr = ['R', 'P'];
+  for kkk = 1:RP.NJ
+    legnum = find(kkk>=RP.I1J_LEG, 1, 'last');
+    legjointnum = kkk-(RP.I1J_LEG(legnum)-1);
+    subplot(ceil(sqrt(RP.NJ)), ceil(RP.NJ/ceil(sqrt(RP.NJ))), kkk);
+    hold on; grid on;
+    plot(t, Q_t(:,kkk), '-');
+    plot(t, Q_t2(:,kkk), '--');
+    title(sprintf('q %d (%s), L%d,J%d', kkk, RPstr(RP.MDH.sigma(kkk)+1), legnum, legjointnum));
+    grid on;
+  end
+  linkxaxes
+  legend({'invkin_traj', 'invkin2_traj'}, 'interpreter', 'none');
   error('IK-Ergebnis stimmt nicht zwischen Funktionen invkin_traj und invkin2_traj!');
 end
 %% Zeitverlauf der Trajektorie plotten
