@@ -282,9 +282,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
     Phi_voll = %RN%_constr2(q2, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Phi_neu = Phi_voll(I_IK);
+    % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
+    % numberisch teilweise keine Verbesserung möglich.
+    Phi_iO = all(abs(Phi_neu(1:n_Phi_t)) < Phit_tol) && ...
+             all(abs(Phi_neu(n_Phi_t+1:end)) < Phir_tol);
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    if norm(Phi_voll(I_IK)) < norm(Phi)
+    if Phi_iO || norm(Phi_voll(I_IK)) < norm(Phi)
       % Erfolgreich. Verringere lambda bis auf Minimalwert.
       lambda_mult = max(lambda_mult/2, lambda_min);
       % Behalte Ergebnis der Iteration für weitere Iterationen.
@@ -314,7 +319,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
-        && all(abs(Phi(1:n_Phi_t)) < Phit_tol) && all(abs(Phi(n_Phi_t+1:end)) < Phir_tol) && ... % Haupt-Bedingung ist erfüllt
+        && Phi_iO && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) < 1e-5) ) % oder die Nullraumoptimierung läuft noch
       success = true;

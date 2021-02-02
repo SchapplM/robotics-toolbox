@@ -290,9 +290,13 @@ for rr = 0:retry_limit
     end
 
     [~,Phi_voll] = Rob.constr3(q2, xE_soll);
+    % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
+    % numberisch teilweise keine Verbesserung möglich.
+    Phi_iO = all(abs(Phi(I_constr_t_red)) < Phit_tol) && ...
+             all(abs(Phi(I_constr_r_red)) < Phir_tol);
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    if norm(Phi_voll(I_IK)) < norm(Phi) % Erfolgreich
+    if Phi_iO || norm(Phi_voll(I_IK)) < norm(Phi) % Erfolgreich
       % Erfolgreich. Verringere lambda bis auf Minimalwert.
       lambda_mult = max(lambda_mult/2, lambda_min);
       % Behalte Ergebnis der Iteration für weitere Iterationen.
@@ -325,7 +329,7 @@ for rr = 0:retry_limit
     end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
-     && max(abs(Phi(I_constr_t_red))) < Phit_tol && max(abs(Phi(I_constr_r_red))) < Phir_tol && ... % Haupt-Bedingung ist erfüllt
+     && Phi_iO && ... % Haupt-Bedingung ist erfüllt
      ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
      nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
       success = true;
