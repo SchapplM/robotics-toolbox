@@ -206,8 +206,15 @@ end
 if s.mode == 5
   for j = 1:size(Rob.collbodies.type,1)
     i = Rob.collbodies.link(j);
+    if ~any(s.bodies == i)
+      continue % Dieser Körper soll nicht gezeichnet werden
+    end
     T_body_i = T_c_W(:,:,i+1);
     if Rob.collbodies.type(j) == 6 % Kapsel zum vorherigen
+      T_body_iv = T_c_W(:,:,v(i)+1);
+      r = Rob.collbodies.params(j,1);
+      pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
+    elseif Rob.collbodies.type(j) == 5 % Zylinder zum vorherigen (schräg)
       T_body_iv = T_c_W(:,:,v(i)+1);
       r = Rob.collbodies.params(j,1);
       pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
@@ -216,11 +223,23 @@ if s.mode == 5
       pts_i = Rob.collbodies.params(j,1:6);
       pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
                eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
+    elseif Rob.collbodies.type(j) == 2 % Zylinder mit Angabe von 2 Punkten
+      r = Rob.collbodies.params(j,7);
+      pts_i = Rob.collbodies.params(j,1:6);
+      pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
+               eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
     else
       error('Fall %d nicht definiert', Rob.collbodies.type(i));
     end
     % Objekt zeichnen
-    drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+    if any(Rob.collbodies.type(j) == [3 6])
+      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+    elseif any(Rob.collbodies.type(j) == [2 5])
+      hdl=drawCylinder([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+    else
+      error('Fall %d nicht definiert', Rob.collbodies.type(i));
+    end
+    set(hdl, 'DisplayName', sprintf('CollBody%d', j));
   end
 end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
