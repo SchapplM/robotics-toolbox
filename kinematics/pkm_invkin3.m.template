@@ -163,6 +163,12 @@ else
   qmax =  Inf(%NJ%,1);
   retry_limit = 0; % keine zufällige Neubestimmung möglich.
 end
+% Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
+% Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
+% Die Variable qmin/qmax wird für Nebenbedingungen benutzt.
+qmin_norm = qmin; qmax_norm = qmax;
+qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
+qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = NaN(%NJ%,1);
 delta_qlim = qmax - qmin;
 
@@ -337,9 +343,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
              all(abs(Phi(I_constr_r_red)) < Phir_tol);
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    if Phi_iO || norm(Phi_voll(I_IK)) < norm(Phi)
-      % Erfolgreich. Verringere lambda bis auf Minimalwert.
-      lambda_mult = max(lambda_mult/2, lambda_min);
+    Delta_Phi = norm(Phi_voll(I_IK)) - norm(Phi); % "neu" - "alt"; 
+    if Phi_iO || Delta_Phi < 0 % Verbesserung des Residuums
+      if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
+        % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
+        % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
+        % da lambda gegen unendlich geht und dann sich Phi nicht mehr mit
+        % Minimal-Schritten numerisch verbessert.
+        lambda_mult = lambda_mult*2;
+      else
+        % Erfolgreich. Verringere lambda bis auf Minimalwert.
+        lambda_mult = max(lambda_mult/2, lambda_min); % Singularität überwunden
+      end
       % Behalte Ergebnis der Iteration für weitere Iterationen.
       q1 = q2;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
@@ -389,7 +404,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
-  q0(:) = qmin + rand(%NJ%,1).*(qmax-qmin); 
+  q0(:) = qmin_norm + rand(%NJ%,1).*(qmax_norm-qmin_norm); 
 end
 
 q = q1;
