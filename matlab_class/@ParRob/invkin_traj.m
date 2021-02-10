@@ -265,7 +265,7 @@ for k = 1:nt
     qD_k = qDk0 + qD_korr;
     if debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
-      if any(abs(PhiD_test) > 1e-10)
+      if any(abs(PhiD_test) > max(1e-10, max(abs(qD_k))/1e9)) % bei hohen Geschwindigkeiten ist die Abweichung größer; feine IK-Toleranz notwendig.
         error(['Korrektur der Geschwindigkeit hat nicht funktioniert (k=%d). ', ...
           'Fehler %1.1e'], k, max(abs(PhiD_test)));
       end
@@ -326,7 +326,7 @@ for k = 1:nt
   if debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-    if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
+    if any(abs(PhiDD_test3) > max(1e-6, max(abs([qD_k;qDD_k_T]))/1e9)) % bei hohen Werten ist die Abweichung größer; feine IK-Toleranz notwendig.
       error(['Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen ', ...
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
