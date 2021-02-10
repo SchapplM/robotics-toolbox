@@ -131,7 +131,7 @@ for rr = 0:retry_limit
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NQJ, 1);
       if wn(1) ~= 0
-        [~, hdq] = Rob.optimcrit_limits1(q1);
+        [~, hdq] = invkin_optimcrit_limits1(q1, [qmin, qmax]);
         % [1], Gl. (25)
         v = v - hdq';
       end

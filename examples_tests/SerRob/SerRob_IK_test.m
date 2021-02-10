@@ -240,17 +240,6 @@ for Robot_Data = Robots
   else
     fprintf('Einzelpunkt-IK für 3T2R-Aufgabe mit %s nicht möglich und daher nicht getestet.\n', SName);
   end
-  %% (Test 4) Teste Zielfunktion für Zusatzoptimierung
-  % Prüfe, ob Implementierung in SerRob und in Spez. Funktion gleich ist.
-  fprintf('%s: Test 4 (Zielfunktion Zusatzoptimierung)\n', SName);
-  for i = 1:size(TSS.Q,1)
-    q = TSS.Q(i,:)';
-    [h1, hdq1] = RS.optimcrit_limits1(q);
-    [h2, hdq2] = invkin_optimcrit_limits1(q, RS.qlim);
-    if max(abs([h1-h2;hdq1'-hdq2'])) > 1e-10
-      error('Optimierungsfunktion als einzelne Funktion stimmt nicht mit Klasse überein');
-    end
-  end
   %% (Test 5) Inverse Kinematik für 3T2R-/3T3R-Aufgabe (mit Zusatzoptimierung) prüfen
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
   % inversen Kinematik
@@ -326,9 +315,9 @@ for Robot_Data = Robots
             n_iO1 = n_iO1+1;
           end
           % Prüfe, ob Kriterium verbessert wurde
-          K_zopt(i,1) = RS.optimcrit_limits1(q_ohne);
-          K_zopt(i,2) = RS.optimcrit_limits1(q_mit1);
-          K_zopt(i,3) = RS.optimcrit_limits1(q_mit2);
+          K_zopt(i,1) = invkin_optimcrit_limits1(q_ohne, RS.qlim);
+          K_zopt(i,2) = invkin_optimcrit_limits1(q_mit1, RS.qlim);
+          K_zopt(i,3) = invkin_optimcrit_limits1(q_mit2, RS.qlim);
           if K_zopt(i,1) < K_zopt(i,2) || K_zopt(i,1) < K_zopt(i,3)
             warning('%d/%d: Die Zielfunktion ist mit Optimierung schlechter als ohne (Berechnung mit Klassenfunktion)', i, size(TSS.Q,1));
           end
@@ -365,9 +354,9 @@ for Robot_Data = Robots
           else
             n_iO2 = n_iO2+1;
           end
-          K_zopt(i,4) = RS.optimcrit_limits1(q2_ohne);
-          K_zopt(i,5) = RS.optimcrit_limits1(q2_mit1);
-          K_zopt(i,6) = RS.optimcrit_limits1(q2_mit2);
+          K_zopt(i,4) = invkin_optimcrit_limits1(q2_ohne, RS.qlim);
+          K_zopt(i,5) = invkin_optimcrit_limits1(q2_mit1, RS.qlim);
+          K_zopt(i,6) = invkin_optimcrit_limits1(q2_mit2, RS.qlim);
           if K_zopt(i,4) < K_zopt(i,5) || K_zopt(i,4) < K_zopt(i,6)
             warning('%d/%d: Die Zielfunktion ist mit Optimierung schlechter als ohne (Berechnung mit Roboterspezifischer Funktion)', i, size(TSS.Q,1));
           end
@@ -385,10 +374,10 @@ for Robot_Data = Robots
 %             change_current_figure(20);clf; 
 %             subplot(3,1,1); hold on; grid on; plot(Q_mit1); set(gca, 'ColorOrderIndex',1); plot(Q2_mit1,'--');
 %             Z_all = NaN(size(Q_mit1,1),2);
-%             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
+%             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=invkin_optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=invkin_optimcrit_limits1(Q2_mit1(jj,:)'); end
 %             subplot(3,1,2);hold on; grid on; plot(Z_all(:,1),'-');plot(Z_all(:,2),'--');
 % %             Phi_all1 = NaN/(
-% %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
+% %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=invkin_optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=invkin_optimcrit_limits1(Q2_mit1(jj,:)'); end
 %             subplot(3,1,3); hold on; grid on; plot(Q_mit1-Q2_mit1);
 %             linkxaxes
 %             warning('%d/%d: Ergebnis zwischen Klassenfunktion und kompilierter Funktion stimmt nicht (mögl. schlecht konditioniert)', i, size(TSS.Q,1));

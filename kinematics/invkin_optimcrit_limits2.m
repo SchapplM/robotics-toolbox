@@ -31,6 +31,8 @@ hdq = zeros(1,n);
 I_viol = q<qlim(:,1) | q>qlim(:,2);
 
 for i = 1:n
+   % Bei Grenzen unendlich sind Kriterium und Gradient Null
+  if any(isinf(qlim(i,:))), continue; end
   if ~I_viol(i)
     % [ZhuQuCaoYan2013], Gl. 4; [2_SchapplerTapOrt2019a]/(45)
     h = h + (qlim(i,2)-qlim(i,1))^2/(8*n) * (1/(q(i)-qlim(i,1))^2+...
