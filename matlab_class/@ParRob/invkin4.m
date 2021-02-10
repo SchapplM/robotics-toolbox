@@ -73,7 +73,7 @@ s = struct(...
           'sigma', R.MDH.sigma,...
               'K', ones(R.NJ,1), ... % Verstärkung
              'Kn', 0.1*ones(R.NJ,1), ... % Verstärkung
-             'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+             'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
       'normalize', false, ... % Normalisieren auf +/- 180°
      'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -115,7 +115,7 @@ if nargin >= 3 && ~isempty(s_in)
     end
   end
 end
-
+if length(s.wn) < 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
 if sum(R.I_EE) <= sum(R.I_EE_Task)
   % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
   % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.

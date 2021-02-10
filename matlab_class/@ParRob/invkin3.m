@@ -61,7 +61,7 @@ K = 1.0*ones(Rob.NJ,1);
 s_std = struct(...
   'K', K, ... % Verstärkung
   'Kn', 0.1*ones(Rob.NJ,1), ... % Verstärkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+  'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -143,7 +143,11 @@ delta_qlim = qmax - qmin;
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 I_IK = Rob.I_constr_red;
-
+% Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
+% berechnet wurde
+q_wn3 = inf(Rob.NJ,1);
+% Gradient von Nebenbedingung 3
+h3dq = NaN(1,Rob.NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -202,12 +206,29 @@ for rr = 0:retry_limit
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
-        [h1, hdq] = invkin_optimcrit_limits1(q1, qlim);
-        v = v - wn(1)*hdq'; % [SchapplerTapOrt2019], Gl. (44)
+        [h1, h1dq] = invkin_optimcrit_limits1(q1, qlim);
+        v = v - wn(1)*h1dq'; % [SchapplerTapOrt2019], Gl. (44)
       end
       if wn(2) ~= 0
-        [h2, hdq] = invkin_optimcrit_limits2(q1, qlim);
-        v = v - wn(2)*hdq'; % [SchapplerTapOrt2019], Gl. (45)
+        [h2, h2dq] = invkin_optimcrit_limits2(q1, qlim);
+        v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
+      end
+      if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
+        if any(abs(q1-q_wn3) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+          for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
+            q_test = q1; % ausgehend von aktueller Konfiguration
+            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+            [~,Jik_voll_kkk]=Rob.constr3grad_q(q_test, xE_soll);
+            Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+            condJ_kkk = cond(Jik_kkk);
+            % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
+            % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
+            % maximal große Sprünge der Gelenkwinkel).
+            h3dq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
+          end
+          q_wn3 = q1;
+        end
+        v = v - wn(3)*h3dq';
       end
       % [SchapplerTapOrt2019], Gl. (43)
       delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;

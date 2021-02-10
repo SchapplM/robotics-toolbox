@@ -70,7 +70,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = %PN%_invkin_traj
 %$cgargs    'simplify_acc', false,
 %$cgargs         'mode_IK', 2,
 %$cgargs           'debug', false,
-%$cgargs              'wn', zeros(4,1),
+%$cgargs              'wn', zeros(5,1),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'I1constr_red', zeros(1,%NLEG%),
@@ -250,7 +250,7 @@ s_tpl = struct(...
            'sigma', s.sigma,...
                'K', repmat(s_ser.K,NLEG,1),...
               'Kn', zeros(%NQJ%*NLEG,1),...
-              'wn', zeros(2,1),...
+              'wn', zeros(3,1),...
       'maxstep_ns', s.maxstep_ns,...
        'normalize', s_ser.normalize,...
       'condlimDLS', s_ser.condlimDLS, ... 
@@ -342,6 +342,13 @@ else
   Jinv_ges = NaN(nt, sum(I_EE)* NJ);
   JinvD_ges = zeros(nt, sum(I_EE)* NJ);
 end
+
+% Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
+% berechnet wurde
+q_wn5 = inf(%NJ%,1);
+% Gradient von Nebenbedingung 5
+h5dq = NaN(1,%NJ%);
+
 JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
 qk0 = q0;
 qDk0 = zeros(NJ,1);
@@ -499,6 +506,20 @@ for k = 1:nt
     if wn(4) ~= 0
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
+    end
+    if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+        condPhi = cond(Phi_q);
+        for kkk = 1:%NJ% % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q_k; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          Phi_q_kkk = %PN%_constr3grad_q(q_test, x_k, s_3q);
+          condPhi_kkk = cond(Phi_q_kkk);
+          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+        end
+        q_wn5 = q_k;
+      end
+      v = v - wn(5)*h5dq';
     end
     qDD_N_pre = N * v;
   else

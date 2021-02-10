@@ -158,6 +158,12 @@ s_pik = struct( ...
   'Phir_tol', s.Phir_tol, ...
   'retry_limit', s.retry_limit);
 
+% Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
+% berechnet wurde
+q_wn5 = inf(%NQJ%,1);
+% Gradient von Nebenbedingung 5
+h5dq = NaN(1,%NQJ%);
+
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
 qDk0 = zeros(%NQJ%,1);
@@ -257,6 +263,21 @@ for k = 1:nt
     if wn(4) ~= 0
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
+    end
+    if wn(5) ~= 0
+      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+        condJ = cond(J_x(I_EE,:));
+        for kkk = 1:%NQJ% % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q_k; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          Jg_kkk = %RN%_jacobig_sym_varpar(q_test, link_index, r_i_i_C, pkin);
+          J_x_kkk = [Jg_kkk(1:3,:); Tw \ Jg_kkk(4:6,:)]; % analytische Jacobi-Matrix
+          condJ_kkk = cond(J_x_kkk);
+          h5dq(kkk) = (log(J_x_kkk)-log(condJ))/1e-6;
+        end
+        q_wn5 = q_k;
+      end
+      v = v - wn(5)*h5dq';
     end
     % Erster Wert ("pre") für Beschleunigung durch Minimierung der
     % Zielfunktion h. Siehe [RMG16]/(20) (zweiter Term)

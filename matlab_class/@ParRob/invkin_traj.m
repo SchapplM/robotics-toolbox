@@ -58,7 +58,7 @@ s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 1, ...  % 1=Seriell, 2=PKM
-  'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -106,7 +106,11 @@ else
   Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
   JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
 end
-
+% Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
+% berechnet wurde
+q_wn5 = inf(Rob.NJ,1);
+% Gradient von Nebenbedingung 5
+h5dq = NaN(1,Rob.NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -140,7 +144,6 @@ s_ser = struct(...
   'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
   'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
   'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
   'normalize', true, ... % Normalisieren auf +/- 180°
@@ -156,8 +159,8 @@ for f = fields(s_ser)'
   end
 end
 % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
-s_ser.wn = zeros(2,1);
-s_inv3.wn = zeros(2,1);
+s_ser.wn = zeros(3,1);
+s_inv3.wn = zeros(3,1);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 if ~all(isnan(qDlim(:)))
@@ -335,22 +338,36 @@ for k = 1:nt
     N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
     v = zeros(Rob.NJ, 1);
-    if wn(1) ~= 0
+    if wn(1) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
       [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
       v = v - wn(1)*h1dq';
     end
-    if s.wn(2) ~= 0
+    if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
       [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
       v = v - wn(2)*h2dq';
       if any(isinf(h2dq)), warning('h2dq Inf'); return; end
     end
-    if wn(3) ~= 0
+    if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
       [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
       v = v - wn(3)*h3dq';
     end
-    if wn(4) ~= 0
+    if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
+    end
+    if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+        condPhi = cond(Phi_q);
+        for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q_k; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          Phi_q_kkk = Rob.constr3grad_q(q_test, x_k);
+          condPhi_kkk = cond(Phi_q_kkk);
+          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+        end
+        q_wn5 = q_k;
+      end
+      v = v - wn(5)*h5dq';
     end
     qDD_N_pre = N * v;
   else
