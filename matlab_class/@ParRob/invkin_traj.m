@@ -118,49 +118,42 @@ JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(Rob.NJ,1);
-% Eingabe s_inv3 struktuieren
-s_inv3= struct(...
+% Eingabe für Positions-IK für Korrekturschritt
+s_pik = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', 0*ones(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-  'maxstep_ns', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
-  'normalize', true, ...
+  ... % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
+  'wn', zeros(3,1), ...
+  'normalize', false, ... % würde Sprung erzeugen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
+  ... % % Keine Herunterskalierung bei Grenzüberschreitung (würde Stillstand 
+  ... % erzeugen; da keine Nullraumbewegung gemacht wird, kann die Grenz-
+  ... % verletzung sowieso nicht verhindert werden.
+  'scale_lim', 0.0, ... 
   'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-9,... % Toleranz für rotatorischen Fehler
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
-  'maxrelstep_ns', 0.005, ... % hat keine Wirkung
-  'retry_limit', 100);
+  'retry_limit', 0); % keine Neuversuche (würde Sprung erzeugen)
+
+
+% Eingabe s_inv3 struktuieren
+s_inv3 = s_pik;
+s_inv3.maxstep_ns = 0*ones(Rob.NJ,1); % hat keine Wirkung
+s_inv3.maxrelstep_ns = 0.005; % hat keine Wirkung
 for f = fields(s_inv3)'
-  if isfield(s, f{1})
+  if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
     s_inv3.(f{1}) = s.(f{1});
   end
 end
-
 % Eingabe s_ser struktuieren
-s_ser = struct(...
-  'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
-  'K', ones(Rob.NJ,1), ... % Verstärkung
-  'Kn', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
-  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
-  'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-  'normalize', true, ... % Normalisieren auf +/- 180°
-  'n_min', 0, ... % Minimale Anzahl Iterationen
-  'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
-  'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
-  'Phir_tol', 1e-9, ... % Toleranz für rotatorischen Fehler
-  'retry_limit', 100);
+s_ser = s_pik;
+s_ser.reci = false; % Standardmäßig keine reziproken Euler-Winkel
 for f = fields(s_ser)'
-  if isfield(s, f{1})
+  if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
     s_ser.(f{1}) = s.(f{1});
   end
 end
-% keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
-s_ser.wn = zeros(3,1);
-s_inv3.wn = zeros(3,1);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 if ~all(isnan(qDlim(:)))
@@ -219,7 +212,7 @@ for k = 1:nt
   else
     % 3T2R-Funktion. Wird hier aber nicht als 3T2R benutzt, da keine
     % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
-    [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
+    [q_k, Phi_k, Tc_stack_k, Stats3] = Rob.invkin3(x_k, qk0, s_inv3);
   end
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;

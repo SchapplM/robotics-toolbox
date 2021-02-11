@@ -82,8 +82,6 @@ end
 
 s = struct('I_EE', R.I_EE,...
       'I_EE_Task', R.I_EE_Task,...
-     'maxstep_ns', 0,...
-  'maxrelstep_ns', 0.005,...
           'sigma', R.MDH.sigma,...
    'simplify_acc', false,...
         'mode_IK', 1,...
@@ -116,17 +114,16 @@ s = struct('I_EE', R.I_EE,...
 s_ser = struct( ...
   'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
   'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
-  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+  'scale_lim', 0.0, ... % Kein Herunterskalierung bei Grenzüberschreitung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-  'normalize', true, ... % Normalisieren auf +/- 180°
+  'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
   'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
   'rng_seed', NaN, ... % Initialwert für Zufallszahlengenerierung
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
-  'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
-  'retry_limit', 100); % Anzahl der Neuversuche);
+  'Phir_tol', 1e-8); % Toleranz für rotatorischen Fehler
 %% Standard-Einstellungen mit Eingaben überschreiben
 % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
 % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
