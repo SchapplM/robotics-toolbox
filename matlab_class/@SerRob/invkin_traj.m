@@ -74,7 +74,9 @@ for k = 1:nt
     dt = T(k+1)-T(k);
     qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
   end
-
+  if any(isnan(qk0))
+    break; % aufgrund von Singularität o.ä. unendlich hohe Werte
+  end
   % Ergebnisse speichern
   Q(k,:) = q_k;
   QD(k,:) = qD_k;

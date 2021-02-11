@@ -114,7 +114,6 @@ s = struct('I_EE', R.I_EE,...
 s_ser = struct( ...
   'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
   'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
-  'scale_lim', 0.0, ... % Kein Herunterskalierung bei Grenzüberschreitung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
   'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)

@@ -93,7 +93,6 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = %PN%_invkin_traj
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
-%$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
@@ -586,7 +585,9 @@ for k = 1:nt
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
-  
+  if any(isnan(qk0))
+    break; % aufgrund von Singularität o.ä. unendlich hohe Werte
+  end
   %% Ergebnisse speichern
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;

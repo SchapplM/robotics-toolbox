@@ -427,7 +427,9 @@ for k = 1:nt
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
-  
+  if any(isnan(qk0))
+    break; % aufgrund von Singularität o.ä. unendlich hohe Werte
+  end
   %% Ergebnisse speichern
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
