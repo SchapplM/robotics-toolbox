@@ -165,7 +165,7 @@ else
   qDmin = -inf(Rob.NJ,1);
   qDmax =  inf(Rob.NJ,1);
 end
-wn = s.wn;
+wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 if any(wn ~= 0)
   nsoptim = true;
 else
