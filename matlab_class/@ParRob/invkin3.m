@@ -148,6 +148,7 @@ I_IK = Rob.I_constr_red;
 q_wn3 = inf(Rob.NJ,1);
 % Gradient von Nebenbedingung 3
 h3dq = NaN(1,Rob.NJ);
+h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -161,7 +162,7 @@ rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [Cork
 if nargout == 4
   Stats = struct('Q', NaN(n_max, Rob.NJ), 'PHI', NaN(n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1));
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+3));
 end
 %% Iterative Lösung der IK
 for rr = 0:retry_limit
@@ -206,11 +207,11 @@ for rr = 0:retry_limit
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
-        [h1, h1dq] = invkin_optimcrit_limits1(q1, qlim);
+        [h(1), h1dq] = invkin_optimcrit_limits1(q1, qlim);
         v = v - wn(1)*h1dq'; % [SchapplerTapOrt2019], Gl. (44)
       end
       if wn(2) ~= 0
-        [h2, h2dq] = invkin_optimcrit_limits2(q1, qlim);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
@@ -229,6 +230,7 @@ for rr = 0:retry_limit
           q_wn3 = q1;
         end
         v = v - wn(3)*h3dq';
+        h(3) = log(condJ);
       end
       % [SchapplerTapOrt2019], Gl. (43)
       delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
@@ -310,7 +312,8 @@ for rr = 0:retry_limit
         end
         % Mit `scale` werden die Grenzen direkt für ein Gelenk erreicht.
         % Durch `scale_lim` wird dieses Erreichen weiter nach "innen" gezogen
-        q2 = q1 + scale_lim*scale*delta_q;
+        delta_q = scale_lim*scale*delta_q;
+        q2 = q1 + delta_q;
       end
     end
 
@@ -321,12 +324,20 @@ for rr = 0:retry_limit
     [~,Phi_voll] = Rob.constr3(q2, xE_soll);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numberisch teilweise keine Verbesserung möglich.
-    Phi_iO = all(abs(Phi(I_constr_t_red)) < Phit_tol) && ...
-             all(abs(Phi(I_constr_r_red)) < Phir_tol);
+    Phi_neu = Phi_voll(I_IK);
+    Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
+             all(abs(Phi_neu(I_constr_r_red)) < Phir_tol);
+    if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
+      % Prüfe, ob sich die Nebenbedingungen überhaupt noch verbessern. Wenn
+      % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
+      % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
+      delta_q_N(:) = 0;
+    end
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    Delta_Phi = norm(Phi_voll(I_IK)) - norm(Phi); % "neu" - "alt"; 
-    if Phi_iO || Delta_Phi < 0 % Verbesserung des Residuums
+    Delta_Phi = norm(Phi_neu) - norm(Phi); % "neu" - "alt"; 
+    if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
+        || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && any(delta_q) % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
       if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
         % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
         % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
@@ -339,6 +350,7 @@ for rr = 0:retry_limit
       end
       % Behalte Ergebnis der Iteration für weitere Iterationen.
       q1 = q2;
+      h_alt = h;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
       Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
@@ -361,6 +373,7 @@ for rr = 0:retry_limit
     if nargout == 4
       Stats.Q(jj,:) = q1;
       Stats.PHI(jj,:) = Phi_voll;
+      Stats.h(jj,:) = [sum(wn.*h),h'];
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
