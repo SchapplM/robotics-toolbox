@@ -62,6 +62,7 @@ phiconv_W_E = uint8(R.phiconv_W_E);
 Leg_sigmaJ = zeros(R.Leg(1).NJ,R.NLEG);
 Leg_qlim = zeros(6,2*R.NLEG);
 Leg_qDlim = zeros(6,2*R.NLEG);
+Leg_qDDlim = zeros(6,2*R.NLEG);
 Leg_phiconv_W_E = uint8(zeros(R.NLEG,1));
 for i = 1:R.NLEG
   Leg_I_EE_Task(i,:) = R.Leg(i).I_EE_Task;
@@ -77,6 +78,7 @@ for i = 1:R.NLEG
   Leg_sigmaJ(:,i) = R.Leg(i).MDH.sigma(R.Leg(i).MDH.mu>=1);
   Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
   Leg_qDlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qDlim;
+  Leg_qDDlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qDDlim;
   Leg_phiconv_W_E(i) = R.Leg(i).phiconv_W_E;
 end
 
@@ -108,6 +110,7 @@ s = struct('I_EE', R.I_EE,...
      'Leg_sigmaJ', Leg_sigmaJ, ...
        'Leg_qlim', Leg_qlim, ...
       'Leg_qDlim', Leg_qDlim, ...
+     'Leg_qDDlim', Leg_qDDlim, ...
 'Leg_phiconv_W_E', Leg_phiconv_W_E);
 %% Eingabestruktur für IK-Einstellungen
 % Einstellungen für IK. Siehe SerRob/invkin2

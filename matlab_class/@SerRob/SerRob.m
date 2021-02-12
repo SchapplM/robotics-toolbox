@@ -41,6 +41,7 @@ classdef SerRob < RobBase
     qlim % Minimale und maximale Gelenkkoordinaten q zeilenweise für die Gelenke
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
+    qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
@@ -191,6 +192,9 @@ classdef SerRob < RobBase
         'joint_type', uint8(R.MDH.sigma)); % Art des Gelenks: 0=Drehgelenk, 1=Schub- (allgemein), 2=Kardan-, 3=Kugel-, 4=Schub- mit Führung, 5=Schub- mit Zylinder
 
       R.qref = zeros(R.NQJ,1);
+      R.qlim = repmat([-inf, inf], R.NQJ,1);
+      R.qDlim = repmat([-inf, inf], R.NQJ,1);
+      R.qDDlim = repmat([-inf, inf], R.NQJ,1);
 
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
@@ -670,6 +674,7 @@ classdef SerRob < RobBase
          'sigmaJ', sigmaJ, ...
          'qlim', R.qlim, ...
          'qDlim', R.qDlim, ...
+         'qDDlim', R.qDDlim, ...
          'I_EE', R.I_EE_Task, ...
          'phiconv_W_E', R.phiconv_W_E, ...
          'I_EElink', uint8(R.I_EElink), ...

@@ -440,7 +440,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   % Einstellungen für Trajektorie: Kein Normalisieren, damit Traj. nicht
   % springt. Muss doch normalisieren, damit Gelenkwinkelgrenzen korrekt
   % erkannt werden.
-  s_Traj = s;
+  s_Traj = struct('I_EE_Task', s.I_EE_Task, 'Phit_tol', s.Phit_tol, 'Phir_tol', s.Phir_tol);
   s_Traj.normalize = false; % Mit Kriterium 2 keine Normalisierung. Sonst können Koordinaten jenseits der Grenzen landen
   s_Traj.mode_IK = 1; % Standard Seriell-IK (Positions-Korrektur mit IK der einzelnen Beinketten)
   % Abspeichern der Gelenkwinkel für verschiedene Varianten der Berechnung
@@ -662,6 +662,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
         hold on; grid on;
         hdl1=stairs(t, QDD(:,ii));
         hdl2=stairs(t, QD_diff(:,ii), '--');
+        plot(t([1,end]), repmat(RP.Leg(i).qDDlim(j,:),2,1), 'r-');
         if j == 1, ylabel(sprintf('BK %d', i)); end
         if i == 1, title(sprintf('qDD %d', j)); end
         if ii == RP.NJ, legend([hdl1;hdl2],{'direkt', 'differenz'}); end

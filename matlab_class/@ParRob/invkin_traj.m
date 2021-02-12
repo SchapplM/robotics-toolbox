@@ -156,6 +156,7 @@ for f = fields(s_ser)'
 end
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
+qDDlim = cat(1, Rob.Leg.qDDlim);
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
   qDmin = qDlim(:,1);
@@ -164,6 +165,15 @@ else
   limits_qD_set = false;
   qDmin = -inf(Rob.NJ,1);
   qDmax =  inf(Rob.NJ,1);
+end
+if ~all(isnan(qDDlim(:)))
+  limits_qDD_set = true;
+  qDDmin = qDDlim(:,1);
+  qDDmax = qDDlim(:,2);
+else
+  limits_qDD_set = false;
+  qDDmin = -inf(Rob.NJ,1);
+  qDDmax =  inf(Rob.NJ,1);
 end
 wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 if any(wn ~= 0)
@@ -366,6 +376,32 @@ for k = 1:nt
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
+  
+  % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
+  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
+  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
+  % wichtiger als Beschleunigung ist.
+  if nsoptim && limits_qDD_set
+    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+    qDD_N_min = qDDmin - qDD_k_T;
+    qDD_N_max = qDDmax - qDD_k_T;
+    delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+    delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul_rel;delta_ll_rel] < 0)
+      if min(delta_ul_rel)<min(delta_ll_rel)
+        % Verletzung nach oben ist die größere
+        [~,I_max] = min(delta_ul_rel);
+        scale = (qDD_N_max(I_max))/(qDD_N_pre(I_max));
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_min] = min(delta_ll_rel);
+        scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
+      end
+      qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
+
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;

@@ -69,7 +69,8 @@ format_mlines = { 'r', 'v', '-', 8; ...
                   'g', 'd', '-', 5; ...
                   'b', 's', '--', 7; ...
                   'k', 'x', '--', 9; ...
-                  'm', 'o', ':', 6};
+                  'm', 'o', ':', 6; ...
+                  'c', '^', '-', 3};
 
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
 % Implementierung davon richtig ist
@@ -95,6 +96,7 @@ for robnr = 1
   
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
+  RS.qDDlim = repmat([-100, 100], RS.NQJ, 1); % Entspricht 1.5 rpm in 100ms
   RS.update_EE(r_W_E, phi_W_E, []);
 
   fprintf('Starte Untersuchung für %s\n', RS.descr);
@@ -304,7 +306,7 @@ for robnr = 1
   
   %% IK für Trajektorie berechnen
   RS.fill_fcn_handles(false);
-  Namen_Methoden = cell(1,5);
+  Namen_Methoden = cell(1,6);
   Q_t_all = NaN(length(t), RS.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
   H1_all = NaN(length(t), length(Namen_Methoden)); H2_all = H1_all;
   H1D_all = H1_all; H2D_all = H1_all;
@@ -312,13 +314,15 @@ for robnr = 1
   % Allgemeine Einstellungen für Trajektorie
   s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
       'I_EE', I_EE_3T2R, 'reci', true, ...
-      'wn', [0;1;20;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
+      'wn', [0;1;20;0;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
       'normalize', false);
-  % Ziehe 2 Prozent der Spannweite von den Geschw.-Grenzen ab.
+  % Ziehe 2 Prozent der Spannweite von den Geschw.- und Beschl.-Grenzen ab.
   % Dadurch wird die Grenze durch numerische Fehler hoffentlich nicht über-
   % schritten
   qDlim_red = RS.qDlim + repmat([0.02,-0.02],RS.NJ,1).*(RS.qDlim(:,2)-RS.qDlim(:,1));
+  qDDlim_red = RS.qDDlim + repmat([0.01,-0.01],RS.NJ,1).*(RS.qDDlim(:,2)-RS.qDDlim(:,1));
   s_Traj.qDlim = qDlim_red;
+  s_Traj.qDDlim = qDDlim_red;
   for kk = 1:length(Namen_Methoden)
     s_kk = s_Traj;
     switch kk
@@ -336,13 +340,19 @@ for robnr = 1
         name_method='3T2R-IK ohne Nullraum';
         RS.I_EE_Task = I_EE_3T2R;
         s_kk.I_EE = I_EE_3T2R;
-        s_kk.wn = [0;0;0;0]; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
+        s_kk.wn = [0;0;0;0;0]; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
       case 4
+        name_method='3T2R-IK mit cond.-Opt.';
+        RS.I_EE_Task = I_EE_3T2R;
+        s_kk.I_EE = I_EE_3T2R;
+        s_kk.qDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
+        s_kk.wn(5) = 1; % Auch Konditionszahl verbessern
+      case 5
         name_method='3T2R-IK simplify acc';
         RS.I_EE_Task = I_EE_3T2R;
         s_kk.I_EE = I_EE_3T2R;
         s_kk.simplify_acc = true;
-      case 5
+      case 6
         name_method='3T3R-IK';
         RS.I_EE_Task = I_EE_3T3R;
         s_kk.I_EE = I_EE_3T3R;
@@ -418,6 +428,7 @@ for robnr = 1
       subplot(3,RS.NJ,sprc2no(3,RS.NJ, 3, i));
       hold on;
       plot(t, QDD(:,i));
+      plot(t([1,end]), repmat(RS.qDDlim(i,:),2,1), 'r-');
       ylabel(sprintf('qDD %d', i)); grid on;
     end
     linkxaxes

@@ -68,6 +68,7 @@ function [Q, QD, QDD, PHI, JointPos_all] = %RN%_invkin_traj(X, XD, XDD, T, q0, s
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs            'qlim', zeros(%NQJ%,2),
 %$cgargs           'qDlim', zeros(%NQJ%,2),
+%$cgargs          'qDDlim', zeros(%NQJ%,2),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs        'I_EElink', uint8(0),
@@ -112,6 +113,19 @@ else
   qDmax(:) =  Inf;
   limits_qD_set = false;
 end
+% Prüfe, ob Grenzen für die Beschleunigung gesetzt wurden
+qDDlim = s.qDDlim;
+qDDmin = qDDlim(:,1);
+qDDmax = qDDlim(:,2);
+if all(~isnan(s.qDDlim(:)))
+  limits_qDD_set = true;
+else
+  % Grenzen sind nicht wirksam
+  qDDmin(:) = -Inf;
+  qDDmax(:) =  Inf;
+  limits_qDD_set = false;
+end
+
 wn = s.wn;
 if any(wn ~= 0)
   nsoptim = true;
@@ -283,10 +297,34 @@ for k = 1:nt
   else
     qDD_N_pre = zeros(%NQJ%,1);
   end
-    
+  
+  % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
+  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
+  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
+  % wichtiger als Beschleunigung ist.
+  if nsoptim && limits_qDD_set
+    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+    qDD_N_min = qDDmin - qDD_k_T;
+    qDD_N_max = qDDmax - qDD_k_T;
+    delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+    delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul_rel;delta_ll_rel] < 0)
+      if min(delta_ul_rel)<min(delta_ll_rel)
+        % Verletzung nach oben ist die größere
+        [~,I_max] = min(delta_ul_rel);
+        scale = (qDD_N_max(I_max))/(qDD_N_pre(I_max));
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_min] = min(delta_ll_rel);
+        scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
+      end
+      qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Geschwindigkeitsgrenzen. Reduziere, falls notwendig
-  if limits_qD_set
+  if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     % Beschleunigung basierend auf Nullraum-Bewegung, [RMG16]/(20)
     qDD_pre = qDD_k_T+qDD_N_pre; % [3]/(1)
     % Daraus berechnete Geschwindigkeit im nächsten Zeitschritt
@@ -334,6 +372,7 @@ for k = 1:nt
     % werden
     qDD_N_post = qDD_N_pre;   
   end
+  
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post;
   

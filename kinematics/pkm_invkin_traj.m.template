@@ -90,6 +90,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = %PN%_invkin_traj
 %$cgargs      'Leg_sigmaJ', zeros(%NQJ%,%NLEG%),
 %$cgargs        'Leg_qlim', zeros(6,2*%NLEG%),
 %$cgargs        'Leg_qDlim', zeros(6,2*%NLEG%),
+%$cgargs        'Leg_qDDlim', zeros(6,2*%NLEG%),
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
@@ -134,12 +135,13 @@ end
 
 qlim = NaN(NJ,2);
 qDlim = NaN(NJ,2);
-
+qDDlim = NaN(NJ,2);
 J1 = 1;
 for i = 1:NLEG
   J2 = J1+Leg_NQJ(i)-1;
   qlim(J1:J2,:) = s.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   qDlim(J1:J2,:) = s.Leg_qDlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
+  qDDlim(J1:J2,:) = s.Leg_qDDlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   J1 = J2+1;
 end
 if ~all(isnan(qDlim(:)))
@@ -150,6 +152,15 @@ else
   limits_qD_set = false;
   qDmin = -inf(NJ,1);
   qDmax =  inf(NJ,1);
+end
+if ~all(isnan(qDDlim(:)))
+  limits_qDD_set = true;
+  qDDmin = qDDlim(:,1);
+  qDDmax = qDDlim(:,2);
+else
+  limits_qDD_set = false;
+  qDDmin = -inf(NJ,1);
+  qDDmax =  inf(NJ,1);
 end
 
 if any(wn ~= 0)
@@ -524,6 +535,32 @@ for k = 1:nt
   else
     qDD_N_pre = zeros(NJ, 1);
   end
+  
+  % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
+  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
+  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
+  % wichtiger als Beschleunigung ist.
+  if nsoptim && limits_qDD_set
+    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+    qDD_N_min = qDDmin - qDD_k_T;
+    qDD_N_max = qDDmax - qDD_k_T;
+    delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+    delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul_rel;delta_ll_rel] < 0)
+      if min(delta_ul_rel)<min(delta_ll_rel)
+        % Verletzung nach oben ist die größere
+        [~,I_max] = min(delta_ul_rel);
+        scale = (qDD_N_max(I_max))/(qDD_N_pre(I_max));
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_min] = min(delta_ll_rel);
+        scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
+      end
+      qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
+  
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
