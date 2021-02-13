@@ -793,7 +793,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
 
   %% Trajektorie mit verschiedene z Komponente berechnen
   RP.update_EE_FG(I_EE_3T3R, I_EE_3T3R);
-  s_Traj_z = s;
+  s_Traj_z = struct('I_EE_Task', s.I_EE_Task);
   s_Traj_z.normalize = false;
   s_Traj_z.wn = [0;0;0;0];
   s_Traj_z.I_EE_Task = logical([1 1 1 1 1 1]);
