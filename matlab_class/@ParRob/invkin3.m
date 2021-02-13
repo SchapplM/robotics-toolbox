@@ -406,7 +406,7 @@ q = q1;
 if s.normalize
   q(sigma_PKM==0) = normalize_angle(q(sigma_PKM==0)); % nur Winkel normalisieren
 end
-if nargout == 3
+if nargout >= 3
   for i = 1:Rob.NLEG
   [~, ~, Tc_stack_0i] = Rob.Leg(i).fkine(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
   T_0_0i = Rob.Leg(i).T_W_0;

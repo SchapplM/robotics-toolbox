@@ -377,7 +377,7 @@ q = q1;
 if s.normalize
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren
 end
-if nargout == 3
+if nargout >= 3
   [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
 end
 

@@ -174,7 +174,7 @@ for i = 1:Rob.NLEG
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
-  if nargout == 3
+  if nargout >= 3
     T_0_0i = Rob.Leg(i).T_W_0;
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
     % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
