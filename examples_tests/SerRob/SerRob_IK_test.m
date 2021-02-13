@@ -124,10 +124,8 @@ for Robot_Data = Robots
   RS.constr2grad(q0, xE);
   RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
   RS.invkin2(xE, q0+0.1*ones(RS.NJ,1));
-  RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 0));
-  RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 0));
+  RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
+  RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
   %% (Test 2) Inverse Kinematik (Normal) prüfen (für verschiedene Posen)
