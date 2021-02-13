@@ -118,7 +118,9 @@ JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(Rob.NJ,1);
-% Eingabe für Positions-IK für Korrekturschritt
+% Eingabe für Positions-IK für Korrekturschritt. Müssen konsistent zu
+% ParRob/invkin2_traj sein. Auch konsistent mit SerRob/invkin2, falls von
+% dort übernommen
 s_pik = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', 0*ones(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
@@ -133,7 +135,7 @@ s_pik = struct(...
   'scale_lim', 0.0, ... 
   'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-9,... % Toleranz für rotatorischen Fehler
-  'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
+  'maxrelstep', 0.05, ... % Maximale Schrittweite relativ zu Grenzen
   'retry_limit', 0); % keine Neuversuche (würde Sprung erzeugen)
 
 

@@ -110,7 +110,8 @@ s = struct('I_EE', R.I_EE,...
      'Leg_qDDlim', Leg_qDDlim, ...
 'Leg_phiconv_W_E', Leg_phiconv_W_E);
 %% Eingabestruktur für IK-Einstellungen
-% Einstellungen für IK. Siehe SerRob/invkin2
+% Einstellungen für IK. Siehe SerRob/invkin2. Standard-Werte müssen damit
+% und mit ParRob/invkin_traj konsistent sein.
 s_ser = struct( ...
   'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
   'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
