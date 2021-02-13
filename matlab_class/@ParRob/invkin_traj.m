@@ -57,7 +57,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob,
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
-  'mode_IK', 1, ...  % 1=Seriell, 2=PKM
+  'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
   'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
@@ -216,13 +216,20 @@ for k = 1:nt
     dt = T(k+1)-T(k); % Zeit bis zum nächsten Abtastpunkt
   end
   %% Gelenk-Position berechnen
-  if mode_IK == 1
+  % Die Positions-IK wird nur als Korrekturschritt benutzt (Ausgleich
+  % numerischer Fehler). Versuche erst die IK für alle Beinketten einzeln.
+  % Annahme: Startwert und Vorwärts-Integration sind schon fast die Lösung.
+  if any(mode_IK == [1 3])
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);
-  else
+  end
+  % Falls obige IK nicht erfolgreich (aufgrund ungeklärter Ursachen),
+  % versuche alternativen Algorithmus.
+  if mode_IK == 2 || mode_IK == 3 && (any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
+      any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol))
     % 3T2R-Funktion. Wird hier aber nicht als 3T2R benutzt, da keine
     % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
-    [q_k, Phi_k, Tc_stack_k, Stats3] = Rob.invkin3(x_k, qk0, s_inv3);
+    [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
   end
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
