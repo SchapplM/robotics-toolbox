@@ -8,8 +8,9 @@
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % reci (Optional)
 %   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
 %   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
@@ -33,7 +34,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-01
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_rr = constr2grad_rr(Rob, q, xE, reci)
+function Phi_rr = constr2grad_rr(Rob, q, Tr0Ex, reci)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'SerRob/constr2grad_rr: q muss %dx1 sein', Rob.NJ);
@@ -42,7 +43,7 @@ if nargin < 4
 end
 % Endergebnis, siehe Gl. (B.30) bzw. [2_SchapplerTapOrt2019a]/(36)
 
-R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E); % [2_SchapplerTapOrt2019a]/(5)
+R_0_E_x = Tr0Ex(1:3,1:3); % [2_SchapplerTapOrt2019a]/(5)
 if reci
   [~,phiconv_delta] = euler_angle_properties(Rob.phiconv_W_E);
 else
@@ -73,7 +74,7 @@ dPidR1b = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0
 % Vierter Term in Gl. (B.35) bzw. in [2_SchapplerTapOrt2019a]/(36)
 % Siehe  [2_SchapplerTapOrt2019a]/(A21)
 % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
-dR0Ebdphi = rotmat_diff_eul(xE(4:6), Rob.phiconv_W_E);
+dR0Ebdphi = rotmat_diff_eul(r2eul(R_0_E_x, Rob.phiconv_W_E), Rob.phiconv_W_E);
 
 % Transpositions-Matrix; Gl (C.29) bzw. [2_SchapplerTapOrt2019a]/(A19)
 % zweiter Term in Gl. (B.35) bzw. [2_SchapplerTapOrt2019a]/(36)

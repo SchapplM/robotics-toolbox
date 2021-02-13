@@ -2,8 +2,8 @@
 % %RN%
 %
 % Eingabe:
-% xE_soll
-%   EE-Lage (Sollwert)
+% Tr0E_soll [3x4]
+%   EE-Lage (Sollwert); homogene Transformationsmatrix ohne letzte Zeile
 % q0
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
@@ -36,11 +36,11 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(xE_soll, q0, s)
+function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s)
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(6,1),zeros(%NQJ%,1),struct(
+%$cgargs {zeros(3,4),zeros(%NQJ%,1),struct(
 %$cgargs            'pkin', zeros(%NKP%,1),
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs            'qlim', zeros(%NQJ%,2),
@@ -149,14 +149,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  Phi_voll = %RN%_constr2(q0, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Phi_voll = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
-    Jdk_voll = %RN%_constr2grad(q1, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
 
     %% Nullstellensuche für Positions- und Orientierungsfehler
@@ -205,7 +205,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Jdk_voll_kkk = %RN%_constr2grad(q_test, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+          Jdk_voll_kkk = %RN%_constr2grad(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
           Jdk_kkk = Jdk_voll_kkk(I_IK,:); % Berechnung identisch mit oben
           condJ_kkk = cond(Jdk_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
@@ -294,7 +294,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
 
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    Phi_voll = %RN%_constr2(q2, xE_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    Phi_voll = %RN%_constr2(q2, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Phi_neu = Phi_voll(I_IK);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numerisch teilweise keine Verbesserung möglich.

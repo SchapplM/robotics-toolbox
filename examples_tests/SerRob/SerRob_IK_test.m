@@ -103,6 +103,7 @@ for Robot_Data = Robots
   qD0 = TSS.QD(1,:)';
   qDD0 = TSS.QDD(1,:)';
   T_E = RS.fkineEE(q0);
+  Tr_E = T_E(1:3,:);
   xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
   
   RS.fkine(q0);
@@ -118,12 +119,12 @@ for Robot_Data = Robots
   RS.jacobiwD(q0,qD0);
   RS.jtraf(q0);
   
-  RS.constr1(q0, xE);
-  RS.constr1grad(q0, xE);
-  RS.constr2(q0, xE);
-  RS.constr2grad(q0, xE);
-  RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
-  RS.invkin2(xE, q0+0.1*ones(RS.NJ,1));
+  RS.constr1(q0, Tr_E);
+  RS.constr1grad(q0, Tr_E);
+  RS.constr2(q0, Tr_E);
+  RS.constr2grad(q0, Tr_E);
+  RS.invkin(Tr_E, q0+0.1*ones(RS.NJ,1));
+  RS.invkin2(Tr_E, q0+0.1*ones(RS.NJ,1));
   RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
   RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
@@ -147,7 +148,7 @@ for Robot_Data = Robots
         q0 = q-20*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 20° neben der Endstellung
         % Berechnung mit SerRob
         tic();
-        q_test1 = RS.invkin(xE, q0, struct('constr_m', m)); 
+        q_test1 = RS.invkin(RS.x2tr(xE), q0, struct('constr_m', m)); 
         T1 = T1 + toc;
         % Erfolg mit Klassen-Methode prüfen
         T_E_test1 = RS.fkineEE(q_test1);
@@ -159,7 +160,7 @@ for Robot_Data = Robots
         end
         % Berechnung mit Spez. Funktion
         tic();
-        q_test2 = RS.invkin2(xE, q0); 
+        q_test2 = RS.invkin2(RS.x2tr(xE), q0); 
         T2 = T2 + toc;
         % Erfolg mit Spez. Funktion prüfen
         T_E_test2 = RS.fkineEE(q_test2);
@@ -200,7 +201,7 @@ for Robot_Data = Robots
         T_E0 = RS.fkineEE(q0);
         % Berechnung mit SerRob
         tic();
-        q_test1 = RS.invkin(xE, q0, struct('constr_m',2, 'I_EE', logical([1 1 1 1 1 0])));
+        q_test1 = RS.invkin(RS.x2tr(xE), q0, struct('constr_m',2, 'I_EE', logical([1 1 1 1 1 0])));
         T1 = T1 + toc();
         % Prüfe Erfolg mit SerRob
         T_E_test1 = RS.fkineEE(q_test1);
@@ -214,7 +215,7 @@ for Robot_Data = Robots
         end
         % Berechnung mit Spez. Funktion
         tic();
-        q_test2 = RS.invkin2(xE, q0, struct('I_EE', logical([1 1 1 1 1 0])));
+        q_test2 = RS.invkin2(RS.x2tr(xE), q0, struct('I_EE', logical([1 1 1 1 1 0])));
         T2 = T2 + toc();
         % Prüfe Erfolg mit Spez. Funktion
         T_E_test2 = RS.fkineEE(q_test2);
@@ -278,7 +279,7 @@ for Robot_Data = Robots
           q0 = q-10*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 10° neben der Endstellung
            % Berechnung mit SerRob: Ohne Optimierung ("ohne")
           tic();
-          q_ohne = RS.invkin(xE, q0, ...
+          q_ohne = RS.invkin(RS.x2tr(xE), q0, ...
             struct('I_EE', I_EE_Task, 'constr_m', m));
           T_ges(1,1)=T_ges(1,1)+toc();
           if any(isnan(q_ohne)), return; end
@@ -288,11 +289,11 @@ for Robot_Data = Robots
                      'wn',wn, ...
                      'I_EE', I_EE_Task, 'constr_m', m);
           tic()
-          [q_mit1,~,Q_mit1] = RS.invkin(xE, q0, s);
+          [q_mit1,~,Q_mit1] = RS.invkin(RS.x2tr(xE), q0, s);
           T_ges(1,2)=T_ges(1,2)+toc();
           % Berechnung mit SerRob: nachträgliche Optimierung ("mit2")
           tic();
-          [q_mit2,Phi,Q_mit2] = RS.invkin(xE, q_ohne, ...
+          [q_mit2,Phi,Q_mit2] = RS.invkin(RS.x2tr(xE), q_ohne, ...
             struct('K',5e-1*ones(RS.NJ,1), ...
                    'Kn',1e-2*ones(RS.NJ,1), ...
                    'n_min', 50, ...
@@ -323,14 +324,14 @@ for Robot_Data = Robots
 
           % Gleiche Rechnung wie oben, aber mit kompilierten Funktionen
           tic();
-          q2_ohne = RS.invkin2(xE, q0, struct('I_EE', I_EE_Task));
+          q2_ohne = RS.invkin2(RS.x2tr(xE), q0, struct('I_EE', I_EE_Task));
           T_ges(2,1)=T_ges(2,1)+toc();
           s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
                      'wn',wn, ...
                      'I_EE', I_EE_Task);
           tic();
-          q2_mit1 = RS.invkin2(xE, q0, s); Q2_mit1 = NaN;
+          q2_mit1 = RS.invkin2(RS.x2tr(xE), q0, s); Q2_mit1 = NaN;
           T_ges(2,2)=T_ges(2,2)+toc();
           s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
@@ -338,7 +339,7 @@ for Robot_Data = Robots
                      'wn',wn, ...
                      'I_EE', I_EE_Task);
           tic();
-          q2_mit2 = RS.invkin2(xE, q_ohne, s);
+          q2_mit2 = RS.invkin2(RS.x2tr(xE), q_ohne, s);
           T_ges(2,3)=T_ges(2,3)+toc();
           test_T2_ohne = T_E\RS.fkineEE(q2_ohne) - eye(4);
           test_T2_mit1 = T_E\RS.fkineEE(q2_mit1) - eye(4);

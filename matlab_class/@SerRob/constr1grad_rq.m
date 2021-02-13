@@ -9,8 +9,9 @@
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % 
 % Ausgabe:
 % Phi_phi_i_Gradq [3xN]
@@ -29,14 +30,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_phi_i_Gradq = constr1grad_rq(Rob, q, xE)
+function Phi_phi_i_Gradq = constr1grad_rq(Rob, q, Tr0Ex)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'SerRob/constr1grad_rq: q muss %dx1 sein', Rob.NJ);
 
 % Endergebnis, siehe [SchapplerTapOrt2019] Gl. 31 oder [B] Gl. 30
 
-R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
+R_0_E_x = Tr0Ex(1:3,1:3);
 
 % Kinematik, Definitionen
 T_0_E = Rob.fkineEE(q);

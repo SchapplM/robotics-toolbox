@@ -4,8 +4,8 @@
 % Iterative Lösung der inversen Kinematik mit inverser Jacobi-Matrix
 % 
 % Eingabe:
-% xE_soll
-%   EE-Lage (Sollwert)
+% Tr0E_soll [3x4]
+%   EE-Lage (Sollwert); homogene Transformationsmatrix ohne letzte Zeile
 % q0
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
@@ -27,7 +27,7 @@
 % Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [1] Aufzeichnungen Schappler vom 3.8.2018
 
-function [q, Phi, Q] = invkin(Rob, xE_soll, q0, s)
+function [q, Phi, Q] = invkin(Rob, Tr0E_soll, q0, s)
 
 % Wähle die Indizes der Schubgelenke in den Minimalkoordinaten aus
 sigmaJ = Rob.MDH.sigma(Rob.MDH.mu>=1); % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
@@ -106,17 +106,17 @@ for rr = 0:retry_limit
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  if constr_m == 1, Phi_voll = Rob.constr1(q0, xE_soll);
-  else,             Phi_voll = Rob.constr2(q0, xE_soll, true); end
+  if constr_m == 1, Phi_voll = Rob.constr1(q0, Tr0E_soll);
+  else,             Phi_voll = Rob.constr2(q0, Tr0E_soll, true); end
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max
 
     % Gradientenmatrix, siehe [SchapplerTapOrt2019]/(23)
     dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
     if constr_m == 1
-      dpq=Rob.constr1grad_rq(q1, xE_soll);
+      dpq=Rob.constr1grad_rq(q1, Tr0E_soll);
     else
-      dpq=Rob.constr2grad_rq(q1, xE_soll, true);
+      dpq=Rob.constr2grad_rq(q1, Tr0E_soll, true);
     end
     Jdk_voll = [dxq; dpq];
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
@@ -192,8 +192,8 @@ for rr = 0:retry_limit
     q1 = q2;
     
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    if constr_m == 1, Phi_voll = Rob.constr1(q1, xE_soll);
-    else,             Phi_voll = Rob.constr2(q1, xE_soll, true); end
+    if constr_m == 1, Phi_voll = Rob.constr1(q1, Tr0E_soll);
+    else,             Phi_voll = Rob.constr2(q1, Tr0E_soll, true); end
     Phi = Phi_voll(I_IK);
 
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt

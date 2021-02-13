@@ -7,8 +7,9 @@
 % Eingabe:
 % qJ
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % reci (Optional)
 %   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
 %   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
@@ -29,7 +30,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_r = constr2_rot(Rob, qJ, xE, reci)
+function Phi_r = constr2_rot(Rob, qJ, Tr0Ex, reci)
 
 assert(isreal(qJ) && all(size(qJ) == [Rob.NQJ 1]), ...
   'SerRob/constr2_rot: qJ muss %dx1 sein', Rob.NQJ);
@@ -37,7 +38,7 @@ if nargin < 4
   reci = false;
 end
 
-R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
+R_0_E_x = Tr0Ex(1:3,1:3);
 if reci
   [~,phiconv_delta] = euler_angle_properties(Rob.phiconv_W_E);
 else

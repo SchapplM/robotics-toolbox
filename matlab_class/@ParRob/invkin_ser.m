@@ -139,7 +139,6 @@ for i = 1:Rob.NLEG
   T_P_Bi = [eulxyz2r(Rob.phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];% (P)^T_(Bi)
   T_0i_0 = Rob.Leg(i).T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
-  xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
   s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
   
   if isfield(s, 'K') && length(s.K) ~= Rob.Leg(i).NJ % passt für Eingabe der K mit Dimension [RP.NJ,1]
@@ -150,9 +149,9 @@ for i = 1:Rob.NLEG
   end
   % Inverse Kinematik für die serielle Beinkette berechnen
   if nargout < 4
-    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
   else % Aufruf und Verarbeitung der Statistik
-    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s);
     Stats.Q(:,Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Stats_i.Q;
     Stats.PHI(:,Rob.I1constr(i):Rob.I2constr(i)) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;

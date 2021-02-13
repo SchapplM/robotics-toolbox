@@ -5,8 +5,9 @@
 % Eingabe:
 % qJ
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % 
 % Ausgabe:
 % Phix [3x1]
@@ -24,12 +25,12 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für mechatronische Systeme, Universität Hannover
 
-function Phix = constr1_trans(Rob, qJ, xE)
+function Phix = constr1_trans(Rob, qJ, Tr0Ex)
 
 assert(isreal(qJ) && all(size(qJ) == [Rob.NQJ 1]), ...
   'SerRob/constr1_trans: q muss %dx1 sein', Rob.NQJ);
 
-r_0_E_x = xE(1:3);
+r_0_E_x = Tr0Ex(1:3,4);
 
 % Direkte Kinematik der Beinkette
 T_0_E = Rob.fkineEE(qJ);

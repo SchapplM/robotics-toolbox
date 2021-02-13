@@ -68,11 +68,11 @@ RS.corvec(q0,qD0);
 RS.cormat(q0,qD0);
 RS.invdyn(q0,qD0,qDD0);
 
-RS.constr1(q0, xE);
-RS.constr1grad(q0, xE);
-RS.constr2(q0, xE);
-RS.constr2grad(q0, xE);
-RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
+RS.constr1(q0, RS.x2tr(xE));
+RS.constr1grad(q0, RS.x2tr(xE));
+RS.constr2(q0, RS.x2tr(xE));
+RS.constr2grad(q0, RS.x2tr(xE));
+RS.invkin(RS.x2tr(xE), q0+0.1*ones(RS.NJ,1));
 
 %% Gelenkwinkel-Trajektorie berechnen
 % Für jedes Gelenk 
@@ -213,7 +213,7 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0, 0.1, 0,0,0];
 TAU = RS.invdyn_traj(Q, QD, QDD);
 % IK-Ergebnis testen
 for i = 1:length(T)
-  if max(abs( RS.constr1(Q(i,:)', X(i,:)') )) > 1e-4
+  if max(abs( RS.constr1(Q(i,:)', RS.x2tr(X(i,:)')) )) > 1e-4
     error('IK stimmt nicht');
   end
 end

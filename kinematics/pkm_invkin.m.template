@@ -172,16 +172,15 @@ for i = 1:NLEG
   Leg_T_0_W = [eulxyz2r(Leg_T_0_W_vec(1:3,i)),Leg_T_0_W_vec(4:6,i);[0 0 0 1]];
   T_0i_0 = Leg_T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
-  xE_soll_i = [T_0i_E(1:3,4); r2eul(T_0i_E(1:3,1:3), phiconv_W_E)]; % als Vektor
 
   Leg_T_N_E = [eulxyz2r(Leg_T_N_E_vec(1:3,i)),Leg_T_N_E_vec(4:6,i);[0 0 0 1]];
   s.T_N_E = Leg_T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
   % Inverse Kinematik für die serielle Beinkette berechnen
   if nargout < 4
-    [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
   else % Aufruf und Verarbeitung der Statistik
-    [q_i, Phi_i, Tc_stack_0i, Stats_i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
     Stats.Q(:,I1J_LEG(i):I2J_LEG(i)) = Stats_i.Q;
     Stats.PHI(:,(i-1)*6+1:6*i) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;

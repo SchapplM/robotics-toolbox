@@ -11,8 +11,9 @@
 % Eingabe:
 % q
 %   Gelenkwinkel des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % 
 % Ausgabe:
 % Phi [6x1]
@@ -28,11 +29,11 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi = constr1(R, q, xE)
+function Phi = constr1(R, q, Tr0Ex)
 
 % [SchapplerTapOrt2019], Gl. 8
-Phi_t = R.constr1_trans(q, xE);
+Phi_t = R.constr1_trans(q, Tr0Ex);
 % Entspricht [SchapplerTapOrt2019], Gl. 9 mit unterschiedlicher Rotation
-Phi_r = R.constr1_rot(q, xE);
+Phi_r = R.constr1_rot(q, Tr0Ex);
 % Entspricht [SchapplerTapOrt2019], Gl. 7
 Phi = [Phi_t; Phi_r];

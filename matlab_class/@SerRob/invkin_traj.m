@@ -58,7 +58,7 @@ PHI = NaN(length(T), sum(Rob.I_EE));
 nt = length(T);
 qk0 = q0;
 for k = 1:nt
-  [q_k, Phi_k] = Rob.invkin(X(k,:)',qk0, s);
+  [q_k, Phi_k] = Rob.invkin(Rob.x2tr(X(k,:)'),qk0, s);
   
   % Gelenk-Geschwindigkeit berechnen (Siehe [1]).
   J_x = Rob.jacobia(q_k);

@@ -66,12 +66,12 @@ for Robot_Data = Robots
   RS.jacobiw(q0);
   RS.jtraf(q0);
   
-  RS.constr1(q0, xE);
-  RS.constr1grad(q0, xE);
-  RS.constr2(q0, xE, false);
-  RS.constr2grad(q0, xE, false);
-  RS.constr2(q0, xE, true);
-  RS.constr2grad(q0, xE, true);
+  RS.constr1(q0, RS.x2tr(xE));
+  RS.constr1grad(q0, RS.x2tr(xE));
+  RS.constr2(q0, RS.x2tr(xE), false);
+  RS.constr2grad(q0, RS.x2tr(xE), false);
+  RS.constr2(q0, RS.x2tr(xE), true);
+  RS.constr2grad(q0, RS.x2tr(xE), true);
   
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
@@ -88,14 +88,14 @@ for Robot_Data = Robots
 
         % Zwangsbedingungen und -gradienten für q0 berechnen
         if m == 1
-          Phi_0 = RS.constr1(q0, xE);
-          Phidq_0 = RS.constr1grad(q0, xE);
+          Phi_0 = RS.constr1(q0, RS.x2tr(xE));
+          Phidq_0 = RS.constr1grad(q0, RS.x2tr(xE));
         elseif m == 2
-          Phi_0 = RS.constr2(q0, xE, false);
-          Phidq_0 = RS.constr2grad(q0, xE, false);
+          Phi_0 = RS.constr2(q0, RS.x2tr(xE), false);
+          Phidq_0 = RS.constr2grad(q0, RS.x2tr(xE), false);
         elseif m == 3
-          Phi_0 = RS.constr2(q0, xE, true);
-          Phidq_0 = RS.constr2grad(q0, xE, true);
+          Phi_0 = RS.constr2(q0, RS.x2tr(xE), true);
+          Phidq_0 = RS.constr2grad(q0, RS.x2tr(xE), true);
         end
         for id = 1:size(TSS.Q,2) % Alle Komponenten der Gelenkkoordinaten einmal verschieben
           % Neue Koordinaten q1 durch Verschiebung in einer Komponente
@@ -105,11 +105,11 @@ for Robot_Data = Robots
 
           % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
           if m == 1
-            Phi_1 = RS.constr1(q1, xE);
+            Phi_1 = RS.constr1(q1, RS.x2tr(xE));
           elseif m == 2
-            Phi_1 = RS.constr2(q1, xE, false);
+            Phi_1 = RS.constr2(q1, RS.x2tr(xE), false);
           elseif m == 3
-            Phi_1 = RS.constr2(q1, xE, true);
+            Phi_1 = RS.constr2(q1, RS.x2tr(xE), true);
           end
 
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger

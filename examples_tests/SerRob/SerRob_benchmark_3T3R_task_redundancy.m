@@ -12,9 +12,11 @@
 % Nullraum-Optimierung (NRO), Geschwindigkeitsgrenzen (GG)
 % * 1: 3T2R, NRO, GG
 % * 2: 3T2R, NRO
-% * 3: 3T2R, GG
-% * 4: 3T2R, NRO, GG. Jacobi-Zeitableitung mit Differenzenquotient
-% * 5: 3T3R: Benutze symmetrischen FG aus globaler Optimierung für Eckpunkte
+% * 3: 3T2R, GG (ohne Grenze für Beschleunigung)
+% * 4: 3T2R, GG
+% * 5: 3T2R, GG, NRO für Konditionszahl
+% * 6: 3T2R, NRO, GG. Jacobi-Zeitableitung mit Differenzenquotient
+% * 7: 3T3R: Benutze symmetrischen FG aus globaler Optimierung für Eckpunkte
 % 
 % Ergebnis:
 % * Mit Aufgabenredundanz (M.1) wird die Zielfunktion (Einhaltung der Gelenk-
@@ -93,7 +95,7 @@ for robnr = 1
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
-  matlabfcn2mex({'S6RRRRRR10V2_invkin_traj'});
+  % matlabfcn2mex({'S6RRRRRR10V2_invkin_traj','S6RRRRRR10V2_invkin_eulangresidual'});
   
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
@@ -114,7 +116,7 @@ for robnr = 1
   q0 = zeros(6,1);
   q0(2) = pi/2;
   q0_ik_fix = q0 + [0;25;-35;0;15;0]*pi/180;
-  [qs, Phi] = RS.invkin2(X0, q0_ik_fix, s);
+  [qs, Phi] = RS.invkin2(RS.x2tr(X0), q0_ik_fix, s);
   if any(abs(Phi) > 1e-8)
     error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
   end
@@ -172,7 +174,7 @@ for robnr = 1
     for i = 1:size(XL,1)
       t1 = tic();
       % Berechnung mit aus Vorlagendatei generierter Funktion
-      [q_i, Phi_i] = RS.invkin2(XL(i,:)', qs, s_ep);
+      [q_i, Phi_i] = RS.invkin2(RS.x2tr(XL(i,:)'), qs, s_ep);
       fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (tpl-Funktion). Bis hier %1.1fs.\n', ...
         i, size(XL,1), toc(t1), toc(t0));
       if max(abs(Phi_i)) > 1e-6
@@ -193,7 +195,7 @@ for robnr = 1
       for j = 1:nsteps_angle % in 2-Grad-Schritten durchgehen
         x = XL(i,:)';
         x(6) = 360/nsteps_angle*(j-1)*pi/180; % EE-Drehung vorgeben
-        [q_i_kls, Phi_i_kls] = RS.invkin2(x, qs_bruteforce, s_ep_3T3R);
+        [q_i_kls, Phi_i_kls] = RS.invkin2(RS.x2tr(x), qs_bruteforce, s_ep_3T3R);
         qs_bruteforce = q_i_kls;
         if max(abs(Phi_i_kls)) > 1e-6
           error('Eckpunkt %d geht nicht', i);
@@ -285,7 +287,7 @@ for robnr = 1
   warning on
   % Berechne Ersten Punkt der Trajektorie mit Aufgabenredundanz.
   % Dadurch bestmögliche Startkonfiguration
-  [q1, Psi_num1] = RS.invkin2(X_t(1,:)', qs, s_start);
+  [q1, Psi_num1] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_start);
   if any(abs(Psi_num1) > 1e-4)
     warning('IK konvergiert nicht für Startpunkt der Trajektorie');
   end
@@ -370,7 +372,7 @@ for robnr = 1
     % Nullraumbewegung am Anfang (Start in lokalem Optimum)
     s_pik_kk = struct('I_EE', s_kk.I_EE);
     s_pik_kk.wn = s_kk.wn([1 2 5]); % Positions-Grenzen und Kondition
-    [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(XL(i,:)', qs, s_pik_kk);
+    [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(XL(i,:)'), qs, s_pik_kk);
     if any(abs(Phi_s)>1e-6)
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
         'fehlgeschlagen']);
@@ -378,7 +380,8 @@ for robnr = 1
     
     Namen_Methoden{kk} = name_method;
     t1=tic();
-    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RS.invkin2_traj(X_t,XD_t,XDD_t,t,qs_kk,s_kk);
+    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RS.invkin2_traj( ...
+      X_t,XD_t,XDD_t,t,qs_kk,s_kk);
     fprintf('Inverse Kinematik mit Methode %d (%s) berechnet. Dauer: %1.1fs\n', ...
       kk, name_method, toc(t1));
     Q_t_all(:,:,kk) = Q_t_kk;
@@ -409,7 +412,7 @@ for robnr = 1
     XDE_all(I_traj,:,kk) = XD_ist;
     XDDE_all(I_traj,:,kk) = XDD_ist;
   end
-  % Konsistenz von Position, Geschwindigkeit und Beschleunigung testen
+  %% Konsistenz von Position, Geschwindigkeit und Beschleunigung testen
   for kk = 1:length(Namen_Methoden)
     Q = Q_t_all(:,:,kk);
     QD = QD_t_all(:,:,kk);

@@ -53,5 +53,22 @@ classdef RobBase < matlab.mixin.Copyable
       % Ausgabe: Transformationsmatrix zwischen Welt- und EE-KS
       T_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3); [0 0 0 1]];
     end
+    function Tr_W_E = x2tr(R, x_W_E)
+      % Umwandlung der EE-Lage in eine reduzierte homogene Transformations-
+      % matrix (ohne letzte Zeile). Dient zur kompakteren Übergabe an Fkt.
+      % Eingabe: Vektor aus Position und Euler-Winkeln
+      % Ausgabe: reduzierte Transformationsmatrix zwischen Welt- und EE-KS
+      Tr_W_E = [eul2r(x_W_E(4:6), R.phiconv_W_E), x_W_E(1:3)];
+    end
+    function Tr_W_E = x2tr_traj(R, X_W_E)
+      % Umwandlung der EE-Lage in eine reduzierte homogene Transformations-
+      % matrix (ohne letzte Zeile). Dient zur kompakteren Übergabe an Fkt.
+      % Eingabe: Zeilenweise Vektoren aus Position und Euler-Winkeln
+      % Ausgabe: Zeilenweise red. Transformationsmatrix zwischen Welt- und EE-KS
+      Tr_W_E = NaN(size(X_W_E,1), 12);
+      for i = 1:size(X_W_E,1)
+        Tr_W_E(i,:) = R.x2tr(X_W_E(i,:)');
+      end
+    end
   end
 end
