@@ -143,9 +143,6 @@ delta_qlim = qmax - qmin;
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 I_IK = Rob.I_constr_red;
-% Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
-% berechnet wurde
-q_wn3 = inf(Rob.NJ,1);
 % Gradient von Nebenbedingung 3
 h3dq = NaN(1,Rob.NJ);
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
@@ -215,19 +212,16 @@ for rr = 0:retry_limit
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
-        if any(abs(q1-q_wn3) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
-          for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
-            q_test = q1; % ausgehend von aktueller Konfiguration
-            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-            [~,Jik_voll_kkk]=Rob.constr3grad_q(q_test, xE_soll);
-            Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
-            condJ_kkk = cond(Jik_kkk);
-            % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
-            % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-            % maximal große Sprünge der Gelenkwinkel).
-            h3dq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
-          end
-          q_wn3 = q1;
+        for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q1; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          [~,Jik_voll_kkk]=Rob.constr3grad_q(q_test, xE_soll);
+          Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          condJ_kkk = cond(Jik_kkk);
+          % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
+          % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
+          % maximal große Sprünge der Gelenkwinkel).
+          h3dq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
         end
         v = v - wn(3)*h3dq';
         h(3) = log(condJ);
@@ -251,10 +245,12 @@ for rr = 0:retry_limit
       delta_q_T = delta_q_T .* 0.5/max(abs_delta_qTrev);
     end
     abs_delta_qNrev = abs(delta_q_N(sigma_PKM==0)); % nur Drehgelenke
-    if any(abs_delta_qNrev > 0.05) % 0.05rad=3°
+    if any(abs_delta_qNrev > 0.05*(1-jj/n_max)) % 0.05rad=3°
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
       % Winkelinkrement danach 3° hat.
-      delta_q_N = delta_q_N .* 0.05/max(abs_delta_qNrev);
+      % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
+      % tuellen Oszillationen auszugleichen.
+      delta_q_N = delta_q_N .* 0.05*(1-jj/n_max)/max(abs_delta_qNrev);
     end
     
     % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
