@@ -534,3 +534,54 @@ for Robot_Data = Robots
 end
 
 fprintf('Alle Tests erfolgreich durchgeführt\n');
+
+%% Teste Konsistenz der Optimierungskriterien
+% Der Gradient muss mit der Größe selbst übereinstimmen
+Q_test = -0.5+rand(100,1);
+Qlim_test = -0.5+rand(100,2);
+Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2) = 1+Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2);
+for jj = 1:2
+  for i = 1:size(Q_test,1)
+    q = Q_test(i,:);
+    qlim = Qlim_test(i,:);
+    deltaq = 1e-6;
+    q1 = q+deltaq; % Test-Winkel
+    % Berechne Zielfunktion und Gradient für zwei Stellen
+    if jj == 1
+      [h, hdq] = invkin_optimcrit_limits1(q, qlim);
+      h1 = invkin_optimcrit_limits1(q1, qlim);
+    else
+      if q < qlim(1) || q > qlim(2), continue; end
+      [h, hdq] = invkin_optimcrit_limits2(q, qlim);
+      h1 = invkin_optimcrit_limits2(q1, qlim);
+    end
+    h1_diff = h+hdq*deltaq; % berechne ZF an zweiter Stelle mit Gradient
+    % Vergleiche direkte Berechnung mit Berechnung aus Gradienten.
+    test_h_abs = h1_diff-h1;
+    test_h_rel = test_h_abs/h;
+    hdq_diff = (h1-h)/deltaq;
+    test_hdq_abs = hdq-hdq_diff;
+    test_hdq_rel = test_hdq_abs/hdq;
+    if abs(test_h_abs) > 1e-5 && test_h_rel > 1e-2 || ...
+        abs(test_hdq) > 1e-3 && test_hdq_rel > 1e-2
+      figure(1); clf; hold on;
+      Qplot = unique([(min([q;qlim(1)]):1e-4:max([q;qlim(2)]))';q;q1]);
+      Hplot = NaN(size(Qplot));
+      for k = 1:length(Qplot)
+        if jj == 1
+          Hplot(k) = invkin_optimcrit_limits1(Qplot(k), qlim);
+        else
+          Hplot(k) = invkin_optimcrit_limits2(Qplot(k), qlim);
+        end
+      end
+      plot(Qplot, Hplot);
+      plot(q, h, 'ro');
+      plot(q1, h1, 'ks');
+      plot(q1, h1_diff, 'cv');
+      plot([q;q1], [h;h1_diff], 'b-');
+      xlabel('q'); ylabel('h'); grid on;
+      xlim([q-deltaq, q1+deltaq]);
+      error('invkin_optimcrit_limits%d: Gradient vs Zielfunktion falsch.', jj);
+    end
+  end
+end

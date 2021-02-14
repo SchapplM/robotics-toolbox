@@ -38,12 +38,15 @@ for i = 1:n
     h = h + (qlim(i,2)-qlim(i,1))^2/(8*n) * (1/(q(i)-qlim(i,1))^2+...
                                              1/(q(i)-qlim(i,2))^2);
     % Gradient: Berechnung Schappler vom 01.06.2019
-    hdq(i) = -(qlim(i,2)-qlim(i,1))/(4*n) * (1/(q(i)-qlim(i,1))^3+...
+    hdq(i) = -(qlim(i,2)-qlim(i,1))^2/(4*n) * (1/(q(i)-qlim(i,1))^3+...
                                              1/(q(i)-qlim(i,2))^3);
   else
-    
     h = Inf;
     % Keine Berechnung von hdq: Bleibt Null
   end
 end
 
+% Herleitung der Ableitung:
+% q = sym('q'); qmin = sym('qmin'); qmax = sym('qmax');
+% h = 1/(q-qmin)^2 + 1/(q-qmax)^2;
+% diff(h, q)

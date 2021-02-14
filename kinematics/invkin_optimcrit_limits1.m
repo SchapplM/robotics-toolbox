@@ -31,4 +31,4 @@ hdq(isnan(qm)) = 0;
 qm(isnan(qm)) = 0; % bei Grenzen unendlich kommt NaN. Entferne. Entspricht Gewichtung Null.
 
 % [1], Gl. (22) (dort doppeltes W entfernt)
-h = hdq * (q-qm);
+h = 0.5*hdq * (q-qm);
