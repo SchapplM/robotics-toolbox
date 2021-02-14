@@ -636,7 +636,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) == 2, s.wn=[s.wn;0]; end
+      if length(s.wn) ~= 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
