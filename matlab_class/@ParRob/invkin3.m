@@ -314,6 +314,9 @@ for rr = 0:retry_limit
     end
 
     if any(isnan(q2)) || any(isinf(q2))
+      if nargout == 4
+        Stats.iter = jj;
+      end
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 

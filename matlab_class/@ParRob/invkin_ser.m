@@ -53,12 +53,12 @@ s_ser_std = struct( ...
   'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
   'reci', false, ... % Keine reziproken Winkel für ZB-Def.
   'retry_limit', 100); % Anzahl der Neuversuche
-s_par_std = struct( ...
+s_par = struct( ...
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
-% Fehler aufgeworfen werden wg zu vieler Felder
+% Fehler aufgeworfen werden wg zu vieler Felder (Standard-Werte in SerRob/invkin2)
 if nargin < 4 || isempty(s_ser_in)
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_ser_std;
@@ -70,13 +70,12 @@ else
     end
   end
 end
-if nargin < 5
-  s_par = s_par_std;
-elseif nargin == 5
-  s_par = s_par_in;
-  for f = fields(s_par_std)'
-    if ~isfield(s_par, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
-      s_par.(f{1}) = s_par_std.(f{1});
+if nargin == 5
+  for f = fields(s_par_in)'
+    if isfield(s_par, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
+      s_par.(f{1}) = s_par_in.(f{1});
+    else
+      error('Feld %s aus s_par_in kann nicht übergeben werden', f{1});
     end
   end
 end
@@ -200,12 +199,12 @@ return
 % Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
     if(length(q) == 25) % sym
-        Phi = Rob.constr2(q, xE_soll);
+        Phi = Rob.constr2(q, xE_soll, s_par.platform_frame);
     else  % asym mit genau einer Führungskette
-        Phi = Rob.constr3(q, xE_soll);
+        Phi = Rob.constr3(q, xE_soll, s_par.platform_frame);
     end
 else
-  Phi = Rob.constr1(q, xE_soll);
+  Phi = Rob.constr1(q, xE_soll, s_par.platform_frame);
 end
 % Probe: Stimmen die Zwangsbedingungen?
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)
