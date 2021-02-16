@@ -26,13 +26,18 @@ for i = 1:length(R.all_fcn_hdl)
   hdlname = ca{1};
   for j = 2:length(ca) % Gehe alle möglichen Funktionsdateien durch
     fcnname_tmp = ca{j};
-    if nargin == 1 || mex == 0
+    % Bei einigen Funktionen soll nicht die mex-Funktion gewählt werden.
+    fcn_j_nomex = false;
+    if strcmp(ca{j}, 'convert_par2_MPV_fixb')
+      fcn_j_nomex = true;
+    end
+    if nargin == 1 || mex == 0 || fcn_j_nomex
       robfcnname = sprintf('%s_%s', mdlname, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname, fcnname_tmp);
     end
     % Prüfe ob mex-Datei existiert
-    if compile_missing && mex && isempty(which(robfcnname))
+    if compile_missing && mex && isempty(which(robfcnname)) && ~fcn_j_nomex
       robfcnbasename = robfcnname(1:end-4); % Endung "_mex" wieder entfernen
       if ~isempty(which(robfcnbasename))
         % Prüfe, ob passende m-Datei verfügbar ist.
