@@ -123,7 +123,7 @@ qDk0 = zeros(Rob.NJ,1);
 % dort übernommen
 s_pik = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung
-  'Kn', 0*ones(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
+  'Kn', zeros(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
   ... % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
   'wn', zeros(3,1), ...
   'normalize', false, ... % würde Sprung erzeugen

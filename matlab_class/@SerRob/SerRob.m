@@ -611,7 +611,7 @@ classdef SerRob < RobBase
         'reci', true, ... % Benutze reziproke Euler-Winkel (Residuum vs absolute Orientierung)
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
-        'Kn', 0.1*ones(R.NQJ,1), ... % Verstärkung 1 am besten (Nullraumbewegung)
+        'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite

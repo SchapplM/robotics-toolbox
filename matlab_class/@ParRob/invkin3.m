@@ -59,8 +59,8 @@ K = 1.0*ones(Rob.NJ,1);
 % K(sigma_PKM==1) = 0.5; % Verstärkung für Schubgelenke kleiner
 
 s_std = struct(...
-  'K', K, ... % Verstärkung
-  'Kn', 0.1*ones(Rob.NJ,1), ... % Verstärkung
+  'K', K, ... % Verstärkung Aufgabenbewegung
+  'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
   'normalize', true, ...

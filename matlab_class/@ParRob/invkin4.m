@@ -71,8 +71,8 @@ end
 s = struct(...
       'I_EE_Task', R.I_EE_Task,...
           'sigma', R.MDH.sigma,...
-              'K', ones(R.NJ,1), ... % Verstärkung
-             'Kn', 0.1*ones(R.NJ,1), ... % Verstärkung
+              'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
+             'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
              'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
       'normalize', false, ... % Normalisieren auf +/- 180°

@@ -319,8 +319,8 @@ classdef ParRob < RobBase
       % Einstellungen für IK. Siehe auch: SerRob/invkin2
       s_ser = struct( ...
         'reci', false, ... % Keine reziproken Winkel für ZB-Def.
-        'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
-        'Kn', 0.1*ones(R.Leg(1).NQJ,1), ... % Verstärkung
+        'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
+        'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
