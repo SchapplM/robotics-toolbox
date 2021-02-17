@@ -103,6 +103,7 @@ for Robot_Data = Robots
   qD0 = TSS.QD(1,:)';
   qDD0 = TSS.QDD(1,:)';
   T_E = RS.fkineEE(q0);
+  Tr_E = T_E(1:3,:);
   xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
   
   RS.fkine(q0);
@@ -118,16 +119,14 @@ for Robot_Data = Robots
   RS.jacobiwD(q0,qD0);
   RS.jtraf(q0);
   
-  RS.constr1(q0, xE);
-  RS.constr1grad(q0, xE);
-  RS.constr2(q0, xE);
-  RS.constr2grad(q0, xE);
-  RS.invkin(xE, q0+0.1*ones(RS.NJ,1));
-  RS.invkin2(xE, q0+0.1*ones(RS.NJ,1));
-  RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 0));
-  RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1), ...
-    struct('retry_limit', 0));
+  RS.constr1(q0, Tr_E);
+  RS.constr1grad(q0, Tr_E);
+  RS.constr2(q0, Tr_E);
+  RS.constr2grad(q0, Tr_E);
+  RS.invkin(Tr_E, q0+0.1*ones(RS.NJ,1));
+  RS.invkin2(Tr_E, q0+0.1*ones(RS.NJ,1));
+  RS.invkin_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
+  RS.invkin2_traj(repmat(xE',2,1), zeros(2,6), zeros(2,6), [0;1], q0+0.1*ones(RS.NJ,1));
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
   %% (Test 2) Inverse Kinematik (Normal) prüfen (für verschiedene Posen)
@@ -149,7 +148,7 @@ for Robot_Data = Robots
         q0 = q-20*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 20° neben der Endstellung
         % Berechnung mit SerRob
         tic();
-        q_test1 = RS.invkin(xE, q0, struct('constr_m', m)); 
+        q_test1 = RS.invkin(RS.x2tr(xE), q0, struct('constr_m', m)); 
         T1 = T1 + toc;
         % Erfolg mit Klassen-Methode prüfen
         T_E_test1 = RS.fkineEE(q_test1);
@@ -161,7 +160,7 @@ for Robot_Data = Robots
         end
         % Berechnung mit Spez. Funktion
         tic();
-        q_test2 = RS.invkin2(xE, q0); 
+        q_test2 = RS.invkin2(RS.x2tr(xE), q0); 
         T2 = T2 + toc;
         % Erfolg mit Spez. Funktion prüfen
         T_E_test2 = RS.fkineEE(q_test2);
@@ -202,7 +201,7 @@ for Robot_Data = Robots
         T_E0 = RS.fkineEE(q0);
         % Berechnung mit SerRob
         tic();
-        q_test1 = RS.invkin(xE, q0, struct('constr_m',2, 'I_EE', logical([1 1 1 1 1 0])));
+        q_test1 = RS.invkin(RS.x2tr(xE), q0, struct('constr_m',2, 'I_EE', logical([1 1 1 1 1 0])));
         T1 = T1 + toc();
         % Prüfe Erfolg mit SerRob
         T_E_test1 = RS.fkineEE(q_test1);
@@ -216,7 +215,7 @@ for Robot_Data = Robots
         end
         % Berechnung mit Spez. Funktion
         tic();
-        q_test2 = RS.invkin2(xE, q0, struct('I_EE', logical([1 1 1 1 1 0])));
+        q_test2 = RS.invkin2(RS.x2tr(xE), q0, struct('I_EE', logical([1 1 1 1 1 0])));
         T2 = T2 + toc();
         % Prüfe Erfolg mit Spez. Funktion
         T_E_test2 = RS.fkineEE(q_test2);
@@ -239,17 +238,6 @@ for Robot_Data = Robots
     fprintf('Einzelpunkt-IK für 3T2R-Aufgabe für %s erfolgreich getestet\n', SName);
   else
     fprintf('Einzelpunkt-IK für 3T2R-Aufgabe mit %s nicht möglich und daher nicht getestet.\n', SName);
-  end
-  %% (Test 4) Teste Zielfunktion für Zusatzoptimierung
-  % Prüfe, ob Implementierung in SerRob und in Spez. Funktion gleich ist.
-  fprintf('%s: Test 4 (Zielfunktion Zusatzoptimierung)\n', SName);
-  for i = 1:size(TSS.Q,1)
-    q = TSS.Q(i,:)';
-    [h1, hdq1] = RS.optimcrit_limits1(q);
-    [h2, hdq2] = invkin_optimcrit_limits1(q, RS.qlim);
-    if max(abs([h1-h2;hdq1'-hdq2'])) > 1e-10
-      error('Optimierungsfunktion als einzelne Funktion stimmt nicht mit Klasse überein');
-    end
   end
   %% (Test 5) Inverse Kinematik für 3T2R-/3T3R-Aufgabe (mit Zusatzoptimierung) prüfen
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
@@ -291,7 +279,7 @@ for Robot_Data = Robots
           q0 = q-10*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 10° neben der Endstellung
            % Berechnung mit SerRob: Ohne Optimierung ("ohne")
           tic();
-          q_ohne = RS.invkin(xE, q0, ...
+          q_ohne = RS.invkin(RS.x2tr(xE), q0, ...
             struct('I_EE', I_EE_Task, 'constr_m', m));
           T_ges(1,1)=T_ges(1,1)+toc();
           if any(isnan(q_ohne)), return; end
@@ -301,11 +289,11 @@ for Robot_Data = Robots
                      'wn',wn, ...
                      'I_EE', I_EE_Task, 'constr_m', m);
           tic()
-          [q_mit1,~,Q_mit1] = RS.invkin(xE, q0, s);
+          [q_mit1,~,Q_mit1] = RS.invkin(RS.x2tr(xE), q0, s);
           T_ges(1,2)=T_ges(1,2)+toc();
           % Berechnung mit SerRob: nachträgliche Optimierung ("mit2")
           tic();
-          [q_mit2,Phi,Q_mit2] = RS.invkin(xE, q_ohne, ...
+          [q_mit2,Phi,Q_mit2] = RS.invkin(RS.x2tr(xE), q_ohne, ...
             struct('K',5e-1*ones(RS.NJ,1), ...
                    'Kn',1e-2*ones(RS.NJ,1), ...
                    'n_min', 50, ...
@@ -326,9 +314,9 @@ for Robot_Data = Robots
             n_iO1 = n_iO1+1;
           end
           % Prüfe, ob Kriterium verbessert wurde
-          K_zopt(i,1) = RS.optimcrit_limits1(q_ohne);
-          K_zopt(i,2) = RS.optimcrit_limits1(q_mit1);
-          K_zopt(i,3) = RS.optimcrit_limits1(q_mit2);
+          K_zopt(i,1) = invkin_optimcrit_limits1(q_ohne, RS.qlim);
+          K_zopt(i,2) = invkin_optimcrit_limits1(q_mit1, RS.qlim);
+          K_zopt(i,3) = invkin_optimcrit_limits1(q_mit2, RS.qlim);
           if K_zopt(i,1) < K_zopt(i,2) || K_zopt(i,1) < K_zopt(i,3)
             warning('%d/%d: Die Zielfunktion ist mit Optimierung schlechter als ohne (Berechnung mit Klassenfunktion)', i, size(TSS.Q,1));
           end
@@ -336,14 +324,14 @@ for Robot_Data = Robots
 
           % Gleiche Rechnung wie oben, aber mit kompilierten Funktionen
           tic();
-          q2_ohne = RS.invkin2(xE, q0, struct('I_EE', I_EE_Task));
+          q2_ohne = RS.invkin2(RS.x2tr(xE), q0, struct('I_EE', I_EE_Task));
           T_ges(2,1)=T_ges(2,1)+toc();
           s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
                      'wn',wn, ...
                      'I_EE', I_EE_Task);
           tic();
-          q2_mit1 = RS.invkin2(xE, q0, s); Q2_mit1 = NaN;
+          q2_mit1 = RS.invkin2(RS.x2tr(xE), q0, s); Q2_mit1 = NaN;
           T_ges(2,2)=T_ges(2,2)+toc();
           s = struct('K',5e-1*ones(RS.NJ,1), ...
                      'Kn',1e-2*ones(RS.NJ,1), ...
@@ -351,7 +339,7 @@ for Robot_Data = Robots
                      'wn',wn, ...
                      'I_EE', I_EE_Task);
           tic();
-          q2_mit2 = RS.invkin2(xE, q_ohne, s);
+          q2_mit2 = RS.invkin2(RS.x2tr(xE), q_ohne, s);
           T_ges(2,3)=T_ges(2,3)+toc();
           test_T2_ohne = T_E\RS.fkineEE(q2_ohne) - eye(4);
           test_T2_mit1 = T_E\RS.fkineEE(q2_mit1) - eye(4);
@@ -365,9 +353,9 @@ for Robot_Data = Robots
           else
             n_iO2 = n_iO2+1;
           end
-          K_zopt(i,4) = RS.optimcrit_limits1(q2_ohne);
-          K_zopt(i,5) = RS.optimcrit_limits1(q2_mit1);
-          K_zopt(i,6) = RS.optimcrit_limits1(q2_mit2);
+          K_zopt(i,4) = invkin_optimcrit_limits1(q2_ohne, RS.qlim);
+          K_zopt(i,5) = invkin_optimcrit_limits1(q2_mit1, RS.qlim);
+          K_zopt(i,6) = invkin_optimcrit_limits1(q2_mit2, RS.qlim);
           if K_zopt(i,4) < K_zopt(i,5) || K_zopt(i,4) < K_zopt(i,6)
             warning('%d/%d: Die Zielfunktion ist mit Optimierung schlechter als ohne (Berechnung mit Roboterspezifischer Funktion)', i, size(TSS.Q,1));
           end
@@ -385,10 +373,10 @@ for Robot_Data = Robots
 %             change_current_figure(20);clf; 
 %             subplot(3,1,1); hold on; grid on; plot(Q_mit1); set(gca, 'ColorOrderIndex',1); plot(Q2_mit1,'--');
 %             Z_all = NaN(size(Q_mit1,1),2);
-%             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
+%             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=invkin_optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=invkin_optimcrit_limits1(Q2_mit1(jj,:)'); end
 %             subplot(3,1,2);hold on; grid on; plot(Z_all(:,1),'-');plot(Z_all(:,2),'--');
 % %             Phi_all1 = NaN/(
-% %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=RS.optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=RS.optimcrit_limits1(Q2_mit1(jj,:)'); end
+% %             for jj = 1:size(Q_mit1,1), Z_all(jj,1)=invkin_optimcrit_limits1(Q_mit1(jj,:)');Z_all(jj,2)=invkin_optimcrit_limits1(Q2_mit1(jj,:)'); end
 %             subplot(3,1,3); hold on; grid on; plot(Q_mit1-Q2_mit1);
 %             linkxaxes
 %             warning('%d/%d: Ergebnis zwischen Klassenfunktion und kompilierter Funktion stimmt nicht (mögl. schlecht konditioniert)', i, size(TSS.Q,1));
@@ -546,3 +534,54 @@ for Robot_Data = Robots
 end
 
 fprintf('Alle Tests erfolgreich durchgeführt\n');
+
+%% Teste Konsistenz der Optimierungskriterien
+% Der Gradient muss mit der Größe selbst übereinstimmen
+Q_test = -0.5+rand(100,1);
+Qlim_test = -0.5+rand(100,2);
+Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2) = 1+Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2);
+for jj = 1:2
+  for i = 1:size(Q_test,1)
+    q = Q_test(i,:);
+    qlim = Qlim_test(i,:);
+    deltaq = 1e-6;
+    q1 = q+deltaq; % Test-Winkel
+    % Berechne Zielfunktion und Gradient für zwei Stellen
+    if jj == 1
+      [h, hdq] = invkin_optimcrit_limits1(q, qlim);
+      h1 = invkin_optimcrit_limits1(q1, qlim);
+    else
+      if q < qlim(1) || q > qlim(2), continue; end
+      [h, hdq] = invkin_optimcrit_limits2(q, qlim);
+      h1 = invkin_optimcrit_limits2(q1, qlim);
+    end
+    h1_diff = h+hdq*deltaq; % berechne ZF an zweiter Stelle mit Gradient
+    % Vergleiche direkte Berechnung mit Berechnung aus Gradienten.
+    test_h_abs = h1_diff-h1;
+    test_h_rel = test_h_abs/h;
+    hdq_diff = (h1-h)/deltaq;
+    test_hdq_abs = hdq-hdq_diff;
+    test_hdq_rel = test_hdq_abs/hdq;
+    if abs(test_h_abs) > 1e-5 && test_h_rel > 1e-2 || ...
+        abs(test_hdq) > 1e-3 && test_hdq_rel > 1e-2
+      figure(1); clf; hold on;
+      Qplot = unique([(min([q;qlim(1)]):1e-4:max([q;qlim(2)]))';q;q1]);
+      Hplot = NaN(size(Qplot));
+      for k = 1:length(Qplot)
+        if jj == 1
+          Hplot(k) = invkin_optimcrit_limits1(Qplot(k), qlim);
+        else
+          Hplot(k) = invkin_optimcrit_limits2(Qplot(k), qlim);
+        end
+      end
+      plot(Qplot, Hplot);
+      plot(q, h, 'ro');
+      plot(q1, h1, 'ks');
+      plot(q1, h1_diff, 'cv');
+      plot([q;q1], [h;h1_diff], 'b-');
+      xlabel('q'); ylabel('h'); grid on;
+      xlim([q-deltaq, q1+deltaq]);
+      error('invkin_optimcrit_limits%d: Gradient vs Zielfunktion falsch.', jj);
+    end
+  end
+end

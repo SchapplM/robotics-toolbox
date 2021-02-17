@@ -36,8 +36,10 @@
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-05
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = invkin4(R, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin4(R, xE_soll, q0, s_in)
 
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 Leg_I_EE_Task = true(R.NLEG,6);
@@ -65,20 +67,20 @@ for i = 1:R.NLEG
   Leg_NQJ(i) = R.Leg(i).NJ;
   Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
 end
-sigma_PKM = R.MDH.sigma; % Marker für Dreh-/Schubgelenk
-K = 0.6*ones(R.NJ,1);
-K(sigma_PKM==1) = K(sigma_PKM==1) / 5;
 
 s = struct(...
       'I_EE_Task', R.I_EE_Task,...
           'sigma', R.MDH.sigma,...
-              'K', K, ... % Verstärkung
-             'Kn', 0.4*ones(R.NJ,1), ... % Verstärkung
-             'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+              'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
+             'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
+             'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
       'normalize', false, ... % Normalisieren auf +/- 180°
+     'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+     'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
           'n_min', 0, ... % Minimale Anzahl Iterationen
           'n_max', 1000, ... % Maximale Anzahl Iterationen
+       'rng_seed', NaN, ... % Initialwert für Zufallszahlengenerierung
       'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
        'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
        'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
@@ -113,10 +115,18 @@ if nargin >= 3 && ~isempty(s_in)
     end
   end
 end
+if length(s.wn) < 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
+if sum(R.I_EE) <= sum(R.I_EE_Task)
+  % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
+  % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
+  s.wn(:) = 0;
+end
 %% Funktionsaufruf. 
 % Entspricht robot_invkin_eulangresidual.m.template
 if nargout == 3
   [q, Phi, Tc_stack_PKM] = R.invkin3fcnhdl(xE_soll, q0, s);
-else
+elseif nargout <= 2
   [q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
+else
+  [q, Phi, Tc_stack_PKM, Stats] = R.invkin3fcnhdl(xE_soll, q0, s);
 end

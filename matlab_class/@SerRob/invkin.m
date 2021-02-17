@@ -4,8 +4,8 @@
 % Iterative Lösung der inversen Kinematik mit inverser Jacobi-Matrix
 % 
 % Eingabe:
-% xE_soll
-%   EE-Lage (Sollwert)
+% Tr0E_soll [3x4]
+%   EE-Lage (Sollwert); homogene Transformationsmatrix ohne letzte Zeile
 % q0
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
@@ -27,22 +27,17 @@
 % Angles, Proc. of the 15th IFToMM World Congress, 2019
 % [1] Aufzeichnungen Schappler vom 3.8.2018
 
-function [q, Phi, Q] = invkin(Rob, xE_soll, q0, s)
+function [q, Phi, Q] = invkin(Rob, Tr0E_soll, q0, s)
 
 % Wähle die Indizes der Schubgelenke in den Minimalkoordinaten aus
 sigmaJ = Rob.MDH.sigma(Rob.MDH.mu>=1); % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
 if length(sigmaJ) < Rob.NQJ
   error('Marker für Gelenktypen der in Minimalkoordinaten enthaltenen Gelenke passt nicht');
 end
-% Standard-Einstellung der Verstärkungs-Faktoren: Die Schubgelenke müssen
-% langsamer konvergieren als die Drehgelenke, da die Rotation die Position
-% beeinflusst, aber nicht umgekehrt.
-K_def = 0.1*ones(Rob.NQJ,1); % TODO: Wert ist noch sehr konservativ gewählt
-
 s_std = struct( ...
              'I_EE', Rob.I_EE_Task, ... % FG für die IK
-             'K', K_def, ... % Verstärkung
-             'Kn', 1e-2*ones(Rob.NQJ,1), ... % Verstärkung
+             'K', ones(Rob.NQJ,1), ... % Verstärkung am besten 1
+             'Kn', ones(Rob.NQJ,1), ... % Verstärkung am besten 1
              'wn', 0, ... % Gewichtung der Nebenbedingung
              'n_min', 0, ... % Minimale Anzahl Iterationen
              'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -111,17 +106,17 @@ for rr = 0:retry_limit
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  if constr_m == 1, Phi_voll = Rob.constr1(q0, xE_soll);
-  else,             Phi_voll = Rob.constr2(q0, xE_soll, true); end
+  if constr_m == 1, Phi_voll = Rob.constr1(q0, Tr0E_soll);
+  else,             Phi_voll = Rob.constr2(q0, Tr0E_soll, true); end
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   for jj = 1:n_max
 
     % Gradientenmatrix, siehe [SchapplerTapOrt2019]/(23)
     dxq=Rob.constr1grad_tq(q1); % Variante 1 = Variante 2
     if constr_m == 1
-      dpq=Rob.constr1grad_rq(q1, xE_soll);
+      dpq=Rob.constr1grad_rq(q1, Tr0E_soll);
     else
-      dpq=Rob.constr2grad_rq(q1, xE_soll, true);
+      dpq=Rob.constr2grad_rq(q1, Tr0E_soll, true);
     end
     Jdk_voll = [dxq; dpq];
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
@@ -136,7 +131,7 @@ for rr = 0:retry_limit
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NQJ, 1);
       if wn(1) ~= 0
-        [~, hdq] = Rob.optimcrit_limits1(q1);
+        [~, hdq] = invkin_optimcrit_limits1(q1, [qmin, qmax]);
         % [1], Gl. (25)
         v = v - hdq';
       end
@@ -197,8 +192,8 @@ for rr = 0:retry_limit
     q1 = q2;
     
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    if constr_m == 1, Phi_voll = Rob.constr1(q1, xE_soll);
-    else,             Phi_voll = Rob.constr2(q1, xE_soll, true); end
+    if constr_m == 1, Phi_voll = Rob.constr1(q1, Tr0E_soll);
+    else,             Phi_voll = Rob.constr2(q1, Tr0E_soll, true); end
     Phi = Phi_voll(I_IK);
 
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt

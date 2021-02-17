@@ -225,6 +225,7 @@ for DynParMode = 2:4
         if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
+          RobotOptRes = tmp2.RobotOptRes;
           break;
         end
       end
@@ -242,7 +243,7 @@ for DynParMode = 2:4
       r_P_E = RP.r_P_E;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
-      q0 = RobotOptDetails.q0;
+      q0 = RobotOptRes.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
       save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
       fprintf('Maßsynthese beendet\n');

@@ -11,8 +11,9 @@
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
-% xE
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% Tr0E [3x4]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS.
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % pkin
 %   Kinematik-Parameter
 % T_N_E
@@ -32,19 +33,21 @@
 %   nach den N Gelenkwinkeln (in den Spalten)
 
 % Quelle:
-% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% [1] Schappler, M. et al.: Resolution of Functional
 % Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
 % Angles, Proc. of the 15th IFToMM World Congress, 2019
+% [2] Schappler et al: Modeling Parallel Robot Kinematics for 3T2R and 3T3R  
+%     Tasks Using Reciprocal Sets of Euler Angles (MDPI Robotics, 2009)
 
 % %VERSIONINFO%
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_dq = %RN%_constr2grad(q, xE, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
+function Phi_dq = %RN%_constr2grad(q, Tr0E, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(%NQJ%,1),zeros(6,1),zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0), true}
+%$cgargs {zeros(%NQJ%,1),zeros(3,4),zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0), true}
 
 %% Translatorisch
 % Bein-Jacobi
@@ -53,7 +56,7 @@ J_Ai_Bi = J0_i_trans; % Nur xyz-Koordinate in ZB.
 dPhit_dq = J_Ai_Bi;
 
 %% Rotatorisch
-R_0_E_x = eul2r(xE(4:6), phiconv_W_E);
+R_0_E_x = Tr0E(1:3,1:3);
 if reci
   [~,phiconv_delta] = euler_angle_properties(phiconv_W_E);
 else
@@ -61,22 +64,23 @@ else
 end
 
 % Kinematik, Definitionen
+J0_i_rot = %RN%_jacobig_rot_sym_varpar(q, I_EElink, pkin);
 T_0_N_q = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q, I_EElink, pkin);
 R_0_E_q = T_0_N_q(1:3,1:3) * T_N_E(1:3,1:3);
 R_Ex_Eq = R_0_E_x' * R_0_E_q;
 
 % Ableitung der Rotationsmatrix R_0_E nach q
-% Term III aus [SchapplerTapOrt2019], Gl. (31)
-b11=T_N_E(1,1);b12=T_N_E(1,2);b13=T_N_E(1,3);
-b21=T_N_E(2,1);b22=T_N_E(2,2);b23=T_N_E(2,3);
-b31=T_N_E(3,1);b32=T_N_E(3,2);b33=T_N_E(3,3);
-dPidRb1 = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
-dRb_0N_dq = %RN%_jacobiR_rot_sym_varpar(q, I_EElink, pkin);
-% [SchapplerTapOrt2019], Gl. (32) für Term III in Gl. (31) einsetzen
-dRb_0E_dq = dPidRb1 * dRb_0N_dq;
+% Term III aus [1], Gl. (31) mit [3]/(A14)
+% Terme I und II in [3]/(A14) in einem symbolischen Ausdruck. Quelle: 
+% reciprocal_euler_angles.mw aus Paper-Repo von [1]. `Pi_Grad1 . Swb_grad`
+b11=R_0_E_q(1,1);b12=R_0_E_q(1,2);b13=R_0_E_q(1,3);
+b21=R_0_E_q(2,1);b22=R_0_E_q(2,2);b23=R_0_E_q(2,3);
+b31=R_0_E_q(3,1);b32=R_0_E_q(3,2);b33=R_0_E_q(3,3);
+premult_matrix = [0 b31 -b21; -b31 0 b11; b21 -b11 0; 0 b32 -b22; -b32 0 b12; b22 -b12 0; 0 b33 -b23; -b33 0 b13; b23 -b13 0;];
+dRb_0E_dq = premult_matrix * J0_i_rot; % [3]/(A14)
 
 % Innere Ableitung des Matrix-Produktes
-% Term II aus [SchapplerTapOrt2019], Gl. (31)
+% Term II aus [1], Gl. (31)
 % aus ZB_diff_q_rmatvecprod_diff_rmatvec2_matlab
 % (Matrix R_0_E_x wird transponiert in Vorlage eingesetzt)
 a11=R_0_E_x(1,1);a12=R_0_E_x(2,1);a13=R_0_E_x(3,1);
@@ -85,15 +89,26 @@ a31=R_0_E_x(1,3);a32=R_0_E_x(2,3);a33=R_0_E_x(3,3);
 dPi_dRb2 = [a11 a12 a13 0 0 0 0 0 0; a21 a22 a23 0 0 0 0 0 0; a31 a32 a33 0 0 0 0 0 0; 0 0 0 a11 a12 a13 0 0 0; 0 0 0 a21 a22 a23 0 0 0; 0 0 0 a31 a32 a33 0 0 0; 0 0 0 0 0 0 a11 a12 a13; 0 0 0 0 0 0 a21 a22 a23; 0 0 0 0 0 0 a31 a32 a33;];
 
 % Ableitung der Euler-Winkel nach der Rot.-matrix
-% Term I aus [SchapplerTapOrt2019], Gl. (31)
+% Term I aus [1], Gl. (31)
 % (ZYX-Euler-Winkel des Orientierungsfehlers bei XYZ-Absolut-Ori.)
 % Unabhängig vom Roboter (nur abhängig von Orientierungsdarstellung)
 ddeltaR_dRb = eul_diff_rotmat(R_Ex_Eq,phiconv_delta);
 
-% [SchapplerTapOrt2019], Gl. (31)
+% [1], Gl. (31)
 dPhir_dq = ddeltaR_dRb * dPi_dRb2 * dRb_0E_dq;
 
 %% Ausgabe
 % Vollständige Gradientenmatrix (3x Translation, 3x Rotation)
-% Entspricht Gradient in [SchapplerTapOrt2019]/(23)
+% Entspricht Gradient in [1]/(23)
 Phi_dq = [dPhit_dq; dPhir_dq];
+
+return
+
+% % Alternative Berechnung von Term III aus [1], Gl. (31)
+% b11=T_N_E(1,1);b12=T_N_E(1,2);b13=T_N_E(1,3); %#ok<UNRCH>
+% b21=T_N_E(2,1);b22=T_N_E(2,2);b23=T_N_E(2,3);
+% b31=T_N_E(3,1);b32=T_N_E(3,2);b33=T_N_E(3,3);
+% dPidRb1 = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
+% dRb_0N_dq = %RN%_jacobiR_rot_sym_varpar(q, I_EElink, pkin);
+% % [1], Gl. (32) für Term III in Gl. (31) einsetzen
+% dRb_0E_dq_var1 = dPidRb1 * dRb_0N_dq;

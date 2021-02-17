@@ -41,6 +41,7 @@ classdef SerRob < RobBase
     qlim % Minimale und maximale Gelenkkoordinaten q zeilenweise für die Gelenke
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
+    qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
@@ -191,6 +192,9 @@ classdef SerRob < RobBase
         'joint_type', uint8(R.MDH.sigma)); % Art des Gelenks: 0=Drehgelenk, 1=Schub- (allgemein), 2=Kardan-, 3=Kugel-, 4=Schub- mit Führung, 5=Schub- mit Zylinder
 
       R.qref = zeros(R.NQJ,1);
+      R.qlim = repmat([-inf, inf], R.NQJ,1);
+      R.qDlim = repmat([-inf, inf], R.NQJ,1);
+      R.qDDlim = repmat([-inf, inf], R.NQJ,1);
 
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
@@ -575,7 +579,7 @@ classdef SerRob < RobBase
       % Gesamtmatrix
       JaD = [JtD; JeD];
     end
-    function [q, Phi, Tc_stack0] = invkin2(R, x, q0, s_in)
+    function [q, Phi, Tc_stack0, Stats] = invkin2(R, x, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin`, die nicht kompilierbar ist.
@@ -588,36 +592,38 @@ classdef SerRob < RobBase
       % q: Gelenkposition
       % Phi: Residuum
       % Tc_stack0: Gestapelte Transformationsmatrizen; siehe SerRob/fkine
+      % Stats
+      %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
       % 
       % Siehe auch: invkin
 
       % Einstellungen zusammenstellen:
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
-      % Einstellungen für IK
-      K_def = 0.5*ones(R.NQJ,1);
       
       % Alle Einstellungen in Eingabestruktur für Funktion schreiben
-      s = struct('pkin', R.pkin_gen, ...
-                 'sigmaJ', sigmaJ, ...
-                 'NQJ', R.NQJ, ...
-                 'qlim', R.qlim, ...
-                 'I_EE', R.I_EE_Task, ...
-                 'phiconv_W_E', R.phiconv_W_E, ...
-                 'I_EElink', uint8(R.I_EElink), ...
-                 'reci', true, ...
-                 'T_N_E', R.T_N_E, ...
-                 'K', K_def, ... % Verstärkung
-                 'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung
-                 'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-                 'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
-                 'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-                 'normalize', true, ... % Normalisieren auf +/- 180°
-                 'n_min', 0, ... % Minimale Anzahl Iterationen
-                 'n_max', 1000, ... % Maximale Anzahl Iterationen
-                 'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
-                 'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
-                 'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
-                 'retry_limit', 100); % Anzahl der Neuversuche);
+      s = struct( ...
+        'pkin', R.pkin_gen, ... % Kinematik-Parameter
+        'sigmaJ', sigmaJ, ... % Marker für Schubgelenke der Minimalkoordinaten (für hybride Roboter wichtig)
+        'qlim', R.qlim, ... % Gelenkwinkel-Grenzen
+        'I_EE', R.I_EE_Task, ... % Indizes der EE-FG der Aufgabe
+        'phiconv_W_E', R.phiconv_W_E, ... % Euler-Winkel-Konvention
+        'I_EElink', uint8(R.I_EElink), ... % Nummer des EE-Segments
+        'reci', true, ... % Benutze reziproke Euler-Winkel (Residuum vs absolute Orientierung)
+        'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
+        'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
+        'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
+        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+        'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+        'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+        'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
+        'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+        'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
+        'n_min', 0, ... % Minimale Anzahl Iterationen
+        'n_max', 1000, ... % Maximale Anzahl Iterationen
+        'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung der Neuversuche
+        'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
+        'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+        'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
@@ -630,11 +636,14 @@ classdef SerRob < RobBase
           end
         end
       end
+      if length(s.wn) ~= 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
-      else
+      elseif nargout <= 2
         [q, Phi] = R.invkinfcnhdl(x, q0, s);
+      else
+        [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
       end
     end
     function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
@@ -660,32 +669,27 @@ classdef SerRob < RobBase
       
       % Einstellungen zusammenstellen
       sigmaJ = R.MDH.sigma(R.MDH.mu>=1);
-      K_def = 0.1*ones(R.NQJ,1);
-      K_def(sigmaJ==1) = K_def(sigmaJ==1) / 5; % Verstärkung für Schubgelenke kleiner
       s = struct( ...
          'pkin', R.pkin_gen, ...
          'sigmaJ', sigmaJ, ...
-         'NQJ', R.NQJ, ...
          'qlim', R.qlim, ...
          'qDlim', R.qDlim, ...
+         'qDDlim', R.qDDlim, ...
          'I_EE', R.I_EE_Task, ...
          'phiconv_W_E', R.phiconv_W_E, ...
          'I_EElink', uint8(R.I_EElink), ...
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'T_N_E', R.T_N_E, ...
-         'K', K_def, ... % Verstärkung
-         'Kn', 1e-2*ones(R.NQJ,1), ... % Verstärkung (Nullraumbewegung)
-         'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
-         'scale_lim', 0.1, ... % Herunterskalierung bei Grenzüberschreitung
+         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
+         'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', true, ... % Normalisieren auf +/- 180°
          'n_min', 0, ... % Minimale Anzahl Iterationen
          'n_max', 1000, ... % Maximale Anzahl Iterationen
          'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
          'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
-         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
-         'retry_limit', 100); % Anzahl der Neuversuche
+         'Phir_tol', 1e-10);% Toleranz für rotatorischen Fehler
       if nargin == 7
         for f = fields(s_in)'
           if ~isfield(s, f{1})
@@ -695,6 +699,7 @@ classdef SerRob < RobBase
           end
         end
       end
+      if length(s.wn) < 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

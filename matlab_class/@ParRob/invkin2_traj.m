@@ -42,9 +42,6 @@
 %
 % Siehe auch: SerRob/invkin_traj
 
-% TODO: Nullraumbewegung mit Nebenbedingung
-% TODO: Erfolg der IK prüfen
-
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 
@@ -62,6 +59,7 @@ phiconv_W_E = uint8(R.phiconv_W_E);
 Leg_sigmaJ = zeros(R.Leg(1).NJ,R.NLEG);
 Leg_qlim = zeros(6,2*R.NLEG);
 Leg_qDlim = zeros(6,2*R.NLEG);
+Leg_qDDlim = zeros(6,2*R.NLEG);
 Leg_phiconv_W_E = uint8(zeros(R.NLEG,1));
 for i = 1:R.NLEG
   Leg_I_EE_Task(i,:) = R.Leg(i).I_EE_Task;
@@ -77,18 +75,17 @@ for i = 1:R.NLEG
   Leg_sigmaJ(:,i) = R.Leg(i).MDH.sigma(R.Leg(i).MDH.mu>=1);
   Leg_qlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qlim;
   Leg_qDlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qDlim;
+  Leg_qDDlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = R.Leg(i).qDDlim;
   Leg_phiconv_W_E(i) = R.Leg(i).phiconv_W_E;
 end
 
 s = struct('I_EE', R.I_EE,...
       'I_EE_Task', R.I_EE_Task,...
-     'maxstep_ns', 0,...
-  'maxrelstep_ns', 0.005,...
           'sigma', R.MDH.sigma,...
    'simplify_acc', false,...
-        'mode_IK', 1,...
+        'mode_IK', 3,... % 1=Seriell-IK, 2=Parallel-IK, 3=Beide
           'debug', false,...
-             'wn', zeros(4,1),...
+             'wn', zeros(5,1),...
  'I_constr_t_red', R.I_constr_t_red,...
  'I_constr_r_red', R.I_constr_r_red,...
    'I1constr_red', R.I1constr_red,...
@@ -110,24 +107,23 @@ s = struct('I_EE', R.I_EE,...
      'Leg_sigmaJ', Leg_sigmaJ, ...
        'Leg_qlim', Leg_qlim, ...
       'Leg_qDlim', Leg_qDlim, ...
+     'Leg_qDDlim', Leg_qDDlim, ...
 'Leg_phiconv_W_E', Leg_phiconv_W_E);
 %% Eingabestruktur für IK-Einstellungen
-% Einstellungen für IK
-K_def = 0.5*ones(R.Leg(1).NQJ,1);
+% Einstellungen für IK. Siehe SerRob/invkin2. Standard-Werte müssen damit
+% und mit ParRob/invkin_traj konsistent sein.
 s_ser = struct( ...
-  'reci', false, ... % Reziproke Euler-Winkel
-  'K', K_def, ... % Verstärkung
-  'Kn', 1e-2*ones(R.Leg(1).NQJ,1), ... % Verstärkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+  'reci', false, ... % Standardmäßig keine reziproken Euler-Winkel
+  'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung
   'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-  'normalize', true, ... % Normalisieren auf +/- 180°
+  'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
+  'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+  'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
+  'rng_seed', NaN, ... % Initialwert für Zufallszahlengenerierung
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
-  'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
-  'retry_limit', 100); % Anzahl der Neuversuche);
+  'Phir_tol', 1e-8); % Toleranz für rotatorischen Fehler
 %% Standard-Einstellungen mit Eingaben überschreiben
 % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
 % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
@@ -145,12 +141,9 @@ if nargin >= 7 && ~isempty(s_in)
     end
   end
 end
-
+if length(s.wn) < 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
-end
-if length(s_ser.Kn) == R.NJ
-  s_ser.Kn = s_ser.Kn(1:R.Leg(1).NQJ);
 end
 
 %% Funktionsaufruf. 

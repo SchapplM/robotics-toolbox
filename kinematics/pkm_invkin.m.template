@@ -21,6 +21,8 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 %
 % Diese Datei ist identisch mit: ParRob/invkin_ser.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
@@ -35,7 +37,7 @@
 % Junnan Li, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
+function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 
 
 %% Coder Information
@@ -59,10 +61,12 @@ function [q, Phi, Tc_stack_PKM] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
 %$cgargs  struct(   'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(2,1),
+%$cgargs              'wn', zeros(3,1),
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
+%$cgargs      'condlimDLS', 60,
+%$cgargs      'lambda_min', 2e-4,
 %$cgargs           'n_min', 0,
 %$cgargs           'n_max', 1000,
 %$cgargs        'rng_seed', NaN,
@@ -85,11 +89,13 @@ Leg_I_EElink = %Leg_I_EElink%;
 Leg_NQJ = %Leg_NQJ%;
 phi_P_B_all = s_par.phi_P_B_all;
 I_EE_Task = s_par.I_EE_Task;
+if all(I_EE_Task == logical([1 1 1 1 1 0]))
+  s_ser.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
+end
 
 % struct für invkin_eulangresidual.m
 s = struct('pkin', zeros(%NKP%,1),...
          'sigmaJ', zeros(%NQJ%,1),...
-            'NQJ', 0,...
            'qlim', zeros(%NQJ%,2),...
            'I_EE', true(1,6),...
     'phiconv_W_E', uint8(2),...
@@ -102,6 +108,8 @@ s = struct('pkin', zeros(%NKP%,1),...
       'scale_lim', s_ser.scale_lim,...
      'maxrelstep', s_ser.maxrelstep,...
       'normalize', s_ser.normalize,...
+     'condlimDLS', s_ser.condlimDLS,...
+     'lambda_min', s_ser.lambda_min,...
           'n_min', s_ser.n_min,...
           'n_max', s_ser.n_max,...
        'rng_seed', s_ser.rng_seed,...
@@ -131,6 +139,11 @@ Tc_stack_PKM = NaN((%NL%-1+%NLEG%)*3,4); % siehe fkine_legs; dort aber leicht an
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
+if nargout == 4
+  Stats = struct('Q', NaN(s.n_max, %NJ%), 'PHI', NaN(s.n_max, 6*%NLEG%), ...
+    'iter', repmat(s.n_max,1,%NLEG%), 'retry_number', zeros(1,%NLEG%), ...
+    'condJ', NaN(s.n_max,%NLEG%), 'lambda', NaN(s.n_max,2*%NLEG%));
+end
 
 for i = 1:NLEG
   % Überschreibe evtl übergebene I_EE für PKM. Das I_EE hier gilt für die Beinkette
@@ -139,8 +152,7 @@ for i = 1:NLEG
   s.I_EE = Leg_I_EE_Task(i,:);
   s.pkin = Leg_pkin_gen(i,:)';
   s.sigmaJ = s_par.Leg_sigmaJ(:,i);
-  s.NQJ = Leg_NQJ(i);
-  s.qlim = s_par.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
+  s.qlim(1:Leg_NQJ(i),1:2) = s_par.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   s.phiconv_W_E = s_par.Leg_phiconv_W_E(i);
   s.I_EElink = Leg_I_EElink(i);
 
@@ -160,13 +172,22 @@ for i = 1:NLEG
   Leg_T_0_W = [eulxyz2r(Leg_T_0_W_vec(1:3,i)),Leg_T_0_W_vec(4:6,i);[0 0 0 1]];
   T_0i_0 = Leg_T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
-  xE_soll_i = [T_0i_E(1:3,4); r2eul(T_0i_E(1:3,1:3), phiconv_W_E)]; % als Vektor
 
   Leg_T_N_E = [eulxyz2r(Leg_T_N_E_vec(1:3,i)),Leg_T_N_E_vec(4:6,i);[0 0 0 1]];
   s.T_N_E = Leg_T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
 
   % Inverse Kinematik für die serielle Beinkette berechnen
-  [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(xE_soll_i, q0_i, s);
+  if nargout < 4
+    [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
+  else % Aufruf und Verarbeitung der Statistik
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
+    Stats.Q(:,I1J_LEG(i):I2J_LEG(i)) = Stats_i.Q;
+    Stats.PHI(:,(i-1)*6+1:6*i) = Stats_i.PHI;
+    Stats.iter(i)= Stats_i.iter;
+    Stats.retry_number(i) = Stats_i.retry_number;
+    Stats.condJ(:,i) = Stats_i.condJ;
+    Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
+  end
   if all(I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
       return

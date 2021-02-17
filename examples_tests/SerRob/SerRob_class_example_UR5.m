@@ -148,17 +148,17 @@ plot3(X(:,1), X(:,2), X(:,3), 'k-');
 %% Inverse Kinematik der Eckpunkte berechnen
 for i = 1:size(XE,1)
   % Mit 3T3R-IK
-  [q_3T3R, Phi_3T3R] = RS.invkin2(XE(i,:)', q1);
+  [q_3T3R, Phi_3T3R] = RS.invkin2(RS.x2tr(XE(i,:)'), q1);
   % Mit 3T2R-IK
   s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'wn', [0;1]);
-  [q_3T2R, Phi_3T2R] = RS.invkin2(XE(i,:)', q1, s_ik);
+  [q_3T2R, Phi_3T2R] = RS.invkin2(RS.x2tr(XE(i,:)'), q1, s_ik);
   if any(abs([Phi_3T3R;Phi_3T2R]) > 1e-10)
     error('IK für Eckpunkt %d funktioniert mit einer Methode nicht', i);
   end
   % Zeige, dass das Ergebnis mit geänderter Redundanter Koordinate
   % identisch ist
   XE_i_test = XE(i,:)'; XE_i_test(6) = rand(1,1);
-  q_3T2R_test = RS.invkin2(XE_i_test, q1, s_ik);
+  q_3T2R_test = RS.invkin2(RS.x2tr(XE_i_test), q1, s_ik);
   if any(abs(q_3T2R_test-q_3T2R) > 1e-10)
     error('3T2R-IK für Eckpunkt %d hat anderes Ergebnis bei anderem x6. Darf nicht sein.', i);
   end

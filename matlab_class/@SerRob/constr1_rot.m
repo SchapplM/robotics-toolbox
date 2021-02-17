@@ -9,8 +9,9 @@
 % Eingabe:
 % qJ
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % 
 % Ausgabe:
 % Phi
@@ -28,12 +29,12 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi = constr1_rot(Rob, qJ, xE)
+function Phi = constr1_rot(Rob, qJ, Tr0Ex)
 
 assert(isreal(qJ) && all(size(qJ) == [Rob.NQJ 1]), ...
   'SerRob/constr1_rot: qJ muss %dx1 sein', Rob.NQJ);
 
-R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
+R_0_E_x = Tr0Ex(1:3,1:3);
 
 T_0_E_q = Rob.fkineEE(qJ);
   

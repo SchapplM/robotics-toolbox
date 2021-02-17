@@ -124,6 +124,13 @@ for robnr = 1:3
   end
   RP.fill_fcn_handles(false, true);
   RP.update_actuation(I_qa);
+  % Gelenkgrenzen setzen, damit IK-Neuversuche möglich sind
+  for ii = 1:RP.NLEG
+    RP.Leg(ii).qlim(RP.Leg(ii).MDH.sigma==0,:) = ...
+      repmat([-pi,pi],sum(RP.Leg(ii).MDH.sigma==0),1);
+    RP.Leg(ii).qlim(RP.Leg(ii).MDH.sigma==1,:) = ...
+      repmat([-1,3],sum(RP.Leg(ii).MDH.sigma==1),1);
+  end
   % allgemeine Einstellungen
   RP.Leg(1).I_EE = logical([1 1 1 1 1 0]);
   RP.update_EE_FG(logical([1 1 1 1 1 0])); % 3T2R; letzter Eintrag Null, da beta_3 weg

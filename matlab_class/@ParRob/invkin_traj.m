@@ -57,8 +57,8 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob,
 s_std = struct( ...
   'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
-  'mode_IK', 1, ...  % 1=Seriell, 2=PKM
-  'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
+  'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -106,7 +106,11 @@ else
   Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
   JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
 end
-
+% Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
+% berechnet wurde
+q_wn5 = inf(Rob.NJ,1);
+% Gradient von Nebenbedingung 5
+h5dq = NaN(1,Rob.NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -114,52 +118,47 @@ JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(Rob.NJ,1);
-% Eingabe s_inv3 struktuieren
-s_inv3= struct(...
-  'K', 0.6*ones(Rob.NJ,1), ... % Verstärkung
-  'Kn', 0*ones(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-  'maxstep_ns', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
-  'normalize', true, ...
+% Eingabe für Positions-IK für Korrekturschritt. Müssen konsistent zu
+% ParRob/invkin2_traj sein. Auch konsistent mit SerRob/invkin2, falls von
+% dort übernommen
+s_pik = struct(...
+  'K', ones(Rob.NJ,1), ... % Verstärkung
+  'Kn', zeros(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
+  ... % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
+  'wn', zeros(3,1), ...
+  'normalize', false, ... % würde Sprung erzeugen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
+  ... % % Keine Herunterskalierung bei Grenzüberschreitung (würde Stillstand 
+  ... % erzeugen; da keine Nullraumbewegung gemacht wird, kann die Grenz-
+  ... % verletzung sowieso nicht verhindert werden.
+  'scale_lim', 0.0, ... 
   'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-9,... % Toleranz für rotatorischen Fehler
-  'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
-  'maxrelstep_ns', 0.005, ... % hat keine Wirkung
-  'retry_limit', 100);
+  'maxrelstep', 0.05, ... % Maximale Schrittweite relativ zu Grenzen
+  'retry_limit', 0); % keine Neuversuche (würde Sprung erzeugen)
+
+
+% Eingabe s_inv3 struktuieren
+s_inv3 = s_pik;
+s_inv3.maxstep_ns = 0*ones(Rob.NJ,1); % hat keine Wirkung
+s_inv3.maxrelstep_ns = 0.005; % hat keine Wirkung
 for f = fields(s_inv3)'
-  if isfield(s, f{1})
+  if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
     s_inv3.(f{1}) = s.(f{1});
   end
 end
-
 % Eingabe s_ser struktuieren
-s_ser = struct(...
-  'reci', false, ...
-  'K', 0.5*ones(Rob.NJ,1), ... % Verstärkung
-  'Kn', 0*ones(Rob.NJ,1), ... % hat keine Wirkung
-  'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
-  'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
-  'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
-  'normalize', true, ... % Normalisieren auf +/- 180°
-  'n_min', 0, ... % Minimale Anzahl Iterationen
-  'n_max', 1000, ... % Maximale Anzahl Iterationen
-  'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
-  'Phit_tol', 1e-9, ... % Toleranz für translatorischen Fehler
-  'Phir_tol', 1e-9, ... % Toleranz für rotatorischen Fehler
-  'retry_limit', 100);
+s_ser = s_pik;
+s_ser.reci = false; % Standardmäßig keine reziproken Euler-Winkel
 for f = fields(s_ser)'
-  if isfield(s, f{1})
+  if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
     s_ser.(f{1}) = s.(f{1});
   end
 end
-% keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
-s_ser.wn = zeros(2,1);
-s_inv3.wn = zeros(2,1);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
+qDDlim = cat(1, Rob.Leg.qDDlim);
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
   qDmin = qDlim(:,1);
@@ -169,7 +168,16 @@ else
   qDmin = -inf(Rob.NJ,1);
   qDmax =  inf(Rob.NJ,1);
 end
-wn = s.wn;
+if ~all(isnan(qDDlim(:)))
+  limits_qDD_set = true;
+  qDDmin = qDDlim(:,1);
+  qDDmax = qDDlim(:,2);
+else
+  limits_qDD_set = false;
+  qDDmin = -inf(Rob.NJ,1);
+  qDDmax =  inf(Rob.NJ,1);
+end
+wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 if any(wn ~= 0)
   nsoptim = true;
 else
@@ -210,10 +218,17 @@ for k = 1:nt
     dt = T(k+1)-T(k); % Zeit bis zum nächsten Abtastpunkt
   end
   %% Gelenk-Position berechnen
-  if mode_IK == 1
+  % Die Positions-IK wird nur als Korrekturschritt benutzt (Ausgleich
+  % numerischer Fehler). Versuche erst die IK für alle Beinketten einzeln.
+  % Annahme: Startwert und Vorwärts-Integration sind schon fast die Lösung.
+  if any(mode_IK == [1 3])
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);
-  else
+  end
+  % Falls obige IK nicht erfolgreich (aufgrund ungeklärter Ursachen),
+  % versuche alternativen Algorithmus.
+  if mode_IK == 2 || mode_IK == 3 && (any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
+      any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol))
     % 3T2R-Funktion. Wird hier aber nicht als 3T2R benutzt, da keine
     % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
@@ -265,8 +280,9 @@ for k = 1:nt
     qD_k = qDk0 + qD_korr;
     if debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
-      if any(abs(PhiD_test) > 1e-10)
-        error('Korrektur der Geschwindigkeit hat nicht funktioniert');
+      if any(abs(PhiD_test) > max(1e-10, max(abs(qD_k))/1e9)) % bei hohen Geschwindigkeiten ist die Abweichung größer; feine IK-Toleranz notwendig.
+        error(['Korrektur der Geschwindigkeit hat nicht funktioniert (k=%d). ', ...
+          'Fehler %1.1e'], k, max(abs(PhiD_test)));
       end
     end
   end
@@ -325,7 +341,7 @@ for k = 1:nt
   if debug % Erneuter Test
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-    if any(abs(PhiDD_test3) > 1e-6) % Voraussetzung: Feine Toleranz bei Position
+    if any(abs(PhiDD_test3) > max(1e-6, max(abs([qD_k;qDD_k_T]))/1e9)) % bei hohen Werten ist die Abweichung größer; feine IK-Toleranz notwendig.
       error(['Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen ', ...
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
@@ -334,27 +350,67 @@ for k = 1:nt
     N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
     v = zeros(Rob.NJ, 1);
-    if wn(1) ~= 0
+    if wn(1) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
       [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
       v = v - wn(1)*h1dq';
     end
-    if s.wn(2) ~= 0
+    if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
       [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
       v = v - wn(2)*h2dq';
       if any(isinf(h2dq)), warning('h2dq Inf'); return; end
     end
-    if wn(3) ~= 0
+    if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
       [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
       v = v - wn(3)*h3dq';
     end
-    if wn(4) ~= 0
+    if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
+    end
+    if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+        condPhi = cond(Phi_q);
+        for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q_k; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          Phi_q_kkk = Rob.constr3grad_q(q_test, x_k);
+          condPhi_kkk = cond(Phi_q_kkk);
+          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+        end
+        q_wn5 = q_k;
+      end
+      v = v - wn(5)*h5dq';
     end
     qDD_N_pre = N * v;
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
+  
+  % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
+  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
+  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
+  % wichtiger als Beschleunigung ist.
+  if nsoptim && limits_qDD_set
+    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+    qDD_N_min = qDDmin - qDD_k_T;
+    qDD_N_max = qDDmax - qDD_k_T;
+    delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+    delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul_rel;delta_ll_rel] < 0)
+      if min(delta_ul_rel)<min(delta_ll_rel)
+        % Verletzung nach oben ist die größere
+        [~,I_max] = min(delta_ul_rel);
+        scale = (qDD_N_max(I_max))/(qDD_N_pre(I_max));
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_min] = min(delta_ll_rel);
+        scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
+      end
+      qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
+
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
@@ -416,7 +472,9 @@ for k = 1:nt
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
-  
+  if any(isnan(qk0))
+    break; % aufgrund von Singularität o.ä. unendlich hohe Werte
+  end
   %% Ergebnisse speichern
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;

@@ -9,8 +9,9 @@
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % reci (Optional)
 %   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
 %   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
@@ -29,7 +30,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_Grad = constr2grad(Rob, q, xE, reci)
+function Phi_Grad = constr2grad(Rob, q, Tr0Ex, reci)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'SerRob/constr_trans: q muss %dx1 sein', Rob.NJ);
@@ -38,4 +39,4 @@ if nargin < 4
 end
 
 % Entspricht Gradient in [SchapplerTapOrt2019]/(23)
-Phi_Grad = [Rob.constr1grad_tq(q); Rob.constr2grad_rq(q, xE, reci)];
+Phi_Grad = [Rob.constr1grad_tq(q); Rob.constr2grad_rq(q, Tr0Ex, reci)];

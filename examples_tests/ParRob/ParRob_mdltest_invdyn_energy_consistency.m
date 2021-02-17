@@ -48,6 +48,12 @@ mkdirs(tmpdir_params);
 respath = fullfile(rob_path, 'examples_tests', 'results', 'energy_consistency');
 mkdirs(respath);
 
+s = struct( ... % Einstellung für IK
+  'normalize', false, ... % Winkel nicht normalisieren, da sonst Federmoment falsch.
+  'n_min', 25, ... % Minimale Anzahl Iterationen: Damit möglichst Residuum wirklich Null (bzw. 1e-15)
+  'n_max', 1000, ... % Standard-Wert
+  'Phit_tol', 1e-12, ... % Sehr hohe Genauigkeit (Ausschluss als ...
+  'Phir_tol', 1e-12); % ... Fehlerquelle der Dynamik);
 %% Alle Roboter durchgehen
 
 for i_FG = 1:size(EEFG_Ges,1)
@@ -97,7 +103,10 @@ for i_FG = 1:size(EEFG_Ges,1)
     Set.task.Tv = 1e-1;
     Set.task.profile = 1; % Zeitverlauf mit Geschwindigkeit
     Set.task.maxangle = 5*pi/180;
-    Traj_W = cds_gen_traj(EE_FG, 1, Set.task);
+    if i_FG == 1,    trajno = 2; %#ok<ALIGN>
+    elseif i_FG < 4, trajno = 1;
+    else,            trajno = 3; end
+    Traj_W = cds_gen_traj(EE_FG, trajno, Set.task);
     % Reduziere Punkte (geht dann schneller, aber auch schlechtere KinPar.)
     % Traj = timestruct_select(Traj, [1, 2]);
     % Lade die bestehenden Parameter und prüfe, ob sie gültig sind oder mit
@@ -123,9 +132,10 @@ for i_FG = 1:size(EEFG_Ges,1)
       RP.align_base_coupling(params.DesPar_ParRob.base_method, params.DesPar_ParRob.base_par);
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
-      % Prüfe die Lösbarkeit der IK
+      % Prüfe die Lösbarkeit der IK (Startpunkt und Trajektorie)
       [q_test,Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
-      if all(abs(Phi)<1e-6) && ~any(isnan(Phi))
+      [Q_test, PHI] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
+      if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) && ~any(isnan(PHI(:)))
         fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
       else
@@ -165,6 +175,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.general.noprogressfigure = true;
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
+      Set.optimization.optname = sprintf('dimsynth_energy_consistency_DoF_%dT%dR', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
       % Set.general.create_template_functions = true; % Debug
       Traj = Traj_W;
       cds_start
@@ -178,6 +189,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
+          RobotOptRes = tmp2.RobotOptRes;
           break;
         end
       end
@@ -196,7 +208,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       r_P_E = RP.r_P_E;
       pkin = RP.Leg(1).pkin;
       DesPar_ParRob = RP.DesPar;
-      q0 = RobotOptDetails.q0;
+      q0 = RobotOptRes.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
       save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
       fprintf('Maßsynthese beendet\n');
@@ -228,9 +240,18 @@ for i_FG = 1:size(EEFG_Ges,1)
     r_P_E   = [0.1;0.2;0.3];
     phi_P_E = [45; 35; 10]*pi/180;
     RP.update_EE(r_P_E, phi_P_E);
+    % Setze eine beliebige Basis-Transformation. Dürfte auch keinen
+    % Einfluss haben. Nur gering, damit Plot noch erkennbar.
+    phi_W_0 = [5;-8;12]*pi/180;
+    r_W_0 = RP.r_W_0;
+    RP.update_base(r_W_0, phi_W_0)
     % Berechne die EE-Transformation neu (mit eventuell geänderter
     % EE-Trafo P-E)
     XE_test = RP.xP2xE_traj(XP_test);
+    XP_test2 = RP.xE2xP_traj(XE_test);
+    if any(abs(XP_test2(:)-XP_test(:))>1e-6)
+      error('Hin- und Rücktransformation KS P/E fehlerhaft');
+    end
     Q_test = NaN(n, RP.NJ);
     QD_test = NaN(n, RP.NJ);
     % Definiere eine beliebige Geschwindigkeit, aber im Plattform-KS
@@ -239,16 +260,74 @@ for i_FG = 1:size(EEFG_Ges,1)
     % IK für Testkonfiguration berechnen
     for i = 1:n
       % IK mit EE-Pose berechnen
-      [q, Phi] = RP.invkin_ser(XP_test(i,:)', q0, [], struct('platform_frame',true));
+      [q, Phi, ~, Stats] = RP.invkin_ser(XP_test(i,:)', q0, s, ...
+        struct('platform_frame', true));
+      
       if any(abs(Phi) > 1e-8) || any(isnan(Phi))
         XE_test(i,:) = NaN; XP_test(i,:) = NaN;
         continue;
       end
-      [q2, Phi2] = RP.invkin_ser(XE_test(i,:)', q0); % mit EE-KS
-      if any(abs(q-q2)>1e-8), error('IK mit KS P oder KS E gibt anderes Ergebnis'); end
-      % Plattform-Pose neu berechnen (wegen drittem Euler-Winkel, der sich evtl ändert
-      XP_test(i,:) = RP.fkineEE_traj(q', [], [], 1, true);
-      
+      % Debug: Optische Prüfung, ob Ergebnis richtig ist:
+%       change_current_figure(6666); clf; hold all;
+%       s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], ...
+%         'ks_platform', RP.NLEG+1, 'straight', 0);
+%       xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+%       axis auto; hold on; grid on;
+%       RP.plot(q, XE_test(i,:)', s_plot);
+
+      if all(RP.I_EE == [1 1 1 1 1 0])
+        % Plattform- und EE-Pose neu berechnen (wegen drittem Euler-Winkel,
+        % der sich evtl ändert). Die jeweils andere Pose (Position und
+        % Orientierung) ändert sich vollständig (alle sechs Komponenten).
+        % Ursache: Die freie Drehung um die z-Achse wirkt mit dem Hebel
+        % r_P_E auf den Endeffektor
+        xE_i = RP.fkineEE_traj(q', [], [], 1, false);
+        XE_test(i,:) = xE_i(:);
+        xP_i = RP.fkineEE_traj(q', [], [], 1, true);
+        if any(abs(xP_i(1:5) - XP_test(i,1:5)) > 1e-6)
+          error('Plattform-Position und Zeigerichtung hat sich durch EE-Trafo geändert');
+        end
+        % Der dritte Euler-Winkel kann sich gegenüber der Vorgabe ändern;
+        % sollte aber konstant bleiben (keine Geschwindigkeit)
+        XP_test(i,6) = xP_i(6);
+      end
+      % Prüfe, ob direkte Kinematik übereinstimmt
+      [Tc_Pges_0,Tc_Pges_W] = RP.fkine_platform(XE_test(i,:)');
+      [TcLges_0,TcLges_W] = RP.fkine_legs(q);
+      Tc_B_q = NaN(4,4,RP.NLEG);
+      k = 0;
+      for iLeg = 1:RP.NLEG
+        NLL = RP.Leg(iLeg).NL;
+        k = k + NLL+1;
+        T_B_q = TcLges_0(:,:,k);
+        T_B_x = Tc_Pges_0(:,:,iLeg);
+        test_T_B = T_B_q\T_B_x-eye(4);
+        if any(abs(test_T_B(:))>1e-6)
+          error('Direkte Kinematik der Beinketten stimmt nicht mit Plattform überein');
+        end
+      end
+      % Testweise inverse Kinematik mit Plattform-Pose berechnen. Ziel:
+      % Dynamik-Funktionen sollen mit Größen im  Plattform-KS funktionieren.
+      % (Benötigt Aktualisierung des Plattform-KS bei 3T2R)
+      [q2, Phi2, ~, Stats2] = RP.invkin_ser(XE_test(i,:)', q, s, ...
+        struct('platform_frame', false));
+      if any(abs(q-q2)>1e-8) % Es muss das gleiche Ergebnis rauskommen.
+        change_current_figure(5342);clf;
+        s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], ...
+          'ks_platform', RP.NLEG+1, 'straight', 0);
+        subplot(1,2,1); hold all;
+        xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+        axis auto; hold on; grid on;
+        RP.plot(q, XE_test(i,:)', s_plot);
+        title('IK mit Plattform-KS-KS (q)');
+        subplot(1,2,2); hold all;
+        xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
+        axis auto; hold on; grid on;
+        RP.plot(q2, XE_test(i,:)', s_plot);
+        title('IK mit Endeffektor (q2)');
+        error('IK mit KS P oder KS E gibt anderes Ergebnis. Fehler: %1.1e', max(abs(q-q2)));
+      end
+
       Q_test(i,:) = q;
       % Berechne die Geschwindigkeit mit der Jacobi-Matrix. Beziehe die
       % Matrix dafür auf das Plattform-KS (und nicht das EE-KS)
@@ -269,13 +348,27 @@ for i_FG = 1:size(EEFG_Ges,1)
         if any(abs(XP_test(i,1:6) - XP_i(1:6)) > 1e-6) % 6. Eintrag wurde oben schon geändert
           error('Plattform-Lage xP hat sich verändert nach Geschw.-Berechnung');
         end
-        if any(abs(XPD_test(i,1:5) - xDP_i(1:5)) > 1e-5)
-          error('Geschwindigkeit xPD hat sich verändert nach Geschw.-Berechnung');
+        % Trage die Zeitableitung des dritten Euler-Winkels ein. Kann sich
+        % ändern, da bei fünf FG nicht steuerbar. Ist notwendig für eine
+        % der folgenden Prüfungen, die auf 3T3R basieren.
+        XPD_test(i,6) = xDP_i(6);
+      end
+      % Die Berechnung der Geschwindigkeit kann durch Singularitäten
+      % numerische schwierig sein. Nur auf Fehler testen, falls Geschw.
+      % klein.
+      if all(RP.I_EE == [1 1 1 1 1 0]) && max(abs(xDP_i)) < 1e6 && ...
+          max(abs(QD_test(i,:))) < 1e6
+        test_xPD = XPD_test(i,1:5) - xDP_i(1:5);
+        if any(abs(test_xPD) > 1e-5)
+          error(['Geschwindigkeit xPD hat sich verändert nach Geschw.-', ...
+            'Berechnung. Fehler: %1.1e'], max(abs(test_xPD)));
         end
         % Ab hier Debuggen für 3T2R-PKM
         % Direkte Berechnung mit Jacobi-Matrix, die zur Herleitung diente
         Phi2D_test = G2_q*QD_test(i,:)' + G2_x*XPD_test(i,RP.I_EE)';
-        if any(abs(Phi2D_test) > 1e-10), error('Herleitung qD/xD stimmt nicht'); end
+        if any(abs(Phi2D_test) > 1e-10)
+          error('Herleitung qD/xD stimmt nicht. Fehler %1.1e', max(abs(Phi2D_test)));
+        end
         % Geschwindigkeit nochmal neu mit ZB-Def. 2 (Plattform-KS)
         G2P_q = RP.constr2grad_q(q, XP_test(i,:)', true);
         G2P_x = RP.constr2grad_x(q, XP_test(i,:)', true);
@@ -319,17 +412,26 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
       end
     end
+    % Bei singulären PKM ist bereits die Gelenkgeschwindigkeit unendlich,
+    % obwohl die Plattform-Geschwindigkeit klein ist. Damit ist es schwer
+    % unten weiterzurechnen.
+    if any(abs(QD_test(:)) > 1e8)
+      warning('Geschwindigkeit wird zu groß. Keine Anfangsgeschw. setzen.');
+      XPD_test(:) = 0;
+      XED_test(:) = 0;
+      QD_test(:) = 0;
+    end
     % Teste, ob die Start-Konfiguration überhaupt richtig ist. Der dritte
     % Euler-Winkel wurde oben schon korrigiert.
     if all(RP.I_EE_Task == [1 1 1 1 1 0])
       for j = 1:RP.NLEG
         [XP_korr, XPD_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, true);
-        [XE_korr, XED_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, false); 
+        [XE_korr, XED_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, false);
         % Vergleiche diese Beinkette gegen die Plattform (bzw. den EE)
-        test_XP = XP_korr(1:6) - XP_test(1:6);
-        test_XPD = XPD_korr(1:6) - XPD_test(1:6);
-        test_XE = XE_korr(1:6) - XE_test(1:6);
-        test_XED = XED_korr(1:6) - XED_test(1:6);
+        test_XP = XP_korr(:,1:6) - XP_test(:,1:6);
+        test_XPD = XPD_korr(:,1:6) - XPD_test(:,1:6);
+        test_XE = XE_korr(:,1:6) - XE_test(:,1:6);
+        test_XED = XED_korr(:,1:6) - XED_test(:,1:6);
         test_XP([false(size(test_XP,1),3),abs(abs(test_XP(:,4:end))-2*pi)<1e-3]) = 0; % 2pi-Fehler entfernen
         test_XE([false(size(test_XE,1),3),abs(abs(test_XE(:,4:end))-2*pi)<1e-3]) = 0;
         if max(abs(test_XP(:))) > 1e-6
@@ -350,7 +452,9 @@ for i_FG = 1:size(EEFG_Ges,1)
     PHID_testP = RP.constr4D2_traj(Q_test, QD_test, XP_test, XPD_test, true);
     PHID_testE = RP.constr4D2_traj(Q_test, QD_test, XE_test, XED_test);
     if any(abs(PHID_testP(:)) > 1e-6) || any(abs(PHID_testE(:)) > 1e-6)
-      error('Anfangswerte der Vorwärtsdynamik sind nicht konsistent');
+      error(['Anfangswerte der Vorwärtsdynamik sind nicht konsistent. ', ...
+        'Fehler in constr4D max. %1.1e (KS P) bzw. %1.1e (KS E)'], ...
+        max(abs(PHID_testP(:))), max(abs(PHID_testE(:))));
     end
     if usr_debug
       change_current_figure(2);clf;hold all;
@@ -386,7 +490,9 @@ for i_FG = 1:size(EEFG_Ges,1)
       q0 = Q_test(i_tk,:)'; % Anfangswert für t=0 bzw. i=0
       qD0 = NaN*q0; % wird in fdyn neu berechnet.
       xP = XP_test(i_tk,:)'; % Anfangswert (passend zu q)
-      if any(abs(xP(~RP.I_EE)) > 1e-7)
+      if any(abs(xP(~RP.I_EE)) > 1e-7) && ~all(EE_FG == [1 1 1 1 1 0])
+        % Bei 3T2R-PKM kann der sechste FG einen konstanten Wert haben.
+        % Hängt davon ab, ob die Montage der Beinketten verdreht ist.
         error('EE-Pose zwischen EE und Plattform-KS ist nicht konsistent');
       end
       xP_red0 = xP(RP.I_EE);
@@ -435,13 +541,6 @@ for i_FG = 1:size(EEFG_Ges,1)
       SingDet = NaN(nt,6);
       Facc_ges = NaN(nt,6);
       P_diss_ges = zeros(nt,3);
-      % Einstellung für IK
-      s = struct( ...
-        'normalize', false, ... % Winkel nicht normalisieren, da sonst Federmoment falsch.
-        'n_min', 25, ... % Minimale Anzahl Iterationen
-        'n_max', 1000, ... % Maximale Anzahl Iterationen
-        'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-        'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
       %% Nachverarbeitung der Ergebnisse
       t2 = tic();
       for i = 1:nt
@@ -672,9 +771,10 @@ for i_FG = 1:size(EEFG_Ges,1)
         [X_fromlegs(1:Ip_end,:,j),XD_fromlegs(1:Ip_end,:,j),XDD_fromlegs(1:Ip_end,:,j)] = ...
           RP.fkineEE_traj(Q_ges(1:Ip_end,:), QD_ges(1:Ip_end,:), QDD_ges(1:Ip_end,:), j);
         if j > 1
-          % Teste nur bis zum vorletzten Zeitpunkt. Der letzte kann schon
-          % durch eine Singularität beeinträchtigt sein
-          test_X = X_fromlegs(1:end-1,1:5, 1) - X_fromlegs(1:end-1,1:5, j);
+          % Teste nur bis zum fünftletzten Zeitpunkt. Die letzten können
+          % schon durch eine Singularität beeinträchtigt sein
+          Ip_testend = max(1,Ip_end-5);
+          test_X = X_fromlegs(1:Ip_testend,1:5, 1) - X_fromlegs(1:Ip_testend,1:5, j);
           test_X(abs(abs(test_X)-2*pi) < 1e-2) = 0; %2pi-Fehler entfernen
           if any(abs(test_X(:))>1e-6)
             Ifirst = find(any(abs(test_X)>1e-6,2),1,'first');
@@ -682,17 +782,19 @@ for i_FG = 1:size(EEFG_Ges,1)
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d. Fehler dort %1.2e'], j, ...
               Ifirst, nt, max(abs(test_X(Ifirst,:))));
           end
-          test_XD = XD_fromlegs(1:end-1,1:6,1) - XD_fromlegs(1:end-1,1:6,j);
-          if any(abs(test_XD(:))>1e-6)
+          test_XD_abs = XD_fromlegs(1:Ip_testend,1:6,1) - XD_fromlegs(1:Ip_testend,1:6,j);
+          test_XD_rel = test_XD_abs ./ XD_fromlegs(1:Ip_testend,1:6,1);
+          if any(abs(test_XD_abs(:))>1e-6 & abs(test_XD_rel(:))>1e-2)
             error(['Die Endeffektor-Trajektorie XD aus Beinkette %d stimmt nicht ', ...
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
-              find(any(abs(test_XD)>1e-6,2),1,'first'), nt);
+              find(any(abs(test_XD_abs)>1e-6,2),1,'first'), nt);
           end
-          test_XDD = XDD_fromlegs(1:end-1,1:6,1) - XDD_fromlegs(1:end-1,1:6,j);
-          if any(abs(test_XDD(:))>1e-6)
-            warning(['Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht ', ...
+          test_XDD_abs = XDD_fromlegs(1:Ip_testend,1:6,1) - XDD_fromlegs(1:Ip_testend,1:6,j);
+          test_XDD_rel = test_XDD_abs ./ XDD_fromlegs(1:Ip_testend,1:6,1);
+          if any(abs(test_XDD_abs(:))>1e-6 & abs(test_XDD_rel(:))>1e-2)
+            error(['Die Endeffektor-Trajektorie XDD aus Beinkette %d stimmt nicht ', ...
               'gegen Beinkette 1. Zuerst in Zeitschritt %d/%d.'], j, ...
-              find(any(abs(test_XDD)>1e-6,2),1,'first'), nt);
+              find(any(abs(test_XDD_abs)>1e-6,2),1,'first'), nt);
           end
         end
       end

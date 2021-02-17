@@ -19,15 +19,16 @@
 
 function [h, hdq] = invkin_optimcrit_limits1(q, qlim)
 
-NQJ = length(q);
-
 % Mittlere Gelenkposition
 qm = (qlim(:,1) + qlim(:,2)) / 2;
-% Wichtungsmatrix
-W = eye(NQJ);
+% Wichtungsmatrix. Benutze elementweise Multiplikation bzw. lasse sie weg.
+% W = ones(1,length(q));
 
 % [1], Gl. (34)
-hdq = (q-qm)' * W;
+hdq = (q-qm)';% Mit Gewichtung: "* W"
+% Gewichte Gelenke, deren Grenzen bei unendlich liegen, mit Null
+hdq(isnan(qm)) = 0;
+qm(isnan(qm)) = 0; % bei Grenzen unendlich kommt NaN. Entferne. Entspricht Gewichtung Null.
 
 % [1], Gl. (22) (dort doppeltes W entfernt)
-h = hdq * (q-qm);
+h = 0.5*hdq * (q-qm);

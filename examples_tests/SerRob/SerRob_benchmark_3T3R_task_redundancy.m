@@ -12,9 +12,11 @@
 % Nullraum-Optimierung (NRO), Geschwindigkeitsgrenzen (GG)
 % * 1: 3T2R, NRO, GG
 % * 2: 3T2R, NRO
-% * 3: 3T2R, GG
-% * 4: 3T2R, NRO, GG. Jacobi-Zeitableitung mit Differenzenquotient
-% * 5: 3T3R: Benutze symmetrischen FG aus globaler Optimierung für Eckpunkte
+% * 3: 3T2R, GG (ohne Grenze für Beschleunigung)
+% * 4: 3T2R, GG
+% * 5: 3T2R, GG, NRO für Konditionszahl
+% * 6: 3T2R, NRO, GG. Jacobi-Zeitableitung mit Differenzenquotient
+% * 7: 3T3R: Benutze symmetrischen FG aus globaler Optimierung für Eckpunkte
 % 
 % Ergebnis:
 % * Mit Aufgabenredundanz (M.1) wird die Zielfunktion (Einhaltung der Gelenk-
@@ -69,7 +71,9 @@ format_mlines = { 'r', 'v', '-', 8; ...
                   'g', 'd', '-', 5; ...
                   'b', 's', '--', 7; ...
                   'k', 'x', '--', 9; ...
-                  'm', 'o', ':', 6};
+                  'm', 'o', ':', 6; ...
+                  'c', '^', '-', 3; ...
+                  'r', '+', ':', 6};
 
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
 % Implementierung davon richtig ist
@@ -91,17 +95,18 @@ for robnr = 1
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
-  matlabfcn2mex({'S6RRRRRR10V2_invkin_traj'});
+  % matlabfcn2mex({'S6RRRRRR10V2_invkin_traj','S6RRRRRR10V2_invkin_eulangresidual'});
   
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
+  RS.qDDlim = repmat([-100, 100], RS.NQJ, 1); % Entspricht 1.5 rpm in 100ms
   RS.update_EE(r_W_E, phi_W_E, []);
 
   fprintf('Starte Untersuchung für %s\n', RS.descr);
   
   %% Startpose bestimmen
   s = struct('n_max', 1000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12, ...
-    'reci', true, 'K', 0.7*ones(RS.NQJ,1), 'scale_lim', 0);
+    'reci', true, 'scale_lim', 0); % keine Vorgabe von K oder Kn (Standard-Werte)
   % Werte aus [1]. TODO: Anpassen, falls andere Roboter getestet werden.
   x0Ref = NaN(6,1);
   T_part = transl([1.15; 0.2; -0.2;]);
@@ -111,14 +116,13 @@ for robnr = 1
   q0 = zeros(6,1);
   q0(2) = pi/2;
   q0_ik_fix = q0 + [0;25;-35;0;15;0]*pi/180;
-  [qs, Phi] = RS.invkin2(X0, q0_ik_fix, s);
+  [qs, Phi] = RS.invkin2(RS.x2tr(X0), q0_ik_fix, s);
   if any(abs(Phi) > 1e-8)
     error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
   end
   s_ep = struct( ...
     'n_min', 1000, 'n_max', 2500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
-    'reci', true, 'wn', [1;0], 'K', 0.7*ones(RS.NQJ,1), ...
-    'Kn', 0.7*ones(RS.NQJ,1));
+    'reci', true, 'wn', [1;0]);% keine Vorgabe von K oder Kn (Standard-Werte)
   %% Initialisierung Teil 2
   % Roboter auf 3T2R einstellen
   RS.I_EE_Task = I_EE_3T2R;
@@ -170,7 +174,7 @@ for robnr = 1
     for i = 1:size(XL,1)
       t1 = tic();
       % Berechnung mit aus Vorlagendatei generierter Funktion
-      [q_i, Phi_i] = RS.invkin2(XL(i,:)', qs, s_ep);
+      [q_i, Phi_i] = RS.invkin2(RS.x2tr(XL(i,:)'), qs, s_ep);
       fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (tpl-Funktion). Bis hier %1.1fs.\n', ...
         i, size(XL,1), toc(t1), toc(t0));
       if max(abs(Phi_i)) > 1e-6
@@ -191,7 +195,7 @@ for robnr = 1
       for j = 1:nsteps_angle % in 2-Grad-Schritten durchgehen
         x = XL(i,:)';
         x(6) = 360/nsteps_angle*(j-1)*pi/180; % EE-Drehung vorgeben
-        [q_i_kls, Phi_i_kls] = RS.invkin2(x, qs_bruteforce, s_ep_3T3R);
+        [q_i_kls, Phi_i_kls] = RS.invkin2(RS.x2tr(x), qs_bruteforce, s_ep_3T3R);
         qs_bruteforce = q_i_kls;
         if max(abs(Phi_i_kls)) > 1e-6
           error('Eckpunkt %d geht nicht', i);
@@ -283,7 +287,7 @@ for robnr = 1
   warning on
   % Berechne Ersten Punkt der Trajektorie mit Aufgabenredundanz.
   % Dadurch bestmögliche Startkonfiguration
-  [q1, Psi_num1] = RS.invkin2(X_t(1,:)', qs, s_start);
+  [q1, Psi_num1] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_start);
   if any(abs(Psi_num1) > 1e-4)
     warning('IK konvergiert nicht für Startpunkt der Trajektorie');
   end
@@ -305,27 +309,28 @@ for robnr = 1
   
   %% IK für Trajektorie berechnen
   RS.fill_fcn_handles(false);
-  Namen_Methoden = cell(1,5);
+  Namen_Methoden = cell(1,7);
   Q_t_all = NaN(length(t), RS.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
   H1_all = NaN(length(t), length(Namen_Methoden)); H2_all = H1_all;
-  H1D_all = H1_all; H2D_all = H1_all;
+  H1D_all = H1_all; H2D_all = H1_all; Hcond_all = H1_all;
   XE_all = NaN(length(t), 6, length(Namen_Methoden)); XDE_all = XE_all; XDDE_all = XE_all;
   % Allgemeine Einstellungen für Trajektorie
   s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
       'I_EE', I_EE_3T2R, 'reci', true, ...
-      'wn', [0;1;20;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
-      'K', 0.7*ones(RS.NQJ,1), ...
-      'Kn', 0.7*ones(RS.NQJ,1), 'normalize', false);
-  % Ziehe 2 Prozent der Spannweite von den Geschw.-Grenzen ab.
+      'wn', [0;1;20;0;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
+      'normalize', false);
+  % Ziehe 2 Prozent der Spannweite von den Geschw.- und Beschl.-Grenzen ab.
   % Dadurch wird die Grenze durch numerische Fehler hoffentlich nicht über-
   % schritten
   qDlim_red = RS.qDlim + repmat([0.02,-0.02],RS.NJ,1).*(RS.qDlim(:,2)-RS.qDlim(:,1));
+  qDDlim_red = RS.qDDlim + repmat([0.01,-0.01],RS.NJ,1).*(RS.qDDlim(:,2)-RS.qDDlim(:,1));
   s_Traj.qDlim = qDlim_red;
+  s_Traj.qDDlim = qDDlim_red;
   for kk = 1:length(Namen_Methoden)
     s_kk = s_Traj;
     switch kk
       case 1
-        name_method='3T2R-IK';
+        name_method='3T2R-IK (mit Opt.)';
         RS.I_EE_Task = I_EE_3T2R;
         s_kk.I_EE = I_EE_3T2R;
       case 2
@@ -335,51 +340,77 @@ for robnr = 1
         s_kk.qDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
         s_kk.wn(3:4) = 0; % Zielfunktionen basierend auf qDlim deaktivieren
       case 3
-        name_method='3T2R-IK ohne Nullraum';
+        name_method='3T2R-IK ohne qDD lim.';
         RS.I_EE_Task = I_EE_3T2R;
         s_kk.I_EE = I_EE_3T2R;
-        s_kk.wn = [0;0;0;0]; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
+        s_kk.qDDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
       case 4
+        name_method='3T2R-IK ohne Opt.';
+        RS.I_EE_Task = I_EE_3T2R;
+        s_kk.I_EE = I_EE_3T2R;
+        s_kk.wn = [0;0;0;0;0]; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
+      case 5
+        name_method='3T2R-IK mit cond.-Opt.';
+        RS.I_EE_Task = I_EE_3T2R;
+        s_kk.I_EE = I_EE_3T2R;
+        s_kk.wn(5) = 1; % Auch Konditionszahl verbessern
+      case 6
         name_method='3T2R-IK simplify acc';
         RS.I_EE_Task = I_EE_3T2R;
         s_kk.I_EE = I_EE_3T2R;
         s_kk.simplify_acc = true;
-      case 5
+      case 7
         name_method='3T3R-IK';
         RS.I_EE_Task = I_EE_3T3R;
         s_kk.I_EE = I_EE_3T3R;
+        s_kk.wn(:) = 0; % Keine zusätzliche Optimierung möglich
       otherwise
         error('Fall %d noch nicht definiert', kk);
     end
+    % Positions-IK zum Startpunkt der Trajektorie mit genau den gleichen
+    % Optimierungs-Nebenbedingungen wie in der Trajektorie. Dadurch keine
+    % Nullraumbewegung am Anfang (Start in lokalem Optimum)
+    s_pik_kk = struct('I_EE', s_kk.I_EE);
+    s_pik_kk.wn = s_kk.wn([1 2 5]); % Positions-Grenzen und Kondition
+    [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(XL(i,:)'), qs, s_pik_kk);
+    if any(abs(Phi_s)>1e-6)
+      error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
+        'fehlgeschlagen']);
+    end
+    
     Namen_Methoden{kk} = name_method;
     t1=tic();
-    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RS.invkin2_traj(X_t,XD_t,XDD_t,t,qs,s_kk);
+    [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RS.invkin2_traj( ...
+      X_t,XD_t,XDD_t,t,qs_kk,s_kk);
     fprintf('Inverse Kinematik mit Methode %d (%s) berechnet. Dauer: %1.1fs\n', ...
       kk, name_method, toc(t1));
     Q_t_all(:,:,kk) = Q_t_kk;
     QD_t_all(:,:,kk) = QD_t_kk;
     QDD_t_all(:,:,kk) = QDD_t_kk;
     % Zielfunktionen für Position
-    h1 = NaN(size(Q_t_kk,1),1); h2=h1;
     for jj = 1:length(t)
-      h1(jj,1) = invkin_optimcrit_limits1(Q_t_kk(jj,:)', RS.qlim);
-      h2(jj,1) = invkin_optimcrit_limits2(Q_t_kk(jj,:)', RS.qlim);
+      H1_all(jj,kk) = invkin_optimcrit_limits1(Q_t_kk(jj,:)', RS.qlim);
+      H2_all(jj,kk) = invkin_optimcrit_limits2(Q_t_kk(jj,:)', RS.qlim);
     end
-    H1_all(:,kk) = h1;
-    H2_all(:,kk) = h2;
     % Zielfunktionen für Geschwindigkeit
-    h1D = NaN(size(Q_t_kk,1),1); h2D=h1D;
     for jj = 1:length(t)
-      h1D(jj,1) = invkin_optimcrit_limits1(QD_t_kk(jj,:)', RS.qDlim);
-      h2D(jj,1) = invkin_optimcrit_limits2(QD_t_kk(jj,:)', RS.qDlim);
+      H1D_all(jj,kk) = invkin_optimcrit_limits1(QD_t_kk(jj,:)', RS.qDlim);
+      H2D_all(jj,kk) = invkin_optimcrit_limits2(QD_t_kk(jj,:)', RS.qDlim);
     end
-    H1D_all(:,kk) = h1D;
-    H2D_all(:,kk) = h2D;
+    % Zielfunktion für Konditionszahl
+    for jj = 1:length(t)
+      if any(isnan(Q_t_kk(jj,:)'))
+        warning('Trajektorie nur bis Zeitschritt %d/%d berechnet', jj, length(t));
+        break;
+      end
+      Hcond_all(jj,kk) = cond(RS.jacobig(Q_t_kk(jj,:)'));
+    end
     % Berechne Ist-EE-Traj.
-    [X_ist, XD_ist, XDD_ist] = RS.fkineEE_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
-    XE_all(:,:,kk) = X_ist;
-    XDE_all(:,:,kk) = XD_ist;
-    XDDE_all(:,:,kk) = XDD_ist;
+    I_traj = ~any(isnan(Q_t_kk),2); % Bei Fehlern wird NaN ausgegeben
+    [X_ist, XD_ist, XDD_ist] = RS.fkineEE_traj(Q_t_kk(I_traj,:), QD_t_kk(I_traj,:), QDD_t_kk(I_traj,:));
+    XE_all(I_traj,:,kk) = X_ist;
+    XDE_all(I_traj,:,kk) = XD_ist;
+    XDDE_all(I_traj,:,kk) = XDD_ist;
   end
   %% Konsistenz von Position, Geschwindigkeit und Beschleunigung testen
   for kk = 1:length(Namen_Methoden)
@@ -420,6 +451,7 @@ for robnr = 1
       subplot(3,RS.NJ,sprc2no(3,RS.NJ, 3, i));
       hold on;
       plot(t, QDD(:,i));
+      plot(t([1,end]), repmat(RS.qDDlim(i,:),2,1), 'r-');
       ylabel(sprintf('qDD %d', i)); grid on;
     end
     linkxaxes
@@ -508,6 +540,15 @@ for robnr = 1
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
   saveas(100*robnr+21, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
+  
+  change_current_figure(100*robnr+22); clf;
+  set(100*robnr+22, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
+  hdl=plot(t, Hcond_all);
+  leghdl=line_format_publication(hdl, format_mlines);
+  legend(leghdl, Namen_Methoden);
+  title('Konditionszahl (mögliche Opt. Zielf.)');
+  ylabel('Konditionszahl'); grid on;
+  saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
   %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
   change_current_figure(100*robnr+23); clf;
   set(100*robnr+23, 'Name', sprintf('Rob%d_Gelenke', robnr), 'NumberTitle', 'off');
@@ -543,9 +584,10 @@ for robnr = 1
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:RS.NJ
     for j = 1:3
-      line_format_publication(hdl(j,k,:), format_mlines);
+      leghdl=line_format_publication(hdl(j,k,:), format_mlines);
     end
   end
+  legend(leghdl, Namen_Methoden);
   
   %% Prüfe, ob die Rechnung Unabhängigkeit von der Abtastzeit der Trajektorie
   dt_array = [5e-4, 1e-3, 2e-3];

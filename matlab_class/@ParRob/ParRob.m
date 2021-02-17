@@ -72,8 +72,8 @@ classdef ParRob < RobBase
       I_constr_t % Indizes der translatorischen Zwangsbedingungen in allen ZB
       I_constr_r % Indizes der rotatorischen ZB in allen ZB
       I_constr_red % Indizes der reduzierten ZB in allen ZB
-      I_constr_t_red % Indizes für reduzierte ZB (translatorisch)
-      I_constr_r_red % ...                       (rotatorisch)
+      I_constr_t_red % Indizes der translatorischen ZB in den reduzierten ZB
+      I_constr_r_red % ... Indizes der rotatorischen ZB in den reduzierten ZB
       I_platform_dynpar % Auswahlvektor für Dynamikparameter der Plattform
   end
   properties (Access = private)
@@ -260,7 +260,7 @@ classdef ParRob < RobBase
       % Phi: Kinematische Zwangsbedingungen für die Lösung.
       [q, Phi] = R.invkin_ser(xE_soll, q0);
     end
-    function [q, Phi, Tc_stack_PKM] = invkin2(R, x, q0, s_in_ser, s_in_par)
+    function [q, Phi, Tc_stack_PKM, Stats] = invkin2(R, x, q0, s_in_ser, s_in_par)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch etwas schneller als durch die
       % Klassen-Methode `invkin_ser`, die nur teilweise kompilierbar ist.
@@ -317,15 +317,16 @@ classdef ParRob < RobBase
         'abort_firstlegerror', false);
       
       % Einstellungen für IK. Siehe auch: SerRob/invkin2
-      K_def = 0.5*ones(R.Leg(1).NQJ,1);
       s_ser = struct( ...
-        'reci', true, ...
-        'K', K_def, ... % Verstärkung
-        'Kn', 1e-2*ones(R.Leg(1).NQJ,1), ... % Verstärkung
-        'wn', zeros(2,1), ... % Gewichtung der Nebenbedingung
+        'reci', false, ... % Keine reziproken Winkel für ZB-Def.
+        'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
+        'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
+        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°
+        'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
+        'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
         'n_min', 0, ... % Minimale Anzahl Iterationen
         'n_max', 1000, ... % Maximale Anzahl Iterationen
         'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
@@ -338,7 +339,7 @@ classdef ParRob < RobBase
       if nargin >= 4
         for ff = fields(s_in_ser)'
           if ~isfield(s_ser, ff{1})
-            error('Feld %s kann nicht übergeben werden');
+            error('Feld %s kann nicht übergeben werden', ff{1});
           else
             s_ser.(ff{1}) = s_in_ser.(ff{1});
           end
@@ -356,8 +357,10 @@ classdef ParRob < RobBase
       % Funktionsaufruf. Entspricht pkm_invkin.m.template
       if nargout == 3
         [q, Phi, Tc_stack_PKM] = R.invkinfcnhdl(x, q0, s_par, s_ser);
-      else 
+      elseif nargout <= 2
         [q, Phi] = R.invkinfcnhdl(x, q0, s_par, s_ser);
+      else
+        [q, Phi, Tc_stack_PKM, Stats] = R.invkinfcnhdl(x, q0, s_par, s_ser);
       end
     end
     function update_actuation(R, I_qa)
@@ -1188,10 +1191,6 @@ classdef ParRob < RobBase
           % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
           % Wahl von constr3 oder constr2 voraus.
           R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
-          % Berücksichtige in den Indizes der rotatorischen ZB, dass die
-          % reziproken Euler-Winkel benutzt werden. Vorher: Indizes 4 und 5
-          % in Gesamt-ZB, nachher: Indizes 5 und 6
-          R.I_constr_r_red(i_rred:i_rred+nPhir-1) = R.I_constr_r_red(i_rred:i_rred+nPhir-1)+1;
         else
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
@@ -1204,6 +1203,12 @@ classdef ParRob < RobBase
         i_red = i_red + nPhi;
         ii_tred = ii_tred + nPhi;
       end
+      % Prüfe die Index-Listen
+      assert(isempty(intersect(R.I_constr_t, R.I_constr_r)), ...
+          'Variablen I_constr_t und I_constr_r überschneiden sich');
+      assert(isempty(intersect(R.I_constr_t_red, R.I_constr_r_red)), ...
+          'Variablen I_constr_t_red und I_constr_r_red überschneiden sich');
+      
       % Speichere einen Index-Vektor, mit dem die für die PKM-Dynamik
       % relevanten Dynamikparameter der Plattform gewählt werden.
       % Dies dient zur Reduzierung des Dynamik-Parametervektors

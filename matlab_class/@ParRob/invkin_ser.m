@@ -27,6 +27,8 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 %
 % Siehe auch: SerRob/invkin.m
 %
@@ -37,13 +39,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
-  'ParRob/invkin1: xE_soll muss 6x1 sein');
+  'ParRob/invkin_ser: xE_soll muss 6x1 sein');
 assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
-  'ParRob/invkin1: q0 muss %dx1 sein', Rob.NJ);
+  'ParRob/invkin_ser: q0 muss %dx1 sein', Rob.NJ);
 s_ser_std = struct( ...
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -51,12 +53,12 @@ s_ser_std = struct( ...
   'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
   'reci', false, ... % Keine reziproken Winkel für ZB-Def.
   'retry_limit', 100); % Anzahl der Neuversuche
-s_par_std = struct( ...
+s_par = struct( ...
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
-% Fehler aufgeworfen werden wg zu vieler Felder
+% Fehler aufgeworfen werden wg zu vieler Felder (Standard-Werte in SerRob/invkin2)
 if nargin < 4 || isempty(s_ser_in)
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_ser_std;
@@ -68,18 +70,17 @@ else
     end
   end
 end
-if nargin < 5
-  s_par = s_par_std;
-elseif nargin == 5
-  s_par = s_par_in;
-  for f = fields(s_par_std)'
-    if ~isfield(s_par, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
-      s_par.(f{1}) = s_par_std.(f{1});
+if nargin == 5
+  for f = fields(s_par_in)'
+    if isfield(s_par, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
+      s_par.(f{1}) = s_par_in.(f{1});
+    else
+      error('Feld %s aus s_par_in kann nicht übergeben werden', f{1});
     end
   end
 end
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  s.reci = true;
+  s.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
 end
 
 if isfield(s, 'K')
@@ -97,6 +98,12 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
+
+if nargout == 4
+  Stats = struct('Q', NaN(s.n_max, Rob.NJ), 'PHI', NaN(s.n_max, Rob.I2constr_red(end)), ...
+    'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
+    'condJ', NaN(s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
@@ -131,7 +138,6 @@ for i = 1:Rob.NLEG
   T_P_Bi = [eulxyz2r(Rob.phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];% (P)^T_(Bi)
   T_0i_0 = Rob.Leg(i).T_0_W;
   T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
-  xE_soll_i = Rob.Leg(i).t2x(T_0i_E); % als Vektor
   s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
   
   if isfield(s, 'K') && length(s.K) ~= Rob.Leg(i).NJ % passt für Eingabe der K mit Dimension [RP.NJ,1]
@@ -141,8 +147,17 @@ for i = 1:Rob.NLEG
     s.Kn = Kn(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   end
   % Inverse Kinematik für die serielle Beinkette berechnen
-  [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(xE_soll_i, q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
-
+  if nargout < 4
+    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+  else % Aufruf und Verarbeitung der Statistik
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s);
+    Stats.Q(:,Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Stats_i.Q;
+    Stats.PHI(:,Rob.I1constr(i):Rob.I2constr(i)) = Stats_i.PHI;
+    Stats.iter(i)= Stats_i.iter;
+    Stats.retry_number(i) = Stats_i.retry_number;
+    Stats.condJ(:,i) = Stats_i.condJ;
+    Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
+  end
   if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
     if any(isnan(Phi_i))
       % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
@@ -157,7 +172,7 @@ for i = 1:Rob.NLEG
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
   Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
-  if nargout == 3
+  if nargout >= 3
     T_0_0i = Rob.Leg(i).T_W_0;
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
     % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
@@ -184,12 +199,12 @@ return
 % Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
 if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
     if(length(q) == 25) % sym
-        Phi = Rob.constr2(q, xE_soll);
+        Phi = Rob.constr2(q, xE_soll, s_par.platform_frame);
     else  % asym mit genau einer Führungskette
-        Phi = Rob.constr3(q, xE_soll);
+        Phi = Rob.constr3(q, xE_soll, s_par.platform_frame);
     end
 else
-  Phi = Rob.constr1(q, xE_soll);
+  Phi = Rob.constr1(q, xE_soll, s_par.platform_frame);
 end
 % Probe: Stimmen die Zwangsbedingungen?
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)

@@ -12,8 +12,9 @@
 % Eingabe:
 % q
 %   Gelenkwinkel des Roboters
-% xE
-%   Endeffektorpose des Roboters bezüglich des Basis-KS
+% Tr0E [3x4]
+%   Endeffektorpose des Roboters bezüglich des Basis-KS.
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % pkin
 %   Kinematik-Parameter
 % T_N_E
@@ -44,11 +45,11 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phi, Tc_stack] = %RN%_constr2(q, xE, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
+function [Phi, Tc_stack] = %RN%_constr2(q, Tr0E, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
 
 %% Init
 %#codegen
-%$cgargs {zeros(%NQJ%,1),zeros(6,1),zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0),true}
+%$cgargs {zeros(%NQJ%,1),zeros(3,4),zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0),true}
 
 %% Allgemein
 if nargout == 1 % einfacher Aufruf (schneller)
@@ -60,7 +61,7 @@ else
 end
 
 %% Translatorischer Teil
-r_0_E_x = xE(1:3); % [SchapplerTapOrt2019, Gl. (3)
+r_0_E_x = Tr0E(1:3,4); % [SchapplerTapOrt2019, Gl. (3)
 
 % Direkte Kinematik der Beinkette
 r_0_E_q = T_0_E_q(1:3,4); % [SchapplerTapOrt2019, Gl. (1)
@@ -69,7 +70,7 @@ r_0_E_q = T_0_E_q(1:3,4); % [SchapplerTapOrt2019, Gl. (1)
 Phix = r_0_E_q - r_0_E_x;
 
 %% Rotatorischer Teil
-R_0_E_x = eul2r(xE(4:6), phiconv_W_E); % [SchapplerTapOrt2019, Gl. (4)
+R_0_E_x = Tr0E(1:3,1:3); % [SchapplerTapOrt2019, Gl. (4)
 if reci
   % Wahl reziproker Winkel, siehe [SchapplerTapOrt2019, Fig. 1
   [~,phiconv_delta] = euler_angle_properties(phiconv_W_E);

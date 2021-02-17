@@ -12,8 +12,9 @@
 % Eingabe:
 % q
 %   Gelenkkoordinaten des Roboters
-% xE
+% Tr0Ex
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+%   Homogene Transformationsmatrix ohne letzte Zeile.
 % 
 % Ausgabe:
 % Phi_rr [3x3]
@@ -34,14 +35,14 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-01
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_rr = constr1grad_rr(Rob, q, xE)
+function Phi_rr = constr1grad_rr(Rob, q, Tr0Ex)
 
 assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'SerRob/constr1grad_rr: q muss %dx1 sein', Rob.NJ);
 
 % Endergebnis, siehe [B]/Gl.(30) bzw. [SchapplerTapOrt2019a]/(36)
 
-R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
+R_0_E_x = Tr0Ex(1:3,1:3);
 
 % Kinematik, Definitionen
 T_0_E = Rob.fkineEE(q);
@@ -65,7 +66,7 @@ dPidR1b = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0
 % Ableitung von R_0_E nach den Euler-Winkeln
 % Vierter Term in Gl. (C.35) bzw. in [SchapplerTapOrt2019a]/(36)
 % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
-dR0Ebdphi = rotmat_diff_eul(xE(4:6), Rob.phiconv_W_E);
+dR0Ebdphi = rotmat_diff_eul(r2eul(R_0_E_x, Rob.phiconv_W_E), Rob.phiconv_W_E);
 
 % Transpositions-Matrix; Gl (C.29) bzw. [SchapplerTapOrt2019a]/(A23)
 % zweiter Term in Gl. (C.35) bzw. [SchapplerTapOrt2019a]/(36)

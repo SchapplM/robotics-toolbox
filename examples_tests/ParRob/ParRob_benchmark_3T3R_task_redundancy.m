@@ -225,8 +225,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   % IK-Grundeinstellungen
   s = struct('Phit_tol', 1e-9, 'Phir_tol', 1e-9, ...
     'maxstep_ns', 1e-5, ... % Schrittweite für Nullraum-Inkremente gering halten
-    'wn', [0;1], 'K', 7e-1*ones(RP.NJ,1), ...
-    'Kn', 0.7*ones(RP.NJ,1), ...
+    'wn', [0;1], ... % keine Vorgabe von K oder Kn (Standard-Werte)
     'scale_lim', 0.7, ...
     'retry_limit', 0, 'I_EE_Task', I_EE_3T2R, ...
     'maxrelstep', 0.25); % Grenzen sind nicht so breit; nehme größere max. Schrittweite
@@ -441,7 +440,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
   % Einstellungen für Trajektorie: Kein Normalisieren, damit Traj. nicht
   % springt. Muss doch normalisieren, damit Gelenkwinkelgrenzen korrekt
   % erkannt werden.
-  s_Traj = s;
+  s_Traj = struct('I_EE_Task', s.I_EE_Task, 'Phit_tol', s.Phit_tol, 'Phir_tol', s.Phir_tol);
   s_Traj.normalize = false; % Mit Kriterium 2 keine Normalisierung. Sonst können Koordinaten jenseits der Grenzen landen
   s_Traj.mode_IK = 1; % Standard Seriell-IK (Positions-Korrektur mit IK der einzelnen Beinketten)
   % Abspeichern der Gelenkwinkel für verschiedene Varianten der Berechnung
@@ -663,6 +662,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
         hold on; grid on;
         hdl1=stairs(t, QDD(:,ii));
         hdl2=stairs(t, QD_diff(:,ii), '--');
+        plot(t([1,end]), repmat(RP.Leg(i).qDDlim(j,:),2,1), 'r-');
         if j == 1, ylabel(sprintf('BK %d', i)); end
         if i == 1, title(sprintf('qDD %d', j)); end
         if ii == RP.NJ, legend([hdl1;hdl2],{'direkt', 'differenz'}); end
@@ -793,7 +793,7 @@ for robnr = 1:3 % 1: 6UPS; 2: 6PUS; 3:6RRRRRR
 
   %% Trajektorie mit verschiedene z Komponente berechnen
   RP.update_EE_FG(I_EE_3T3R, I_EE_3T3R);
-  s_Traj_z = s;
+  s_Traj_z = struct('I_EE_Task', s.I_EE_Task);
   s_Traj_z.normalize = false;
   s_Traj_z.wn = [0;0;0;0];
   s_Traj_z.I_EE_Task = logical([1 1 1 1 1 1]);
