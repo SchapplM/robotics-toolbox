@@ -120,16 +120,5 @@ if length(param) ~= n_pf_par
   error('Anzahl der eingegebenen Parameter (%d) stimmt nicht für die Methode %d (erwartet: %d)', ...
     length(param), method, n_pf_par);
 end
-if ~isempty(Rob.I_EE)
-  % Bei Methode 1 haben alle Beinketten die identischen FG wie die PKM.
-  % Bei den anderen Methoden ist dies nicht so. Daher setzen der vollen FG
-  % für die Beinketten für diese Koppel-Methoden.
-  if (Rob.DesPar.base_method ~= 1 || any(Rob.Leg(1).I_EE > Rob.I_EE)) && any(Rob.I_EE ~= logical([1 1 1 1 1 0]))
-    for i = 1:NLEG
-      Rob.Leg(i).I_EE = true(1,6);
-    end
-    Rob.update_EE_FG(Rob.I_EE,Rob.I_EE,true(Rob.NLEG,6));
-  end
-end
 Rob.r_P_B_all = r_P_P_Bi_ges;
 Rob.phi_P_B_all = phi_P_B_all;
