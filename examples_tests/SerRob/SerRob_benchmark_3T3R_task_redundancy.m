@@ -269,7 +269,9 @@ for robnr = 1
   XDD_t = XDD_t(II,:);
   
   %% Inverse Kinematik zum Startpunkt der Trajektorie
-  % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert
+  % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert.
+  % Wird nicht für die Trajektorien-IK benutzt, da die optimale Startkon-
+  % figuration von den benutzten Nebenbedingungen abhängt.
   t0 = tic();
   s_start = s;
   % Toleranz maximal stark setzen, damit es keinen Sprung im Verlauf gibt
@@ -289,11 +291,11 @@ for robnr = 1
   % Dadurch bestmögliche Startkonfiguration
   [q1, Psi_num1] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_start);
   if any(abs(Psi_num1) > 1e-4)
-    warning('IK konvergiert nicht für Startpunkt der Trajektorie');
+    error('IK konvergiert nicht für Startpunkt der Trajektorie');
   end
   q1norm = (q1-RS.qlim(:,1)) ./ (RS.qlim(:,2) - RS.qlim(:,1));
   if any(q1norm > 1) || any(q1norm < 0) % Winkel mit +- 2*pi berücksichtigen
-    warning('Anfangs-Konfiguration für Trajektorie verletzt bereits die Grenzen');
+    error('Anfangs-Konfiguration für Trajektorie verletzt bereits die Grenzen');
   end
 
   %% Roboter in Startpose plotten
@@ -372,7 +374,7 @@ for robnr = 1
     % Nullraumbewegung am Anfang (Start in lokalem Optimum)
     s_pik_kk = struct('I_EE', s_kk.I_EE);
     s_pik_kk.wn = s_kk.wn([1 2 5]); % Positions-Grenzen und Kondition
-    [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(XL(i,:)'), qs, s_pik_kk);
+    [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_pik_kk);
     if any(abs(Phi_s)>1e-6)
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
         'fehlgeschlagen']);
