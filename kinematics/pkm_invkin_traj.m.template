@@ -527,7 +527,7 @@ for k = 1:nt
       [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v = v - wn(4)*h4dq';
     end
-    if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+    if wn(5) ~= 0 % Konditionszahl der Jacobi-Matrix der Inv. Kin.
       if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
         condPhi = cond(Phi_q);
         for kkk = 1:%NJ% % Differenzenquotient für jede Gelenkkoordinate
@@ -535,7 +535,7 @@ for k = 1:nt
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           Phi_q_kkk = %PN%_constr3grad_q(q_test, x_k, s_3q);
           condPhi_kkk = cond(Phi_q_kkk);
-          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+          h5dq(kkk) = (condPhi_kkk-condPhi)/1e-6;
         end
         q_wn5 = q_k;
       end

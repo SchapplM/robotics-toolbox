@@ -210,11 +210,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           condJ_kkk = cond(Jdk_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-          % maximal große Sprünge der Gelenkwinkel).
-          hdq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
+          % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort zu gering.
+          hdq(kkk) = (condJ_kkk-condJ)/1e-6;
         end
         v = v - wn(3)*hdq';
-        h(3) = log(condJ);
+        h(3) = condJ;
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       delta_q_N(:) = (eye(NQJ) - pinv(Jdk)* Jdk) * v; % "(:)" notwendig für mex

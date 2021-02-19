@@ -375,7 +375,7 @@ for k = 1:nt
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           Phi_q_kkk = Rob.constr3grad_q(q_test, x_k);
           condPhi_kkk = cond(Phi_q_kkk);
-          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+          h5dq(kkk) = (condPhi_kkk-condPhi)/1e-6;
         end
         q_wn5 = q_k;
       end

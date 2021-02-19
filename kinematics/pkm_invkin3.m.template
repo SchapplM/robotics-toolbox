@@ -247,7 +247,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
         v = v - wn(2)*h2dq';
       end
-      if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
+      if wn(3) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
         for kkk = 1:%NJ% % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
@@ -256,10 +256,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           condJ_kkk = cond(Jik_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-          % maximal große Sprünge der Gelenkwinkel).
-          h3dq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
+          % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort zu gering.
+          h3dq(kkk) = (condJ_kkk-condJ)/1e-6;
         end
-        h(3) = log(condJ);
+        h(3) = condJ;
         v = v - wn(3)*h3dq';
       end
       % [1], Gl. (24)
