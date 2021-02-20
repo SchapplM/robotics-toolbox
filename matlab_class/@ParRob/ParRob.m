@@ -1114,10 +1114,29 @@ classdef ParRob < RobBase
         % Initialisierung des Roboters wurden diese Indizes korrekt
         % gesetzt. Wird für IK der einzelnen Beinketten benutzt.
         I_EE_Legs = false(R.NLEG,6); % Initialisierung
-        if all(I_EE == [1 1 0 0 0 1]) % 2T1R (planar)
+        if all(I_EE == [1 1 0 0 0 1]) && all(I_EE_Task == [1 1 0 0 0 0])
+          % 2T1R (planar) mit Aufgabenredundanz (Rotation egal)
+          % Annahme: Alle Beinketten sind auch 2T1R (planar) und haben
+          % keine FG außerhalb der xy-Ebene der Basis
+          I_EE_Legs(1,:) = I_EE_Task; % Führungskette 2T0R
+          I_EE_Legs(2:end,:) = repmat(I_EE,size(I_EE_Legs,1)-1,1); % Folgeketten 2T1R
+        elseif all(I_EE == [1 1 0 0 0 1]) % 2T1R (planar), Normaler Fall
           % Annahme: Alle Beinketten sind auch 2T1R (planar) und haben
           % keine FG außerhalb der xy-Ebene der Basis
           I_EE_Legs = logical(repmat(logical(I_EE),R.NLEG,1));
+        elseif all(I_EE == [1 1 1 0 0 1]) && all(I_EE_Task == [1 1 1 0 0 0])
+          % 3T1R (ebene Drehung, räumliche Bewegung) mit Aufgabenredundanz
+          % (Rotation egal). Annahme: Alle Beinketten sind räumlich und
+          % haben beliebige  Freiheitsgrade im Raum (auch Rotationen). 
+          % Überbestimmte ZB (s.u.)
+          I_EE_Legs(1,:) = [1 1 1 1 1 0]; % Führungskette 3T2R; bezogen auf EE-z-Achse
+          I_EE_Legs(2:end,:) = repmat([1 1 1 1 1 1],size(I_EE_Legs,1)-1,1); % Folgeketten 3T3R
+        elseif all(I_EE == [1 1 1 0 0 0]) || all(I_EE == [1 1 1 0 0 1])
+          % Bei 3T0R, 3T1R wird bei Beinketten immer volle 3T3R-Sollvorgabe
+          % gegeben. Dadurch entstehen überbestimmte Zwangsbedingungen
+          % (mehr Zwangsbedingungen als Gelenke für die Beinketten). Ist in
+          % InvKin mit Pseudo-Inverse lösbar.
+          I_EE_Legs(:) = true;
         elseif all(I_EE == [1 1 1 1 1 0])
           % 3T2R-PKM (strukturell) benutze constr3-Methode.
           I_EE_Legs(1,:) = I_EE; % Führungsbeinkette hat 3T2R-FG
@@ -1125,12 +1144,6 @@ classdef ParRob < RobBase
           % oder bei normalen 3T2R-PKM muss die Orientierung der Folge- 
           % ketten vollständig vorgegeben werden
           I_EE_Legs(2:end,:) = true;
-        elseif all(I_EE == [1 1 1 0 0 0]) || all(I_EE == [1 1 1 0 0 1])
-          % Bei 3T0R, 3T1R wird bei Beinketten immer volle 3T3R-Sollvorgabe
-          % gegeben. Dadurch entstehen überbestimmte Zwangsbedingungen
-          % (mehr Zwangsbedingungen als Gelenke für die Beinketten). Ist in
-          % InvKin mit Pseudo-Inverse lösbar.
-          I_EE_Legs(:) = true;
         elseif all(I_EE == [1 1 1 1 1 1]) && all(I_EE_Task == [1 1 1 1 1 0])
           I_EE_Legs(1,:) = I_EE_Task; % Führungskette 3T2R
           I_EE_Legs(2:end,:) = true; % Folgeketten 3T3R
@@ -1187,15 +1200,37 @@ classdef ParRob < RobBase
         R.I_constr_r_red(i_rred:i_rred+nPhir-1) = ii_tred+nPhit:ii_tred+nPhi -1;
 
         % Indizes der reduzierten ZB bestimmen
-        if all(R.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
+        if i == 1 && R.I_EE_Task(6) == false && R.I_EE(6) == true
+          % Aufgabenredundanz mit freiem Rotations-Freiheitsgrad.
           % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
           % Wahl von constr3 oder constr2 voraus.
-          R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+          if all(R.I_EE_Task == logical([1 1 1 1 1 0]))
+            % Wähle bei Rotation nur die Y- und Z-Komponente
+            R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+          elseif all(R.I_EE_Task == logical([1 1 0 0 0 0]))
+            % Ignoriere Rotation der ersten Beinkettekomplett
+            R.I_constr_red(i_red:i_red+nPhi-1) = [1 2];
+          elseif all(R.I_EE_Task == logical([1 1 1 0 0 0]))
+            % Wähle bei Rotation nur die Y- und Z-Komponente;
+            % (Vorgabe von 0 als Zwangsbedingung für 3T1R/3T0R)
+            R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+          else
+            error('Nicht behandelter Fall');
+          end
         else
+          if all(R.I_EE == logical([1 1 0 0 0 1])) && ...
+              all(R.I_EE_Task == logical([1 1 0 0 0 0]))
+            % Gehe für Aufgabenredundanz bei 2T1R davon aus, dass reziproke
+            % Euler-Winkel und die constr3-Modellierung benutzt wird
+            % (Ansatz mit Führungskette und Folgekette)
+            Phi_r_ind = fliplr(R.Leg(i).I_EE_Task(4:6));
+          else
+            Phi_r_ind = R.Leg(i).I_EE_Task(4:6);
+          end
           % Folgekette für 3T2R oder beliebige Beinketten
           R.I_constr_red(i_red:i_red+nPhi-1) = ...
               [R.I1constr(i)-1+  find(R.Leg(i).I_EE_Task(1:3)), ...
-               R.I1constr(i)-1+3+find(R.Leg(i).I_EE_Task(4:6))];
+               R.I1constr(i)-1+3+find(Phi_r_ind)];
         end
         % Lauf-Indizes hochzählen mit der Anzahl ZB für diese Beinkette
         i_tred = i_tred + nPhit;

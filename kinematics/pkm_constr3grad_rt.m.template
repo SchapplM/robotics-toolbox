@@ -21,18 +21,19 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [Phipx_red, Phipx] = %PN%_constr3grad_rt()
+function [Phipx_red, Phipx] = %PN%_constr3grad_rt(s)
 
 %% Coder Information
 %#codegen
+%$cgargs {struct('Leg_I_EE_Task', true(%NLEG%,6))}
 
 %% Initialisierung
 I_EE = %I_EE%;
 
-%% "Berechnung"
+%% Belegung der Ausgabe (mit der richtigen Dimension). Keine Berechnung.
 % Die Translation hat keinen Einfluss auf die Rotation
 % Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
 Phipx = zeros(3*%NLEG%,3);
-Phipx_red = zeros( sum(I_EE(4:6))*%NLEG%, sum(I_EE(1:3)) );
-% TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
-% Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
+rownum_Phipq_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
+Phipx_red = zeros( rownum_Phipq_red, sum(I_EE(1:3)) );

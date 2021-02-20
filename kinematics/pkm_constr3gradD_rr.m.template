@@ -56,14 +56,16 @@ I_EE = %I_EE%;
 I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
 Leg_I_EElink = %Leg_I_EElink%;
+Leg_NQJ = %Leg_NQJ%;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36, 37); Gl. (C.35)
 
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
-
+rownum_Phipq_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 PhiDpphi = zeros(3*NLEG,3);
-PhiDpphi_red = zeros( sum(I_EE(4:6))*NLEG, sum(I_EE(4:6)) );
+PhiDpphi_red = zeros( rownum_Phipq_red, sum(I_EE(4:6)) );
 
 
 %% Berechnung
@@ -148,16 +150,21 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   PhiDpphi(J1:J2,:) = Phi_phi_i_GradxD;
   
   % Ausgabe mit reduzierter Dimension
-  % TODO: Die reduzierten ZB sind aktuell nicht konsistent für Roboter mit
-  % Beinketten mit fünf Gelenken. Funktionert bspw. nur für 6UPS-3T2R
-  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
   K1 = 1; % nur eine Beinkette betrachtet.
-  if all(s.Leg_I_EE_Task(iLeg,:) == logical([1 1 1 1 1 0]))
+  if all(s.Leg_I_EE_Task(iLeg,4:6) == logical([1 1 1]))
+    K2 = 3;
+    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(:,I_EE(4:6));
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == logical([1 1 0]))
     K2 = 2;
-    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],I_EE(4:6));
+    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],I_EE(4:6)); % 2 Einträge (Y und X)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
+    % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
+    % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+    % ebene Rotation (nicht-redundanter Fall).
+    K2 = K1;
+    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(1,I_EE(4:6)); % nur 1. Eintrag (Z)
   else
-    K2 = sum(I_EE(4:6));
-    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(I_EE(4:6),I_EE(4:6)); % das war vor anpassung
+    % Fall nicht vorgesehen.
   end
 end
