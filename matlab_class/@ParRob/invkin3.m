@@ -13,7 +13,7 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
 % q0 [Nx1]
 %   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
-% s
+% s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 % 
 % Ausgabe:
@@ -44,7 +44,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, q0, s)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, q0, s_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
@@ -55,11 +55,8 @@ assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
 %% Definitionen
 % Variablen zum Speichern der Zwischenergebnisse
 sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
-K = 1.0*ones(Rob.NJ,1);
-% K(sigma_PKM==1) = 0.5; % Verstärkung für Schubgelenke kleiner
-
-s_std = struct(...
-  'K', K, ... % Verstärkung Aufgabenbewegung
+s = struct(...
+  'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
@@ -75,15 +72,15 @@ s_std = struct(...
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
   'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
   'retry_limit', 100); % Anzahl der Neuversuche
-if nargin < 4
-  % Keine Einstellungen übergeben. Standard-Einstellungen
-  s = s_std;
-end
-% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
-% Eingabe nicht gesetzt
-for f = fields(s_std)'
-  if ~isfield(s, f{1})
-    s.(f{1}) = s_std.(f{1});
+if nargin == 4
+  % Prüfe Felder der Einstellungs-Struktur und belasse Standard-Werte, 
+  % falls Eingabe nicht gesetzt
+  for f = fields(s_in)'
+    if isfield(s, f{1}) % Feld in Eingabe gesetzt
+      s.(f{1}) = s_in.(f{1});
+    else
+      error('Feld %s aus s_in kann nicht übergeben werden', f{1});
+    end
   end
 end
 
