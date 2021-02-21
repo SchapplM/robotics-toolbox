@@ -89,6 +89,7 @@ Leg_I_EElink = %Leg_I_EElink%;
 Leg_NQJ = %Leg_NQJ%;
 phi_P_B_all = s_par.phi_P_B_all;
 I_EE_Task = s_par.I_EE_Task;
+I_EE = %I_EE%;
 if all(I_EE_Task == logical([1 1 1 1 1 0]))
   s_ser.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
 end
@@ -188,8 +189,9 @@ for i = 1:NLEG
     Stats.condJ(:,i) = Stats_i.condJ;
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
-  if all(I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
+  if I_EE(6) && ~I_EE_Task(6) && i == 1 % Letzter FG für Aufgabe nicht gesetzt
     if any(isnan(Phi_i))
+      % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
       return
     end
     % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
