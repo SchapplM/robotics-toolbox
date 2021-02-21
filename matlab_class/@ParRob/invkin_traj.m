@@ -55,7 +55,6 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob,
 
 %% Initialisierung
 s_std = struct( ...
-  'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
   'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
@@ -74,11 +73,23 @@ end
 debug = s.debug;
 I_EE = Rob.I_EE_Task;
 mode_IK = s.mode_IK;
-dof_3T2R = false;
+taskred_rot = false;
 
-if all(s.I_EE == logical([1 1 1 1 1 0]))
+if any(s.wn ~= 0) && sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+  % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
+  % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
+  nsoptim = true;
+else
+  % Keine zusätzlichen Optimierungskriterien
+  nsoptim = false;
+end
+if Rob.I_EE(6) && ~ Rob.I_EE_Task(6)
+  taskred_rot = true;
+end
+if all(Rob.I_EE == [1 1 1 1 1 0])
   dof_3T2R = true;
-  I_EE = s.I_EE;
+else
+  dof_3T2R = false;
 end
 
 if nargout == 6
@@ -95,17 +106,12 @@ Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
+% Definition der Jacobi-Matrix.
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
-% Aufgaben-FG. Ist besonders für 3T2R relevant. Hier ist die Jacobi-Matrix
+% Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  % nur für aufgabenredundante 3T3R-PKM
-  Jinv_ges = NaN(nt, 6*Rob.NJ);
-  JinvD_ges = zeros(nt, 6*Rob.NJ);
-else
-  Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-  JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
-end
+Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
+JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
 % Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(Rob.NJ,1);
@@ -178,29 +184,14 @@ else
   qDDmax =  inf(Rob.NJ,1);
 end
 wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
-if any(wn ~= 0)
-  nsoptim = true;
-else
-  % Keine zusätzlichen Optimierungskriterien
-  nsoptim = false;
-end
+
 % Vergleiche FG der Aufgabe und FG des Roboters
-if ~dof_3T2R
-  % TODO: Hier noch echte Prüfung der FG des Roboters oder detailliertere
-  % Fallunterscheidungen notwendig.
-  nsoptim = false;
+if ~nsoptim
   % Deaktiviere limits_qD_set, wenn es keinen Nullraum gibt
   limits_qD_set = false;
-elseif all(Rob.I_EE == [1 1 1 1 1 0])
-  % Strukturelle 3T2R-PKM: Es gibt keinen Nullraum
-  limits_qD_set = false; % qD nicht beeinflussbar
 end
 % Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
-if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  JD_x_inv = NaN(Rob.NJ,6); % konsistent zur obigen Initialisierung von JinvD_ges
-else
-  JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
-end
+JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
 Phi_q_voll_alt = zeros(6*Rob.NLEG, Rob.NJ);
 Phi_qD_voll = Phi_q_voll_alt;
@@ -243,33 +234,33 @@ for k = 1:nt
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
-  if ~dof_3T2R
+  if ~taskred_rot && ~dof_3T2R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen constr1...)
     Phi_q = Rob.constr4grad_q(q_k);
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
-  else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
+  else % aufgabenredundante 2T1R/3T1R/3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
     [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
     Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
-    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+    if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
-      J_x_inv = -Phi_q_voll \ Phi_x_voll;
-    else % PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
+      J_x_inv = -Phi_q_voll(:,Rob.I_EE) \ Phi_x_voll(:,Rob.I_EE);
+    else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
     end
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
-        ~all(Rob.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
+    if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
+        dof_3T2R % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
       qD_k = -Phi_q \ Phi_x * xD_k(I_EE);
     end
-  else % Nullraum Optimierung
+  else % Nullraum-Optimierung
     % Korrekturterm für Linearisierungsfehler. Für PhiD_pre=0 entsteht die
     % normale inverse differentielle Kinematik. Mit dem Korrekturterm
     % bleibt die Geschwindigkeit konsistent zur Nullraumbewegung aus der
@@ -292,7 +283,7 @@ for k = 1:nt
     if k > 1 % linksseitiger Differenzenquotient
       Phi_qD = (Phi_q - Phi_q_alt)/(T(k)-T(k-1));
       Phi_xD = (Phi_x - Phi_x_alt)/(T(k)-T(k-1));
-      if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+      if taskred_rot
         Phi_qD_voll = (Phi_q_voll - Phi_q_voll_alt)/(T(k)-T(k-1));
         Phi_xD_voll = (Phi_x_voll - Phi_x_voll_alt)/(T(k)-T(k-1));
       end
@@ -303,7 +294,7 @@ for k = 1:nt
       Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
-    if ~dof_3T2R
+    if ~taskred_rot && ~dof_3T2R
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
@@ -316,11 +307,12 @@ for k = 1:nt
   % quotienten genauer, wenn JD_x_inv über Phi_qD und Phi_xD gebildet wird
   % und nicht über einen eigenen Differenzenquotienten.
   if nargout >= 6
-    if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+    if taskred_rot % Aufgabenredundanz
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll) - Phi_xD_voll);
+      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll(:,Rob.I_EE))...
+        -Phi_xD_voll(:,Rob.I_EE));
     else % alle anderen
       JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
