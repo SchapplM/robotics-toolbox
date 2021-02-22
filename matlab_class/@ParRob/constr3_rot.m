@@ -96,12 +96,17 @@ for iLeg = 1:NLEG
 
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
-  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
-    Phi_red(K1:K2,:) = Phi_i([2 3]);
+  if all(Rob.Leg(iLeg).I_EE_Task(4:6) == [1 1 1])
+    Phi_red(K1:K2,:) = Phi_i; % alle 3 Einträge
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [1 1 0])
+    Phi_red(K1:K2,:) = Phi_i([2 3]); % Einträge für Y und X
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 0 1])
+    % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
+    Phi_red(K1:K2,:) = Phi_i(1); % nur 1. Eintrag (Z)
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 0 0])
+    % Aufgabenredundante Führungskette. Nichts eintragen
   else
-    % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-    % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-    Phi_red(K1:K2,:) = Phi_i(Rob.Leg(iLeg).I_EE_Task(4:6));
+    error('Fall nicht vorgesehen');
   end
   K1 = K2 + 1;
 end
