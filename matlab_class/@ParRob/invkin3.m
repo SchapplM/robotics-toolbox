@@ -139,7 +139,7 @@ delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
-I_IK = Rob.I_constr_red;
+
 % Gradient von Nebenbedingung 3
 h3dq = NaN(1,Rob.NJ);
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
@@ -161,15 +161,13 @@ end
 %% Iterative Lösung der IK
 for rr = 0:retry_limit
   q1 = q0;
-  [~,Phi_voll] = Rob.constr3(q1, xE_soll);
-  Phi = Phi_voll(I_IK);
+  Phi = Rob.constr3(q1, xE_soll);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
-    [~,Jik_voll]=Rob.constr3grad_q(q1, xE_soll);
-    Jik = Jik_voll(I_IK,:);
+    Jik=Rob.constr3grad_q(q1, xE_soll);
 
     %% Nullstellensuche für Positions- und Orientierungsfehler
     condJ = cond(Jik);
@@ -212,8 +210,7 @@ for rr = 0:retry_limit
         for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          [~,Jik_voll_kkk]=Rob.constr3grad_q(q_test, xE_soll);
-          Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
           condJ_kkk = cond(Jik_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
@@ -317,10 +314,9 @@ for rr = 0:retry_limit
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
-    [~,Phi_voll] = Rob.constr3(q2, xE_soll);
+    [Phi_neu, Phi_voll] = Rob.constr3(q2, xE_soll);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numberisch teilweise keine Verbesserung möglich.
-    Phi_neu = Phi_voll(I_IK);
     Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
              all(abs(Phi_neu(I_constr_r_red)) < Phir_tol);
     if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
@@ -349,7 +345,7 @@ for rr = 0:retry_limit
       h_alt = h;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
-      Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      Phi = Phi_neu;
       rejcount = 0;
     else
       % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.

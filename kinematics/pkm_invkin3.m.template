@@ -175,8 +175,9 @@ I_constr_t_red = s.I_constr_t_red;
 I_constr_r_red = s.I_constr_r_red;
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
-I_IK = s.I_constr_red;
-Phi = NaN(length(I_IK),1);
+rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
+Phi = NaN(rownum_Phi_red,1);
 q2 = q0;
 % Gradient von Nebenbedingung 3
 h3dq = NaN(1,%NJ%);
@@ -201,15 +202,13 @@ end
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
-  [~,Phi_voll] = %PN%_constr3(q1, xE_soll, s_cst3);
-  Phi = Phi_voll(I_IK);
+  Phi = %PN%_constr3(q1, xE_soll, s_cst3);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
-    [~,Jik_voll]=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
-    Jik = Jik_voll(I_IK,:);
+    Jik=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
     %% Nullstellensuche für Positions- und Orientierungsfehler
     condJ = cond(Jik);
     % (Optimierung der Aufgabe)
@@ -251,8 +250,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         for kkk = 1:%NJ% % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          [~,Jik_voll_kkk]=%PN%_constr3grad_q(q_test, xE_soll, s_cst3_q);
-          Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          Jik_kkk=%PN%_constr3grad_q(q_test, xE_soll, s_cst3_q); % Berechnung identisch mit oben
           condJ_kkk = cond(Jik_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
@@ -358,8 +356,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
 
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    [~,Phi_voll] = %PN%_constr3(q2, xE_soll, s_cst3);
-    Phi_neu = Phi_voll(I_IK);
+    [Phi_neu, Phi_voll] = %PN%_constr3(q2, xE_soll, s_cst3);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numerisch teilweise keine Verbesserung möglich.
     Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
@@ -390,7 +387,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       h_alt = h;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
-      Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      Phi = Phi_neu; % Reduktion auf betrachtete FG
       rejcount = 0;
     else
       % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.
