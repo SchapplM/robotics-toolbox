@@ -130,7 +130,9 @@ end
 if Rob_I_EE(6) && ~s.I_EE_Task(6)
   taskred_rot = true;
 end
-if all(I_EE == logical([1 1 1 1 1 0]))
+% Vermerke, ob die PKM strukturen 3T2R-FG hat. Dann wird auch die
+% Modellierung für 3T2R-Aufgaben gewählt.
+if all(Rob_I_EE == logical([1 1 1 1 1 0]))
   dof_3T2R = true;
 else
   dof_3T2R = false;
@@ -184,16 +186,20 @@ if ~nsoptim
   limits_qD_set = false;
 end
 
-% Altwerte für die Bildung des Differenzenquotienten initialisieren
-J_x_inv = NaN(NJ,sum(Rob_I_EE)); % Vorbelegung für Matlab-Coder
+% Altwerte für die Bildung des Differenzenquotienten initialisieren.
+% Sonstige Variablen für Matlab-Coder vorbelegen. Sonst Kompilierungsfehler
+J_x_inv = NaN(NJ,sum(Rob_I_EE));
 Phi_q_alt = zeros(length(s.I_constr_t_red)+length(s.I_constr_r_red), NJ);
 Phi_q_voll_alt = zeros(6*NLEG, NJ);
 Phi_qD_voll = Phi_q_voll_alt;
 Phi_x_alt = zeros(length(s.I_constr_t_red)+length(s.I_constr_r_red), sum(I_EE));
 Phi_x_voll_alt = zeros(6*NLEG, 6);
 Phi_xD_voll = Phi_x_voll_alt;
+Phi_q_voll = Phi_q_voll_alt;
+Phi_x_voll = Phi_x_voll_alt;
 N = eye(NJ); % Nullraum-Projektor
-Phi_xD = Phi_x_alt;
+Phi_x = Phi_x_alt; %#ok<NASGU>
+Phi_xD = Phi_x_alt; %#ok<NASGU>
 % Eingabestruktur für tpl-fcns
 % Struktur 1 für %PN%_invkin
 s_par = struct('r_P_B_all', s.r_P_B_all,...
@@ -361,8 +367,6 @@ qk0 = q0;
 qDk0 = zeros(NJ,1);
 q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((%NL%-1+%NLEG%)*3,4); % für Kompilierbarkeit
-Phi_q_voll = [];
-Phi_x_voll = [];
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 dt = T(2)-T(1); % Init. fuer tpl
 
@@ -411,9 +415,10 @@ for k = 1:nt
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
     [Phi_q, Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
-    [Phi_x, Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+    [Phi_x_tmp, Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+    Phi_x=Phi_x_tmp(:,I_EE);
     if taskred_rot % Aufgabenredundanz
-      J_x_inv(:,:) = -Phi_q_voll(:,Rob_I_EE) \ Phi_x_voll(:,Rob_I_EE); % Zuweisung mit ":" für mex
+      J_x_inv(:,:) = -Phi_q_voll \ Phi_x_voll(:,Rob_I_EE); % Zuweisung mit ":" für mex
     else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv(:,:) = -Phi_q \ Phi_x;
     end

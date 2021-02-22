@@ -247,7 +247,7 @@ for k = 1:nt
     if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
-      J_x_inv = -Phi_q_voll(:,Rob.I_EE) \ Phi_x_voll(:,Rob.I_EE);
+      J_x_inv = -Phi_q_voll \ Phi_x_voll(:,Rob.I_EE);
     else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
     end
