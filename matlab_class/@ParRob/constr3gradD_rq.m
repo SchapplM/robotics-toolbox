@@ -179,16 +179,16 @@ for iLeg = 1:NLEG
     J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
 
-    K2 = K1+sum(Rob.I_EE_Task(4:6))-1; % zwei oder drei rotatorische Einträge
-    if all(Rob.I_EE_Task(4:6) == [1 1 0])
+    K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1; % zwei oder drei rotatorische Einträge
+    if all(Leg_I_EE_Task(iLeg,4:6) == [1 1 0])
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(X)
-    elseif all(Rob.I_EE_Task(4:6) == [0 0 0])
+    elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
       % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
-    elseif all(Rob.I_EE_Task(4:6) == [0 0 1])
+    elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
       % ebene Rotation (nicht-redundanter Fall).
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(1,:); % nur 1. Eintrag (Z)
-    else
-      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(Rob.I_EE(4:6),:);
+    else % allgemeiner Fall (3T3R-PKM, aber auch 3T0R-PKM mit 3T3R-ZB der Beine)
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq; % alle drei Einträge
     end
     K1 = K2+1;
   elseif iLeg > 1 % ZB für Folgekette
