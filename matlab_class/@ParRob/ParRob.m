@@ -1200,8 +1200,10 @@ classdef ParRob < RobBase
         R.I_constr_r_red(i_rred:i_rred+nPhir-1) = ii_tred+nPhit:ii_tred+nPhi -1;
 
         % Indizes der reduzierten ZB bestimmen
-        if i == 1 && R.I_EE_Task(6) == false && R.I_EE(6) == true
-          % Aufgabenredundanz mit freiem Rotations-Freiheitsgrad.
+        if i == 1 && (R.I_EE_Task(6) == false && R.I_EE(6) == true || ...
+            all(R.I_EE == [1 1 1 1 1 0])) % Strukturell 3T2R-FG
+          % Aufgabenredundanz mit freiem Rotations-Freiheitsgrad oder erste
+          % Beinkette in 3T2R-PKM (strukturell).
           % Führungskette für 3T2R anders: Reziproke Euler-Winkel. Setzt
           % Wahl von constr3 oder constr2 voraus.
           if all(R.I_EE_Task == logical([1 1 1 1 1 0]))

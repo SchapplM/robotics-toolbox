@@ -158,7 +158,8 @@ for i = 1:Rob.NLEG
     Stats.condJ(:,i) = Stats_i.condJ;
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
-  if Rob.I_EE(6) && ~Rob.I_EE_Task(6) && i == 1 % Letzter FG für Aufgabe nicht gesetzt
+  if i == 1 && (Rob.I_EE(6) && ~Rob.I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt
+      all(Rob.I_EE == [1 1 1 1 1 0])) % Roboter hat strukturell 3T2R FG und constr3-Methode.
     if any(isnan(Phi_i))
       % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
       return
