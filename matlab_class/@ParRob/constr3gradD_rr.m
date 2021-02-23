@@ -80,7 +80,7 @@ R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
 omega_0_Ex  = euljac (xE(4:6), Rob.phiconv_W_E) * xDE(4:6);
 RD_0_E_x =  skew(omega_0_Ex) * R_0_E_x;
-
+K1 = 1;
 for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTapOrt2019a]/(37)
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
   q_i = q(IJ_i); % Gelenkwinkel dieser Kette
@@ -153,16 +153,16 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   PhiDpphi(J1:J2,:) = Phi_phi_i_GradxD;
   
   % Ausgabe mit reduzierter Dimension
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE_Task(4:6))-1;
-  if all(Rob.Leg(iLeg).I_EE_Task(4:6) == logical([1 1 0]))
+  K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1;
+  if all(Leg_I_EE_Task(iLeg,4:6) == logical([1 1 0]))
     PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],Rob.I_EE(4:6)); % Nur 2 Komponenten: 2(Y) und 3(X)
-  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == logical([0 0 0]))
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == logical([0 0 0]))
     % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
-  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 0 1])
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
     % ebene Rotation (nicht-redundanter Fall).
     PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(1,Rob.I_EE(4:6)); % nur 1. Eintrag (Z)
   else
-    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(Rob.I_EE(4:6),Rob.I_EE(4:6));
+    PhiDpphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_GradxD(:,Rob.I_EE(4:6)); % alle drei Einträge
   end
+  K1 = K2+1;
 end
