@@ -563,7 +563,7 @@ for jj = 1:2
     test_hdq_abs = hdq-hdq_diff;
     test_hdq_rel = test_hdq_abs/hdq;
     if abs(test_h_abs) > 1e-5 && test_h_rel > 1e-2 || ...
-        abs(test_hdq) > 1e-3 && test_hdq_rel > 1e-2
+        abs(test_hdq_abs) > 1e-3 && test_hdq_rel > 1e-2
       figure(1); clf; hold on;
       Qplot = unique([(min([q;qlim(1)]):1e-4:max([q;qlim(2)]))';q;q1]);
       Hplot = NaN(size(Qplot));
