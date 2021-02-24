@@ -17,24 +17,42 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-
+%% Initialisierung
+% Beinketten definieren
+% Führungsketten (3T2R)
+RS_PUU = serroblib_create_robot_class('S5PRRRR10');
+RS_PUU.DesPar.joint_type = [5 2 2 2 2]'; % Hubzylinder+Kardangelenke
+RS_PUU.fill_fcn_handles(false);
+RS_RUU = serroblib_create_robot_class('S5RRRRR2');
+RS_RUU.DesPar.joint_type = [0 2 2 2 2]'; % Drehgelenk (R), 2 Kardan (U)
+RS_RUU.fill_fcn_handles(false);
+RS_UPU = serroblib_create_robot_class('S5RRPRR12V1');
+RS_UPU.DesPar.joint_type = [2 2 5 2 2]'; % Kardan (U), Schubzyl. (P), Kardan(U)
+RS_UPU.fill_fcn_handles(false);
+% Folgeketten (3T3R)
+RS_PUS = serroblib_create_robot_class('S6PRRRRR6');
+RS_PUS.fill_fcn_handles(false);
+RS_PUS.DesPar.joint_type = [4 2 2 3 3 3]'; % Führungsschiene (P) Kardan (U), Kugel (S)
+RS_RUS = serroblib_create_robot_class('S6RRRRRR10');
+RS_RUS.fill_fcn_handles(false);
+RS_RUS.DesPar.joint_type = [0 2 2 3 3 3]'; % Drehgelenk (R), Kardan (U), Kugel (S)
+RS_UPS = serroblib_create_robot_class('S6RRPRRR14V3');
+RS_UPS.fill_fcn_handles(false);
+RS_UPS.DesPar.joint_type = [2 2 5 3 3 3]'; % Kardan (U), Schubzylinder (P), Kugel (S)
+%% Alle Kombinationen bilden und PKM prüfen
 for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
   for BeinNr = 1:3 % Hauptstruktur: PUS, RUS, UPS
     close all % sonst sind zu viele Bilder offen
     fignum = 100*LeadingNr+10*BeinNr;
     if LeadingNr == 1 % PUU-Leading
-      RS1 = serroblib_create_robot_class('S5PRRRR10');% Fuehrungsbeinkette
-      RS1.fill_fcn_handles(false);
       if BeinNr == 1 % PUS
-        RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
-        RP = ParRob('PKM_1PUU_4UPS_3T2R');
+        RP = ParRob('PKM_1PUU_4PUS_3T2R');
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_PUU); % Fuehrungsbeinkette PUU
         pkin_RS1 = [0, 0, 1.0, 0, pi/2, pi/2, 0, 0, 0, 0, 0]';
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_PUS);
         end
         %   a2 a3  a4  a5 a6 2  3     4  d2 d3 d4 d5 d6 t1
         pkin_RS2 = [0, 0, 1.0, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0 ,0 ]';
@@ -62,16 +80,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
              
       elseif BeinNr == 2 % RUS
-        RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1PUU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_PUU); % Fuehrungsbeinkette PUU
         pkin_RS1 = [0, 0, 1.7, 0, pi/2, pi/2, 0, 0, 0, 0, 0]';
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_RUS);
         end
         pkin_RS2 = [0.8, 0, 1.2, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0, 0]';
         for ii=2:RP.NLEG
@@ -99,16 +115,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
 
       elseif BeinNr == 3 % UPS
-        RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1PUU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_PUU); % Fuehrungsbeinkette PUU
         pkin_all = [0, 0, 0.3, 0, pi/2, pi/2, 0, 0, 0, 0, 0]';
         RP.Leg(1).update_mdh(pkin_all(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_UPS);
         end
         RP.align_base_coupling(1, 0.5);  % Wahl ist wichtig fuer Loesbarkeit der IK
         RP.align_platform_coupling(1, 0.15); % Wahl ist wichtig fuer Loesbarkeit der IK
@@ -133,18 +147,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       end
       
     elseif LeadingNr == 2 % RUU
-      RS1 = serroblib_create_robot_class('S5RRRRR2');% Fuehrungsbeinkette
-      RS1.fill_fcn_handles(false);
       if BeinNr == 1 % PUS
-        RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1RUU_4PUS_3T2R');
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_RUU); % Fuehrungsbeinkette PUU
         pkin_RS1 = [1.0, 1.0]'; 
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_PUS);
         end
         %   a2 a3  a4  a5 a6 2  3     4  d2 d3 d4 d5 d6 t1
         pkin_RS2 = [0, 0, 1.2, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0 ,0 ]';
@@ -173,16 +183,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
              
       elseif BeinNr == 2 % RUS
-        RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1RUU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_RUU);
         pkin_RS1 = [1.0, 1.0]'; 
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_RUS);
         end
         pkin_RS2 = [0.8, 0, 1.0, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0, 0]';
         for ii=2:RP.NLEG
@@ -210,16 +218,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
 
       elseif BeinNr == 3 % UPS
-        RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1RUU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_RUU); % Fuehrungsbeinkette RUU
         pkin_all = [1.0, 1.0]'; 
         RP.Leg(1).update_mdh(pkin_all(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_UPS);
         end
         RP.align_base_coupling(1, 0.5);  % Wahl ist wichtig fuer Loesbarkeit der IK
         RP.align_platform_coupling(1, 0.2); % Wahl ist wichtig fuer Loesbarkeit der IK
@@ -245,18 +251,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
       
       
     elseif LeadingNr == 3 % UPU-Leading
-      RS1 = serroblib_create_robot_class('S5RRPRR12V1');% Fuehrungsbeinkette
-      RS1.fill_fcn_handles(false);
       if BeinNr == 1 % PUS
-        RS2 = serroblib_create_robot_class('S6PRRRRR6');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1UPU_4PUS_3T2R');
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_UPU); % Fuehrungsbeinkette PUU
         pkin_RS1 = zeros(4,1);
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_PUS);
         end
         %   a2 a3  a4  a5 a6 2  3     4  d2 d3 d4 d5 d6 t1
         pkin_RS2 = [0, 0, 1.2, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0 ,0 ]';
@@ -283,18 +285,15 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         for ii = 1:RP.NLEG
           RP.Leg(ii).update_EE(zeros(3,1),[pi/2;0;0]);
         end
-             
       elseif BeinNr == 2 % RUS
-        RS2 = serroblib_create_robot_class('S6RRRRRR10');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1UPU_4RUS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_UPU); % Fuehrungsbeinkette UPU
         pkin_RS1 = zeros(4,1);
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
-        for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+        for ii=2:RP.NLEG % Folgebeinketten 4 RUS( vielleicht Verallgemeinerung fuer spaeter)
+          RP.Leg(ii) = copy(RS_RUS);
         end
         pkin_RS2 = [0.8, 0, 1.0, 0, 0, 0, pi/2, 0, 0, 0, 0, 0, 0, 0]';
         for ii=2:RP.NLEG
@@ -322,16 +321,14 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
         end
 
       elseif BeinNr == 3 % UPS
-        RS2 = serroblib_create_robot_class('S6RRPRRR14V3');% Fuehrungsbeinkette
-        RS2.fill_fcn_handles(false);
         RP = ParRob('PKM_1UPU_4UPS_3T2R');
         % Beinketten definieren
         RP.NLEG = 5;
-        RP.Leg = copy(RS1); % Fuehrungsbeinkette PUU
+        RP.Leg = copy(RS_UPU); % Fuehrungsbeinkette UPU
         pkin_RS1 = zeros(4,1);
         RP.Leg(1).update_mdh(pkin_RS1(1:size(RP.Leg(1).pkin),1));
         for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
-          RP.Leg(ii) = copy(RS2);
+          RP.Leg(ii) = copy(RS_UPS);
         end
         RP.align_base_coupling(1, 0.5);  % Wahl ist wichtig fuer Loesbarkeit der IK
         RP.align_platform_coupling(1, 0.2); % Wahl ist wichtig fuer Loesbarkeit der IK
@@ -372,7 +369,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     q = q0; % qs in constr2 und q sind ungleich ( also aktive Gelenke)
     %% IK
     X0(6) = 0;
-    [q,phi] = RP.invkin_ser(X0, q);
+    [q,phi] = RP.invkin_ser(X0, q, struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12));
     assert(all(abs(phi)<1e-6), 'IK funktioniert nicht, obwohl vorher ausprobiert');
     [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
     assert(all(size(Phi3_red)==[29,1]), 'Ausgabe 1 von constr3 muss 29x1 sein');
@@ -430,7 +427,8 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     qdDxD = J_voll1 * qaD;
     xD_test = qdDxD(sum(RP.I_qd)+1:end);
     if any(abs(xD_test(~RP.I_EE)) > 1e-4) % Genauigkeit hier ist abhaengig von Zwangsbed.
-      fprintf('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt\n');
+      error(['Falsche Koordinaten werden laut Jacobi-Matrix durch die ', ...
+        'Antriebe bewegt\n']);
     end
     
     %% Trajektorie berechnen
@@ -452,8 +450,8 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     % Inverse Kinematik berechnen
     t1 = tic();
     fprintf('Berechne Trajektorien-IK für %d Zeitschritte\n', length(T));
-    iksettings = struct('n_max', 5000, 'Phit_tol', 1e-8, 'Phir_tol', 1e-8, 'debug', true, ...
-      'retry_limit', 0, 'mode_IK', 1, 'normalize', false);
+    iksettings = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ...
+      'debug', true, 'n_max', 5000, 'mode_IK', 1);
     warning off
     [Q, QD, QDD, Phi] = RP.invkin_traj(X,XD,XDD,T,q,iksettings); % hier muessen einige Zeilen auskommentiert werden
     warning on
