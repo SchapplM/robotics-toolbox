@@ -616,16 +616,22 @@ for k = 1:nt
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
     if any(abs(PhiDD_korr) > max(1e-7, max(abs(qDD_k))/1e9)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
-      error(['Zeitschritt %d/%d: Beschleunigung ist nicht konsistent nach ', ...
-        'Nullraumbewegung. Fehler %1.1e'], k, nt, max(abs(PhiDD_korr)));
-      % Dieser Teil sollte nicht ausgeführt werden müssen (s.o.)
-      qDD_korr = Phi_q\PhiDD_korr; %#ok<UNRCH>
-      qDD_k = qDD_k + qDD_korr;
-      % Nochmal testen
-      PhiDD_test2 = Phi_q*qDD_k + Phi_qD*qD_k + ...
-        Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-      if any(abs(PhiDD_test2) > 1e-10)
-        error('Korrektur der Beschleunigung hat nicht funktioniert');
+      if cond(Phi_q) > 1e8
+        % Dieser Teil sollte nicht ausgeführt werden müssen. Bei schlechter
+        % Konditionierung der Zwangsbedingungs-Gradienten notwendig.
+        % Nur beim Debuggen machen, da derartig schlecht konditionierte
+        % Roboter sowieso nicht simuliert werden sollten.
+        qDD_korr = Phi_q\PhiDD_korr;
+        qDD_k = qDD_k + qDD_korr;
+        % Nochmal testen
+        PhiDD_test2 = Phi_q*qDD_k + Phi_qD*qD_k + ...
+          Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
+        if any(abs(PhiDD_test2) > 1e-10)
+          error('Korrektur der Beschleunigung hat nicht funktioniert');
+        end
+      else
+        error(['Zeitschritt %d/%d: Beschleunigung ist nicht konsistent nach ', ...
+        'Nullraumbewegung. Fehler %1.1e'], int32(k), int32(nt), max(abs(PhiDD_korr)));
       end
     end
   end
