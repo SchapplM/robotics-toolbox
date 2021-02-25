@@ -43,7 +43,7 @@ s_user = struct(...
               'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
              'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
              'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
-     'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz
+     'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
       'normalize', false, ... % Normalisieren auf +/- 180°
      'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
      'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen

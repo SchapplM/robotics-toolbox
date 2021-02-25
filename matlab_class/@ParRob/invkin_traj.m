@@ -147,7 +147,7 @@ s_pik = struct(...
 
 % Eingabe s_inv3 struktuieren
 s_inv3 = s_pik;
-s_inv3.maxstep_ns = 0*ones(Rob.NJ,1); % hat keine Wirkung
+s_inv3.maxstep_ns = 0; % hat keine Wirkung
 s_inv3.maxrelstep_ns = 0.005; % hat keine Wirkung
 for f = fields(s_inv3)'
   if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
