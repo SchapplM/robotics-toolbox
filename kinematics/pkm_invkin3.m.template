@@ -418,7 +418,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
      nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
       success = true;
       if nargout == 4
-        Stats.iter = jj;
+        Stats.iter = jj; % muss hier zugewiesen werden (für mex)
       end
       break;
     end

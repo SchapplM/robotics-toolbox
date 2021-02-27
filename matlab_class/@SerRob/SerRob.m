@@ -684,12 +684,12 @@ classdef SerRob < RobBase
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
-         'normalize', true, ... % Normalisieren auf +/- 180°
+         'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
          'n_max', 1000, ... % Maximale Anzahl Iterationen
          'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
-         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
-         'Phir_tol', 1e-10);% Toleranz für rotatorischen Fehler
+         'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
+         'Phir_tol', 1e-12);% Toleranz für rotatorischen Fehler
       if nargin == 7
         for f = fields(s_in)'
           if ~isfield(s, f{1})
