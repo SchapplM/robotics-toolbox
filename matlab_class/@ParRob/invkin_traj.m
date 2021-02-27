@@ -338,6 +338,10 @@ for k = 1:nt
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
   end
+  % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+  % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+  qDD_N_min = qDDmin - qDD_k_T;
+  qDD_N_max = qDDmax - qDD_k_T;
   if nsoptim % Nullraumbewegung
     N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
@@ -349,7 +353,6 @@ for k = 1:nt
     if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
       [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
       v = v - wn(2)*h2dq';
-      if any(isinf(h2dq)), warning('h2dq Inf'); return; end
     end
     if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
       [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
@@ -383,10 +386,6 @@ for k = 1:nt
   % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
   % wichtiger als Beschleunigung ist.
   if nsoptim && limits_qDD_set
-    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
-    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
-    qDD_N_min = qDDmin - qDD_k_T;
-    qDD_N_max = qDDmax - qDD_k_T;
     delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
     delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
     if any([delta_ul_rel;delta_ll_rel] < 0)
@@ -402,7 +401,7 @@ for k = 1:nt
       qDD_N_pre = scale*qDD_N_pre;
     end
   end
-
+  
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
@@ -419,7 +418,7 @@ for k = 1:nt
         qDD_lim_I = (qDmin(I_worst)-qD_k(I_worst))/dt;
       end
       qD_pre_h = qD_pre;
-      qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
+      % qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
       [~, hdqD] = invkin_optimcrit_limits1(qD_pre_h, qDlim);
       qDD_N_h = N * (-hdqD');
       % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
@@ -430,6 +429,25 @@ for k = 1:nt
       % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
       qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
       qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+      
+      % Die Nullraumbewegung zur Vermeidung der Geschwindigkeitsgrenzen
+      % kann fehlschlagen, wenn die fragliche Geschwindigkeitskomponente
+      % nicht im Nullraum beeinflussbar ist. Daher nochmals Begrenzung der
+      % neuen Beschleunigung im Nullraum. 
+      delta_ul_rel = (qDD_N_max - qDD_N_post)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+      delta_ll_rel = (-qDD_N_min + qDD_N_post)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+      if any([delta_ul_rel;delta_ll_rel] < 0)
+        if min(delta_ul_rel)<min(delta_ll_rel)
+          % Verletzung nach oben ist die größere
+          [~,I_max] = min(delta_ul_rel);
+          scale = (qDD_N_max(I_max))/(qDD_N_post(I_max));
+        else
+          % Verletzung nach unten ist maßgeblich
+          [~,I_min] = min(delta_ll_rel);
+          scale = (qDD_N_min(I_min))/(qDD_N_post(I_min));
+        end
+        qDD_N_post = scale*qDD_N_post;
+      end
     else
       qDD_N_post = qDD_N_pre;
     end
