@@ -1120,6 +1120,10 @@ classdef ParRob < RobBase
           % keine FG außerhalb der xy-Ebene der Basis
           I_EE_Legs(1,:) = I_EE_Task; % Führungskette 2T0R
           I_EE_Legs(2:end,:) = repmat(I_EE,size(I_EE_Legs,1)-1,1); % Folgeketten 2T1R
+        elseif all(I_EE == [1 1 0 0 0 0]) && all(I_EE_Task == [1 1 0 0 0 0])
+          % 2T0R (planar). Rotation fixiert. Ist kein relevanter Fall, wird
+          % aber in einem Beispiel der Vollständigkeit halber benutzt.
+          I_EE_Legs = repmat(I_EE,size(I_EE_Legs,1),1);
         elseif all(I_EE == [1 1 0 0 0 1]) % 2T1R (planar), Normaler Fall
           % Annahme: Alle Beinketten sind auch 2T1R (planar) und haben
           % keine FG außerhalb der xy-Ebene der Basis
