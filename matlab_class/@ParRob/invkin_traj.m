@@ -363,7 +363,7 @@ for k = 1:nt
       v = v - wn(4)*h4dq';
     end
     if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
-      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+      if any(abs(q_k-q_wn5) > 1*pi/180) % seltenere Berechnung (Rechenzeit)
         condPhi = cond(Phi_q);
         for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q_k; % ausgehend von aktueller Konfiguration
