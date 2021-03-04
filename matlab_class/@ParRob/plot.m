@@ -101,7 +101,7 @@ end
 
 %% Plattform Plotten (von Plattform-Koppelpunkten her)
 % Anpassung der Ist-Plattform-Pose für den Fall der Aufgabenredundanz
-if all(Rob.I_EE_Task==[1 1 1 1 1 0])
+if Rob.I_EE_Task(6) ~= Rob.I_EE(6) % 3T2R, aber auch 3T1R/2T1R mit Redundanz
   % Transformation von Plattform zum Plattform-Koppelpunkt für die letzte
   % Beinkette (zur Nutzung von Variable von vorher)
   T_P_Bi = [eul2r(Rob.phi_P_B_all(:,end),Rob.phiconv_P_E(end)), Rob.r_P_B_all(:,end);[0 0 0 1]]; 
