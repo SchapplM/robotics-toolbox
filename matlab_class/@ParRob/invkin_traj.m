@@ -165,6 +165,15 @@ end
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
+if ~all(isnan(qlim(:)))
+  limits_q_set = true;
+  qmin = qlim(:,1);
+  qmax = qlim(:,2);
+else
+  limits_q_set = false;
+  qmin = -inf(Rob.NJ,1);
+  qmax =  inf(Rob.NJ,1);
+end
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
   qDmin = qDlim(:,1);
@@ -382,9 +391,10 @@ for k = 1:nt
   end
   
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
-  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
-  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
-  % wichtiger als Beschleunigung ist.
+  % Grenzen erreicht werden. Sollte eigentlich nur hier gemacht werden,
+  % wird aber zur Verbesserung der Robustheit auch zusätzlich noch unten
+  % gemacht. Hat unten zur Folge, dass Verletzung von Positions- und
+  % Geschwindigkeitsgrenzen nicht mit allen Mitteln verhindert werden
   if nsoptim && limits_qDD_set
     delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
     delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
@@ -454,8 +464,85 @@ for k = 1:nt
   else
     qDD_N_post = qDD_N_pre;
   end
-  qDD_k = qDD_k_T + qDD_N_post;
-  
+
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
+  % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
+  if nsoptim && limits_q_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+    qDD_pre2 = qDD_k_T+qDD_N_post;
+    % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
+    qD_pre2 = qD_k + qDD_pre2*dt;
+    q_pre2 = q_k + qD_pre2*dt + 0.5*qDD_pre2*dt^2;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden
+    delta_ul = (qmax - q_pre2); % Überschreitung der Maximalwerte: <0
+    delta_ll = (-qmin + q_pre2); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul;delta_ll] < 0)
+      if min(delta_ul)<min(delta_ll)
+        % Verletzung nach oben ist die größere
+        [~,I_worst] = min(delta_ul);
+        qDD_lim_I = 2/dt^2*(qmax(I_worst)-q_k(I_worst)-qD_pre2(I_worst)*dt);
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_worst] = min(delta_ll);
+        qDD_lim_I = 2/dt^2*(qmin(I_worst)-q_k(I_worst)-qD_pre2(I_worst)*dt);
+      end
+      q_pre_h = q_pre2;
+      [~, hdq] = invkin_optimcrit_limits1(q_pre_h, qlim);
+      % Dieser Beschleunigungsvektor liegt im Nullraum der Jacobi-Matrix
+      % (erfüllt also noch die Soll-Beschleunigung des Endeffektors).
+      % Der Vektor führt zu einer Reduzierung der Geschwindigkeit von den
+      % Grenzen weg
+      qDD_N_h = N * (-hdq');
+      % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
+      qDD_N_he = qDD_N_h/qDD_N_h(I_worst); % [3]/(5)
+      % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
+      % an der Grenze landet.
+      qDD_N_korr_I = -qDD_pre2(I_worst) + qDD_lim_I; % [3]/(7)
+      % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
+      qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
+      qDD_N_post2 = qDD_N_post+qDD_N_korr; % [3]/(6)
+      if false % Debug
+        Iutest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 > qmax + 1e-6;
+        Iltest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 < qmin - 1e-6;
+        if min(delta_ul)<min(delta_ll) && Iutest(I_worst)
+          error('Fehler bei Korrektur der Verletzung der Positions-Obergrenze');
+        end
+        if min(delta_ul)>min(delta_ll) && Iltest(I_worst)
+          error('Fehler bei Korrektur der Verletzung der Positions-Untergrenze');
+        end
+        if any(Iutest|Iltest)
+          warning(['Beim Versuch die Verletzung der Positions-Grenze fuer ', ...
+            'Gelenk %d zu vermeiden, wurde eine andere Grenze verletzt'], I_worst);
+        end
+      end
+      % Die Nullraumbewegung zur Vermeidung der Positionsgrenzen
+      % kann fehlschlagen, wenn die fragliche Gelenkwinkelkomponente
+      % nicht im Nullraum beeinflussbar ist. Daher nochmals Begrenzung der
+      % neuen Beschleunigung im Nullraum. 
+      delta_ul_rel = (qDD_N_max - qDD_N_post2)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+      delta_ll_rel = (-qDD_N_min + qDD_N_post2)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+      if any([delta_ul_rel;delta_ll_rel] < 0)
+        if min(delta_ul_rel)<min(delta_ll_rel)
+          % Verletzung nach oben ist die größere
+          [~,I_max] = min(delta_ul_rel);
+          scale = (qDD_N_max(I_max))/(qDD_N_post2(I_max));
+        else
+          % Verletzung nach unten ist maßgeblich
+          [~,I_min] = min(delta_ll_rel);
+          scale = (qDD_N_min(I_min))/(qDD_N_post2(I_min));
+        end
+        qDD_N_post2 = scale*qDD_N_post2;
+      end
+    else
+      % Keine Verletzung der Geschwindigkeitsgrenzen. Lasse
+      % Beschleunigung so wie sie ist
+      qDD_N_post2 = qDD_N_post;  
+    end
+  else
+    qDD_N_post2 = qDD_N_post;
+  end
+
+  qDD_k = qDD_k_T + qDD_N_post2;
   % Teste die Beschleunigung (darf die Zwangsbedingungen nicht verändern)
   if debug
     % Das wäre eigentlich gar nicht notwendig, wenn die Beschleunigung
