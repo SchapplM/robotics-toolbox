@@ -18,12 +18,13 @@
 %   Kombinationen
 % * Roboter in Startpose (Nr. 2)
 % * Beingelenke nach Trajektorien-IK mit verschiedenen Methoden (Nr. 11-14)
-% * Zielfunktionen im Verlauf der Trajektorie (Nr. 20)
-% * Plattformbewegung (Nr. 21)
-% * Zielfunktionen im Verlauf der Trajektorie mit Brute-Force-Opt. (Nr. 22)
+% * Zielfunktionen im Verlauf der Trajektorie (Nr. 20-22)
+% * Plattformbewegung (Nr. 24)
+% * Zielfunktionen im Verlauf der Trajektorie mit Brute-Force-Opt. (Nr. 28)
 % * Alle Gelenkwinkel mit Brute-Force-Opt. des red. FG (Nr. 23)
 % * Animation des Roboters in Trajektorie (Nr. 31-34)
-% * Konsistenz von Position/Geschwindigkeit/Beschleunigung (Nr. 41-44,51-54,61,64)
+% * Konsistenz von Position/Geschwindigkeit/Beschleunigung (Nr. 41ff,51ff,61ff)
+% * Verlauf von Pos./Geschw./Beschl. aller Methoden in einem Bild (Nr. 71-73)
 % 
 %
 % Siehe auch: 
@@ -47,7 +48,8 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 %% Definitionen, Benutzereingaben
-short_traj = true; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen
+short_traj = false; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen
+usr_create_anim = false; % Zum Erstellen von Animationen der Trajektorien
 eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
 test_class_methods = true; % Zusätzlich zweite Implementierung rechnen
 debug_plot = false;
@@ -70,7 +72,6 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   %% Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
   if robnr == 1
     RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
-    RP.phi_P_B_all = zeros(3,6);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     % Nachbearbeitung einiger Kinematikparameter
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.6;
@@ -80,7 +81,6 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     end
   elseif robnr == 2
     RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 1.0, 0.2);
-    RP.phi_P_B_all = zeros(3,6);
   elseif robnr == 3
     RP = parroblib_create_robot_class('P6PRRRRR6V2G8P1A1', [0.8;0.3;pi/3], 0.2);
     pkin_6_PUS = zeros(length(RP.Leg(1).pkin),1); % Namen, siehe RP.Leg(1).pkin_names
@@ -205,13 +205,9 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     RP.Leg(i).qlim = qlim_i;
   end
   % qlim für gesamte PKM festlegen
-  qlim = NaN(RP.NJ,2);
-  J1 = 1;
-  for i = 1:RP.NLEG
-    J2 = J1+RP.Leg(i).NQJ-1;
-    qlim(J1:J2,:) = RP.Leg(i).qlim;
-    J1 = J2+1;
-  end
+  qlim = cat(1, RP.Leg.qlim);
+  qDlim = cat(1, RP.Leg.qDlim);
+  qDDlim = cat(1, RP.Leg.qDDlim);
   %% Initialisierung Teil 2
   % Roboter auf 3T2R einstellen
   RP.update_EE_FG(I_EE_full, I_EE_red);
@@ -250,7 +246,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   
   %% Eckpunkte für Beispiel-Trajektorie bestimmen und IK prüfen
   % IK-Grundeinstellungen
-  s = struct('Phit_tol', 1e-9, 'Phir_tol', 1e-9, ...
+  s = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ... % sehr genau rechnen
     'maxstep_ns', 1e-5, ... % Schrittweite für Nullraum-Inkremente gering halten
     'wn', [0;1], ... % keine Vorgabe von K oder Kn (Standard-Werte)
     'scale_lim', 0.7, ...
@@ -318,7 +314,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
       % Prüfe nochmals die Richtigkeit mit anderer Modellierung
       x_i = RP.fkineEE_traj(q_i'); % tatsächliche EE-Drehung (Freiheitsgrad der Aufg.Red.)
       [~,Phi_i_voll] = RP.constr1(q_i, x_i(:));
-      assert(all(abs(Phi_i_voll)<1e-9), ...
+      assert(all(abs(Phi_i_voll)<1e-8), ...
         sprintf('Ergebnis der %s-IK (Parallel) ist falsch', I_EE_red_str));
       % Berechne die IK mit Seriell-Methode (zum Testen).
       [q_i_test, Phi_i_test] = RP.invkin_ser(XL(i,:)', qs, rmfield(s_ep,{'maxstep_ns','maxrelstep_ns'}));
@@ -363,14 +359,19 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
       RP.update_EE_FG(I_EE_full, I_EE_full); % keine Aufgabenredundanz
       s_ep_3T3R = s_ep; % Neue Konfiguration für Einzelpunkt-IK mit 3T3R
       s_ep_3T3R.scale_lim = 0; % Grenzen ignorieren. Gibt eh nur eine Lösung
-      qs_globopt = qs;
+      s_ep_3T3R.retry_limit = 0; % erster Versuch muss stimmen, da hier die Anfangswerte gut sind
+      qs_globopt = q_i_class;
       for j = 1:nsteps_angle % in 2-Grad-Schritten durchgehen
         x = XL(i,:)';
         x(6) = 360/nsteps_angle*(j-1)*pi/180; % EE-Drehung vorgeben
         [q_i_kls, Phi_i_kls] = RP.invkin4(x, qs_globopt, s_ep_3T3R);
         qs_globopt = q_i_kls;
         if max(abs(Phi_i_kls)) > 1e-6
-          error('Eckpunkt %d geht nicht', i);
+          % Diese Orientierung ist nicht erreichbar. Ist eigentlich kein
+          % Fehler, da technisch nicht jede Orientierung möglich ist.
+%           warning(['Eckpunkt %d geht nicht mit %s-IK für Rotationswinkel ', ...
+%             '%d/%d (%1.1f deg)'], i, I_EE_full_str, j, nsteps_angle, 180/pi*x(6));
+          continue; % Für nicht lösbare Posen wird die Lösung weiter unten verworfen
         end
         % Berechne Zielkriterien
         h1_go(i,j) = invkin_optimcrit_limits1(q_i_kls, qlim);
@@ -380,8 +381,8 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
         end
       end
       RP.update_EE_FG(I_EE_full, I_EE_red); % Aufgabenredundenz zurücksetzen
-      fprintf(['Eckpunkt %d/%d berechnet. Dauer %1.1fs (Globale Optimierung ', ...
-        '%s, Brute-Force).\n'], i, size(XL,1), toc(t3), I_EE_full_str);
+      fprintf(['Eckpunkt %d/%d berechnet. Dauer %1.1fs (Globale Optimierung %d Schritte, ', ...
+        '%s, Brute-Force).\n'], i, size(XL,1), toc(t3), nsteps_angle, I_EE_full_str);
     end
   end
   %% Plot: Zielfunktion für die Eckpunkte mit verschiedenen IK-Einstellungen
@@ -531,16 +532,13 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
         I_EE_Task_kk = I_EE_red;
       case 5
         name_method=sprintf('%s-IK mit pos. cond.-Opt.', I_EE_red_str);
-        s_kk.wn(1:4) = 0;
-        s_kk.wn(5) = 1e8; % Nur Konditionszahl verbessern
+        s_kk.wn(5) = 1; % Konditionszahl auch verbessern
         I_EE_Task_kk = I_EE_red;
       case 6
-        name_method=sprintf('%s-IK mit neg. cond.-Opt.', I_EE_red_str);
+        name_method=sprintf('%s-IK nur cond.-Opt.', I_EE_red_str);
         s_kk.wn(1:4) = 0;
-        s_kk.wn(5) = -1e8; % Konditionszahl testweise verschlechtern
+        s_kk.wn(5) = 100; % wird durch qDD-Grenze begrenzt
         I_EE_Task_kk = I_EE_red;
-%         name_method=sprintf('%s-IK simplify acc', I_EE_red_str);
-%         s_kk.simplify_acc = true;
       case 7
         name_method=sprintf('%s-IK', I_EE_full_str);
         I_EE_Task_kk = I_EE_full;
@@ -565,40 +563,72 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     Namen_Methoden{kk} = name_method;
     t1=tic();
     [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, qs_kk, s_kk);
-    fprintf('Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs\n', kk, name_method, toc(t1));
     I_err = abs(Phi_t_kk) > max(s_kk.Phit_tol,s_kk.Phir_tol);
+    % Prüfe, ob die Trajektorie vorzeitig abbricht. Das ist kein Fehler, da
+    % bei ungünstiger Parametrierung des IK-Algorithmus keine Lösung
+    % gefunden werden kann. Bei guter Parametrierung ist dann eine Lösung
+    % möglich.
+    n_iO = n; % Anzahl der i.O. Trajektorienpunkte
     if any(I_err(:))
       I1 = find(sum(I_err,2),1);
-      error('Fehler in Trajektorie zu groß. Zuerst bei Zeitschritt %d (t=%1.3fs). IK nicht berechenbar', I1, t(I1));
+      n_iO = I1-1; % Bis einen Punkt vor dem Fehler war es noch i.O.
+      warning(['Fehler in Trajektorie zu groß. Zuerst bei Zeitschritt %d/%d ', ...
+        '(t=%1.3fs). Traj.-IK nicht vollständig berechenbar'], I1, size(Q_t_kk,1), t(I1));
     end
+    fprintf(['Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs für %d/%d ', ...
+      'Bahnpunkte. %1.1fms pro i.O.-Punkt\n']', kk, name_method, toc(t1), n_iO, ...
+      n, 1e3*toc(t1)/n_iO);
     Q_t_all(:,:,kk) = Q_t_kk;
     QD_t_all(:,:,kk) = QD_t_kk;
     QDD_t_all(:,:,kk) = QDD_t_kk;
     % Das gleiche nochmal mit der Klassenmethode
     if test_class_methods
       t1=tic();
-      [Q_t_tpl, QD_t_tpl, QDD_t_tpl, Phi_t_kls] = RP.invkin_traj(X_t, XD_t, XDD_t, t, qs_kk, s_kk);
-      fprintf('Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs (Klassen-Methode)\n', kk, name_method, toc(t1));
+      [Q_t_tpl, QD_t_tpl, QDD_t_tpl, Phi_t_kls] = RP.invkin_traj( ...
+        X_t(1:n_iO,:), XD_t(1:n_iO,:), XDD_t(1:n_iO,:), t(1:n_iO), qs_kk, s_kk);
+      fprintf(['Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs für %d ', ...
+        'Bahnpunkte; %1.1fms pro Punkt (Klassen-Methode)\n'], kk, ...
+        name_method, toc(t1), n_iO, 1e3*toc(t1)/n_iO);
       if max(abs(Phi_t_kls(:))) > max(s.Phit_tol,s.Phir_tol)
         error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
       end
-      Phi_test = Phi_t_kk - Phi_t_kls;
-      Q_test = Q_t_kk - Q_t_tpl;
-      QD_test = QD_t_kk - QD_t_tpl;
-      QDD_test = QDD_t_kk - QDD_t_tpl;
+      Phi_test = Phi_t_kk(1:n_iO,:) - Phi_t_kls;
+      Q_test = Q_t_kk(1:n_iO,:) - Q_t_tpl;
+      QD_test = QD_t_kk(1:n_iO,:) - QD_t_tpl;
+      QDD_test = QDD_t_kk(1:n_iO,:) - QDD_t_tpl;
       if max(abs(Phi_test(:))) > 1e-6
+        % Debug-Plots für vergleich
+        figure(3000);clf;
+        ii = 0;
+        for i = 1:RP.NLEG
+          for j = 1:RP.Leg(i).NJ
+            ii = ii + 1;
+            subplot(RP.NLEG,RP.Leg(1).NJ,sprc2no(RP.NLEG, RP.Leg(1).NJ, i, j));
+            hold on; grid on;
+            stairs(t(1:n_iO), QDD_t_tpl(1:n_iO,ii));
+            stairs(t(1:n_iO), QDD_t_kk(1:n_iO,ii), '--');
+            if j == 1, ylabel(sprintf('BK %d', i)); end
+            if i == 1, title(sprintf('qDD %d', j)); end
+          end
+        end
+        linkxaxes        
         error('Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Phi) passt nicht für invkin_traj vs invkin2_traj', kk);
       end
       if max(abs(Q_test(:))) > 1e-6
         I_firstviol = find(any(abs(Q_test) > 1e-6,2), 1, 'first');
         Q_test(abs(Q_test) < 1e-6) = 0; % Zur besseren Erkennung der Abweichungen im Debug-Modus
-        error(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Q) passt nicht ', ...
+        warning(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (Q) passt nicht ', ...
           'für invkin_traj vs invkin2_traj. Zuerst in Zeitschritt %d'], kk, I_firstviol);
       end
       if max(abs(QD_test(:))) > 1e-6
         I_firstviol = find(any(abs(QD_test) > 1e-6,2), 1, 'first');
-        error(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QD) passt nicht ', ...
+        msg = sprintf(['Traj.-IK Fall %d: IK-Ergebnis der Trajektorie (QD) passt nicht ', ...
           'für invkin_traj vs invkin2_traj. Zuerst in Zeitschritt %d'], kk, I_firstviol);
+        if n_iO ~= n % Berechnung unvollständig. Daher am Ende Fehler möglich
+          warning(msg); %#ok<SPWRN>
+        else % Berechnung Fehlerfrei bis zum Ende. Bei Abweichung Fehler.
+          error(msg); %#ok<SPERR>
+        end
       end
       if max(abs(QDD_test(:))) > 1e-3
         I_firstviol = find(any(abs(QDD_test) > 1e-3,2), 1, 'first');
@@ -635,17 +665,13 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     H1D_all(:,:,kk) = h1D;
     H2D_all(:,:,kk) = h2D;
     % Zielfunktion für Konditionszahl
-    for jj = 1:length(t)
-      if any(isnan(Q_t_kk(jj,:)'))
-        warning('Trajektorie nur bis Zeitschritt %d/%d berechnet', jj, length(t));
-        break;
-      end
+    for jj = 1:n_iO
       % Konditionszahl der Gesamt-Matrix
       Phi_q = RP.constr3grad_q(Q_t_kk(jj,:)', X_t(jj,:)');
       Hcond_all(jj,1, kk) = cond(Phi_q);
       % Konditionszahl der Jacobi jeder einzelnen Beinkette
       for kkk = 1:RP.NLEG % Kriterien für jedes Bein einzeln berechnen
-        Hcond_all(jj,1+kkk, kk) = cond(RP.Leg(kkk).jacobig(Q_t_kk(ii,RP.I1J_LEG(kkk):RP.I2J_LEG(kkk))'));
+        Hcond_all(jj,1+kkk, kk) = cond(RP.Leg(kkk).jacobig(Q_t_kk(jj,RP.I1J_LEG(kkk):RP.I2J_LEG(kkk))'));
       end
     end
 
@@ -654,7 +680,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     II_BiKS = i_BiKS:(RP.Leg(1).NL+1):(1+(RP.Leg(1).NL+1)*RP.NLEG);
     X_ist = NaN(n,6*RP.NLEG);
     Q_t = Q_t_all(:,:,kk);
-    for i = 1:n
+    for i = 1:n_iO
       Tc_ges = RP.fkine(Q_t(i,:)', NaN(6,1));
       % Schnitt-KS aller Beinketten bestimmen
       T_Bi = Tc_ges(:,:,II_BiKS);
@@ -713,7 +739,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     QD_diff = [diff(QD)./repmat(diff(t),1,size(QDD,2));NaN(1,size(QDD,2))];
     % Vergleiche die Verläufe graphisch: Position
     change_current_figure(100*robnr+40+kk);clf;
-    set(100*robnr+40+kk, 'Name', sprintf('Rob%d_Kons_q_qD_M%d', robnr, kk), 'NumberTitle', 'off');
+    set(100*robnr+40+kk, 'Name', sprintf('Rob%d_M%d_Kons_q_qD', robnr, kk), 'NumberTitle', 'off');
     sgtitle(sprintf('Konsistenz q-int(qD) M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -734,7 +760,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     saveas(100*robnr+40+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
     % Vergleiche die Verläufe graphisch: Geschwindigkeit
     change_current_figure(100*robnr+50+kk);clf;
-    set(100*robnr+50+kk, 'Name', sprintf('Rob%d_Kons_qD_qDD_M%d', robnr, kk), 'NumberTitle', 'off')
+    set(100*robnr+50+kk, 'Name', sprintf('Rob%d_M%d_Kons_qD_qDD', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Konsistenz qD-int(qDD) M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -755,7 +781,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qD', robnr, kk)));
     % Vergleiche die Verläufe graphisch: Beschleunigung
     change_current_figure(100*robnr+60+kk);clf;
-    set(100*robnr+60+kk, 'Name', sprintf('Rob%d_Kons_qDD_M%d', robnr, kk), 'NumberTitle', 'off')
+    set(100*robnr+60+kk, 'Name', sprintf('Rob%d_M%d_Kons_qDD', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Konsistenz diff(qD)-qDD M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -787,7 +813,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     H2_t = H2_all(:,:,kk);
     % Zeichnen
     change_current_figure(100*robnr+10+kk);clf;
-    set(100*robnr+10+kk, 'Name', sprintf('Rob%d_Beine_M%d', robnr, kk), 'NumberTitle', 'off')
+    set(100*robnr+10+kk, 'Name', sprintf('Rob%d_M%d_Beine', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Trajektorie Q (Beine); %s', Name));
     axhdl = NaN(5,RP.NLEG);
     for i = 1:RP.NLEG
@@ -826,7 +852,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     linkxaxes
     remove_inner_labels(axhdl,'x')
     saveas(100*robnr+10+kk, fullfile(respath,sprintf( ...
-    'Rob%d_%s_Trajektorie_Beine_%s_M%d.fig',robnr, RP.mdlname, Name, kk)));
+    'Rob%d_M%d_%s_Trajektorie_Beine_%s.fig',robnr, kk, RP.mdlname, Name)));
   end
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
@@ -891,6 +917,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   leghdl=line_format_publication(hdl, format_mlines);
   legend(leghdl, Namen_Methoden);
   title('Konditionszahl (mögliche Opt. Zielf.)');
+  grid on; ylabel('cond(Phi_q)', 'interpreter', 'none');
 
   saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
   %% Trajektorie: Bild für Plattformbewegung
@@ -916,6 +943,55 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   saveas(100*robnr+24, fullfile(respath,sprintf( ...
     'Rob%d_%s_TrajX.fig',robnr, RP.mdlname)));
 
+  %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
+  for Dtype = 1:3
+    change_current_figure(100*robnr+70+Dtype); clf;
+    if     Dtype == 1, Dstring = ''; %#ok<ALIGN>
+    elseif Dtype == 2, Dstring = 'D';
+    elseif Dtype == 3, Dstring = 'DD'; end
+    set(100*robnr+70+Dtype, 'Name', sprintf('Rob%d_Q%s', robnr, Dstring), 'NumberTitle', 'off');
+    sgtitle(sprintf('Q %s', Dstring));
+    hdl = NaN(RP.NLEG,RP.Leg(1).NJ,length(Namen_Methoden));
+    axhdl = NaN(RP.NLEG,RP.Leg(1).NJ);
+    for kk = 1:length(Namen_Methoden)
+      Q = Q_t_all(:,:,kk);
+      QD = QD_t_all(:,:,kk);
+      QDD = QDD_t_all(:,:,kk);
+      ii = 0;
+      for i = 1:RP.NLEG
+        for j = 1:RP.Leg(i).NJ
+          ii = ii + 1;
+          axhdl(i,j)=subplot(RP.NLEG,RP.Leg(1).NJ,sprc2no(RP.NLEG, RP.Leg(1).NJ, i, j));
+          hold on; grid on;
+          if Dtype == 1
+            hdl(i,j,kk)=stairs(t, Q(:,ii));
+            plot(t([1,end]), repmat(RP.Leg(i).qlim(j,:),2,1), 'r-');
+            ylim([-0.1, +0.1]+qlim(ii,:));
+          elseif Dtype == 2
+            hdl(i,j,kk)=stairs(t, QD(:,ii));
+            plot(t([1,end]), repmat(RP.Leg(i).qDlim(j,:),2,1), 'r-');
+            ylim([-0.1, +0.1]+qDlim(ii,:));
+          elseif Dtype == 3
+            hdl(i,j,kk)=stairs(t, QDD(:,ii));
+            plot(t([1,end]), repmat(RP.Leg(i).qDDlim(j,:),2,1), 'r-');
+            ylim([-0.1, +0.1]+qDDlim(ii,:));
+          end
+          if j == 1, ylabel(sprintf('BK %d', i)); end
+          if i == 1, title(sprintf('q%s %d', Dstring, j)); end
+        end
+      end
+    end
+    linkxaxes
+    % Linien nachträglich neu formatieren (bessere Lesbarkeit)
+    for i = 1:RP.NLEG
+      for j = 1:RP.Leg(i).NJ
+        leghdl=line_format_publication(hdl(i,j,:), format_mlines);
+      end
+    end
+    remove_inner_labels(axhdl,1);
+    legend(leghdl, Namen_Methoden);
+    saveas(100*robnr+70+Dtype, fullfile(respath,sprintf('Rob%d_Q%s', robnr, Dstring)));
+  end
   %% Ergebniss speichern
   save(fullfile(respath,sprintf('Rob%d_%s_result.mat',robnr,RP.mdlname)));
 
@@ -1009,11 +1085,12 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   
   
   %% Animation des bewegten Roboters
+  if usr_create_anim
   RP.I_EE_Task = I_EE_red; % zum Zeichnen, damit x(6) ignoriert wird
   for kk = 1:length(Namen_Methoden)
     Q_t = Q_t_all(:,:,kk);
     Name = Namen_Methoden{kk};
-    anim_filename = fullfile(respath, sprintf('Rob%d_%s_M%d_%s',robnr,RP.mdlname, kk, Name));
+    anim_filename = fullfile(respath, sprintf('Rob%d_M%d_%s_%s',robnr, kk,RP.mdlname, Name));
     s_anim = struct( 'gif_name', [anim_filename,'.gif'], ...
                      'mp4_name', [anim_filename,'.mp4'] );
     s_plot = struct( 'ks_legs', [], 'straight', 0);
@@ -1025,9 +1102,14 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
     axis auto
     hold on;grid on;
     xlabel('x in m');ylabel('y in m');zlabel('z in m');
+    title(Namen_Methoden{kk});
     plot3(X_t(:,1), X_t(:,2), X_t(:,3));
-    RP.anim( Q_t, X_t, s_anim, s_plot);
+    maxduration_animation = 10; % Dauer der Animation als mp4 (in s)
+    t_Vid = (0:1/30*(t(end)/maxduration_animation):t(end))';
+    I_anim = knnsearch( t , t_Vid ); % Berechne Indizes in Traj.-Zeitstempeln
+    RP.anim( Q_t(I_anim,:), X_t(I_anim,:), s_anim, s_plot);
     fprintf('Animation der Bewegung gespeichert: %s\n', s_anim.gif_name);
+  end
   end
 
   fprintf('Test für %s beendet\n',RP.mdlname);
