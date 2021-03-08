@@ -22,16 +22,8 @@ function [Phipx_red, Phipx] = constr3grad_rt(Rob)
 % Die Translation hat keinen Einfluss auf die Rotation
 % Gl. (A.3); [2_SchapplerTapOrt2019a]/(35) (unten links)
 Phipx = zeros(3*Rob.NLEG,3);
-%% ---- Berechne die Anzahl der Fuherungsbeine
-leading_chain = 0;
-for ii = 1: Rob.NLEG
-    if(all(Rob.Leg(ii).I_EE_Task == logical([1 1 1 1 1 0])) )
-        leading_chain = leading_chain + 1;
-    end
-end
-%% --- Anteil der Zwangsbedingungen  
-if (all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))) 
-    Phipx_red = zeros( sum(Rob.I_EE(1:3))*Rob.NLEG - leading_chain, sum(Rob.I_EE(1:3)) );
-else
-    Phipx_red = zeros( sum(Rob.I_EE(1:3))*Rob.NLEG, sum(Rob.I_EE(1:3)) );
-end
+%% Berechne Dimension der reduzierten Ausgabe
+Leg_I_EE_Task = cat(1,Rob.Leg(:).I_EE_Task);
+rownum_Phipq_red = sum(Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
+Phipx_red = zeros(rownum_Phipq_red, sum(Rob.I_EE(1:3)));

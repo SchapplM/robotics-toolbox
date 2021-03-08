@@ -13,7 +13,7 @@
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
 % q0 [Nx1]
 %   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
-% s
+% s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 % 
 % Ausgabe:
@@ -44,7 +44,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, q0, s)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, q0, s_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
@@ -55,14 +55,11 @@ assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
 %% Definitionen
 % Variablen zum Speichern der Zwischenergebnisse
 sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
-K = 1.0*ones(Rob.NJ,1);
-% K(sigma_PKM==1) = 0.5; % Verstärkung für Schubgelenke kleiner
-
-s_std = struct(...
-  'K', K, ... % Verstärkung Aufgabenbewegung
+s = struct(...
+  'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
-  'maxstep_ns', 1e-10*ones(Rob.NJ,1), ... % Maximale Schrittweite für Nullraum zur Konvergenz
+  'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
   'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
@@ -75,15 +72,15 @@ s_std = struct(...
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
   'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
   'retry_limit', 100); % Anzahl der Neuversuche
-if nargin < 4
-  % Keine Einstellungen übergeben. Standard-Einstellungen
-  s = s_std;
-end
-% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
-% Eingabe nicht gesetzt
-for f = fields(s_std)'
-  if ~isfield(s, f{1})
-    s.(f{1}) = s_std.(f{1});
+if nargin == 4
+  % Prüfe Felder der Einstellungs-Struktur und belasse Standard-Werte, 
+  % falls Eingabe nicht gesetzt
+  for f = fields(s_in)'
+    if isfield(s, f{1}) % Feld in Eingabe gesetzt
+      s.(f{1}) = s_in.(f{1});
+    else
+      error('Feld %s aus s_in kann nicht übergeben werden', f{1});
+    end
   end
 end
 
@@ -142,7 +139,7 @@ delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
-I_IK = Rob.I_constr_red;
+
 % Gradient von Nebenbedingung 3
 h3dq = NaN(1,Rob.NJ);
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
@@ -164,15 +161,13 @@ end
 %% Iterative Lösung der IK
 for rr = 0:retry_limit
   q1 = q0;
-  [~,Phi_voll] = Rob.constr3(q1, xE_soll);
-  Phi = Phi_voll(I_IK);
+  Phi = Rob.constr3(q1, xE_soll);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
-    [~,Jik_voll]=Rob.constr3grad_q(q1, xE_soll);
-    Jik = Jik_voll(I_IK,:);
+    Jik=Rob.constr3grad_q(q1, xE_soll);
 
     %% Nullstellensuche für Positions- und Orientierungsfehler
     condJ = cond(Jik);
@@ -215,8 +210,7 @@ for rr = 0:retry_limit
         for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          [~,Jik_voll_kkk]=Rob.constr3grad_q(q_test, xE_soll);
-          Jik_kkk = Jik_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
           condJ_kkk = cond(Jik_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
@@ -320,10 +314,9 @@ for rr = 0:retry_limit
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
-    [~,Phi_voll] = Rob.constr3(q2, xE_soll);
+    [Phi_neu, Phi_voll] = Rob.constr3(q2, xE_soll);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numberisch teilweise keine Verbesserung möglich.
-    Phi_neu = Phi_voll(I_IK);
     Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
              all(abs(Phi_neu(I_constr_r_red)) < Phir_tol);
     if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
@@ -352,7 +345,7 @@ for rr = 0:retry_limit
       h_alt = h;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
-      Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      Phi = Phi_neu;
       rejcount = 0;
     else
       % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.

@@ -63,13 +63,16 @@ NJ = Rob.NJ;
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Endergebnis, siehe Gl. (B.30)
+Leg_I_EE_Task = cat(1,Rob.Leg(:).I_EE_Task);
+rownum_Phipq_red = sum(Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 if ~Rob.issym
   Phipq = zeros(3*NLEG,NJ);
-  Phipq_red = zeros(sum(Rob.Leg(1).I_EE_Task(4:6))+3*(NLEG-1),NJ);
+  Phipq_red = zeros(rownum_Phipq_red,NJ);
 else
   Phipq = sym('phi', [3*NLEG,NJ]);
   Phipq(:)=0;
-  Phipq_red = sym('phi', [sum(Rob.Leg(1).I_EE_Task(4:6))+3*(NLEG-1),NJ]);
+  Phipq_red = sym('phi', [rownum_Phipq_red,NJ]);
   Phipq_red(:)=0;
 end
 
@@ -164,7 +167,7 @@ for iLeg = 1:NLEG
     % Unabhängig vom Roboter (nur von Orientierungsdarstellung)
     dphidRb = eul_diff_rotmat(R_Ex_Eq, phiconv_W_E_reci);
     dDphidRb =  eulD_diff_rotmat(R_Ex_Eq, RD_Ex_Eq, phiconv_W_E_reci);
-    %% Gesamtergebnis
+    %% Gesamtergebnis (für Führungskette)
     % Gl. [2_SchapplerTapOrt2019a]/(34)
     PhiD_phi_i_Gradq = dphidRb * dDPidRb1 * dRb_0E_dq + ...  % A  * BD * C
                      dphidRb  * dPidRb1 * dDRb_0E_dq + ... % A  * B  * CD
@@ -176,13 +179,16 @@ for iLeg = 1:NLEG
     J2 = Rob.I2J_LEG(iLeg); % so viele Einträge wie Beine in der Kette
     Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
 
-    K2 = K1+sum(Rob.I_EE_Task(4:6))-1; % zwei oder drei rotatorische Einträge
-    if all(Rob.I_EE_Task(4:6) == [1 1 0])
-      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
-    else
-      % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-      % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(Rob.I_EE(4:6),:); % Nur 2 Komponenten: 2(Y) und 3(Z)  
+    K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1; % zwei oder drei rotatorische Einträge
+    if all(Leg_I_EE_Task(iLeg,4:6) == [1 1 0])
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(X)
+    elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
+      % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
+    elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+      % ebene Rotation (nicht-redundanter Fall).
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(1,:); % nur 1. Eintrag (Z)
+    else % allgemeiner Fall (3T3R-PKM, aber auch 3T0R-PKM mit 3T3R-ZB der Beine)
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq; % alle drei Einträge
     end
     K1 = K2+1;
   elseif iLeg > 1 % ZB für Folgekette
@@ -241,7 +247,7 @@ for iLeg = 1:NLEG
     % Term II in [2_SchapplerTapOrt2019a]/(39)
     P_T = [1 0 0 0 0 0 0 0 0; 0 0 0 1 0 0 0 0 0; 0 0 0 0 0 0 1 0 0; 0 1 0 0 0 0 0 0 0; 0 0 0 0 1 0 0 0 0; 0 0 0 0 0 0 0 1 0; 0 0 1 0 0 0 0 0 0; 0 0 0 0 0 1 0 0 0; 0 0 0 0 0 0 0 0 1;];
 
-    %% Gesamtergebnisse
+    %% Gesamtergebnisse (für Folgekette)
     % [2_SchapplerTapOrt2019a]/(39); Gl. (D.24);
     % Ableitung nach Gelenkwinkeln der Führungskette
     PhiD_phi_i_Gradq_L = dphidRbL * P_T * dDPidRb2f * dRb_0L_dq_L + ...  % A * P_T * BD * C
@@ -264,9 +270,17 @@ for iLeg = 1:NLEG
     % Ableitung nach den Gelenkwinkeln der Folgekette
     Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq_f;
 
-    K2 = K1+2;
-    Phipq_red(K1:K2,G1:G2) = PhiD_phi_i_Gradq_L;
-    Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq_f;
+    K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1;
+    if all(Leg_I_EE_Task(iLeg,4:6) == [1 1 1])
+      Phipq_red(K1:K2,G1:G2) = PhiD_phi_i_Gradq_L; % alle 3 Einträge
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq_f;
+    elseif all(Leg_I_EE_Task(iLeg,4:5) == [0 0]) % ebene Rotation
+      % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
+      Phipq_red(K1:K2,G1:G2) = PhiD_phi_i_Gradq_L(1,:); % nur 1. Eintrag (Z)
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq_f(1,:);
+    else
+      error('Fall nicht vorgesehen');
+    end
     K1 = K2+1;
   end
 end

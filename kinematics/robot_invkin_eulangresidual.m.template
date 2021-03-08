@@ -210,11 +210,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           condJ_kkk = cond(Jdk_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-          % maximal große Sprünge der Gelenkwinkel).
-          hdq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
+          % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort zu gering.
+          hdq(kkk) = (condJ_kkk-condJ)/1e-6;
         end
         v = v - wn(3)*hdq';
-        h(3) = log(condJ);
+        h(3) = condJ;
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       delta_q_N(:) = (eye(NQJ) - pinv(Jdk)* Jdk) * v; % "(:)" notwendig für mex
@@ -290,6 +290,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
 
     if any(isnan(q2)) || any(isinf(q2))
+      if nargout == 4
+        Stats.iter = jj;
+      end
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
@@ -337,6 +340,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if condJ <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
        rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
+        if nargout == 4
+          Stats.iter = jj;
+        end
         break;
       end
     end
@@ -355,7 +361,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         nsoptim && all(abs(delta_q_N) < 1e-5) ) % oder die Nullraumoptimierung läuft noch
       success = true;
       if nargout == 4
-        Stats.iter = jj;
+        Stats.iter = jj; % muss hier zugewiesen werden (für mex)
       end
       break;
     end

@@ -49,8 +49,8 @@ if nargin == 5, platform_frame = false; end
 
 %% Initialisierung mit Fallunterscheidung für symbolische Eingabe
 % Sortierung der ZB-Zeilen in den Matrizen nach Beingruppen, nicht nach ZB-Art
-dim_Pq_red=[size(PhiD_tq_red,1) + size(PhiD_rq_red ,1), size(PhiD_rq_red,2)];
-dim_Pq =   [size(PhiD_tq,1)     + size(PhiD_rq,1),      size(PhiD_rq,    2)];
+dim_Pq_red=[size(PhiD_tq_red,1) + size(PhiD_rq_red,1), size(PhiD_rq_red,2)];
+dim_Pq =   [size(PhiD_tq,1)     + size(PhiD_rq,1),     size(PhiD_rq,2)];
 
 if ~Rob.issym
   PhiD_q_red = NaN(dim_Pq_red);
@@ -62,30 +62,23 @@ else
   PhiD_q(:)=0;
 end
 
-% Anzahl ZB
-% TODO: Das funktioniert wahrscheinlich nicht bei allen asymmetrischen PKM,
-% falls planare Roboter modelliert werden.
-nPhit = floor(size(PhiD_tq_red,1)/Rob.NLEG);
-nPhir = floor((size(PhiD_rq_red ,1))/Rob.NLEG);
-nPhi = nPhit + nPhir;
-
 %% Belegung der Ausgabe
+Leg_I_EE_Task = cat(1,Rob.Leg(:).I_EE_Task);
+nPhit = sum(Rob.I_EE_Task(1:3));
+K1 = 1;
+J1 = 1;
 for i = 1:Rob.NLEG
-  if all(Rob.I_EE_Task == [1 1 1 1 1 0])
-    if i == 1 % Führungskette: Reduzierte FG um Rotation
-      PhiD_q_red(1:5, :) = ...
-        [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-         PhiD_rq_red(1:2, :)];
-    else % Folgekette: Alle weiteren Ketten 6 Zwangsbedingungen
-      PhiD_q_red(6+6*(i-2):5+6*(i-1), :) = ...
-        [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-         PhiD_rq_red(3+3*(i-2):5+3*(i-2), :)];
-    end
-  else
-    PhiD_q_red((i-1)*nPhi+1:(i)*nPhi, :) = ...
-      [PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :); ...
-       PhiD_rq_red((i-1)*nPhir+1:(i)*nPhir, :)];
-  end
+  % Zuordnung der reduzierten Zwangsbedingungen zu den Beinketten
+  K2 = K1+sum(Leg_I_EE_Task(i,4:6))-1;
+  % Eintrag für Beinkette zusammenstellen
+  PhiD_tq_red_i = PhiD_tq_red((i-1)*nPhit+1:(i)*nPhit, :);
+  PhiD_rq_red_i = PhiD_rq_red(K1:K2,:);
+  PhiD_q_red_i = [PhiD_tq_red_i; PhiD_rq_red_i];
+  PhiD_q_red(J1:J1+size(PhiD_q_red_i,1)-1,:) = PhiD_q_red_i;
+  J1 = J1 + size(PhiD_q_red_i,1);
+  K1 = K2+1;
+  
+  % Zuweisung der vollständigen Zwangsbedingungen (6 pro Beinkette)
   PhiD_q((i-1)*6+1:(i)*6, :) = ...
     [PhiD_tq((i-1)*3+1:(i)*3, :); ...
      PhiD_rq((i-1)*3+1:(i)*3, :)];

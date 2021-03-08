@@ -48,13 +48,16 @@ if nargin == 3, platform_frame = false; end
 % Endergebnis: [2_SchapplerTapOrt2019a]/(36, 37); Gl. (C.35)
 
 % Initialisierung mit Fallunterscheidung für symbolische Eingabe
+Leg_I_EE_Task = cat(1,Rob.Leg(:).I_EE_Task);
+rownum_Phipq_red = sum(Leg_I_EE_Task(1,4:6))+... % für Führungskette
+  sum(sum(Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 if ~Rob.issym
   Phipphi = zeros(3*NLEG,3);
-  Phipphi_red = zeros( sum(Rob.I_EE(1:3))*NLEG -1 , sum(Rob.I_EE(4:6)) ); % nur fuer 3T2R gedacht
+  Phipphi_red = zeros( rownum_Phipq_red, sum(Rob.I_EE(4:6)) ); % nur fuer 3T2R gedacht
 else
   Phipphi = sym('xx',     [3*NLEG,3]);
   Phipphi(:)=0;
-  Phipphi_red = sym('xx', [sum(Rob.I_EE(1:3))*NLEG -1, sum(Rob.I_EE(4:6))]); % nur fuer 3T2R gedacht
+  Phipphi_red = sym('xx', [rownum_Phipq_red, sum(Rob.I_EE(4:6))]); % nur fuer 3T2R gedacht
   Phipphi_red(:)=0;
 end
 %% Berechnung
@@ -65,7 +68,7 @@ else
 end
 R_0_E_x = eul2r(xE(4:6), Rob.phiconv_W_E);
 [~,phiconv_W_E_reci] = euler_angle_properties(Rob.phiconv_W_E);
-
+K1 = 1;
 for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTapOrt2019a]/(37)
   IJ_i = Rob.I1J_LEG(iLeg):Rob.I2J_LEG(iLeg);
   qs = q(IJ_i); % Gelenkwinkel dieser Kette
@@ -124,13 +127,16 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   Phipphi(J1:J2,:) = Phi_phi_i_Gradx;
   
   % Ausgabe mit reduzierter Dimension
-  % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-  % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
-  K1 = 1+sum(Rob.I_EE(4:6))*(iLeg-1);
-  K2 = K1+sum(Rob.I_EE_Task(4:6))-1;
-  if all(Rob.Leg(iLeg).I_EE_Task == logical([1 1 1 1 1 0]))
-    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6));
+  K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1;
+  if all(Leg_I_EE_Task(iLeg,4:6) == logical([1 1 0]))
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6)); % Nur 2 Komponenten: 2(Y) und 3(X)
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == logical([0 0 0]))
+    % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+    % ebene Rotation (nicht-redundanter Fall).
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(1,Rob.I_EE(4:6)); % nur 1. Eintrag (Z)
   else
-    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(Rob.I_EE(4:6),Rob.I_EE(4:6));
+    Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(:,Rob.I_EE(4:6)); % alle drei Einträge
   end
+  K1 = K2+1;
 end

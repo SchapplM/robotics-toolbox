@@ -55,7 +55,6 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob,
 
 %% Initialisierung
 s_std = struct( ...
-  'I_EE', Rob.I_EE_Task, ... % FG für die IK
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
   'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
@@ -74,11 +73,23 @@ end
 debug = s.debug;
 I_EE = Rob.I_EE_Task;
 mode_IK = s.mode_IK;
-dof_3T2R = false;
+taskred_rot = false;
 
-if all(s.I_EE == logical([1 1 1 1 1 0]))
+if any(s.wn ~= 0) && sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+  % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
+  % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
+  nsoptim = true;
+else
+  % Keine zusätzlichen Optimierungskriterien
+  nsoptim = false;
+end
+if Rob.I_EE(6) && ~ Rob.I_EE_Task(6)
+  taskred_rot = true;
+end
+if all(Rob.I_EE == [1 1 1 1 1 0])
   dof_3T2R = true;
-  I_EE = s.I_EE;
+else
+  dof_3T2R = false;
 end
 
 if nargout == 6
@@ -95,17 +106,12 @@ Q = NaN(nt, Rob.NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
+% Definition der Jacobi-Matrix.
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
-% Aufgaben-FG. Ist besonders für 3T2R relevant. Hier ist die Jacobi-Matrix
+% Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  % nur für aufgabenredundante 3T3R-PKM
-  Jinv_ges = NaN(nt, 6*Rob.NJ);
-  JinvD_ges = zeros(nt, 6*Rob.NJ);
-else
-  Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-  JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
-end
+Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
+JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
 % Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(Rob.NJ,1);
@@ -141,7 +147,7 @@ s_pik = struct(...
 
 % Eingabe s_inv3 struktuieren
 s_inv3 = s_pik;
-s_inv3.maxstep_ns = 0*ones(Rob.NJ,1); % hat keine Wirkung
+s_inv3.maxstep_ns = 0; % hat keine Wirkung
 s_inv3.maxrelstep_ns = 0.005; % hat keine Wirkung
 for f = fields(s_inv3)'
   if isfield(s, f{1}) && ~strcmp(f{1}, 'wn')
@@ -159,6 +165,15 @@ end
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
+if ~all(isnan(qlim(:)))
+  limits_q_set = true;
+  qmin = qlim(:,1);
+  qmax = qlim(:,2);
+else
+  limits_q_set = false;
+  qmin = -inf(Rob.NJ,1);
+  qmax =  inf(Rob.NJ,1);
+end
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
   qDmin = qDlim(:,1);
@@ -178,29 +193,14 @@ else
   qDDmax =  inf(Rob.NJ,1);
 end
 wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
-if any(wn ~= 0)
-  nsoptim = true;
-else
-  % Keine zusätzlichen Optimierungskriterien
-  nsoptim = false;
-end
+
 % Vergleiche FG der Aufgabe und FG des Roboters
-if ~dof_3T2R
-  % TODO: Hier noch echte Prüfung der FG des Roboters oder detailliertere
-  % Fallunterscheidungen notwendig.
-  nsoptim = false;
+if ~nsoptim
   % Deaktiviere limits_qD_set, wenn es keinen Nullraum gibt
   limits_qD_set = false;
-elseif all(Rob.I_EE == [1 1 1 1 1 0])
-  % Strukturelle 3T2R-PKM: Es gibt keinen Nullraum
-  limits_qD_set = false; % qD nicht beeinflussbar
 end
 % Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
-if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
-  JD_x_inv = NaN(Rob.NJ,6); % konsistent zur obigen Initialisierung von JinvD_ges
-else
-  JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
-end
+JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
 Phi_q_voll_alt = zeros(6*Rob.NLEG, Rob.NJ);
 Phi_qD_voll = Phi_q_voll_alt;
@@ -243,33 +243,33 @@ for k = 1:nt
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
-  if ~dof_3T2R
+  if ~taskred_rot && ~dof_3T2R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen constr1...)
     Phi_q = Rob.constr4grad_q(q_k);
     Phi_x = Rob.constr4grad_x(x_k);
     J_x_inv = -Phi_q \ Phi_x;
-  else % aufgabenredundante 3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
+  else % aufgabenredundante 2T1R/3T1R/3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
     [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
     Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
-    if all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+    if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
-      J_x_inv = -Phi_q_voll \ Phi_x_voll;
-    else % PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
+      J_x_inv = -Phi_q_voll \ Phi_x_voll(:,Rob.I_EE);
+    else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
     end
   end
   if ~(nsoptim || limits_qD_set)
-    if ~dof_3T2R || ... % beliebige PKM (3T0R, 3T1R, 3T3R)
-        ~all(Rob.I_EE == [1 1 1 1 1 1]) % beliebige 3T2R-PKM
+    if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
+        dof_3T2R % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
     else
       % Bei Aufgabenredundanz ist J_x_inv anders definiert
       qD_k = -Phi_q \ Phi_x * xD_k(I_EE);
     end
-  else % Nullraum Optimierung
+  else % Nullraum-Optimierung
     % Korrekturterm für Linearisierungsfehler. Für PhiD_pre=0 entsteht die
     % normale inverse differentielle Kinematik. Mit dem Korrekturterm
     % bleibt die Geschwindigkeit konsistent zur Nullraumbewegung aus der
@@ -292,7 +292,7 @@ for k = 1:nt
     if k > 1 % linksseitiger Differenzenquotient
       Phi_qD = (Phi_q - Phi_q_alt)/(T(k)-T(k-1));
       Phi_xD = (Phi_x - Phi_x_alt)/(T(k)-T(k-1));
-      if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1])
+      if taskred_rot
         Phi_qD_voll = (Phi_q_voll - Phi_q_voll_alt)/(T(k)-T(k-1));
         Phi_xD_voll = (Phi_x_voll - Phi_x_voll_alt)/(T(k)-T(k-1));
       end
@@ -303,7 +303,7 @@ for k = 1:nt
       Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
-    if ~dof_3T2R
+    if ~taskred_rot && ~dof_3T2R
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
@@ -316,11 +316,12 @@ for k = 1:nt
   % quotienten genauer, wenn JD_x_inv über Phi_qD und Phi_xD gebildet wird
   % und nicht über einen eigenen Differenzenquotienten.
   if nargout >= 6
-    if dof_3T2R && all(Rob.I_EE == [1 1 1 1 1 1]) % Aufgabenredundanz
+    if taskred_rot % Aufgabenredundanz
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll) - Phi_xD_voll);
+      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll(:,Rob.I_EE))...
+        -Phi_xD_voll(:,Rob.I_EE));
     else % alle anderen
       JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
@@ -346,6 +347,10 @@ for k = 1:nt
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
   end
+  % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
+  % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
+  qDD_N_min = qDDmin - qDD_k_T;
+  qDD_N_max = qDDmax - qDD_k_T;
   if nsoptim % Nullraumbewegung
     N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
     % Berechne Gradienten der zusätzlichen Optimierungskriterien
@@ -357,7 +362,6 @@ for k = 1:nt
     if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
       [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
       v = v - wn(2)*h2dq';
-      if any(isinf(h2dq)), warning('h2dq Inf'); return; end
     end
     if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
       [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
@@ -368,14 +372,14 @@ for k = 1:nt
       v = v - wn(4)*h4dq';
     end
     if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
-      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+      if any(abs(q_k-q_wn5) > 1*pi/180) % seltenere Berechnung (Rechenzeit)
         condPhi = cond(Phi_q);
         for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q_k; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           Phi_q_kkk = Rob.constr3grad_q(q_test, x_k);
           condPhi_kkk = cond(Phi_q_kkk);
-          h5dq(kkk) = (log(condPhi_kkk)-log(condPhi))/1e-6;
+          h5dq(kkk) = (condPhi_kkk-condPhi)/1e-6;
         end
         q_wn5 = q_k;
       end
@@ -387,14 +391,11 @@ for k = 1:nt
   end
   
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
-  % Grenzen erreicht werden. Wird vor der Anpassung der Beschleunigung zur
-  % Einhaltung der Geschwindigkeitsgrenzen gemacht, da Geschwindigkeit
-  % wichtiger als Beschleunigung ist.
+  % Grenzen erreicht werden. Sollte eigentlich nur hier gemacht werden,
+  % wird aber zur Verbesserung der Robustheit auch zusätzlich noch unten
+  % gemacht. Hat unten zur Folge, dass Verletzung von Positions- und
+  % Geschwindigkeitsgrenzen nicht mit allen Mitteln verhindert werden
   if nsoptim && limits_qDD_set
-    % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
-    % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
-    qDD_N_min = qDDmin - qDD_k_T;
-    qDD_N_max = qDDmax - qDD_k_T;
     delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
     delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
     if any([delta_ul_rel;delta_ll_rel] < 0)
@@ -410,7 +411,7 @@ for k = 1:nt
       qDD_N_pre = scale*qDD_N_pre;
     end
   end
-
+  
   if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
@@ -427,7 +428,7 @@ for k = 1:nt
         qDD_lim_I = (qDmin(I_worst)-qD_k(I_worst))/dt;
       end
       qD_pre_h = qD_pre;
-      qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
+      % qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
       [~, hdqD] = invkin_optimcrit_limits1(qD_pre_h, qDlim);
       qDD_N_h = N * (-hdqD');
       % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
@@ -438,14 +439,110 @@ for k = 1:nt
       % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
       qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
       qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+      
+      % Die Nullraumbewegung zur Vermeidung der Geschwindigkeitsgrenzen
+      % kann fehlschlagen, wenn die fragliche Geschwindigkeitskomponente
+      % nicht im Nullraum beeinflussbar ist. Daher nochmals Begrenzung der
+      % neuen Beschleunigung im Nullraum. 
+      delta_ul_rel = (qDD_N_max - qDD_N_post)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+      delta_ll_rel = (-qDD_N_min + qDD_N_post)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+      if any([delta_ul_rel;delta_ll_rel] < 0)
+        if min(delta_ul_rel)<min(delta_ll_rel)
+          % Verletzung nach oben ist die größere
+          [~,I_max] = min(delta_ul_rel);
+          scale = (qDD_N_max(I_max))/(qDD_N_post(I_max));
+        else
+          % Verletzung nach unten ist maßgeblich
+          [~,I_min] = min(delta_ll_rel);
+          scale = (qDD_N_min(I_min))/(qDD_N_post(I_min));
+        end
+        qDD_N_post = scale*qDD_N_post;
+      end
     else
       qDD_N_post = qDD_N_pre;
     end
   else
     qDD_N_post = qDD_N_pre;
   end
-  qDD_k = qDD_k_T + qDD_N_post;
-  
+
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
+  % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
+  if nsoptim && limits_q_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+    qDD_pre2 = qDD_k_T+qDD_N_post;
+    % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
+    qD_pre2 = qD_k + qDD_pre2*dt;
+    q_pre2 = q_k + qD_pre2*dt + 0.5*qDD_pre2*dt^2;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden
+    delta_ul = (qmax - q_pre2); % Überschreitung der Maximalwerte: <0
+    delta_ll = (-qmin + q_pre2); % Unterschreitung Minimalwerte: <0
+    if any([delta_ul;delta_ll] < 0)
+      if min(delta_ul)<min(delta_ll)
+        % Verletzung nach oben ist die größere
+        [~,I_worst] = min(delta_ul);
+        qDD_lim_I = 2/dt^2*(qmax(I_worst)-q_k(I_worst)-qD_pre2(I_worst)*dt);
+      else
+        % Verletzung nach unten ist maßgeblich
+        [~,I_worst] = min(delta_ll);
+        qDD_lim_I = 2/dt^2*(qmin(I_worst)-q_k(I_worst)-qD_pre2(I_worst)*dt);
+      end
+      q_pre_h = q_pre2;
+      [~, hdq] = invkin_optimcrit_limits1(q_pre_h, qlim);
+      % Dieser Beschleunigungsvektor liegt im Nullraum der Jacobi-Matrix
+      % (erfüllt also noch die Soll-Beschleunigung des Endeffektors).
+      % Der Vektor führt zu einer Reduzierung der Geschwindigkeit von den
+      % Grenzen weg
+      qDD_N_h = N * (-hdq');
+      % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
+      qDD_N_he = qDD_N_h/qDD_N_h(I_worst); % [3]/(5)
+      % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
+      % an der Grenze landet.
+      qDD_N_korr_I = -qDD_pre2(I_worst) + qDD_lim_I; % [3]/(7)
+      % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
+      qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
+      qDD_N_post2 = qDD_N_post+qDD_N_korr; % [3]/(6)
+      if false % Debug
+        Iutest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 > qmax + 1e-6;
+        Iltest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 < qmin - 1e-6;
+        if min(delta_ul)<min(delta_ll) && Iutest(I_worst)
+          error('Fehler bei Korrektur der Verletzung der Positions-Obergrenze');
+        end
+        if min(delta_ul)>min(delta_ll) && Iltest(I_worst)
+          error('Fehler bei Korrektur der Verletzung der Positions-Untergrenze');
+        end
+        if any(Iutest|Iltest)
+          warning(['Beim Versuch die Verletzung der Positions-Grenze fuer ', ...
+            'Gelenk %d zu vermeiden, wurde eine andere Grenze verletzt'], I_worst);
+        end
+      end
+      % Die Nullraumbewegung zur Vermeidung der Positionsgrenzen
+      % kann fehlschlagen, wenn die fragliche Gelenkwinkelkomponente
+      % nicht im Nullraum beeinflussbar ist. Daher nochmals Begrenzung der
+      % neuen Beschleunigung im Nullraum. 
+      delta_ul_rel = (qDD_N_max - qDD_N_post2)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
+      delta_ll_rel = (-qDD_N_min + qDD_N_post2)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
+      if any([delta_ul_rel;delta_ll_rel] < 0)
+        if min(delta_ul_rel)<min(delta_ll_rel)
+          % Verletzung nach oben ist die größere
+          [~,I_max] = min(delta_ul_rel);
+          scale = (qDD_N_max(I_max))/(qDD_N_post2(I_max));
+        else
+          % Verletzung nach unten ist maßgeblich
+          [~,I_min] = min(delta_ll_rel);
+          scale = (qDD_N_min(I_min))/(qDD_N_post2(I_min));
+        end
+        qDD_N_post2 = scale*qDD_N_post2;
+      end
+    else
+      % Keine Verletzung der Geschwindigkeitsgrenzen. Lasse
+      % Beschleunigung so wie sie ist
+      qDD_N_post2 = qDD_N_post;  
+    end
+  else
+    qDD_N_post2 = qDD_N_post;
+  end
+
+  qDD_k = qDD_k_T + qDD_N_post2;
   % Teste die Beschleunigung (darf die Zwangsbedingungen nicht verändern)
   if debug
     % Das wäre eigentlich gar nicht notwendig, wenn die Beschleunigung
@@ -453,16 +550,22 @@ for k = 1:nt
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
     if any(abs(PhiDD_korr) > max(1e-7, max(abs(qDD_k))/1e9)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
-      error(['Zeitschritt %d/%d: Beschleunigung ist nicht konsistent nach ', ...
+      if cond(Phi_q) > 1e8
+        % Dieser Teil sollte nicht ausgeführt werden müssen. Bei schlechter
+        % Konditionierung der Zwangsbedingungs-Gradienten notwendig.
+        % Nur beim Debuggen machen, da derartig schlecht konditionierte
+        % Roboter sowieso nicht simuliert werden sollten.
+        qDD_korr = Phi_q\PhiDD_korr;
+        qDD_k = qDD_k + qDD_korr;
+        % Nochmal testen
+        PhiDD_test2 = Phi_q*qDD_k + Phi_qD*qD_k + ...
+          Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
+        if any(abs(PhiDD_test2) > 1e-10)
+          error('Korrektur der Beschleunigung hat nicht funktioniert');
+        end
+      else
+        error(['Zeitschritt %d/%d: Beschleunigung ist nicht konsistent nach ', ...
         'Nullraumbewegung. Fehler %1.1e'], k, nt, max(abs(PhiDD_korr)));
-      % Dieser Teil sollte nicht ausgeführt werden müssen (s.o.)
-      qDD_korr = Phi_q\PhiDD_korr; %#ok<UNRCH>
-      qDD_k = qDD_k + qDD_korr;
-      % Nochmal testen
-      PhiDD_test2 = Phi_q*qDD_k + Phi_qD*qD_k + ...
-        Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
-      if any(abs(PhiDD_test2) > 1e-10)
-        error('Korrektur der Beschleunigung hat nicht funktioniert');
       end
     end
   end

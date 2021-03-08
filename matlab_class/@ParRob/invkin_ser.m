@@ -158,13 +158,14 @@ for i = 1:Rob.NLEG
     Stats.condJ(:,i) = Stats_i.condJ;
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
-  if all(Rob.I_EE_Task == logical([1 1 1 1 1 0])) && i == 1
+  if i == 1 && (Rob.I_EE(6) && ~Rob.I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt
+      all(Rob.I_EE == [1 1 1 1 1 0])) % Roboter hat strukturell 3T2R FG und constr3-Methode.
     if any(isnan(Phi_i))
       % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
       return
     end
-    % 3T2R und Führungskette. Die erste Beinkette gibt die EE-Ori für die
-    % anderen Beinketten vor.
+    % Aufgabenredundanz des Rotations-FG (3T2R, 2T0*R/3T0*R und Führungskette. 
+    % Die erste Beinkette gibt die EE-Ori für die anderen Beinketten vor.
     [~,T_0_Bi] = Rob.Leg(i).fkineEE(q_i);
     % Aktualisiere die EE-Transformation auf die resultierend aus Bein 1
     T_0_E = T_0_Bi * invtr(T_P_Bi) * T_P_E;
