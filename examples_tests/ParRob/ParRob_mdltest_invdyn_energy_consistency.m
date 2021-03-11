@@ -562,7 +562,8 @@ for i_FG = 1:size(EEFG_Ges,1)
         % Plattform-Pose neu berechnen (3. Euler-Winkel; eventuell bei
         % manchen PKM abhängig und ungleich Null)
         xP = RP.fkineEE_traj(q', [], [], 1, true)';
-        if any(isnan(q)) || any(abs(Phi) > 1e-6) || any(isnan(Phi))
+        if any(isnan(q)) ||   any(abs(Phi(RP.I_constr_t_red)) > s.Phit_tol) || ...
+           any(isnan(Phi)) || any(abs(Phi(RP.I_constr_r_red)) > s.Phir_tol)
           warning('i=%d/%d: IK kann nicht berechnet werden. Roboter verlässt vermutlich den Arbeitsraum.', i, nt);
           nt = i - 1;
           break
@@ -1060,6 +1061,7 @@ for i_FG = 1:size(EEFG_Ges,1)
       robot_list_fail = [robot_list_fail(:)', {PName}];
     end
     end % Schleife über jacobi_mode
+    %% Abbruchbedingung
     if num_robots_tested >= usr_num_tests_per_dof*2 % da jede PKM zwei mal getestet wird
       break; % Testen aller Roboter dauert sehr lange. Ergebnis für wenige reicht aus.
     end
@@ -1096,20 +1098,17 @@ for i_FG = 1:size(EEFG_Ges,1)
     warning('Nicht alle Vorwärts-Dynamik-Simulationen energetisch konsistent.');
     PKM_Success_Ratio = sum(ResStat.Success) / length(ResStat.Success);
     if all(EE_FG == [1 1 0 0 0 1])
-      % Nur bei einer einzigen PKM ist der Fehler gering genug. TODO: Warum?
-      warning('Aktuell keine verlässliche Prüfung der 2T1R-PKM. TODO: Fix.');
-%       I_test = strcmp(ResStat.Name, 'P3RPP1G1P1A1');
-%       if any(~ResStat.Success(I_test))
-%         error('Eine vorher als funktionierend markierte 2T1R-PKM ist nicht konsistent. Fehler.');
-%       end
+      % Alle PKM müssen funktionieren
+      error('Nicht alle PKM bei 2T1R energiekonsistent. Fehler.');
     elseif all(EE_FG == [1 1 1 0 0 0])
       % Alle PKM müssen funktionieren
       error('Nicht alle PKM bei 3T0R energiekonsistent. Fehler.');
     elseif all(EE_FG == [1 1 1 0 0 1])
-      % Nur eine PKM funktioniert aktuell nicht. TODO: Warum?
-      I_test = ~strcmp(ResStat.Name, 'P4PRRRR6V1G2P1A1');
-      if any(~ResStat.Success(I_test))
-        error('Eine vorher als funktionierend markierte 3T1R-PKM ist nicht konsistent. Fehler.');
+      % Alle PKM müssen funktionieren
+      error('Nicht alle PKM bei 3T1R energiekonsistent. Fehler.');
+    elseif all(EE_FG == [1 1 1 1 1 0])
+      if PKM_Success_Ratio < 0.5
+        error('Nicht mal die Hälfte der getesteten 3T2R-PKM ist energiekonsistent. Fehler?');
       end
     elseif all(EE_FG == [1 1 1 1 1 1])
       if PKM_Success_Ratio < 0.5
