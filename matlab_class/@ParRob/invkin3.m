@@ -71,6 +71,7 @@ s = struct(...
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
   'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
+  'finish_in_limits', false, ... % Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
   'retry_limit', 100); % Anzahl der Neuversuche
 if nargin == 4
   % Prüfe Felder der Einstellungs-Struktur und belasse Standard-Werte, 
@@ -89,7 +90,8 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-wn = [s.wn;zeros(3-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+s.wn = [s.wn;zeros(3-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
@@ -99,15 +101,20 @@ retry_limit = s.retry_limit;
 maxrelstep = s.maxrelstep;
 maxrelstep_ns = s.maxrelstep_ns;
 maxstep_ns = s.maxstep_ns;
+finish_in_limits = s.finish_in_limits;
+break_when_in_limits = false;
 success = false;
 
-if any(wn ~= 0) && sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+nsoptim = false;
+if sum(Rob.I_EE) > sum(Rob.I_EE_Task)
   % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
   % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
-  nsoptim = true;
+  if any(wn ~= 0)
+    nsoptim = true;
+  end
 else
   % Keine zusätzlichen Optimierungskriterien
-  nsoptim = false;
+  finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
 end
 
 qlim = NaN(Rob.NJ,2);
@@ -127,6 +134,7 @@ else
   qmin = -Inf(Rob.NJ,1);
   qmax =  Inf(Rob.NJ,1);
   retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  finish_in_limits = 0;
 end
 % Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
 % Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
@@ -134,7 +142,7 @@ end
 qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
-  
+
 delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
@@ -204,6 +212,10 @@ for rr = 0:retry_limit
       end
       if wn(2) ~= 0
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
+        % Setze den Gradienten auf eine sehr große Zahl, wenn eine Grenze
+        % überschritten wird. Die Nullraumbewegung wird später sowieso
+        % reduziert.
+        h2dq(q1>qlim(:,2)) = 1e10; h2dq(q1<qlim(:,1)) = -1e10;
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
@@ -370,6 +382,18 @@ for rr = 0:retry_limit
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
+    % Prüfe Abbruchbedingung für Einhaltung der Winkelgrenzen. Ist dies bei
+    % "finish_in_limits" der Fall, muss die IK nur noch konvergiert sein.
+    if break_when_in_limits && (all(q1 >= qlim(:,1)) && all(q1 <= qlim(:,2)))
+      delta_q_N(:) = 0; % unvollständige Nullraumbewegung wird hiernach ignoriert.
+      % hiernach dürfen die Grenzen nicht mehr verlassen werden (falls
+      % noch weitere Iterationen gemacht werden)
+      scale_lim = 0.7;
+      % Reduziere die Nullraumbewegung ab hier ganz stark. Damit können die
+      % Grenzen noch leicht nachkorrigiert werden, es dominiert aber die
+      % Aufgabenbewegung.
+      Kn = Kn*0.8;
+    end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
      && Phi_iO && ... % Haupt-Bedingung ist erfüllt
@@ -378,6 +402,18 @@ for rr = 0:retry_limit
       success = true;
       if nargout == 4
         Stats.iter = jj;
+      end
+      if finish_in_limits && (any(q1 < qlim(:,1)) || any(q1 > qlim(:,2)))
+        % Es soll eigentlich abgebrochen werden. Die Grenzen wurden aber 
+        % nicht eingehalten. Mache noch mit dem Algorithmus weiter und 
+        % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
+        finish_in_limits = false; % Modus ist damit aktiviert
+        nsoptim = true;
+        wn = [0;1;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
+        % wenn die Grenzen erreicht sind.
+        break_when_in_limits = true;
+        continue
       end
       break;
     end
