@@ -58,7 +58,7 @@ sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
 s = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
-  'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+  'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -90,7 +90,7 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-s.wn = [s.wn;zeros(3-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+s.wn = [s.wn;zeros(4-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
@@ -148,9 +148,9 @@ delta_qlim = qmax - qmin;
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 
-% Gradient von Nebenbedingung 3
-h3dq = NaN(1,Rob.NJ);
-h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
+% Gradient von Nebenbedingung 3 und 4
+h3dq = zeros(1,Rob.NJ); h4dq = zeros(1,Rob.NJ);
+h = zeros(4,1); h_alt = inf(4,1); % Speicherung der Werte der Nebenbedingungen
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -160,15 +160,16 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 Tc_stack_PKM(1:3,1:4) = eye(3,4);  % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
-
+condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(n_max, Rob.NJ), 'PHI', NaN(n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+3));
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+4));
 end
-%% Iterative Lösung der IK
-for rr = 0:retry_limit
+%% Iterative Berechnung der inversen Kinematik
+for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
+  % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
   Phi = Rob.constr3(q1, xE_soll);
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
@@ -176,7 +177,6 @@ for rr = 0:retry_limit
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     Jik=Rob.constr3grad_q(q1, xE_soll);
-
     %% Nullstellensuche für Positions- und Orientierungsfehler
     condJ = cond(Jik);
     % (Optimierung der Aufgabe)
@@ -218,19 +218,34 @@ for rr = 0:retry_limit
         h2dq(q1>qlim(:,2)) = 1e10; h2dq(q1<qlim(:,1)) = -1e10;
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
-      if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
+      if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
+        if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
+          Jdk = Rob.constr3grad_x(q1, xE_soll);
+          Jinv = -Jik \ Jdk(:,Rob.I_EE_Task); % bezogen z.B. auf 3T2R (nicht: 3T3R)
+          condJpkm = cond(Jinv(Rob.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+          h(4) = condJpkm;
+        end
         for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
-          condJ_kkk = cond(Jik_kkk);
-          % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
-          % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-          % maximal große Sprünge der Gelenkwinkel).
-          h3dq(kkk) = (log(condJ_kkk)-log(condJ))/1e-6;
+          if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+            condJik_kkk = cond(Jik_kkk);
+            % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
+            % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
+            % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
+            h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+          end
+          if wn(4) % bezogen auf PKM-Jacobi
+            Jdk_kkk = Rob.constr3grad_x(q_test, xE_soll);
+            Jinv_kkk = -Jik_kkk \ Jdk_kkk(:,Rob.I_EE_Task);
+            condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,:));
+            h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+          end
         end
-        v = v - wn(3)*h3dq';
-        h(3) = log(condJ);
+        if wn(3), v = v - wn(3)*h3dq'; end
+        if wn(4), v = v - wn(4)*h4dq'; end
+        h(3) = condJ;
       end
       % [SchapplerTapOrt2019], Gl. (43)
       delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
@@ -279,8 +294,8 @@ for rr = 0:retry_limit
     % Verstärkungsfaktoren K und Kn oben bereits angewendet.
     delta_q = delta_q_T + delta_q_N;
     
-    % Reduziere Schrittweite auf einen Maximalwert bezogen auf
-    % Winkelgrenzen; [SchapplerTapOrt2019], Gl. (47)
+    % Reduziere Schrittweite (qT+qN gemeinsam) auf einen Maximalwert
+    % bezogen auf Winkelgrenzen (bzw. auf die mögliche Spannweite)
     if limits_set && ~isnan(maxrelstep)
       % Bestimme Inkrement relativ zur Spannbreite der Grenzen
       abs_delta_q_rel = abs(delta_q ./ delta_qlim);
@@ -328,7 +343,7 @@ for rr = 0:retry_limit
 
     [Phi_neu, Phi_voll] = Rob.constr3(q2, xE_soll);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
-    % numberisch teilweise keine Verbesserung möglich.
+    % numerisch teilweise keine Verbesserung möglich.
     Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
              all(abs(Phi_neu(I_constr_r_red)) < Phir_tol);
     if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
@@ -409,7 +424,7 @@ for rr = 0:retry_limit
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;0]; % Nutze nur die hyperbolische Funktion des Abstands
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
