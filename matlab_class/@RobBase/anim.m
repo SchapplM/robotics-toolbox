@@ -81,6 +81,11 @@ drawnow;
 pause(1);
 
 %% Beginne Animation
+% Nehme aktuelle Grenzen des Plots als Grundlage und erweitere die Grenzen
+% schon jetzt, falls der Roboter sich heraus bewegt.
+xminmax = get(gca, 'xlim');
+yminmax = get(gca, 'ylim');
+zminmax = get(gca, 'zlim');
 % Prüfe Bereich des Plots
 for i=1:size(Q,1)
   if isa(Rob, 'ParRob')
@@ -97,16 +102,9 @@ for i=1:size(Q,1)
   else
     error('Klasse nicht definiert');
   end
-
-  if i == 1
-    xminmax = xminmax_i;
-    yminmax = yminmax_i;
-    zminmax = zminmax_i;
-  else
-    xminmax = minmax2([xminmax_i, xminmax]);
-    yminmax = minmax2([yminmax_i, yminmax]);
-    zminmax = minmax2([zminmax_i, zminmax]);
-  end
+  xminmax = minmax2([xminmax_i, xminmax]);
+  yminmax = minmax2([yminmax_i, yminmax]);
+  zminmax = minmax2([zminmax_i, zminmax]);
 end
 % Grenzen um 10% der Spannweite aufweiten
 xw = abs(xminmax(2)-xminmax(1));
