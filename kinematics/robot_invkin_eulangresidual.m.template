@@ -54,6 +54,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs              'wn', zeros(3,1),
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
+%$cgargs'finish_in_limits', false,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
 %$cgargs      'lambda_min', 2e-4,
@@ -82,36 +83,13 @@ T_N_E = s.T_N_E;
 pkin = s.pkin;
 NQJ = %NQJ%;
 sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
-qmin = s.qlim(:,1);
-qmax = s.qlim(:,2);
-if all(~isnan(s.qlim(:)))
-  limits_set = true;
-else
-  % Grenzen sind nicht wirksam
-  qmin(:) = -Inf;
-  qmax(:) =  Inf;
-  limits_set = false;
-  retry_limit = 0; % keine zufällige Neubestimmung möglich.
-end
-% Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
-% Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
-% Die Variable qmin/qmax wird für Nebenbedingungen benutzt.
-qmin_norm = qmin; qmax_norm = qmax;
-qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
-qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
-delta_qlim = qmax - qmin;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
+finish_in_limits = s.finish_in_limits;
+break_when_in_limits = false;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-
-if any(wn ~= 0)
-  nsoptim = true;
-else
-  % Keine zusätzlichen Optimierungskriterien
-  nsoptim = false;
-end
 
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
@@ -122,17 +100,43 @@ else
 end
 I_IK = I_IK2(s.I_EE);
 
+% Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
+% 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
+nsoptim = false;
+if NQJ > length(I_IK)
+  if any(wn ~= 0)
+    nsoptim = true;
+  end
+else
+  % Keine zusätzlichen Optimierungskriterien
+  finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
+end
+qmin = s.qlim(:,1);
+qmax = s.qlim(:,2);
+if all(~isnan(s.qlim(:)))
+  limits_set = true;
+else
+  % Grenzen sind nicht wirksam
+  qmin(:) = -Inf;
+  qmax(:) =  Inf;
+  limits_set = false;
+  retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  finish_in_limits = false;
+end
+% Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
+% Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
+% Die Variable qmin/qmax wird für Nebenbedingungen benutzt.
+qmin_norm = qmin; qmax_norm = qmax;
+qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
+qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
+delta_qlim = qmax - qmin;
+
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 
-% Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
-% 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
-if nsoptim && NQJ <= length(I_IK)
-  nsoptim = false;
-end
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
@@ -198,6 +202,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       if wn(2) ~= 0 % Abstoßung von den Grenzen (hyperbolisch)
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
+        % Setze den Gradienten auf eine sehr große Zahl, wenn eine Grenze
+        % überschritten wird. Die Nullraumbewegung wird später sowieso
+        % reduziert.
+        h2dq(q1>qmax) = 1e10; h2dq(q1<qmin) = -1e10;
         v = v - wn(2)*h2dq';
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
@@ -354,6 +362,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
+    % Prüfe Abbruchbedingung für Einhaltung der Winkelgrenzen. Ist dies bei
+    % "finish_in_limits" der Fall, muss die IK nur noch konvergiert sein.
+    if break_when_in_limits && (all(q1 >= qmin) && all(q1 <= qmax))
+      delta_q_N(:) = 0; % unvollständige Nullraumbewegung wird hiernach ignoriert.
+      % hiernach dürfen die Grenzen nicht mehr verlassen werden (falls
+      % noch weitere Iterationen gemacht werden)
+      scale_lim = 0.7;
+      % Reduziere die Nullraumbewegung ab hier ganz stark. Damit können die
+      % Grenzen noch leicht nachkorrigiert werden, es dominiert aber die
+      % Aufgabenbewegung.
+      Kn = Kn*0.8;
+    end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && Phi_iO && ... % Haupt-Bedingung ist erfüllt
@@ -362,6 +382,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       success = true;
       if nargout == 4
         Stats.iter = jj; % muss hier zugewiesen werden (für mex)
+      end
+      if finish_in_limits && (any(q1 < qmin) || any(q1 > qmax))
+        % Es soll eigentlich abgebrochen werden. Die Grenzen wurden aber 
+        % nicht eingehalten. Mache noch mit dem Algorithmus weiter und 
+        % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
+        finish_in_limits = false; % Modus ist damit aktiviert
+        nsoptim = true;
+        wn = [0;1;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
+        % wenn die Grenzen erreicht sind.
+        break_when_in_limits = true;
+        continue
       end
       break;
     end

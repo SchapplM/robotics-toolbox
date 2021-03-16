@@ -615,6 +615,7 @@ classdef SerRob < RobBase
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+        'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
