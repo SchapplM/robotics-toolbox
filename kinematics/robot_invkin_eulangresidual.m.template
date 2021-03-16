@@ -166,10 +166,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
-    % Bei Redundanz nur benutzen, falls Nullraumprojektion erfolglos.
+    % Bei Redundanz immer benutzen, nicht nur, falls Nullraumprojektion erfolglos.
     condJ = cond(Jdk);
     % manipJ = det(Jdk*Jdk'); % Manipulierbarkeit; nicht weiter verfolgt.
-    if condJ > condlimDLS && (~nsoptim || nsoptim && rejcount > 0)
+    if condJ > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
       % Pseudo-Inverse mit Dämpfung:
       % Passe die Dämpfung lambda im DLS-Verfahren an. Wähle die Kon-
       % ditionszahl als Kriterium, da z.B. Grenzen für Singulärwerte
@@ -203,9 +203,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if wn(2) ~= 0 % Abstoßung von den Grenzen (hyperbolisch)
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
         % Setze den Gradienten auf eine sehr große Zahl, wenn eine Grenze
-        % überschritten wird. Die Nullraumbewegung wird später sowieso
-        % reduziert.
-        h2dq(q1>qmax) = 1e10; h2dq(q1<qmin) = -1e10;
+        % überschritten wird. Sonst auch Abbruch bei unendlich.
+        % Die Nullraumbewegung wird später sowieso reduziert.
+        h2dq(q1>=qmax) = 1e10; h2dq(q1<=qmin) = -1e10;
         v = v - wn(2)*h2dq';
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
