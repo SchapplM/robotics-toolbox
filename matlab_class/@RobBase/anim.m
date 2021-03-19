@@ -12,6 +12,11 @@
 %     gespeichert mit den Standard-Einstellungen des VideoWriter.
 %   * mp4_name: Pfad zu mp4-Videodatei. Das Video wird zuerst mit
 %     VideoWriter als avi gespeichert und dann automatisch komprimiert
+%     Falls PNG-Einzelbilder erzeugt werden, wird das Video daraus erzeugt.
+%   * png_name: Pfad zu PNG-Bilddatei (als Muster mit %05d im Dateinamen).
+%     Die Einzelbilder des Videos werden darin gespeichert. Optional.
+%   * resolution: Auflösung der PNG-Bilder in dpi. Hiermit können Videos mit
+%     höherer Auflösung als der Bildschirmauflösung generiert werden
 % s_plot:
 %   Struktur mit Einstellungen zum Plotten in der Animation mit
 %   Feldern wie in SerRob.plot
@@ -38,7 +43,7 @@ if any(isnan(Q(1,:))) || ~isempty(X) && any(isnan(X(1,:)))
   return
 end
 %% Initialisierung
-s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', []);
+s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', [], 'png_name', []);
 
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -65,6 +70,12 @@ if ~isfield(s_anim, 'mp4_name')
 elseif ~isempty(s_anim.mp4_name) && ~strcmp(s_anim.mp4_name(end-2:end), 'mp4')
   error('MP4-Datei %s hat falsche Endung', s_anim.mp4_name);
 end
+if ~isfield(s_anim, 'png_name')
+  s_anim.png_name = s_std.png_name;
+elseif ~isempty(s_anim.png_name) && (~contains(s_anim.png_name, '%') || ...
+    ~strcmp(s_anim.mp4_name(end-2:end), 'png'))
+  error('PNG-Dateimuster %s hat falsche Endung oder enthält kein %%d-Muster', s_anim.png_name);
+end
 
 if isempty(s_anim.avi_name) && ~isempty(s_anim.mp4_name)
   % Die AVI-Datei wird nur temporär erstellt und am Ende wieder gelöscht
@@ -75,6 +86,24 @@ if isempty(s_anim.avi_name) && ~isempty(s_anim.mp4_name)
 else
   % Beide Dateien sollen erhalten bleiben oder nur AVI gefordert.
   avi_only_temp = false;
+end
+
+if ~isempty(s_anim.avi_name)
+  % Schalter dafür, dass mit Matlab-VideoWriter ein AVI erzeugt wird.
+  video_in_frameloop = true;
+else
+  video_in_frameloop = false;
+end
+
+if isfield(s_anim, 'resolution')
+  % PNG-Auflösung gegeben. Damit implizit Erstellung von PNG-Dateien
+  % gefordert. Aus Matlab heraus wird kein Video erzeugt
+  video_in_frameloop = false;
+  % Belege die Einstellungsvariablen zu Speicherorten
+  if isempty(s_anim.png_name)
+    tdir = tmpDirFcn();
+    s_anim.png_name = fullfile(tdir,'frame_%05d.png');
+  end
 end
 
 drawnow;
@@ -138,7 +167,7 @@ xlim(xminmax);ylim(yminmax);zlim(zminmax);
 % bleiben.
 children_keeplist = get(gca, 'children');
 
-if ~isempty(s_anim.avi_name)
+if video_in_frameloop
   v = VideoWriter(s_anim.avi_name, 'Uncompressed AVI');
   open(v)
 end
@@ -180,7 +209,7 @@ for i=1:size(Q,1)
   xlim(xminmax);ylim(yminmax);zlim(zminmax);
   
   grid on;
-  if ~isempty(s_anim.gif_name) || ~isempty(s_anim.avi_name)
+  if ~isempty(s_anim.gif_name) || video_in_frameloop
     f=getframe(gcf);
     if ~isempty(s_anim.avi_name)
       % Zuschneiden auf Mod32 für anschließende Kompression (egal ob hier
@@ -217,8 +246,15 @@ for i=1:size(Q,1)
       mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
     end
   end
-  if ~isempty(s_anim.avi_name)
+  if video_in_frameloop
      writeVideo(v,f); % Schreibe Frame des Videos
+  end
+  if isfield(s_anim, 'resolution')
+    % Speichere Einzelbild als hochauflösendes PNG
+    tmpimage_png = sprintf(s_anim.png_name, i); % Nummer hochzählen
+    print(tmpimage_png,'-dpng','-r300','-opengl');
+%     % Befehl exportgraphics geht nicht (schneidet Ränder variabel ab)
+%     % exportgraphics(gcf,fullfile(tdir,sprintf('frame_%05d.png',i)),'Resolution',300);
   end
   if i == 1
     [view1_save,view2_save] = view();
@@ -234,10 +270,30 @@ end
 if ~isempty(s_anim.gif_name)
   imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
 end
-if ~isempty(s_anim.avi_name)
+if video_in_frameloop
    close(v);
+end
+%% Erzeuge AVI aus png-Einzelbildern
+if isfield(s_anim, 'resolution') && ...
+    (~isempty(s_anim.mp4_name) || ~isempty(s_anim.avi_name))
+  % Speichere alle PNG-Dateien als Video: h264-Codec mit verlustfreier
+  % Speicherung. Dateiformat .avi, damit das nachfolgende
+  % Kompressionsskript damit direkt funktioniert.
+  avsettings = '-c:v libx264 -qp 0';
+  cmd = sprintf('ffmpeg -y -f image2 -r 30 -i "%s" %s "%s" -loglevel 0', ...
+    s_anim.png_name, avsettings, s_anim.avi_name);
+  res = system(cmd);
+  if res == 0
+    % Erfolgreich AVI erstellt. Lösche PNG-Einzelbilder
+    d = dir(fullfile(fileparts(s_anim.png_name), '*.png'));
+    for i = 1:length(d)
+      delete(fullfile(d(i).folder, d(i).name));
+    end
+  else
+    warning('Fehler beim Zusammenfassen der PNG-Dateien aus %s', fileparts(s_anim.png_name));
+  end
 end
 %% Komprimiere die AVI-Datei
 if ~isempty(s_anim.mp4_name)
-  compress_video_file(s_anim.avi_name, 1, avi_only_temp);
+  compress_video_file(s_anim.avi_name, avi_only_temp, 1);
 end
