@@ -93,7 +93,16 @@ for iLeg = 1:Rob.NLEG
     if ~any(s.ks_legs == k)
       continue
     end
-    name = sprintf('%d,%d', iLeg, j-1);
+    if j-1 == 0
+      % Basis-KS der Beinkette
+      name = sprintf('A%d', iLeg);
+    elseif j == NLL+1
+      % Virtuelles EE-KS der Beinkette
+      name = sprintf('E%d', iLeg);
+    else
+      % Sonstige Körper-KS der Beinkette
+      name = sprintf('%d,%d', iLeg, j-1);
+    end
     trplot(TcLges_W(:,:,k), 'frame', name, 'rgb', 'length', 0.20)
   end
 end
