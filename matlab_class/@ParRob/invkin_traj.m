@@ -18,7 +18,14 @@
 % q0
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
-%   Struktur mit Eingabedaten. Felder, siehe Quelltext.
+%   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
+%   .wn [6x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
+%     (4) Hyperbolischer Abstand der Gelenkgeschwindigkeiten von ihren Grenzen
+%     (5) Konditionszahl der geometrischen Matrix der Inv. Kin.
+%     (6) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
 % 
 % Ausgabe:
 % Q
@@ -57,7 +64,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin_traj(Rob,
 s_std = struct( ...
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
-  'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'wn', zeros(6,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'debug', false); % Zusätzliche Ausgabe
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -112,11 +119,6 @@ Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
 Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
 JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
-% Gelenkkonfiguration, bei der Nebenbed. 3 (Kondition) das letzte mal
-% berechnet wurde
-q_wn5 = inf(Rob.NJ,1);
-% Gradient von Nebenbedingung 5
-h5dq = NaN(1,Rob.NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -192,7 +194,7 @@ else
   qDDmin = -inf(Rob.NJ,1);
   qDDmax =  inf(Rob.NJ,1);
 end
-wn = [s.wn;zeros(5-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+wn = [s.wn;zeros(6-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 
 % Vergleiche FG der Aufgabe und FG des Roboters
 if ~nsoptim
@@ -352,40 +354,111 @@ for k = 1:nt
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
   if nsoptim % Nullraumbewegung
-    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
-    % Berechne Gradienten der zusätzlichen Optimierungskriterien
-    v = zeros(Rob.NJ, 1);
-    if wn(1) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
-      [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
-      v = v - wn(1)*h1dq';
-    end
-    if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-      [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
-      v = v - wn(2)*h2dq';
-    end
-    if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
-      [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
-      v = v - wn(3)*h3dq';
-    end
-    if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
-      [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
-      v = v - wn(4)*h4dq';
-    end
-    if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
-      if any(abs(q_k-q_wn5) > 1*pi/180) % seltenere Berechnung (Rechenzeit)
-        condPhi = cond(Phi_q);
-        for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
-          q_test = q_k; % ausgehend von aktueller Konfiguration
-          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Phi_q_kkk = Rob.constr3grad_q(q_test, x_k);
-          condPhi_kkk = cond(Phi_q_kkk);
-          h5dq(kkk) = (condPhi_kkk-condPhi)/1e-6;
-        end
-        q_wn5 = q_k;
+    Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
+    condJ = cond(Jinv_ax);
+     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
+     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
+    xD_test = [zeros(5,1);1e-4];
+    qD_test = J_x_inv * xD_test; % Gelenkänderung der Nullraumbewegung
+    % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
+    % Jacobi gut konditioniert und Antriebe definiert sind.
+    if condJ < 1e3 && sum(Rob.I_qa) == sum(Rob.I_EE)
+      % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
+      J_ax = inv(J_x_inv(Rob.I_qa,:));
+      % Nullraum-Projektor bezogen auf analytische Jacobi-Matrix ohne
+      % letzte redundante Koordinate
+      Na = (eye(sum(Rob.I_qa)) - pinv(J_ax(Rob.I_EE_Task,:))* J_ax(Rob.I_EE_Task,:));
+      va = zeros(sum(Rob.I_qa), 1);
+      % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
+      % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
+      if wn(1) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
+        h1_k = invkin_optimcrit_limits1(q_k, qlim);
+        h1_test = invkin_optimcrit_limits1(q_k+qD_test, qlim);
+        h1drz = (h1_test-h1_k)/xD_test(6);
+        h1dqa = J_ax(end,:) * h1drz;
+        va = va - wn(1)*h1dqa';
       end
-      v = v - wn(5)*h5dq';
+      if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+        h2_k = invkin_optimcrit_limits2(q_k, qlim);
+        h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
+        h2drz = (h2_test-h2_k)/xD_test(6);
+        h2dqa = J_ax(end,:) * h2drz;
+        va = va - wn(2)*h2dqa';
+      end
+      if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
+        h3_k = invkin_optimcrit_limits1(qD_k, qDlim);
+        h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
+        h3drz = (h3_test-h3_k)/xD_test(6);
+        h3dqa = J_ax(end,:) * h3drz;
+        va = va - wn(3)*h3dqa';
+      end
+      if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
+        h4_k = invkin_optimcrit_limits2(qD_k, qDlim);
+        h4_test = invkin_optimcrit_limits2(qD_k+qD_test, qDlim);
+        h4drz = (h4_test-h4_k)/xD_test(6);
+        h4dqa = J_ax(end,:) * h4drz;
+        va = va - wn(4)*h4dqa';
+      end
+      if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+        h5_k = cond(Phi_q);
+        Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
+        h5_test = cond(Phi_q_test);
+        h5drz = (h5_test-h5_k)/xD_test(6);
+        h5dqa = J_ax(end,:) * h5drz;
+        va = va - wn(5)*h5dqa';
+      end
+      if wn(6) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+        h6_k = condJ;
+        Phi_q_test = Rob.constr4grad_q(q_k+qD_test);
+        Phi_x_test = Rob.constr4grad_x(x_k+xD_test);
+        J_x_inv_test = -Phi_q_test \ Phi_x_test;
+        h6_test = cond(J_x_inv_test(Rob.I_qa,:));
+        h6drz = (h6_test-h6_k)/xD_test(6);
+        h6dqa = J_ax(end,:) * h6drz;
+        va = va - wn(6)*h6dqa';
+      end
+      qDD_N_pre = J_x_inv * (J_ax \ Na * va);
+    else
+      % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
+      % Robuster, aber auch rechenaufwändiger.
+      N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
+      % Berechne Gradienten der zusätzlichen Optimierungskriterien
+      % (bezogen auf vollständige Koordinaten)
+      v = zeros(Rob.NJ, 1);
+      if wn(1) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
+        [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
+        v = v - wn(1)*h1dq';
+      end
+      if s.wn(2) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+        [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+        v = v - wn(2)*h2dq';
+      end
+      if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
+        [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
+        v = v - wn(3)*h3dq';
+      end
+      if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
+        [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
+        v = v - wn(4)*h4dq';
+      end
+      if wn(5) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+        h5_k = cond(Phi_q);
+        Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
+        h5_test = cond(Phi_q_test);
+        h5dq = (h5_test-h5_k)./qD_test;
+        v = v - wn(5)*h5dq';
+      end
+      if wn(6) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+        h6_k = condJ;
+        Phi_q_test = Rob.constr4grad_q(q_k+qD_test);
+        Phi_x_test = Rob.constr4grad_x(x_k+xD_test);
+        J_x_inv_test = -Phi_q_test \ Phi_x_test;
+        h6_test = cond(J_x_inv_test(Rob.I_qa,:));
+        h6dq = (h6_test-h6_k)./qD_test;
+        v = v - wn(6)*h6dq';
+      end
+      qDD_N_pre = N * v;
     end
-    qDD_N_pre = N * v;
   else
     qDD_N_pre = zeros(Rob.NJ, 1);
   end
