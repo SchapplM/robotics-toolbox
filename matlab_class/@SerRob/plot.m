@@ -80,7 +80,8 @@ q_JV = Rob.jointvar(qJ);
 % plot3(O_xyz_ges(1,:)', O_xyz_ges(2,:)', O_xyz_ges(3,:)', 'ro', 'MarkerSize', 8);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
-if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
+% Wenn CAD-Modell vorliegt, brauchen die Gelenke nicht gezeichnet werden.
+if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -104,7 +105,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
     % mu: 2=PKM-aktiv, 1=seriell-aktiv, 0=seriell-passiv
     cc = colors{Rob.MDH.mu(i)+1};
 
-    if s.mode == 4
+    if any(s.mode == 4)
       % Passe zu zeichnendes Gelenk von der Größe her an
       if Rob.DesPar.seg_type(i+1) == 1
         % Das Gelenk sollte etwas größer sein als das skizzierte Segment
@@ -184,7 +185,7 @@ if ~s.only_bodies && any(s.mode == [1 3 4 5]) && ~s.nojoints
   end
 end
 %% Trägheitsellipsen zeichnen
-if s.mode == 3
+if any(s.mode == 3)
   for i = 1:Rob.NL
     if any(isnan([Rob.DynPar.Icges(i,:), Rob.DynPar.mges(i), Rob.DynPar.rSges(i,:)]))
       continue % Nur plotten, wenn Dynamikparameter gegeben sind.
@@ -203,7 +204,7 @@ if s.mode == 3
   end
 end
 %% Kollisionskörper zeichnen
-if s.mode == 5
+if any(s.mode == 5)
   for j = 1:size(Rob.collbodies.type,1)
     i = Rob.collbodies.link(j);
     if ~any(s.bodies == i)
@@ -214,36 +215,45 @@ if s.mode == 5
       T_body_iv = T_c_W(:,:,v(i)+1);
       r = Rob.collbodies.params(j,1);
       pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
+      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
     elseif Rob.collbodies.type(j) == 5 % Zylinder zum vorherigen (schräg)
       T_body_iv = T_c_W(:,:,v(i)+1);
       r = Rob.collbodies.params(j,1);
       pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
+      hdl=drawCylinder([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
     elseif Rob.collbodies.type(j) == 3 % Kapsel mit Angabe von 2 Punkten
       r = Rob.collbodies.params(j,7);
       pts_i = Rob.collbodies.params(j,1:6);
       pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
                eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
+      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
     elseif Rob.collbodies.type(j) == 2 % Zylinder mit Angabe von 2 Punkten
       r = Rob.collbodies.params(j,7);
       pts_i = Rob.collbodies.params(j,1:6);
       pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
                eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
-    else
-      error('Fall %d nicht definiert', Rob.collbodies.type(i));
-    end
-    % Objekt zeichnen
-    if any(Rob.collbodies.type(j) == [3 6])
-      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
-    elseif any(Rob.collbodies.type(j) == [2 5])
       hdl=drawCylinder([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+    elseif Rob.collbodies.type(j) == 1 % Quader mit Angabe von 1 Punkt, 2 Kanten, 1 Länge
+      q_W = eye(3,4)*T_body_i*[Rob.collbodies.params(j,1:3)';1];
+      u1_W = T_body_i(1:3,1:3)*Rob.collbodies.params(j,4:6)';
+      u2_W = T_body_i(1:3,1:3)*Rob.collbodies.params(j,7:9)';
+      % letzte Kante per Definition senkrecht auf anderen beiden.
+      u3_W = cross(u1_W,u2_W); u3_W = u3_W/norm(u3_W)*Rob.collbodies.params(j,10);
+      % Umrechnen in Format der plot-Funktion
+      cubpar_c = q_W(:)+(u1_W(:)+u2_W(:)+u3_W(:))/2; % Mittelpunkt des Quaders
+      cubpar_l = [norm(u1_W); norm(u2_W); norm(u3_W)]; % Dimension des Quaders
+      cubpar_a = 180/pi*tr2rpy([u1_W(:)/norm(u1_W), u2_W(:)/norm(u2_W), u3_W(:)/norm(u3_W)],'zyx')'; % Orientierung des Quaders
+      hdl=drawCuboid([cubpar_c', cubpar_l', cubpar_a'], ...
+        'FaceColor', 'b', 'FaceAlpha', 0.2);
     else
-      error('Fall %d nicht definiert', Rob.collbodies.type(i));
+      error('Fall %d nicht definiert', Rob.collbodies.type(j));
     end
     set(hdl, 'DisplayName', sprintf('CollBody%d', j));
   end
 end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
-if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
+if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
+  all(s.mode == 1) && s.straight
     % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
     % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
     for i = 1:Rob.NJ
@@ -251,14 +261,14 @@ if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
       j = v(i)+1; % Körper-Index (Vorgänger)
       T1 = T_c_W(:,:,j);
       T2 = T_c_W(:,:,i+1);
-      if s.mode == 1 && s.straight
+      if all(s.mode == 1) && s.straight
         % Als Linie zeichnen
         plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
           'LineWidth',4,'Color','k')
-      elseif s.mode == 3 && s.straight
+      elseif all(s.mode == 3) && s.straight
         plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
           'LineWidth',1,'Color','k')
-      elseif s.mode == 4
+      elseif all(s.mode == 4)
         if Rob.MDH.sigma(i) == 0 % Drehgelenk
           % Als Zylinder entsprechend der Entwurfsparameter zeichnen
           % Bei Drehgelenken wird das aktuelle Gelenk direkt mit dem
@@ -376,7 +386,7 @@ if ~s.only_bodies && any(s.mode == [3 4 5]) || s.mode == 1 && s.straight
       end
     end % for i = 1:Rob.NJ
 end
-if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4 5])
+if ~s.only_bodies && ~s.straight && isempty(intersect(s.mode,[2 4 5]))
     for i = 1:Rob.NJ
       j = v(i)+1;
       % MDH-Transformation in einzelnen Schritten nachrechnen, damit diese
@@ -403,11 +413,11 @@ if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4 5])
         if abs(T1(1:3,4)-T2(1:3,4)) < 1e-10
           continue % nicht zeichnen, wenn keine Veränderung
         end
-        if s.mode == 1
+        if any(s.mode == 1)
           % Strichmodell: Dicke Linie zeichnen
           plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
             'LineWidth',4,'Color','k');
-        elseif s.mode == 3
+        elseif any(s.mode == 3)
           % Trägheitsellipsen: Dünnere Linie zeichnen
           plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
             'LineWidth',1,'Color','k');
@@ -417,7 +427,7 @@ if ~s.only_bodies && ~s.straight && all(s.mode ~= [2 4 5])
 end
 
 %% CAD-Modelle zeichnen
-if s.mode == 2 && ~isempty(Rob.CADstruct)
+if any(s.mode == 2) && ~isempty(Rob.CADstruct)
   hdl = NaN(length(Rob.CADstruct.link),1);
   for j = 1:length(Rob.CADstruct.link)
     if ~any(s.bodies == Rob.CADstruct.link(j))
@@ -461,13 +471,13 @@ end
 if ~s.only_bodies
   T_W_N = T_c_W(:,:,Rob.I_EElink+1);
   T_W_E = T_W_N*Rob.T_N_E;
-  if s.mode == 1
+  if any(s.mode == 1)
     plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
       'LineWidth',4,'Color','k')
-  elseif s.mode == 3
+  elseif any(s.mode == 3)
     plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
       'LineWidth',1,'Color','k')  
-  elseif s.mode == 4
+  elseif any(s.mode == 4)
     % Als Zylinder entsprechend der Entwurfsparameter zeichnen
     if Rob.DesPar.seg_type(i+1) == 1
       drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
