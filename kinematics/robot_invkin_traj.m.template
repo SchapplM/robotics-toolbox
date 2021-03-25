@@ -38,6 +38,8 @@
 % JointPos_all [NT x (%NQJ%*3)]
 %   gestapelte Positionen aller Gelenke für alle Zeitschritte
 %   (Entspricht letzter Spalte aller homogener Transformationsmatrizen)
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 %
 % Siehe auch: ParRob/invkin_traj
 
@@ -49,15 +51,18 @@
 % [1] Aufzeichnungen Schappler vom 28.11.2018
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 % [3] Aufzeichnungen Schappler vom 06.07.2020
+% [4] Aufzeichnungen Schappler vom 25.03.2020
 % [RMG16] Reiter et al.: Inverse Kinematics in Minimum-Time Trajectory
 % Planning for Kinematically Redundant Manipulators (2016)
+% [RMG18] Reiter et al.: On higher order inverse kinematics methods in 
+% time-optimal trajectory planning for kinematically redundant manipulators (2018)
 
 
 % Generated in SerRobLib from template file in robotics repo
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [Q, QD, QDD, PHI, JointPos_all] = %RN%_invkin_traj(X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T, q0, s)
 
 %% Coder Information
 %#codegen
@@ -94,6 +99,7 @@ PHI = NaN( length(T), sum(s.I_EE) );
 JointPos_all = NaN( length(T), (%NJ%+1)*3 );
 
 % Einstellungsvariablen aus Struktur herausholen
+NQJ = 6;
 I_EE = s.I_EE;
 n_Phi_t = sum(s.I_EE(1:3));
 nt = length(T);
@@ -146,7 +152,7 @@ else
 end
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
-if sum(I_EE) >= %NQJ%
+if sum(I_EE) >= NQJ
   % Es gibt Gelenkgeschwindigkeitsgrenzen, sie können aber nicht genutzt
   % werden, da keine Nullraumbewegung möglich sind.
   limits_qD_set = false;
@@ -184,18 +190,22 @@ s_pik = struct( ...
 
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
-q_wn5 = inf(%NQJ%,1);
+q_wn5 = inf(NQJ,1);
 % Gradient von Nebenbedingung 5
-h5dq = NaN(1,%NQJ%);
+h5dq = NaN(1,NQJ);
 
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
-qDk0 = zeros(%NQJ%,1);
-qDD_k_T = zeros(%NQJ%,1);
-qD_k = zeros(%NQJ%,1);
-N = eye(%NQJ%);
+qDk0 = zeros(NQJ,1);
+qDD_k_T = zeros(NQJ,1);
+qD_k = zeros(NQJ,1);
+qD_N_pre_alt = zeros(NQJ,1);
+qDD_N_pre1 = zeros(NQJ,1);
+N = zeros(NQJ,NQJ);
 dt = 0;
-J_x_alt = zeros(6,%NQJ%);
+J_x_alt = zeros(6,NQJ);
+Stats = struct('h', NaN(nt,1+5));
+h = zeros(5,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
   Tr0E_k = [eul2r(X(k,4:6)', s.phiconv_W_E), X(k,1:3)'];
@@ -272,46 +282,74 @@ for k = 1:nt
   % Nullraumbewegung auf Beschleunigungsebene berechnen. Siehe [RMG16]
   if nsoptim || limits_qD_set
     % Nullraum-Projektor
-    N = (eye(%NQJ%) - pinv(J_x(I_EE,:))*J_x(I_EE,:));
+    N = (eye(NQJ) - pinv(J_x(I_EE,:))*J_x(I_EE,:));
   end
-  if nsoptim % Nullraumbewegung, siehe [3]
-    v = zeros(%NQJ%, 1);
-    if wn(1) ~= 0
-      [~, h1dq] = invkin_optimcrit_limits1(q_k, qlim);
-      v = v - wn(1)*h1dq';
+  if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
+    % Positions-bezogene Kriterien werden auf Geschwindigkeitsebene behandelt
+    v_qD = zeros(NQJ, 1);
+    if wn(1) ~= 0 % Quadratischer Abstand von Gelenkgrenzen
+      [h(1), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
+      v_qD = v_qD - wn(1)*h1dq';
     end
-    if wn(2) ~= 0
-      [~, h2dq] = invkin_optimcrit_limits2(q_k, qlim);
-      v = v - wn(2)*h2dq';
+    if wn(2) ~= 0 % Hyperbolischer Abstand von Gelenkgrenzen
+      [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+      v_qD = v_qD - wn(2)*h2dq';
     end
+    if wn(5) ~= 0 % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
+      condJ = cond(J_x(I_EE,:));
+      h(5) = condJ;
+      if NQJ - sum(I_EE) == 1 && ~I_EE(end)
+        % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
+        % Numerischer Differenzenquotient aus Bewegung in EE-z-Drehung.
+        xD_test = [zeros(5,1);1e-6];
+        qD_test = J_x\xD_test;
+        Jg_test = S6RRRRRR10V2_jacobig_sym_varpar(q_k+qD_test, link_index, r_i_i_C, pkin);
+        J_x_test = [Jg_test(1:3,:); Tw \ Jg_test(4:6,:)]; % analytische Jacobi-Matrix
+        condJ_test = cond(J_x_test(I_EE,:));
+        % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+        h5drz = (condJ_test-condJ)/1e-6;
+        % Umrechung auf Gelenke mit Jacobi-Matrix
+        h5dq = h5drz*J_x(end,:);
+      else
+        % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
+        % Bilde Differenzenquotient in allen Gelenkachsen
+        if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
+          for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
+            q_test = q_k; % ausgehend von aktueller Konfiguration
+            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+            Jg_kkk = S6RRRRRR10V2_jacobig_sym_varpar(q_test, link_index, r_i_i_C, pkin);
+            J_x_kkk_voll = [Jg_kkk(1:3,:); Tw \ Jg_kkk(4:6,:)]; % analytische Jacobi-Matrix
+            condJ_kkk = cond(J_x_kkk_voll(I_EE,:));
+            h5dq(kkk) = (condJ_kkk-condJ)/1e-6;
+          end
+          q_wn5 = q_k;
+        end
+      end
+      v_qD = v_qD - wn(5)*h5dq';
+    end
+    % Nullraum-Geschwindigkeit; [RMG18], Gl. 11
+    qD_N_pre = N * v_qD;
+    % Berechne die Nullraum-Beschleunigung durch Zeitableitung. [RMG18], Remark 4.
+    % Benutze Differenzenquotient anstatt der analytischen Ableitungen in [RMG18]
+    qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
+    % Speichere den Altwert für den Differenzenquotienten
+    qD_N_pre_alt = qD_N_pre;
+    % Geschwindigkeitsbezogene Kennzahlen werden auf Beschleunigungsebene behandelt
+    v_qDD = zeros(6, 1);
     if wn(3) ~= 0
-      [~, h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
-      v = v - wn(3)*h3dq';
+      [h(3), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
+      v_qDD = v_qDD - wn(3)*h3dq';
     end
     if wn(4) ~= 0
-      [~, h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
-      v = v - wn(4)*h4dq';
-    end
-    if wn(5) ~= 0
-      if any(abs(q_k-q_wn5) > 3*pi/180) % seltenere Berechnung (Rechenzeit)
-        condJ = cond(J_x(I_EE,:));
-        for kkk = 1:%NQJ% % Differenzenquotient für jede Gelenkkoordinate
-          q_test = q_k; % ausgehend von aktueller Konfiguration
-          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Jg_kkk = %RN%_jacobig_sym_varpar(q_test, link_index, r_i_i_C, pkin);
-          J_x_kkk_voll = [Jg_kkk(1:3,:); Tw \ Jg_kkk(4:6,:)]; % analytische Jacobi-Matrix
-          condJ_kkk = cond(J_x_kkk_voll(I_EE,:));
-          h5dq(kkk) = (condJ_kkk-condJ)/1e-6;
-        end
-        q_wn5 = q_k;
-      end
-      v = v - wn(5)*h5dq';
+      [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
+      v_qDD = v_qDD - wn(4)*h4dq';
     end
     % Erster Wert ("pre") für Beschleunigung durch Minimierung der
     % Zielfunktion h. Siehe [RMG16]/(20) (zweiter Term)
-    qDD_N_pre = N * v;
+    % Hier auch direkte Addition der Nullraumbewegung aus Geschwindigkeit.
+    qDD_N_pre = qDD_N_pre1 + N * v_qDD;
   else
-    qDD_N_pre = zeros(%NQJ%,1);
+    qDD_N_pre = zeros(NQJ,1);
   end
   
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
@@ -333,6 +371,11 @@ for k = 1:nt
         scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
       end
       qDD_N_pre = scale*qDD_N_pre;
+      % Reduktion der Beschleunigung auf Altwert für gewünschte Nullraum-
+      % geschwindigkeit übertragen. Entspricht Anti-Windup für Integrator
+      % Hier keine komplette Trennung zwischen Geschw.- und Besch.-Nullraum.
+      % Daher kein komplett sauberes Anti-Windup.
+      qD_N_pre_alt = qD_N_pre_alt - (1-scale)*qDD_N_pre1*dt;
     end
   end
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
@@ -497,7 +540,7 @@ for k = 1:nt
   
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  
+  Stats.h(k,:) = [sum(wn.*h),h'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

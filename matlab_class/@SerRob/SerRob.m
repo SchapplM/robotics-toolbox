@@ -647,7 +647,7 @@ classdef SerRob < RobBase
         [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
       end
     end
-    function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+    function [Q,QD,QDD,PHI,JointPos_all,Stats] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin_traj`, die nicht kompilierbar ist.
@@ -665,6 +665,7 @@ classdef SerRob < RobBase
       % QDD: Gelenkbeschleunigungen
       % PHI: IK-Fehler (entspricht Zwangsbedingungen)
       % JointPos_all: Position aller Körper-KS für alle Zeitschritte
+      % Stats: Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
       %
       % Siehe auch: invkin2, invkin_traj
       
@@ -702,7 +703,7 @@ classdef SerRob < RobBase
       end
       if length(s.wn) < 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
-      [Q,QD,QDD,PHI,JointPos_all] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
+      [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function [T, Treg] = ekin(R, q, qD)
       % Kinetische Energie
