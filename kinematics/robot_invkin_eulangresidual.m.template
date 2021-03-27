@@ -18,7 +18,12 @@
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
 %   (enthält alle Koordinatensysteme aus direkter Kinematik)
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
+%   .PHI (n+1)x6: Residuum
+%   .h (n+1x3): Leistungsmerkmale: (1) quadratischer Abstand von Grenzen,
+%     (2) hyperbolischer Abstand von Grenzen, (3) Konditionszahl Jacobi
+%   .condJ (n+1x1): Konditionszahl der IK-Jacobi-Matrix
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
@@ -132,6 +137,10 @@ qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = qmax - qmin;
+% Variablen für Dämpfung der Inkremente
+delta_q_alt = zeros(NQJ,1); % Altwert für Inkrement
+delta_q_damp = zeros(NQJ,1); % Dämpfungsterm
+damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
@@ -145,9 +154,9 @@ h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 success = false;
 
 if nargout == 4
-  Stats = struct('Q', NaN(n_max, NQJ), 'PHI', NaN(n_max, 6), 'iter', n_max, ...
-    'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+3));
+  Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
+    'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+3));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -157,6 +166,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Fehlermaß für Startwerte
   Phi_voll = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  if nargout == 4 % Anfangswerte eintragen
+    Stats.PHI(1,:) = Phi_voll;
+    Stats.Q(1,:) = q1;
+  end
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
@@ -270,8 +283,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         delta_q = delta_q .* maxrelstep / max(abs_delta_q_rel);
       end
     end
+    % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere der
+    % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    if damping_active % Verstärkung empirisch ermittelt (bestimmt nicht optimal).
+      delta_q_damp = 0.5*(delta_q-delta_q_alt);
+    elseif all(sign(delta_q) == -sign(delta_q_alt))
+      damping_active = true; % ab jetzt aktiviert lassen.
+    end
+    delta_q_alt = delta_q;
     
-    q2 = q1 + delta_q;
+    % Gelenkwinkel-Schritt anwenden
+    q2 = q1 + delta_q + delta_q_damp;
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist
@@ -365,8 +387,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
     end
     if nargout == 4
-      Stats.Q(jj,:) = q1;
-      Stats.PHI(jj,:) = Phi_voll;
+      Stats.Q(1+jj,:) = q1;
+      Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
@@ -419,6 +441,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
   q0(:) = qmin_norm + rand(NQJ,1).*(qmax_norm-qmin_norm); % "(:)" notwendig für mex
+end
+if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
+  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax]); end
+  Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Jdk = Jdk_voll(I_IK,:);
+  h(3) = cond(Jdk);
+  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+  Stats.condJ(Stats.iter+1) = h(3);
 end
 
 q = q1;

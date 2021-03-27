@@ -147,6 +147,10 @@ delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
+% Variablen für Dämpfung der Inkremente
+delta_q_alt = zeros(Rob.NJ,1); % Altwert für Inkrement
+delta_q_damp = zeros(Rob.NJ,1); % Dämpfungsterm
+damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Gradient von Nebenbedingung 3 und 4
 h3dq = zeros(1,Rob.NJ); h4dq = zeros(1,Rob.NJ);
@@ -162,15 +166,19 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 condJpkm = NaN;
 if nargout == 4
-  Stats = struct('Q', NaN(n_max, Rob.NJ), 'PHI', NaN(n_max, 6*Rob.NLEG), ...
-    'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+4));
+  Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
+    'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+4));
 end
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
-  Phi = Rob.constr3(q1, xE_soll);
+  [Phi, Phi_voll] = Rob.constr3(q1, xE_soll);
+  if nargout == 4
+    Stats.PHI(1,:) = Phi_voll;
+    Stats.Q(1,:) = q1;
+  end
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
@@ -304,7 +312,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         delta_q = delta_q .* maxrelstep / max(abs_delta_q_rel);
       end
     end
+    % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere der
+    % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    if damping_active % Verstärkung empirisch ermittelt (bestimmt nicht optimal).
+      delta_q_damp = 0.5*(delta_q-delta_q_alt);
+    elseif all(sign(delta_q) == -sign(delta_q_alt))
+      damping_active = true; % ab jetzt aktiviert lassen.
+    end
+    delta_q_alt = delta_q;
     
+    % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
 
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
@@ -397,8 +414,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
     end
     if nargout == 4
-      Stats.Q(jj,:) = q1;
-      Stats.PHI(jj,:) = Phi_voll;
+      Stats.Q(1+jj,:) = q1;
+      Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
@@ -451,6 +468,19 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
   q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
+end
+if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
+  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim); end
+  Jik=Rob.constr3grad_q(q1, xE_soll);
+  h(3) = cond(Jik);
+  if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
+    Jdk = Rob.constr3grad_x(q1, xE_soll);
+    Jinv = -Jik \ Jdk(:,Rob.I_EE_Task); % bezogen z.B. auf 3T2R (nicht: 3T3R)
+    h(4) = cond(Jinv(Rob.I_qa,:));
+  end
+  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+  Stats.condJ(Stats.iter+1) = h(3);
 end
 q = q1;
 if s.normalize

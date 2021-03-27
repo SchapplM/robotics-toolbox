@@ -102,9 +102,9 @@ Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 
 if nargout == 4
-  Stats = struct('Q', NaN(s.n_max, Rob.NJ), 'PHI', NaN(s.n_max, Rob.I2constr_red(end)), ...
+  Stats = struct('Q', NaN(1+s.n_max, Rob.NJ), 'PHI', NaN(1+s.n_max, Rob.I2constr_red(end)), ...
     'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
-    'condJ', NaN(s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+    'condJ', NaN(1+s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
 end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
