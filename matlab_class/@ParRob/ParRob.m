@@ -320,6 +320,7 @@ classdef ParRob < RobBase
         'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
         'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+        'maxstep_ns', 1e-10, ... % Abbruchbedingung für Nullraumbewegung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°

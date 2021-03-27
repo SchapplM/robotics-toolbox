@@ -52,6 +52,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
 %$cgargs              'wn', zeros(3,1),
+%$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs'finish_in_limits', false,
@@ -87,6 +88,7 @@ condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
+maxstep_ns = s.maxstep_ns;
 finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
@@ -386,7 +388,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && Phi_iO && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
-        nsoptim && all(abs(delta_q_N) < 1e-5) ) % oder die Nullraumoptimierung läuft noch
+        nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
       success = true;
       if nargout == 4
         Stats.iter = jj; % muss hier zugewiesen werden (für mex)

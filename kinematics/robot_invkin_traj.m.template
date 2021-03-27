@@ -175,6 +175,7 @@ s_pik = struct( ...
   'K', s.K, ...
   'Kn', zeros(%NQJ%,1), ... % Keine Nullraumoptimierung sinnvoll. ...
   'wn', zeros(3,1), ... % ... Wird in Traj. gemacht.
+  'maxstep_ns', 0, ... % keine Bedeutung, da keine Nullraumbewegung möglich
   'scale_lim', 0, ... % Herunterskalieren nicht sinnvoll (da keine NR-Bew.)
   'maxrelstep', s.maxrelstep, ... 
   'finish_in_limits', false, ... % Ohne Nullraumbewegung nicht möglich
@@ -286,7 +287,9 @@ for k = 1:nt
   end
   if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
     % Positions-bezogene Kriterien werden auf Geschwindigkeitsebene behandelt
+    % Geschwindigkeits-bezogene Kennzahlen werden auf Beschleunigungsebene behandelt
     v_qD = zeros(NQJ, 1);
+    v_qDD = zeros(NQJ, 1);
     if wn(1) ~= 0 % Quadratischer Abstand von Gelenkgrenzen
       [h(1), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
       v_qD = v_qD - wn(1)*h1dq';
@@ -294,6 +297,15 @@ for k = 1:nt
     if wn(2) ~= 0 % Hyperbolischer Abstand von Gelenkgrenzen
       [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim);
       v_qD = v_qD - wn(2)*h2dq';
+    end
+    if wn(3) ~= 0 % Quadratischer Abstand von Gelenkgeschwindigkeitsgrenzen
+      % Entspricht Dämpfungsterm DeLucaOriSic1992
+      [h(3), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
+      v_qDD = v_qDD - wn(3)*h3dq';
+    end
+    if wn(4) ~= 0
+      [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
+      v_qDD = v_qDD - wn(4)*h4dq';
     end
     if wn(5) ~= 0 % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
       condJ = cond(J_x(I_EE,:));
@@ -334,16 +346,6 @@ for k = 1:nt
     qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
     % Speichere den Altwert für den Differenzenquotienten
     qD_N_pre_alt = qD_N_pre;
-    % Geschwindigkeitsbezogene Kennzahlen werden auf Beschleunigungsebene behandelt
-    v_qDD = zeros(6, 1);
-    if wn(3) ~= 0
-      [h(3), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
-      v_qDD = v_qDD - wn(3)*h3dq';
-    end
-    if wn(4) ~= 0
-      [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
-      v_qDD = v_qDD - wn(4)*h4dq';
-    end
     % Erster Wert ("pre") für Beschleunigung durch Minimierung der
     % Zielfunktion h. Siehe [RMG16]/(20) (zweiter Term)
     % Hier auch direkte Addition der Nullraumbewegung aus Geschwindigkeit.
