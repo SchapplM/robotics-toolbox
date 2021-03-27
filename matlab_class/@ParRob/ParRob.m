@@ -209,13 +209,12 @@ classdef ParRob < RobBase
       if nargin < 5, idx_leg = uint8(1); end
       if nargin < 6, platform_frame = false; end
       %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
-      Leg_pkin_gen = zeros(R.NLEG,length(R.Leg(1).pkin_gen));
+      Leg_pkin_gen = cat(2,R.Leg.pkin_gen)';
       Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
       Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
       Leg_phi_W_0 = zeros(3,R.NLEG);
       Leg_phiconv_W_0 = uint8(zeros(R.NLEG,1));
       for i = 1:R.NLEG
-        Leg_pkin_gen(i,:) = R.Leg(i).pkin_gen';
         T_N_E = R.Leg(i).T_N_E;
         Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
         Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
@@ -279,7 +278,7 @@ classdef ParRob < RobBase
       
       % Einstellungen für PKM-Parameter zusammenstellen
       Leg_I_EE_Task = cat(1,R.Leg.I_EE_Task);
-      Leg_pkin_gen = cat(1,RP.Leg.pkin_gen);
+      Leg_pkin_gen = cat(2,R.Leg.pkin_gen)';
       Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
       Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel,4:6 Position
       Leg_sigmaJ = zeros(R.Leg(1).NJ,R.NLEG);
