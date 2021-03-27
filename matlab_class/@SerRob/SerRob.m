@@ -685,7 +685,7 @@ classdef SerRob < RobBase
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
@@ -702,7 +702,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
+      if length(s.wn) < 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
