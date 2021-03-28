@@ -39,14 +39,21 @@
 %   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
 % JinvD_ges [N x NumEl(J)]
 %   Zeitableitung von Jinv_ges
+% JointPos_all
+%   gestapelte Positionen aller Gelenke der PKM für alle Zeitschritte
+%   (Entspricht letzter Spalte aller Transformationsmatrizen aus fkine_legs)
+% Stats
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
 %
 % Siehe auch: SerRob/invkin_traj
 
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
 
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-04
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
 
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 Leg_I_EE_Task = true(R.NLEG,6);
@@ -85,7 +92,8 @@ s = struct('I_EE', R.I_EE,...
    'simplify_acc', false,...
         'mode_IK', 3,... % 1=Seriell-IK, 2=Parallel-IK, 3=Beide
           'debug', false,...
-             'wn', zeros(6,1),...
+             'wn', zeros(10,1),...
+   'thresh_ns_qa', 1e4, ... % ab dieser Konditionszahl NR-Bewegung in Gesamt-Koordinaten
  'I_constr_t_red', R.I_constr_t_red,...
  'I_constr_r_red', R.I_constr_r_red,...
    'I1constr_red', R.I1constr_red,...
@@ -141,12 +149,12 @@ if nargin >= 7 && ~isempty(s_in)
     end
   end
 end
-if length(s.wn) < 6, s.wn=[s.wn;zeros(6-length(s.wn),1)]; end
+if length(s.wn) < 10, s.wn=[s.wn;zeros(10-length(s.wn),1)]; end
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
 end
-s.wn = s.wn(1:5); % TODO: Ist Platzhalter, bis Optimierung PKM-Jacobi implementiert
+
 %% Funktionsaufruf. 
 % Entspricht robot_invkin_eulangresidual.m.template
-[Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s, s_ser);
+[Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s, s_ser);
 end
