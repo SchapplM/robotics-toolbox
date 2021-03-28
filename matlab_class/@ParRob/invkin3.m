@@ -227,8 +227,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
         if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
-          Jdk = Rob.constr3grad_x(q1, xE_soll);
-          Jinv = -Jik \ Jdk(:,Rob.I_EE_Task); % bezogen z.B. auf 3T2R (nicht: 3T3R)
+          % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
+          % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
+          % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
+          % die Rotation korrekt berücksichtigt.
+          xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+          % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
+          [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
+          [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
+          Jinv = -Phi4_q_voll\Phi4_x_voll;
           condJpkm = cond(Jinv(Rob.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
           h(4) = condJpkm;
         end
@@ -243,9 +250,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
             h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
           end
-          if wn(4) % bezogen auf PKM-Jacobi
-            Jdk_kkk = Rob.constr3grad_x(q_test, xE_soll);
-            Jinv_kkk = -Jik_kkk \ Jdk_kkk(:,Rob.I_EE_Task);
+          if wn(4) % bezogen auf PKM-Jacobi.
+            [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
+            Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
             condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,:));
             h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
           end
