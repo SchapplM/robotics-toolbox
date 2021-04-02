@@ -446,10 +446,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if damping_active
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
-      delta_q_alt = delta_q; % bei Aktivierung des Filters noch auf Null. Ist egal.
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
+    delta_q_alt = delta_q;
     
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
