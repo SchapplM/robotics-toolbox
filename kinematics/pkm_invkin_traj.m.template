@@ -129,7 +129,6 @@ Rob_I_EE = %I_EE%;
 NJ = %NJ%;
 NLEG = %NLEG%;
 NL = %NL%;
-Leg_I_EElink = %Leg_I_EElink%;
 Leg_NQJ = %Leg_NQJ%;
 I_EE = s.I_EE_Task;
 mode_IK = s.mode_IK;
@@ -227,7 +226,7 @@ Phi_x_voll_alt = zeros(6*NLEG, 6);
 Phi_xD_voll = Phi_x_voll_alt;
 Phi_q_voll = Phi_q_voll_alt;
 Phi_x_voll = Phi_x_voll_alt;
-N = eye(NJ); % Nullraum-Projektor
+N = NaN(NJ,NJ); % Nullraum-Projektor
 Phi_x = Phi_x_alt; %#ok<NASGU>
 Phi_xD = Phi_x_alt; %#ok<NASGU>
 % Eingabestruktur für tpl-fcns
@@ -391,13 +390,6 @@ Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
 Jinv_ges = NaN(nt, sum(Rob_I_EE)* NJ);
 JinvD_ges = zeros(nt, sum(Rob_I_EE)* NJ);
 
-% Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
-% berechnet wurde
-q_wn5 = inf(%NJ%,1);
-% Gradient von Nebenbedingung 5 und 6
-h5dq = NaN(1,%NJ%);
-h6dq = NaN(1,%NJ%);
-
 JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
 qk0 = q0;
 qDk0 = zeros(NJ,1);
@@ -406,6 +398,8 @@ qD_N_pre_alt = zeros(NJ,1);
 qaDD_N_pre1 = zeros(sum(s.I_qa),1);
 qDD_N_pre = zeros(NJ,1);
 qDD_N_pre1 = zeros(NJ,1);
+qDD_N_pre_voll = zeros(NJ,1);
+J_ax = NaN(sum(Rob_I_EE), sum(s.I_qa));
 q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((%NL%-1+%NLEG%)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
@@ -556,12 +550,13 @@ for k = 1:nt
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
-  if nsoptim % Nullraumbewegung
+  if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
     Jinv_ax = J_x_inv(s.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
     condJ = cond(Jinv_ax);
     h(6) = condJ;
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
+    % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
     xD_test_3T3R = [zeros(5,1);1e-8];
     xD_test = xD_test_3T3R(Rob_I_EE);
     qD_test = J_x_inv * xD_test; % Gelenkänderung der Nullraumbewegung
@@ -587,7 +582,7 @@ for k = 1:nt
         v_qaD = v_qaD - wn(7)*h1dqa';
         v_qaDD = v_qaDD - wn(1)*h1dqa';
       end
-      if s.wn(2) ~= 0 || s.wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+      if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
         h(2) = invkin_optimcrit_limits2(q_k, qlim);
         h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
         h2drz = (h2_test-h(2))/xD_test_3T3R(6);
@@ -635,8 +630,9 @@ for k = 1:nt
 %         h6drz_v4 = (h6_test_v4-h(6))/xD_test_3T3R(6);
         
         % Alternative 2 für Berechnung: Inkrement für beide Gradienten bestimmen.
-        [~,Phi_q_voll_test] = P6RRPRRR14V3_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
-        [~,Phi_x_voll_test] = P6RRPRRR14V3_constr3grad_x(q_k+qD_test, x_k+xD_test, s_3x);
+        % Benutze constr3, da dieser Term schon oben berechnet wurde.
+        [~,Phi_q_voll_test] = %PN%_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
+        [~,Phi_x_voll_test] = %PN%_constr3grad_x(q_k+qD_test, x_k+xD_test, s_3x);
         % Daraus mit Differenzenquotient das Differential annähern.
         % (ist hier ausreichend genau).
         PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
@@ -658,12 +654,15 @@ for k = 1:nt
       qaDD_N_pre1 = Na*(qaD_N_pre-qaD_N_pre_alt)/dt;
       % Speichere den Altwert für den Differenzenquotienten
       qaD_N_pre_alt = qaD_N_pre;
-      qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1);
+      qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1); %#ok<MINV>
     end
-    if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE)
-      % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
-      % Robuster, aber auch rechenaufwändiger.
-      N = (eye(NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
+    % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss immer
+    % berechnet werden (für Grenzkorrekturen weiter unten)
+    N = (eye(NJ) - pinv(Phi_q)* Phi_q);
+    % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
+    % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
+    % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
+    if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE) || debug
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v_qD = zeros(NJ, 1);
       v_qDD = zeros(NJ, 1);
@@ -695,6 +694,7 @@ for k = 1:nt
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
         h(6) = condJ;
+        % Siehe gleiche Berechnung oben.
         [~,Phi_q_voll_test] = P6RRPRRR14V3_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
         [~,Phi_x_voll_test] = P6RRPRRR14V3_constr3grad_x(q_k+qD_test, x_k+xD_test, s_3x);
         % Daraus mit Differenzenquotient das Differential annähern.
@@ -711,12 +711,41 @@ for k = 1:nt
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
       end
-      if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE)
+      if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE) || debug
         qD_N_pre = N * v_qD;
         qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
         % Speichere den Altwert für den Differenzenquotienten
         qD_N_pre_alt = qD_N_pre;
+        % Nullraum-Beschleunigung nach der Methode mit vollst. Gelenkraum
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
+      end
+      if debug && condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE)
+        % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
+        % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
+        % unterschiedlicher Vektorräume, in die projiziert wird.
+        test_qDD_N_ratio = qDD_N_pre./qDD_N_pre_voll;
+        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
+        test_qDD_N_ratio_rel = 1-test_qDD_N_ratio/test_qDD_N_ratio(1);
+        test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
+        if ~any(isnan([test_qDD_N_ratio;test_qaDD_N_ratio])) && ... % bei exakt h=0 kommt sonst Fehler
+          (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 1e-2 || ... % Teste auf 1% genau
+           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > 1e-2 || ...
+           abs(diff(minmax2([test_qaDD_N_ratio_rel',test_qDD_N_ratio_rel']))) > 1e-2)
+          error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
+            'Koordinaten ist nicht gleichfoermig']);
+        end
+        xD_N_test1 = J_ax * qDD_N_pre_voll(s.I_qa);
+        xD_N_test2 = J_ax * qDD_N_pre(s.I_qa);
+        xD_nonns_abs = abs([xD_N_test1(s.I_EE_Task);xD_N_test2(s.I_EE_Task)]);
+        xD_nonns_rel = abs([xD_N_test1(s.I_EE_Task)/max(abs(xD_N_test1)); ...
+                        xD_N_test2(s.I_EE_Task)/max(abs(xD_N_test2))]);
+        if any(xD_nonns_abs>1e-6 & xD_nonns_rel > 1e-9)
+          error('Nullraumbewegung ist nicht korrekt');
+        end
+      end
+      if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE)
+        % Benutze die Methode mit vollständigem Gelenkraum (umständliches
+        % if-else wegen debug-Abfrage).
         qDD_N_pre = qDD_N_pre_voll;
       end
     end
@@ -840,7 +869,7 @@ for k = 1:nt
       qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
       qDD_N_post2 = qDD_N_post+qDD_N_korr; % [3]/(6)
       if false % Debug
-        Iutest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 > qmax + 1e-6;
+        Iutest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 > qmax + 1e-6; %#ok<UNRCH>
         Iltest = q_k + qD_k*dt + 0.5*(qDD_k_T+qDD_N_post2)*dt^2 < qmin - 1e-6;
         if min(delta_ul)<min(delta_ll) && Iutest(I_worst)
           error('Fehler bei Korrektur der Verletzung der Positions-Obergrenze');

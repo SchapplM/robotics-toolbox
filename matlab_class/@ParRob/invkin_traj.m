@@ -376,6 +376,11 @@ for k = 1:nt
     Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
     condJ = cond(Jinv_ax);
     h(6) = condJ;
+    % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
+    % Notwendig für die constr4-Methode für Jacobi-Matrix.
+    % Benutze die erste Beinkette (direkte Kinematik dafür).
+    % (wird aber aktuell nicht benutzt).
+    % x_k_ist = Rob.fkineEE_traj(q_k')';
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
     xD_test_3T3R = [zeros(5,1);1e-8];
@@ -403,7 +408,7 @@ for k = 1:nt
         v_qaD = v_qaD - wn(7)*h1dqa';
         v_qaDD = v_qaDD - wn(1)*h1dqa';
       end
-      if s.wn(2) ~= 0 || s.wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+      if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
         h(2) = invkin_optimcrit_limits2(q_k, qlim);
         h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
         h2drz = (h2_test-h(2))/xD_test_3T3R(6);
@@ -439,9 +444,9 @@ for k = 1:nt
         % Alternative 1 für Berechnung: Allgemeine Zwangsbedingungen
         % Nicht benutzen, da nicht mit constr3-Ergebnissen von oben kombinierbar.
 %         [~,Phi_q_voll_v4] = Rob.constr4grad_q(q_k);
-%         [~,Phi_x_voll_v4] = Rob.constr4grad_x(x_k);
+%         [~,Phi_x_voll_v4] = Rob.constr4grad_x(x_k_ist);
 %         [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
-%         [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k+xD_test);
+%         [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k_ist+xD_test);
 %         PhiD_q_voll_v4 = Phi_q_voll_test-Phi_q_voll_v4;
 %         PhiD_x_voll_v4 = Phi_x_voll_test-Phi_x_voll_v4;
 %         J_x_inv_test_v4 = J_x_inv + ...
@@ -451,8 +456,9 @@ for k = 1:nt
 %         h6drz_v4 = (h6_test_v4-h(6))/xD_test_3T3R(6);
         
         % Alternative 2 für Berechnung: Inkrement für beide Gradienten bestimmen.
-        [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
-        [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k+xD_test);
+        % Benutze constr3, da dieser Term schon oben berechnet wurde.
+        [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
+        [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
         % Daraus mit Differenzenquotient das Differential annähern.
         % (ist hier ausreichend genau).
         PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
@@ -481,12 +487,15 @@ for k = 1:nt
       qaDD_N_pre1 = Na*(qaD_N_pre-qaD_N_pre_alt)/dt;
       % Speichere den Altwert für den Differenzenquotienten
       qaD_N_pre_alt = qaD_N_pre;
-      qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1);
+      qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1); %#ok<MINV>
     end
+    % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss immer
+    % berechnet werden (für Grenzkorrekturen weiter unten)
+    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
+    % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
+    % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
+    % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
     if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
-      % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
-      % Robuster, aber auch rechenaufwändiger.
-      N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q); % Nullraum-Projektor
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       % (bezogen auf vollständige Koordinaten)
       v_qD = zeros(Rob.NJ, 1);
@@ -519,36 +528,47 @@ for k = 1:nt
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
         h(6) = condJ;
-        % Nehme PKM-Jacobi-Matrix ohne Bezug zur Aufgabenredundanz
-        [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
-        [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k+xD_test);
-        J_x_inv_test = -Phi_q_voll_test \ Phi_x_voll_test;
+        % Siehe gleiche Berechnung oben.
+        [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test,x_k+xD_test);
+        [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test,x_k+xD_test);
+        % Daraus mit Differenzenquotient das Differential annähern.
+        % (ist hier ausreichend genau).
+        PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
+        PhiD_x_voll_test = Phi_x_voll_test-Phi_x_voll;
+        % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
+        % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
+        J_x_inv_test = J_x_inv + ...
+          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll + ...
+          -Phi_q_voll\PhiD_x_voll_test;
         h6_test = cond(J_x_inv_test(Rob.I_qa,:));
         h6dq = (h6_test-h(6))./qD_test;
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
       end
-      if debug || condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE)
+      if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
         qD_N_pre = N * v_qD;
         qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
         % Speichere den Altwert für den Differenzenquotienten
         qD_N_pre_alt = qD_N_pre;
+        % Nullraum-Beschleunigung nach der Methode mit vollst. Gelenkraum
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
       end
       if debug && condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE)
-        % Prüfe, ob beide Methoden das gleiche Ergebnis geben.
-        % TODO: Die Richtung ist gleich, aber nicht der Betrag. Warum?
-        test_qDD_N = qDD_N_pre_voll - qDD_N_pre; %#ok<NASGU> % TODO: Ungleich Null. Warum?
+        % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
+        % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
+        % unterschiedlicher Vektorräume, in die projiziert wird.
         test_qDD_N_ratio = qDD_N_pre./qDD_N_pre_voll;
         test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(Rob.I_qa);
+        test_qDD_N_ratio_rel = 1-test_qDD_N_ratio/test_qDD_N_ratio(1);
+        test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
         if ~any(isnan([test_qDD_N_ratio;test_qaDD_N_ratio])) && ... % bei exakt h=0 kommt sonst Fehler
-          (abs(diff(minmax2(test_qDD_N_ratio'))) > 1e-8 || ...
-           abs(diff(minmax2(test_qaDD_N_ratio'))) > 1e-8 || ...
-           abs(diff(minmax2([test_qaDD_N_ratio',test_qDD_N_ratio']))) > 10)
+          (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 1e-2 || ... % Teste auf 1% genau
+           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > 1e-2 || ...
+           abs(diff(minmax2([test_qaDD_N_ratio_rel',test_qDD_N_ratio_rel']))) > 1e-2)
           error('Die Nullraumbewegung aus Antriebs- oder vollständigen Koordinaten ist nicht gleichförmig');
         end
-        xD_N_test1 = J_ax * qDD_N_pre_voll(Rob.I_qa);
-        xD_N_test2 = J_ax * qDD_N_pre(Rob.I_qa);
+        xD_N_test1 = J_ax * qDD_N_pre_voll(Rob.I_qa); %#ok<MINV>
+        xD_N_test2 = J_ax * qDD_N_pre(Rob.I_qa); %#ok<MINV>
         xD_nonns_abs = abs([xD_N_test1(Rob.I_EE_Task);xD_N_test2(Rob.I_EE_Task)]);
         xD_nonns_rel = abs([xD_N_test1(Rob.I_EE_Task)/max(abs(xD_N_test1)); ...
                         xD_N_test2(Rob.I_EE_Task)/max(abs(xD_N_test2))]);
@@ -557,6 +577,8 @@ for k = 1:nt
         end
       end
       if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE)
+        % Benutze die Methode mit vollständigem Gelenkraum (umständliches
+        % if-else wegen debug-Abfrage).
         qDD_N_pre = qDD_N_pre_voll;
       end
     end
