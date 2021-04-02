@@ -254,7 +254,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
           xD_test_3T3R = [zeros(5,1);1e-8];
-          xD_test = xD_test_3T3R(Rob.I_EE);
+          xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
           if wn(3)
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
@@ -272,7 +272,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Jinv_test = Jinv + ...
               Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
               -Phi4_q_voll\Phi4D_x_voll;
-            h4_test = cond(Jinv_test(Rob.I_qa,:));
+            h4_test = cond(Jinv_test(Rob.I_qa,Rob.I_EE));
             h4dq = (h4_test-h(4))./qD_test';
           end
         else
@@ -296,7 +296,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
-              condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,:));
+              condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,Rob.I_EE));
               h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
             end
           end
@@ -533,8 +533,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
     [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
     [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
-    Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen z.B. auf 3T2R (nicht: 3T3R)
-    h(4) = cond(Jinv(Rob.I_qa,:));
+    Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
+    h(4) = cond(Jinv(Rob.I_qa,Rob.I_EE));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

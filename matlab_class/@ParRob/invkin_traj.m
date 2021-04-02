@@ -276,7 +276,8 @@ for k = 1:nt
     if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
-      % TODO: Wird hier bei 2T1R auch die volle Matrix (mit Nullen) benutzt?
+      % TODO: Hier wird bei 2T1R auch die volle Matrix (mit Nullen) benutzt
+      % (in dem Fall unnötig große Matrix zu invertieren).
       J_x_inv = -Phi_q_voll \ Phi_x_voll(:,Rob.I_EE);
     else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
@@ -383,9 +384,10 @@ for k = 1:nt
     % x_k_ist = Rob.fkineEE_traj(q_k')';
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
-    xD_test_3T3R = [zeros(5,1);1e-8];
-    xD_test = xD_test_3T3R(Rob.I_EE);
-    qD_test = J_x_inv * xD_test; % Gelenkänderung der Nullraumbewegung
+    % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
+    xD_test = [zeros(5,1);1e-8];
+    % Benutze nur für die Jacobi-Matrix die red. Koordinaten (2T1R, 3T0R)
+    qD_test = J_x_inv * xD_test(Rob.I_EE); % Gelenkänderung der Nullraumbewegung
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
     if condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE)
@@ -403,7 +405,7 @@ for k = 1:nt
       if wn(1) ~= 0 || wn(7) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
         h(1) = invkin_optimcrit_limits1(q_k, qlim);
         h1_test = invkin_optimcrit_limits1(q_k+qD_test, qlim);
-        h1drz = (h1_test-h(1))/xD_test_3T3R(6);
+        h1drz = (h1_test-h(1))/xD_test(6);
         h1dqa = h1drz * J_ax(end,:);
         v_qaD = v_qaD - wn(7)*h1dqa';
         v_qaDD = v_qaDD - wn(1)*h1dqa';
@@ -411,7 +413,7 @@ for k = 1:nt
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
         h(2) = invkin_optimcrit_limits2(q_k, qlim);
         h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
-        h2drz = (h2_test-h(2))/xD_test_3T3R(6);
+        h2drz = (h2_test-h(2))/xD_test(6);
         h2dqa = h2drz * J_ax(end,:);
         v_qaD = v_qaD - wn(8)*h2dqa';
         v_qaDD = v_qaDD - wn(2)*h2dqa';
@@ -419,14 +421,14 @@ for k = 1:nt
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         h(3) = invkin_optimcrit_limits1(qD_k, qDlim);
         h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
-        h3drz = (h3_test-h(3))/(xD_test_3T3R(6));
+        h3drz = (h3_test-h(3))/(xD_test(6));
         h3dqa = h3drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(3)*h3dqa';
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
         h(4) = invkin_optimcrit_limits2(qD_k, qDlim);
         h4_test = invkin_optimcrit_limits2(qD_k+qD_test, qDlim);
-        h4drz = (h4_test-h(4))/xD_test_3T3R(6);
+        h4drz = (h4_test-h(4))/xD_test(6);
         h4dqa =  h4drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(4)*h4dqa';
       end
@@ -434,7 +436,7 @@ for k = 1:nt
         h(5) = cond(Phi_q);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
-        h5drz = (h5_test-h(5))/xD_test_3T3R(6);
+        h5drz = (h5_test-h(5))/xD_test(6);
         h5dqa = h5drz * J_ax(end,:);
         v_qaD = v_qaD - wn(9)*h5dqa';
         v_qaDD = v_qaDD - wn(5)*h5dqa';
@@ -466,8 +468,8 @@ for k = 1:nt
         % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
         % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
         J_x_inv_test = J_x_inv + ...
-          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll + ...
-          -Phi_q_voll\PhiD_x_voll_test;
+          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
+          -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
         
         % Alternative 3: Direkte Berechnung. Entspricht direkt dem
         % Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
@@ -477,7 +479,7 @@ for k = 1:nt
 
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6_test = cond(J_x_inv_test(Rob.I_qa,:));
-        h6drz = (h6_test-h(6))/xD_test_3T3R(6);
+        h6drz = (h6_test-h(6))/xD_test(6);
         % Projektion in Antriebskoordinaten
         h6dqa = h6drz * J_ax(end,:);
         v_qaD = v_qaD - wn(10)*h6dqa';
@@ -538,8 +540,8 @@ for k = 1:nt
         % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
         % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
         J_x_inv_test = J_x_inv + ...
-          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll + ...
-          -Phi_q_voll\PhiD_x_voll_test;
+          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
+          -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
         h6_test = cond(J_x_inv_test(Rob.I_qa,:));
         h6dq = (h6_test-h(6))./qD_test;
         v_qD = v_qD - wn(10)*h6dq(:);

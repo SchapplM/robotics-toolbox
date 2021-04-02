@@ -95,6 +95,7 @@ I2J_LEG = %I2J_LEG%;
 Leg_I_EElink = %Leg_I_EElink%;
 Leg_NQJ = %Leg_NQJ%;
 NJ = %NJ%;
+NLEG = %NLEG%;
 
 %% Definitionen
 sigma_PKM = s.sigma;
@@ -194,11 +195,11 @@ else
   taskred_rotsym = true;
 end
 
-qlim = NaN(%NJ%,2);
-qmin = NaN(%NJ%,1);
-qmax = NaN(%NJ%,1);
+qlim = NaN(NJ,2);
+qmin = NaN(NJ,1);
+qmax = NaN(NJ,1);
 J1 = 1;
-for i = 1:%NLEG%
+for i = 1:NLEG
   J2 = J1+Leg_NQJ(i)-1;
   qlim(J1:J2,:) = s.Leg_qlim(1:Leg_NQJ(i),(1+2*(i-1)):(2+2*(i-1)));
   J1 = J2+1;
@@ -210,8 +211,8 @@ if all(~isnan(qlim(:)))
   limits_set = true;
 else
   % Grenzen sind nicht wirksam
-  qmin = -Inf(%NJ%,1);
-  qmax =  Inf(%NJ%,1);
+  qmin = -Inf(NJ,1);
+  qmax =  Inf(NJ,1);
   retry_limit = 0; % keine zufällige Neubestimmung möglich.
   finish_in_limits = false;
 end
@@ -221,30 +222,30 @@ end
 qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
-delta_qlim = NaN(%NJ%,1);
+delta_qlim = NaN(NJ,1);
 delta_qlim = qmax - qmin;
 I_constr_t_red = s.I_constr_t_red;
 I_constr_r_red = s.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
-delta_q_alt = zeros(%NJ%,1); % Altwert für Tiefpassfilter
+delta_q_alt = zeros(NJ,1); % Altwert für Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
 rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
   sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 Phi = NaN(rownum_Phi_red,1);
-Phi_voll = NaN(%NLEG%*6,1);
-Phi4_q_voll = NaN(%NLEG%*6,%NJ%);
-Phi4_x_voll = NaN(%NLEG%*6,6);
+Phi_voll = NaN(NLEG*6,1);
+Phi4_q_voll = NaN(NLEG*6,NJ);
+Phi4_x_voll = NaN(NLEG*6,6);
 q2 = q0;
 % Gradient von Nebenbedingung 3 und 4
-h3dq = NaN(1,%NJ%); h4dq = NaN(1,%NJ%);
+h3dq = NaN(1,NJ); h4dq = NaN(1,NJ);
 h = zeros(4,1); h_alt = inf(4,1); % Speicherung der Werte der Nebenbedingungen
 
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((%NL%-1+%NLEG%)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((%NL%-1+NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
@@ -252,7 +253,7 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 condJpkm = NaN;
 if nargout == 4
-  Stats = struct('Q', NaN(1+n_max, %NJ%), 'PHI', NaN(1+n_max, 6*%NLEG%), 'iter', n_max, ...
+  Stats = struct('Q', NaN(1+n_max, NJ), 'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
     NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+4));
 end
@@ -299,7 +300,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
         rejcount == 0 %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. Annahme: Schädlich für Konvergenz
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
-      v = zeros(%NJ%, 1);
+      v = zeros(NJ, 1);
       if wn(1) ~= 0
         [h(1), h1dq] = invkin_optimcrit_limits1(q1, qlim);
         v = v - wn(1)*h1dq'; % [SchapplerTapOrt2019], Gl. (44)
@@ -324,7 +325,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
           [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
           Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
-          condJpkm = cond(Jinv(s.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+          condJpkm = cond(Jinv(s.I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
           h(4) = condJpkm;
         end
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
@@ -334,7 +335,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
           xD_test_3T3R = [zeros(5,1);1e-8];
-          xD_test = xD_test_3T3R(Rob_I_EE);
+          xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
           if wn(3)
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
@@ -352,7 +353,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Jinv_test = Jinv + ...
               Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
               -Phi4_q_voll\Phi4D_x_voll;
-            h4_test = cond(Jinv_test(s.I_qa,:));
+            h4_test = cond(Jinv_test(s.I_qa,Rob_I_EE));
             h4dq = (h4_test-h(4))./qD_test';
           end
         else
@@ -376,7 +377,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               [~, Phi4_q_voll_kkk] = %PN%_constr4grad_q(q_test,s_q);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
-              condJpkm_kkk = cond(Jinv_kkk(s.I_qa,:));
+              condJpkm_kkk = cond(Jinv_kkk(s.I_qa,Rob_I_EE));
               h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
             end
           end
@@ -386,7 +387,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(3) = condJ;
       end
       % [SchapplerTapOrt2019], Gl. (43)
-      delta_q_N(:) = (eye(%NJ%) - pinv(Jik)* Jik) * v;
+      delta_q_N(:) = (eye(NJ) - pinv(Jik)* Jik) * v;
     end
 
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
@@ -598,7 +599,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
-  q0(:) = qmin_norm + rand(%NJ%,1).*(qmax_norm-qmin_norm); 
+  q0(:) = qmin_norm + rand(NJ,1).*(qmax_norm-qmin_norm); 
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
@@ -611,7 +612,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
     [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
-    h(4) = cond(Jinv(s.I_qa,:));
+    h(4) = cond(Jinv(s.I_qa,Rob_I_EE));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
@@ -622,7 +623,7 @@ if s.normalize
 end
 
 if nargout == 3
-  for i = 1:%NLEG%
+  for i = 1:NLEG
     q_i = q(I1J_LEG(i):I2J_LEG(i));
     % Aufruf der constr2-Funktion, da dort die Trafo-Matrix passend berechnet wird. Teilw. Dummy-Eingabe.
     [~, Tc_stack] = %SN%_constr2(q_i, eye(3,4), s.Leg_pkin_gen(i,:)', eye(4), s.phiconv_W_E, Leg_I_EElink(i),false);
