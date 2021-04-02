@@ -94,6 +94,7 @@ I1J_LEG = %I1J_LEG%;
 I2J_LEG = %I2J_LEG%;
 Leg_I_EElink = %Leg_I_EElink%;
 Leg_NQJ = %Leg_NQJ%;
+NJ = %NJ%;
 
 %% Definitionen
 sigma_PKM = s.sigma;
@@ -186,6 +187,12 @@ else
   % Keine zusätzlichen Optimierungskriterien
   finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
 end
+% Prüfe, ob der Fall von 1FG-Aufgabenredundanz vorliegt.
+if sum(Rob_I_EE) - sum(s.I_EE_Task) == 1 && ~s.I_EE_Task(end)
+  taskred_rotsym = true;
+else
+  taskred_rotsym = true;
+end
 
 qlim = NaN(%NJ%,2);
 qmin = NaN(%NJ%,1);
@@ -226,6 +233,7 @@ q1 = q0;
 rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
   sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 Phi = NaN(rownum_Phi_red,1);
+Phi_voll = NaN(%NLEG%*6,1);
 Phi4_q_voll = NaN(%NLEG%*6,%NJ%);
 Phi4_x_voll = NaN(%NLEG%*6,6);
 q2 = q0;
@@ -305,12 +313,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
-        if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
-          % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
-          % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
-          % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
-          % die Rotation korrekt berücksichtigt.
-          xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+        Jinv = NaN(NJ, 6);
+        % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
+        % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
+        % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
+        % die Rotation korrekt berücksichtigt.
+        xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+        if wn(4) || taskred_rotsym && all(abs(Phi)<1e-3) % Bestimme PKM-Jacobi für Iterationsschritt
           % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
           [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
           [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
@@ -318,22 +327,58 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           condJpkm = cond(Jinv(s.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
           h(4) = condJpkm;
         end
-        for kkk = 1:%NJ% % Differenzenquotient für jede Gelenkkoordinate
-          q_test = q1; % ausgehend von aktueller Konfiguration
-          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Jik_kkk=%PN%_constr3grad_q(q_test, xE_soll, s_cst3_q); % Berechnung identisch mit oben
+        % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
+        % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
+        if all(abs(Phi)<1e-3) && taskred_rotsym
+          % Bestimme Nullraumbewegung durch Differenzenquotient für die 
+          % redundante Koordinate. Dadurch nur eine neue Funktions- 
+          % auswertung
+          xD_test_3T3R = [zeros(5,1);1e-8];
+          xD_test = xD_test_3T3R(Rob_I_EE);
+          qD_test = Jinv * xD_test;
+          if wn(3)
+            % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
+            Phi_q_test = %PN%_constr3grad_q(q1+qD_test, xE_soll, s_cst3_q);
+            condJ_test = cond(Phi_q_test);
+            h3dq = (condJ_test-condJ)./qD_test';
+          end
+          if wn(4)
+            % Benutze Formel für Differential des Matrix-Produkts mit 
+            % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
+            [~,Phi4_x_voll_test] = %PN%_constr4grad_x(xE_1+xD_test,s_x);
+            [~,Phi4_q_voll_test] = %PN%_constr4grad_q(q1+qD_test,s_q);
+            Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
+            Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
+            Jinv_test = Jinv + ...
+              Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
+              -Phi4_q_voll\Phi4D_x_voll;
+            h4_test = cond(Jinv_test(s.I_qa,:));
+            h4dq = (h4_test-h(4))./qD_test';
+          end
+        else
+          % Bestimme Nullraumbewegung durch Differenzenquotient für jede
+          % Gelenkkoordinate.
           if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
-            condJik_kkk = cond(Jik_kkk);
-            % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
-            % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-            % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
-            h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+            for kkk = 1:NJ
+              q_test = q1; % ausgehend von aktueller Konfiguration
+              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+              Jik_kkk=%PN%_constr3grad_q(q_test, xE_soll, s_cst3_q); % Berechnung identisch mit oben
+              condJik_kkk = cond(Jik_kkk);
+              % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
+              % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
+              % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
+              h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+            end
           end
           if wn(4) % bezogen auf PKM-Jacobi
-            [~, Phi4_q_voll_kkk] = %PN%_constr4grad_q(q_test,s_q);
-            Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
-            condJpkm_kkk = cond(Jinv_kkk(s.I_qa,:));
-            h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+            for kkk = 1:NJ
+              q_test = q1; % ausgehend von aktueller Konfiguration
+              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+              [~, Phi4_q_voll_kkk] = %PN%_constr4grad_q(q_test,s_q);
+              Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
+              condJpkm_kkk = cond(Jinv_kkk(s.I_qa,:));
+              h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+            end
           end
         end
         if wn(3), v = v - wn(3)*h3dq'; end
@@ -561,8 +606,11 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   Jik=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
   h(3) = cond(Jik);
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
-    Jdk = %PN%_constr3grad_x(q1, xE_soll, s_3x);
-    Jinv = -Jik \ Jdk(:,s.I_EE_Task); % bezogen z.B. auf 3T2R (nicht: 3T3R)
+    % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
+    xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+    [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
+    [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
+    Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     h(4) = cond(Jinv(s.I_qa,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];

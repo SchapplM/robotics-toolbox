@@ -116,6 +116,12 @@ else
   % Keine zusätzlichen Optimierungskriterien
   finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
 end
+% Prüfe, ob der Fall von 1FG-Aufgabenredundanz vorliegt.
+if sum(Rob.I_EE) - sum(Rob.I_EE_Task) == 1 && ~Rob.I_EE_Task(end)
+  taskred_rotsym = true;
+else
+  taskred_rotsym = true;
+end
 
 qlim = NaN(Rob.NJ,2);
 J1 = 1;
@@ -219,41 +225,80 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       if wn(2) ~= 0
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
+        % Setze den Gradienten auf eine sehr große Zahl, wenn eine Grenze
         % überschritten wird. Sonst auch Abbruch bei unendlich.
         % Die Nullraumbewegung wird später sowieso reduziert.
         h2dq(q1>=qlim(:,2)) = 1e10; h2dq(q1<=qlim(:,1)) = -1e10;
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
-        if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
-          % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
-          % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
-          % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
-          % die Rotation korrekt berücksichtigt.
-          xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
-          % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
+        % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
+        % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
+        % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
+        % die Rotation korrekt berücksichtigt.
+        xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+        if wn(4) || taskred_rotsym && all(abs(Phi)<1e-3) % Bestimme PKM-Jacobi für Iterationsschritt
+          % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
+          % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
+          % exakt Null ist.
           [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
           [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
           Jinv = -Phi4_q_voll\Phi4_x_voll;
           condJpkm = cond(Jinv(Rob.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
           h(4) = condJpkm;
         end
-        for kkk = 1:Rob.NJ % Differenzenquotient für jede Gelenkkoordinate
-          q_test = q1; % ausgehend von aktueller Konfiguration
-          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
+        % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
+        % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
+        if all(abs(Phi)<1e-3) && taskred_rotsym
+          % Bestimme Nullraumbewegung durch Differenzenquotient für die 
+          % redundante Koordinate. Dadurch nur eine neue Funktions- 
+          % auswertung
+          xD_test_3T3R = [zeros(5,1);1e-8];
+          xD_test = xD_test_3T3R(Rob.I_EE);
+          qD_test = Jinv * xD_test;
+          if wn(3)
+            % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
+            Phi_q_test = Rob.constr3grad_q(q1+qD_test, xE_soll);
+            condJ_test = cond(Phi_q_test);
+            h3dq = (condJ_test-condJ)./qD_test';
+          end
+          if wn(4)
+            % Benutze Formel für Differential des Matrix-Produkts mit 
+            % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
+            [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
+            [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
+            Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
+            Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
+            Jinv_test = Jinv + ...
+              Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
+              -Phi4_q_voll\Phi4D_x_voll;
+            h4_test = cond(Jinv_test(Rob.I_qa,:));
+            h4dq = (h4_test-h(4))./qD_test';
+          end
+        else
+          % Bestimme Nullraumbewegung durch Differenzenquotient für jede
+          % Gelenkkoordinate.
           if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
-            condJik_kkk = cond(Jik_kkk);
-            % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
-            % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-            % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
-            h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+            for kkk = 1:Rob.NJ
+              q_test = q1; % ausgehend von aktueller Konfiguration
+              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+              Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
+              condJik_kkk = cond(Jik_kkk);
+              % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
+              % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
+              % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
+              h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+            end
           end
           if wn(4) % bezogen auf PKM-Jacobi.
-            [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
-            Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
-            condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,:));
-            h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+            for kkk = 1:Rob.NJ
+              q_test = q1; % ausgehend von aktueller Konfiguration
+              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+              [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
+              Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
+              condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,:));
+              h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+            end
           end
         end
         if wn(3), v = v - wn(3)*h3dq'; end
@@ -479,11 +524,16 @@ end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim); end
-  Jik=Rob.constr3grad_q(q1, xE_soll);
+  if wn(3)
+    Jik=Rob.constr3grad_q(q1, xE_soll);
+  end
   h(3) = cond(Jik);
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
-    Jdk = Rob.constr3grad_x(q1, xE_soll);
-    Jinv = -Jik \ Jdk(:,Rob.I_EE_Task); % bezogen z.B. auf 3T2R (nicht: 3T3R)
+    % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
+    xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
+    [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
+    [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
+    Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen z.B. auf 3T2R (nicht: 3T3R)
     h(4) = cond(Jinv(Rob.I_qa,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
