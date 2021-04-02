@@ -140,7 +140,7 @@ else
   qmin = -Inf(Rob.NJ,1);
   qmax =  Inf(Rob.NJ,1);
   retry_limit = 0; % keine zufällige Neubestimmung möglich.
-  finish_in_limits = 0;
+  finish_in_limits = false;
 end
 % Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
 % Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
@@ -148,7 +148,6 @@ end
 qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
-
 delta_qlim = qmax - qmin;
 
 I_constr_t_red = Rob.I_constr_t_red;
@@ -157,17 +156,18 @@ I_constr_r_red = Rob.I_constr_r_red;
 delta_q_alt = zeros(Rob.NJ,1); % Altwert für Tiefpassfilter
 delta_q_N_alt = zeros(Rob.NJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
-
+N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 und 4
 h3dq = zeros(1,Rob.NJ); h4dq = zeros(1,Rob.NJ);
 h = zeros(4,1); h_alt = inf(4,1); % Speicherung der Werte der Nebenbedingungen
+
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
 Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
-Tc_stack_PKM(1:3,1:4) = eye(3,4);  % Basis-KS im Basis-KS.
+Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 condJpkm = NaN;
@@ -291,7 +291,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
             end
           end
-          if wn(4) % bezogen auf PKM-Jacobi.
+          if wn(4) % bezogen auf PKM-Jacobi
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
@@ -307,7 +307,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(3) = condJ;
       end
       % [SchapplerTapOrt2019], Gl. (43)
-      delta_q_N = (eye(Rob.NJ) - pinv(Jik)* Jik) * v;
+      N = (eye(Rob.NJ) - pinv(Jik)* Jik);
+      delta_q_N = N * v;
     end
 
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
@@ -325,12 +326,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_q_T = delta_q_T .* 0.5/max(abs_delta_qTrev);
     end
     abs_delta_qNrev = abs(delta_q_N(sigma_PKM==0)); % nur Drehgelenke
-    if any(abs_delta_qNrev > 0.05) % 0.05rad=3°
+    if any(abs_delta_qNrev > 0.05*(1-jj/n_max)) % 0.05rad=3°
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
       % Winkelinkrement danach 3° hat.
       % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
       % tuellen Oszillationen auszugleichen.
-      delta_q_N = delta_q_N .* 0.05/max(abs_delta_qNrev);
+      delta_q_N = delta_q_N .* 0.05*(1-jj/n_max)/max(abs_delta_qNrev);
     end
     
     % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
@@ -352,7 +353,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
     % der anderen Stabilisierungsmaßnahmen erfasst werden.
     if nsoptim && damping_active
-      delta_q_N = delta_q_N_alt + 1/(1+2)*(1*delta_q_N-delta_q_N_alt);
+      % Korrigiere den Altwert, da bezogen auf andere Gelenkkonfig.
+      delta_q_N_alt_N = N*delta_q_N_alt;
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      delta_q_N = delta_q_N_alt_N + 1/(1+2)*(1*delta_q_N-delta_q_N_alt_N);
       delta_q_N_alt = delta_q_N;
     end
     
@@ -375,7 +379,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
     if damping_active
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
-      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+      % Hier deaktiviert. Filtere nur Nullraumbewegung oben.
+      % delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
@@ -383,7 +388,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
-
+    
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist; [SchapplerTapOrt2019], Gl. (47)
     if scale_lim
@@ -417,6 +422,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
     end
 
+    % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
     [Phi_neu, Phi_voll] = Rob.constr3(q2, xE_soll);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numerisch teilweise keine Verbesserung möglich.
@@ -532,9 +538,7 @@ end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim); end
-  if wn(3)
-    Jik=Rob.constr3grad_q(q1, xE_soll);
-  end
+  Jik=Rob.constr3grad_q(q1, xE_soll);
   h(3) = cond(Jik);
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
@@ -553,19 +557,19 @@ if s.normalize
 end
 if nargout >= 3
   for i = 1:Rob.NLEG
-  [~, ~, Tc_stack_0i] = Rob.Leg(i).fkine(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
-  T_0_0i = Rob.Leg(i).T_W_0;
-  % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
-  % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr.
-  Tc_stack_0 = NaN(3*(Rob.Leg(i).NL),4);
-  for kk = 1:Rob.Leg(i).NL
-    Tc_stack_k = Tc_stack_0i(3*(kk-1)+1:kk*3,1:4);
-    T_0_kk = T_0_0i * [Tc_stack_k;0 0 0 1];
-    Tc_stack_0((kk-1)*3+1:kk*3,1:4) = T_0_kk(1:3,:);
-  end
-  % Eintragen in Ergebnis-Variable
-  Tc_stack_PKM(out3_ind1+(1:3*Rob.Leg(i).NL),:) = Tc_stack_0;
-  out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
+    [~, ~, Tc_stack_0i] = Rob.Leg(i).fkine(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+    T_0_0i = Rob.Leg(i).T_W_0;
+    % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
+    % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr.
+    Tc_stack_0 = NaN(3*(Rob.Leg(i).NL),4);
+    for kk = 1:Rob.Leg(i).NL
+      Tc_stack_k = Tc_stack_0i(3*(kk-1)+1:kk*3,1:4);
+      T_0_kk = T_0_0i * [Tc_stack_k;0 0 0 1];
+      Tc_stack_0((kk-1)*3+1:kk*3,1:4) = T_0_kk(1:3,:);
+    end
+    % Eintragen in Ergebnis-Variable
+    Tc_stack_PKM(out3_ind1+(1:3*Rob.Leg(i).NL),:) = Tc_stack_0;
+    out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
   end
 end
 

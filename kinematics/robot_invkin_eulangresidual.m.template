@@ -147,7 +147,7 @@ q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
-
+N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
@@ -240,7 +240,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(3) = condJ;
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
-      delta_q_N(:) = (eye(NQJ) - pinv(Jdk)* Jdk) * v; % "(:)" notwendig für mex
+      N = (eye(NQJ) - pinv(Jdk)* Jdk);
+      delta_q_N(:) = N * v; % "(:)" notwendig für mex
     end
 
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
@@ -258,18 +259,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_q_T = delta_q_T .* 0.35/sum_abs_delta_qTrev;
     end
     sum_abs_delta_qNrev = sum(abs(delta_q_N(sigmaJ==0))); % nur Drehgelenke
-    if sum_abs_delta_qNrev > 0.035 % 0.035rad=2°
+    if sum_abs_delta_qNrev > 0.035*(1-jj/n_max) % 0.035rad=2°
       % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
       % danach 2° ist. Sehr kleine Schritte, damit nur sehr kleine
       % Verschlechterung des Residuums durch die Nullraumbewegung.
       % Bei 2° wird die lokale Näherung allerdings schon leicht verlassen.
-      delta_q_N = delta_q_N .* 0.035/sum_abs_delta_qNrev;
+      % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
+      % tuellen Oszillationen auszugleichen.
+      delta_q_N = delta_q_N .* 0.035*(1-jj/n_max)/sum_abs_delta_qNrev;
     end
     % Dämpfung der Nullraumbewegung. Verlangsamt die Konvergenz, reduziert
     % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
     % der anderen Stabilisierungsmaßnahmen erfasst werden.
     if nsoptim && damping_active
-      delta_q_N = delta_q_N_alt + 1/(1+2)*(1*delta_q_N-delta_q_N_alt);
+      % Korrigiere den Altwert, da bezogen auf andere Gelenkkonfig.
+      delta_q_N_alt_N = N*delta_q_N_alt;
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      delta_q_N = delta_q_N_alt_N + 1/(1+2)*(1*delta_q_N-delta_q_N_alt_N);
       delta_q_N_alt = delta_q_N;
     end
 
@@ -292,7 +298,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
     if damping_active
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
-      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+      % Hier deaktiviert. Filtere nur Nullraumbewegung oben.
+      % delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
