@@ -138,8 +138,7 @@ qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = qmax - qmin;
 % Variablen für Dämpfung der Inkremente
-delta_q_alt = zeros(NQJ,1); % Altwert für Inkrement
-delta_q_damp = zeros(NQJ,1); % Dämpfungsterm
+delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
@@ -258,14 +257,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_q_T = delta_q_T .* 0.35/sum_abs_delta_qTrev;
     end
     sum_abs_delta_qNrev = sum(abs(delta_q_N(sigmaJ==0))); % nur Drehgelenke
-    if sum_abs_delta_qNrev > 0.035*(1-jj/n_max) % 0.035rad=2°
+    if sum_abs_delta_qNrev > 0.035 % 0.035rad=2°
       % Reduziere das Gelenk-Inkrement so, dass die Summe der Beträge
       % danach 2° ist. Sehr kleine Schritte, damit nur sehr kleine
       % Verschlechterung des Residuums durch die Nullraumbewegung.
       % Bei 2° wird die lokale Näherung allerdings schon leicht verlassen.
-      % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
-      % tuellen Oszillationen auszugleichen.
-      delta_q_N = delta_q_N .* 0.035*(1-jj/n_max)/sum_abs_delta_qNrev;
+      delta_q_N = delta_q_N .* 0.035/sum_abs_delta_qNrev;
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
@@ -285,15 +282,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
-    if damping_active % Verstärkung empirisch ermittelt (bestimmt nicht optimal).
-      delta_q_damp = 0.5*(delta_q-delta_q_alt);
+    if damping_active
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+      delta_q_alt = delta_q; % bei Aktivierung des Filters noch auf Null. Ist egal.
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
-    delta_q_alt = delta_q;
     
     % Gelenkwinkel-Schritt anwenden
-    q2 = q1 + delta_q + delta_q_damp;
+    q2 = q1 + delta_q;
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist

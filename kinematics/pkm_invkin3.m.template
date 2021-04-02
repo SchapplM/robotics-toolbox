@@ -219,8 +219,7 @@ delta_qlim = qmax - qmin;
 I_constr_t_red = s.I_constr_t_red;
 I_constr_r_red = s.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
-delta_q_alt = zeros(%NJ%,1); % Altwert für Inkrement
-delta_q_damp = zeros(%NJ%,1); % Dämpfungsterm
+delta_q_alt = zeros(%NJ%,1); % Altwert für Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
@@ -360,12 +359,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_q_T = delta_q_T .* 0.5/max(abs_delta_qTrev);
     end
     abs_delta_qNrev = abs(delta_q_N(sigma_PKM==0)); % nur Drehgelenke
-    if any(abs_delta_qNrev > 0.05*(1-jj/n_max)) % 0.05rad=3°
+    if any(abs_delta_qNrev > 0.05) % 0.05rad=3°
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
       % Winkelinkrement danach 3° hat.
-      % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
-      % tuellen Oszillationen auszugleichen.
-      delta_q_N = delta_q_N .* 0.05*(1-jj/n_max)/max(abs_delta_qNrev);
+      delta_q_N = delta_q_N .* 0.05/max(abs_delta_qNrev);
     end
     
     % Reduziere die einzelnen Komponenten bezüglich der Winkelgrenzen
@@ -401,12 +398,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
-    if damping_active % Verstärkung empirisch ermittelt (bestimmt nicht optimal).
-      delta_q_damp = 0.5*(delta_q-delta_q_alt);
+    if damping_active
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+      delta_q_alt = delta_q; % bei Aktivierung des Filters noch auf Null. Ist egal.
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
-    delta_q_alt = delta_q;
     
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
