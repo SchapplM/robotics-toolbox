@@ -155,6 +155,7 @@ I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(Rob.NJ,1); % Altwert für Tiefpassfilter
+delta_q_N_alt = zeros(Rob.NJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Gradient von Nebenbedingung 3 und 4
@@ -346,6 +347,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if any(abs_delta_q_N_rel > maxrelstep_ns)
         delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
       end
+    end
+    % Dämpfung der Nullraumbewegung. Verlangsamt die Konvergenz, reduziert
+    % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
+    % der anderen Stabilisierungsmaßnahmen erfasst werden.
+    if nsoptim && damping_active
+      delta_q_N = delta_q_N_alt + 1/(1+2)*(1*delta_q_N-delta_q_N_alt);
+      delta_q_N_alt = delta_q_N;
     end
     
     % Inkrement der Gelenkwinkel; [SchapplerTapOrt2019], Gl. (43)

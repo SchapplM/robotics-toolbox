@@ -139,6 +139,7 @@ qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = qmax - qmin;
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
+delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
@@ -263,6 +264,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Verschlechterung des Residuums durch die Nullraumbewegung.
       % Bei 2° wird die lokale Näherung allerdings schon leicht verlassen.
       delta_q_N = delta_q_N .* 0.035/sum_abs_delta_qNrev;
+    end
+    % Dämpfung der Nullraumbewegung. Verlangsamt die Konvergenz, reduziert
+    % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
+    % der anderen Stabilisierungsmaßnahmen erfasst werden.
+    if nsoptim && damping_active
+      delta_q_N = delta_q_N_alt + 1/(1+2)*(1*delta_q_N-delta_q_N_alt);
+      delta_q_N_alt = delta_q_N;
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
