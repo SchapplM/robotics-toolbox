@@ -434,8 +434,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Dämpfung der Nullraumbewegung. Verlangsamt die Konvergenz, reduziert
     % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
-    % der anderen Stabilisierungsmaßnahmen erfasst werden.
-    if nsoptim && damping_active
+    % der anderen Stabilisierungsmaßnahmen erfasst werden. Nur machen, wenn
+    % auch Bewegung im Nullraum (nicht wenn q_N deaktiviert wurde)
+    if nsoptim && damping_active && any(delta_q_N)
       % Korrigiere den Altwert, da bezogen auf andere Gelenkkonfig.
       delta_q_N_alt_N = N*delta_q_N_alt;
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
