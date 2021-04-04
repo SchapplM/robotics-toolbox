@@ -592,10 +592,13 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(2)*h2dqa';
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
-        h(3) = invkin_optimcrit_limits1(qD_k, qDlim);
-        h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
-        h3drz = (h3_test-h(3))/(xD_test(6));
-        h3dqa = h3drz * J_ax(end,:);
+        [h(3), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
+        % Projektion von Gesamt- in Antriebskoordinaten
+        h3dqa = h3dq_diff * (J_x_inv*J_ax); %#ok<MINV>
+        % Berechnung mit Differenzenquotient ist leicht ungenauer:
+%         h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
+%         h3drz = (h3_test-h(3))/(xD_test(6));
+%         h3dqa = h3drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(3)*h3dqa';
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
@@ -656,6 +659,10 @@ for k = 1:nt
       % Speichere den Altwert für den Differenzenquotienten
       qaD_N_pre_alt = qaD_N_pre;
       qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1); %#ok<MINV>
+      % Skaliere Wert herunter, damit Größenordnung ähnlich ist wie mit
+      % zweiter Methode (vollständige Gelenkkoordinaten). TODO: Genaue
+      % Formel noch unklar. So erstmal halb geraten und passt nicht ganz.
+      qDD_N_pre = qDD_N_pre / norm(J_x_inv*J_ax); %#ok<MINV>
     end
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss immer
     % berechnet werden (für Grenzkorrekturen weiter unten)
@@ -720,13 +727,26 @@ for k = 1:nt
         % Nullraum-Beschleunigung nach der Methode mit vollst. Gelenkraum
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
       end
-      if debug && condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE)
+      if debug && condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE) && ...
+          any(abs(qDD_N_pre)>1e-6) % bei sehr kleinen Zahlen numerische Probleme für Test
         % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
         % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
         % unterschiedlicher Vektorräume, in die projiziert wird.
+        % TODO: Aktuell führen die D-Terme teilweise zu unterschiedlichen
+        % Bewegungsrichtungen im Nullraum. Sollte nicht der Fall sein.
         test_qDD_N_ratio = qDD_N_pre./qDD_N_pre_voll;
-        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
+        % TODO: Die Richtung kann auseinanderlaufen, noch kein Test
+        % möglich. Liegt an unterschiedlichen Größen der Gradienten.
+        if all(abs(qDD_N_pre_voll)>1e-6) && any(test_qDD_N_ratio < 0) && ...
+            sum(wn~=0)==1 % Bei einem einzigen Kriterium sollte es gehen.
+          error('Die Richtung der Nullraumbewegung ist nicht gleich in beiden Koordinatenraeumen');
+        end
         test_qDD_N_ratio_rel = 1-test_qDD_N_ratio/test_qDD_N_ratio(1);
+        if ~any(isnan(test_qDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
+          abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 5e-2 % 5% genau (für kleine Zahlenwerte)
+          error('Die Nullraumbewegung aus Antriebs- oder vollstaendigen Koordinaten ist nicht gleichfoermig');
+        end
+        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
         test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
         if ~any(isnan([test_qDD_N_ratio;test_qaDD_N_ratio])) && ... % bei exakt h=0 kommt sonst Fehler
           (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 1e-2 || ... % Teste auf 1% genau
