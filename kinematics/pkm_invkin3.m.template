@@ -463,12 +463,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         delta_q = delta_q .* maxrelstep / max(abs_delta_q_rel);
       end
     end
-    % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere der
+    % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
     if damping_active
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
-      % Hier deaktiviert. Filtere nur Nullraumbewegung oben.
-      % delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+      % Zusätzlich zu obiger Filterung von delta_q_N.
+      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
     elseif all(sign(delta_q) == -sign(delta_q_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
