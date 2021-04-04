@@ -170,6 +170,7 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
+scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
@@ -217,7 +218,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && ... % Nullraum muss vorhanden sein und Kriterien gesetzt
         jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
-        rejcount == 0 %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. Annahme: Schädlich für Konvergenz
+        ... %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. 
+        ... % Annahme: Schädlich für Konvergenz. Nur, falls Stagnation 
+        ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
+        (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
@@ -392,6 +396,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist; [SchapplerTapOrt2019], Gl. (47)
+    scale = 1;
     if scale_lim
       delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
       delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
@@ -434,6 +439,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
       delta_q_N(:) = 0;
+    end
+    if scale_lim && scale == 0
+      % Die Bewegung wurde komplett herunterskaliert, da die Grenzen
+      % überschritten wurden. Erhöhe die Nullraumbewegung zur Vermeidung
+      % der Grenzen. Sonst wird die IK sowieso nicht konvergieren. Annahme:
+      % Keine Singularität, die mit DLS beseitigt wird.
+      wn(2) = wn(2) + 0.1;
     end
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].

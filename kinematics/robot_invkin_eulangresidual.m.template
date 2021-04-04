@@ -147,6 +147,7 @@ q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
+scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 
@@ -207,8 +208,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && ... % Nullraum muss vorhanden sein und Kriterien gesetzt
-        jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
-        rejcount == 0 %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. Annahme: Schädlich für Konvergenz
+        ... %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. 
+        ... % Annahme: Schädlich für Konvergenz. Nur, falls Stagnation 
+        ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
+        (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(NQJ, 1);
       if wn(1) ~= 0 % Anziehung zu Gelenkwinkel-Mitte (linear)
@@ -311,6 +314,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist
+    scale = 1;
     if scale_lim
       delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
       delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
@@ -354,6 +358,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
       delta_q_N(:) = 0;
+    end
+    if scale_lim && scale == 0
+      % Die Bewegung wurde komplett herunterskaliert, da die Grenzen
+      % überschritten wurden. Erhöhe die Nullraumbewegung zur Vermeidung
+      % der Grenzen. Sonst wird die IK sowieso nicht konvergieren. Annahme:
+      % Keine Singularität, die mit DLS beseitigt wird.
+      wn(2) = wn(2) + 0.1;
     end
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
