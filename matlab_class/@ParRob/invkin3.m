@@ -261,13 +261,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           xD_test_3T3R = [zeros(5,1);1e-8];
           xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
-          if wn(3)
+          if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
             Phi_q_test = Rob.constr3grad_q(q1+qD_test, xE_soll);
             condJ_test = cond(Phi_q_test);
             h3dq = (condJ_test-condJ)./qD_test';
           end
-          if wn(4)
+          if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             % Benutze Formel für Differential des Matrix-Produkts mit 
             % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
@@ -295,14 +295,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
             end
           end
-          if wn(4) % bezogen auf PKM-Jacobi
+          if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
-              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+              q_test(kkk) = q_test(kkk) - 1e-6; % minimales Inkrement
               [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
               condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,Rob.I_EE));
-              h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+              h4dq(kkk) = -(condJpkm_kkk-condJpkm)/1e-6;
             end
           end
         end
@@ -310,6 +310,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         if wn(4), v = v - wn(4)*h4dq'; end
         h(3) = condJ;
       end
+      if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
       % [SchapplerTapOrt2019], Gl. (43)
       N = (eye(Rob.NJ) - pinv(Jik)* Jik);
       delta_q_N = N * v;
