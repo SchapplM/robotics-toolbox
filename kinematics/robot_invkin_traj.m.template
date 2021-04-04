@@ -342,6 +342,12 @@ for k = 1:nt
       v_qD = v_qD - wn(8)*h5dq';
       v_qDD = v_qDD - wn(5)*h5dq';
     end
+    % Begrenze die Werte für die Gradienten (können direkt an Grenzen
+    % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
+    % saubere Nullraumbewegung mehr möglich.
+    if any(abs(v_qD)>1e6),  v_qD  = v_qD* 1e6/max(abs(v_qD));  end
+    if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
+    % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
     % Nullraum-Geschwindigkeit; [RMG18], Gl. 11
     qD_N_pre = N * v_qD;
     % Berechne die Nullraum-Beschleunigung durch Zeitableitung. [RMG18], Remark 4.

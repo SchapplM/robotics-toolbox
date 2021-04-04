@@ -407,16 +407,16 @@ for k = 1:nt
         h1_test = invkin_optimcrit_limits1(q_k+qD_test, qlim);
         h1drz = (h1_test-h(1))/xD_test(6);
         h1dqa = h1drz * J_ax(end,:);
-        v_qaD = v_qaD - wn(7)*h1dqa';
-        v_qaDD = v_qaDD - wn(1)*h1dqa';
+        v_qaD = v_qaD - wn(7)*h1dqa(:);
+        v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
         h(2) = invkin_optimcrit_limits2(q_k, qlim);
         h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
         h2drz = (h2_test-h(2))/xD_test(6);
         h2dqa = h2drz * J_ax(end,:);
-        v_qaD = v_qaD - wn(8)*h2dqa';
-        v_qaDD = v_qaDD - wn(2)*h2dqa';
+        v_qaD = v_qaD - wn(8)*h2dqa(:);
+        v_qaDD = v_qaDD - wn(2)*h2dqa(:);
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         [h(3), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
@@ -426,14 +426,14 @@ for k = 1:nt
 %         h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
 %         h3drz = (h3_test-h(3))/(xD_test(6));
 %         h3dqa = h3drz * J_ax(end,:);
-        v_qaDD = v_qaDD - wn(3)*h3dqa';
+        v_qaDD = v_qaDD - wn(3)*h3dqa(:);
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
         h(4) = invkin_optimcrit_limits2(qD_k, qDlim);
         h4_test = invkin_optimcrit_limits2(qD_k+qD_test, qDlim);
         h4drz = (h4_test-h(4))/xD_test(6);
         h4dqa =  h4drz * J_ax(end,:);
-        v_qaDD = v_qaDD - wn(4)*h4dqa';
+        v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
         h(5) = cond(Phi_q);
@@ -441,8 +441,8 @@ for k = 1:nt
         h5_test = cond(Phi_q_test);
         h5drz = (h5_test-h(5))/xD_test(6);
         h5dqa = h5drz * J_ax(end,:);
-        v_qaD = v_qaD - wn(9)*h5dqa';
-        v_qaDD = v_qaDD - wn(5)*h5dqa';
+        v_qaD = v_qaD - wn(9)*h5dqa(:);
+        v_qaDD = v_qaDD - wn(5)*h5dqa(:);
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
         h(6) = condJ;
@@ -485,9 +485,15 @@ for k = 1:nt
         h6drz = (h6_test-h(6))/xD_test(6);
         % Projektion in Antriebskoordinaten
         h6dqa = h6drz * J_ax(end,:);
-        v_qaD = v_qaD - wn(10)*h6dqa';
-        v_qaDD = v_qaDD - wn(6)*h6dqa';
+        v_qaD = v_qaD - wn(10)*h6dqa(:);
+        v_qaDD = v_qaDD - wn(6)*h6dqa(:);
       end
+      % Begrenze die Werte für die Gradienten (können direkt an Grenzen
+      % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
+      % saubere Nullraumbewegung mehr möglich.
+      if any(abs(v_qaD)>1e8),  v_qaD  = v_qaD* 1e8/max(abs(v_qaD));  end
+      if any(abs(v_qaDD)>1e8), v_qaDD = v_qaDD*1e8/max(abs(v_qaDD)); end
+      % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
       qaD_N_pre = Na * v_qaD;
       qaDD_N_pre1 = Na*(qaD_N_pre-qaD_N_pre_alt)/dt;
       % Speichere den Altwert für den Differenzenquotienten
@@ -531,7 +537,11 @@ for k = 1:nt
         h(5) = cond(Phi_q);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
-        h5dq = (h5_test-h(5))./qD_test;
+        if abs(h5_test-h(5)) < 1e-12
+          h5dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
+        else
+          h5dq = (h5_test-h(5))./(qD_test');
+        end
         v_qD = v_qD - wn(9)*h5dq(:);
         v_qDD = v_qDD - wn(5)*h5dq(:);
       end
@@ -550,10 +560,20 @@ for k = 1:nt
           Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
           -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
         h6_test = cond(J_x_inv_test(Rob.I_qa,:));
-        h6dq = (h6_test-h(6))./qD_test;
+        if abs(h6_test-h(6)) < 1e-12
+          h6dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
+        else
+          h6dq = (h6_test-h(6))./(qD_test');
+        end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
       end
+      % Begrenze die Werte für die Gradienten (können direkt an Grenzen
+      % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
+      % saubere Nullraumbewegung mehr möglich.
+      if any(abs(v_qD)>1e6),  v_qD  = v_qD* 1e6/max(abs(v_qD));  end
+      if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
+      % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
       if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
         qD_N_pre = N * v_qD;
         qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
