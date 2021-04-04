@@ -748,13 +748,14 @@ for k = 1:nt
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
       end
       if debug && condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE) && ...
-          any(abs(qDD_N_pre)>1e-6) % bei sehr kleinen Zahlen numerische Probleme für Test
+          any(abs(qDD_N_pre)>1e-6) && any(abs(qDD_N_pre_voll)>1e-6) % bei sehr kleinen Zahlen numerische Probleme für Test
         % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
         % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
         % unterschiedlicher Vektorräume, in die projiziert wird.
         % TODO: Aktuell führen die D-Terme teilweise zu unterschiedlichen
         % Bewegungsrichtungen im Nullraum. Sollte nicht der Fall sein.
         test_qDD_N_ratio = qDD_N_pre./qDD_N_pre_voll;
+        test_qDD_N_ratio(abs(qDD_N_pre_voll) < 1e-6) = NaN; % Test numerisch nicht sinnvoll
         % TODO: Die Richtung kann auseinanderlaufen, noch kein Test
         % möglich. Liegt an unterschiedlichen Größen der Gradienten.
         if all(abs(qDD_N_pre_voll)>1e-6) && any(test_qDD_N_ratio < 0) && ...
