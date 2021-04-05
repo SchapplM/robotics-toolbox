@@ -120,7 +120,7 @@ end
 if sum(Rob.I_EE) - sum(Rob.I_EE_Task) == 1 && ~Rob.I_EE_Task(end)
   taskred_rotsym = true;
 else
-  taskred_rotsym = true;
+  taskred_rotsym = false;
 end
 
 qlim = NaN(Rob.NJ,2);
@@ -189,6 +189,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
+  bestPhi = inf; % Merker für bislang bestes Residuum
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     Jik=Rob.constr3grad_q(q1, xE_soll);
@@ -245,7 +246,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
           [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
           Jinv = -Phi4_q_voll\Phi4_x_voll;
-          condJpkm = cond(Jinv(Rob.I_qa,:)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+          condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
           h(4) = condJpkm;
         end
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
@@ -446,8 +447,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    Delta_Phi = norm(Phi_neu) - norm(Phi); % "neu" - "alt";
-    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && Delta_Phi > 0
+    Phi_neu_norm = norm(Phi_neu);
+    Delta_Phi = Phi_neu_norm - norm(Phi); % "neu" - "alt";
+    bestPhi = min([bestPhi;Phi_neu_norm]);
+    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && (Delta_Phi > 0 || ...
+        Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
