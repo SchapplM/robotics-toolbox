@@ -230,10 +230,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       if wn(2) ~= 0
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
-        % Setze den Gradienten auf eine sehr große Zahl, wenn eine Grenze
-        % überschritten wird. Sonst auch Abbruch bei unendlich.
-        % Die Nullraumbewegung wird später sowieso reduziert.
-        h2dq(q1>=qlim(:,2)) = 1e10; h2dq(q1<=qlim(:,1)) = -1e10;
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl

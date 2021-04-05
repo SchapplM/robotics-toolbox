@@ -392,9 +392,12 @@ for k = 1:nt
     % Jacobi gut konditioniert und Antriebe definiert sind.
     if condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE)
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
+      % Jacobi-Matrix bezogen auf Antriebe und Plattform
       J_ax = inv(J_x_inv(Rob.I_qa,:));
       J_ax_3T3R = zeros(6,sum(Rob.I_qa));
       J_ax_3T3R(Rob.I_EE,:) = J_ax;
+      % Jacobi-Matrix zur Umrechnung von Antrieben auf Gesamtgelenke
+      J_q_qa = J_x_inv * J_ax; %#ok<MINV>
       % Nullraum-Projektor bezogen auf analytische Jacobi-Matrix ohne
       % letzte redundante Koordinate
       Na = (eye(sum(Rob.I_qa)) - pinv(J_ax_3T3R(Rob.I_EE_Task,:))* J_ax_3T3R(Rob.I_EE_Task,:));
@@ -411,17 +414,21 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-        h(2) = invkin_optimcrit_limits2(q_k, qlim);
-        h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
-        h2drz = (h2_test-h(2))/xD_test(6);
-        h2dqa = h2drz * J_ax(end,:);
+        [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim);
+        % Projektion von Gesamt- in Antriebskoordinaten
+        h2dqa = h2dq_diff * J_q_qa;
+        % Berechnung mit Differenzenquotient ist numerisch nicht robust
+        % nahe/über Grenzen (unendliche hohe Werte für Differenz)
+%         h2_test = invkin_optimcrit_limits2(q_k+qD_test, qlim);
+%         h2drz = (h2_test-h(2))/xD_test(6);
+%         h2dqa = h2drz * J_ax(end,:);
         v_qaD = v_qaD - wn(8)*h2dqa(:);
         v_qaDD = v_qaDD - wn(2)*h2dqa(:);
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         [h(3), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
         % Projektion von Gesamt- in Antriebskoordinaten
-        h3dqa = h3dq_diff * (J_x_inv*J_ax); %#ok<MINV>
+        h3dqa = h3dq_diff * J_q_qa;
         % Berechnung mit Differenzenquotient ist leicht ungenauer:
 %         h3_test = invkin_optimcrit_limits1(qD_k+qD_test, qDlim);
 %         h3drz = (h3_test-h(3))/(xD_test(6));
@@ -498,11 +505,11 @@ for k = 1:nt
       qaDD_N_pre1 = Na*(qaD_N_pre-qaD_N_pre_alt)/dt;
       % Speichere den Altwert für den Differenzenquotienten
       qaD_N_pre_alt = qaD_N_pre;
-      qDD_N_pre = J_x_inv * J_ax * (Na * v_qaDD + qaDD_N_pre1); %#ok<MINV>
+      qDD_N_pre = J_q_qa * (Na * v_qaDD + qaDD_N_pre1);
       % Skaliere Wert herunter, damit Größenordnung ähnlich ist wie mit
       % zweiter Methode (vollständige Gelenkkoordinaten). TODO: Genaue
       % Formel noch unklar. So erstmal halb geraten und passt nicht ganz.
-      qDD_N_pre = qDD_N_pre / norm(J_x_inv*J_ax); %#ok<MINV>
+      qDD_N_pre = qDD_N_pre / norm(J_q_qa);
     end
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss immer
     % berechnet werden (für Grenzkorrekturen weiter unten)
