@@ -373,7 +373,10 @@ for k = 1:nt
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
+  qDD_N_pre = zeros(Rob.NJ, 1);
   if nsoptim % Nullraumbewegung
+    condPhi = cond(Phi_q);
+    h(5) = condPhi;
     Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
     condJ = cond(Jinv_ax);
     h(6) = condJ;
@@ -443,7 +446,6 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = cond(Phi_q);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
         h5drz = (h5_test-h(5))/xD_test(6);
@@ -517,7 +519,8 @@ for k = 1:nt
     % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
     % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
-    if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
+    if (condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug) && ...
+        condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       % (bezogen auf vollständige Koordinaten)
       v_qD = zeros(Rob.NJ, 1);
@@ -541,7 +544,6 @@ for k = 1:nt
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = cond(Phi_q);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
         if abs(h5_test-h(5)) < 1e-12
@@ -643,8 +645,6 @@ for k = 1:nt
         qDD_N_pre = qDD_N_pre_voll;
       end
     end
-  else
-    qDD_N_pre = zeros(Rob.NJ, 1);
   end
   
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
@@ -673,7 +673,8 @@ for k = 1:nt
     end
   end
   
-  if nsoptim && limits_qD_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  if nsoptim && limits_qD_set && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+      condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
@@ -729,7 +730,8 @@ for k = 1:nt
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
-  if nsoptim && limits_q_set % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+  if nsoptim && limits_q_set && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+      condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
     qD_pre2 = qD_k + qDD_pre2*dt;
