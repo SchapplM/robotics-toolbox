@@ -619,13 +619,22 @@ for k = 1:nt
           error(['Die Nullraumbewegung aus Antriebs- oder vollständigen ', ...
             'Koordinaten ist nicht gleichförmig']);
         end
-        xD_N_test1 = J_ax * qDD_N_pre_voll(Rob.I_qa); %#ok<MINV>
+        if cond(Phi_q) < 1e10
+          % Die Alternative Berechnung lohnt sich nur zu testen, wenn die
+          % IK-Jacobi nicht singulär ist (teilw. bei 3T1R der Fall)
+          xD_N_test1 = J_ax * qDD_N_pre_voll(Rob.I_qa); %#ok<MINV>
+        else
+          xD_N_test1 = NaN(sum(Rob.I_EE),1);
+        end
+        xD_N_test1_3T3R = zeros(6,1); xD_N_test1_3T3R(Rob.I_EE) = xD_N_test1;
         xD_N_test2 = J_ax * qDD_N_pre(Rob.I_qa); %#ok<MINV>
-        xD_nonns_abs = abs([xD_N_test1(Rob.I_EE_Task);xD_N_test2(Rob.I_EE_Task)]);
-        xD_nonns_rel = abs([xD_N_test1(Rob.I_EE_Task)/max(abs(xD_N_test1)); ...
+        xD_N_test2_3T3R = zeros(6,1); xD_N_test2_3T3R(Rob.I_EE) = xD_N_test2;
+        xD_nonns_abs = abs([xD_N_test1_3T3R(Rob.I_EE_Task);xD_N_test2_3T3R(Rob.I_EE_Task)]);
+        xD_nonns_rel = abs([xD_N_test1_3T3R(Rob.I_EE_Task)/max(abs(xD_N_test1_3T3R)); ...
                         xD_N_test2(Rob.I_EE_Task)/max(abs(xD_N_test2))]);
         if any(xD_nonns_abs>1e-6 & xD_nonns_rel > 1e-9)
-          error('Nullraumbewegung ist nicht korrekt');
+          error(['Nullraumbewegung ist nicht korrekt. Fehler für xD: ', ...
+            'abs %1.1e, rel %1.1e'], max(xD_nonns_abs), max(xD_nonns_rel));
         end
       end
       if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE)
