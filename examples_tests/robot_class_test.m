@@ -47,6 +47,7 @@ ParRob_cutforce_example; close all;
 ParRob_springtorque_example; close all;
 ParRob_constraints_test; close all;
 ParRob_constraintsD_test; close all;
+ParRob_nullspace_convergence_test; close all;
 ParRob_mdltest_invdyn_energy_consistency; close all;
 ParRob_mdltest_invdyn_compare_sym_vs_num; close all;
 
