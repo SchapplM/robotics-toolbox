@@ -780,9 +780,9 @@ for k = 1:nt
         test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
         test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
         if ~any(isnan([test_qDD_N_ratio;test_qaDD_N_ratio])) && ... % bei exakt h=0 kommt sonst Fehler
-          (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 1e-2 || ... % Teste auf 1% genau
-           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > 1e-2 || ...
-           abs(diff(minmax2([test_qaDD_N_ratio_rel',test_qDD_N_ratio_rel']))) > 1e-2)
+          (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2 || ... % Teste auf 1% genau. Lasse mehr Fehler zu, wenn schlecht konditioniert.
+           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2 || ...
+           abs(diff(minmax2([test_qaDD_N_ratio_rel',test_qDD_N_ratio_rel']))) > (1+condJ/1e3)*1e-2)
           error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
             'Koordinaten ist nicht gleichfoermig']);
         end
@@ -799,7 +799,7 @@ for k = 1:nt
         xD_nonns_abs = abs([xD_N_test1_3T3R(s.I_EE_Task);xD_N_test2_3T3R(s.I_EE_Task)]);
         xD_nonns_rel = abs([xD_N_test1_3T3R(s.I_EE_Task)/max(abs(xD_N_test1_3T3R)); ...
                         xD_N_test2(s.I_EE_Task)/max(abs(xD_N_test2))]);
-        if any(xD_nonns_abs>1e-6 & xD_nonns_rel > 1e-9)
+        if any(xD_nonns_abs>1e-6*(1+condJ/1e3) & xD_nonns_rel > 1e-9*(1+condJ/1e3))
           error(['Nullraumbewegung ist nicht korrekt. Fehler fuer xD: ', ...
             'abs %1.1e, rel %1.1e'], max(xD_nonns_abs), max(xD_nonns_rel));
         end
