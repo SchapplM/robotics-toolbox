@@ -239,8 +239,10 @@ classdef ParRob < RobBase
         'Leg_phi_W_0', Leg_phi_W_0,...
         'Leg_phiconv_W_0', Leg_phiconv_W_0);
       if nargout == 1
+        QD = NaN(size(Q)); QDD = QD;
         X = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
       elseif nargout == 2
+        QDD = NaN(size(Q));
         [X, XD] = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
       else
         [X, XD, XDD] = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
