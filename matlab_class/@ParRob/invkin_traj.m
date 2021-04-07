@@ -812,7 +812,7 @@ for k = 1:nt
     % eine korrekte Nullraumbewegung ausführt.
     PhiDD_pre = Phi_q*qDD_k + Phi_qD*qD_k;
     PhiDD_korr = -PhiDD_pre - (Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE));
-    if any(abs(PhiDD_korr) > max(1e-7, max(abs(qDD_k))/1e9)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
+    if any(abs(PhiDD_korr) > max(1e-6, max(abs(qDD_k))/1e6)) % bei hohen Beschleunigungen ist die Abweichung größer; feine IK-Toleranz notwendig.
       if cond(Phi_q) > 1e8
         % Dieser Teil sollte nicht ausgeführt werden müssen. Bei schlechter
         % Konditionierung der Zwangsbedingungs-Gradienten notwendig.
