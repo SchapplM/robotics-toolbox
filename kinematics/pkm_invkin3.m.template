@@ -543,7 +543,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Kn = Kn*0.8;
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
-        || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && any(delta_q) % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
+        || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && Delta_Phi~=0 % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
       if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
         % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
         % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
