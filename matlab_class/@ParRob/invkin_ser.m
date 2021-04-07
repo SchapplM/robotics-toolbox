@@ -81,8 +81,8 @@ if nargin == 5
     end
   end
 end
-if all(s_par.I_EE_Task == logical([1 1 1 1 1 0]))
-  s.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
+if Rob.I_EE(6) && ~s_par.I_EE_Task(6) % Aufgabenredundanz mit z-Rotation
+  s.reci = true; % bei z.B. 3T2R geht es nicht ohne reziproke Winkel (aber auch 3T1R/2T1R mit freier Rotation)
 end
 
 if isfield(s, 'K')

@@ -91,8 +91,8 @@ Leg_NQJ = %Leg_NQJ%;
 phi_P_B_all = s_par.phi_P_B_all;
 I_EE_Task = s_par.I_EE_Task;
 I_EE = %I_EE%;
-if all(I_EE_Task == logical([1 1 1 1 1 0]))
-  s_ser.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
+if I_EE(6) && ~I_EE_Task(6) % Aufgabenredundanz mit z-Rotation
+  s_ser.reci = true; % bei z.B. 3T2R geht es nicht ohne reziproke Winkel (aber auch 3T1R/2T1R mit freier Rotation)
 end
 
 % struct für invkin_eulangresidual.m
