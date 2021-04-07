@@ -264,26 +264,6 @@ for NNN = RobotNames
           Phi3difdx =  (Phi3dx_1 - Phi3dx_0)/dt;
           % Zweite Berechnung der Zeitableitung der ZB
           Phi4D_diff = Phi4dq_0 * qD0 + Phi4dx_0 * xD0;
-          %% Vergleiche beide Formen
-          % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
-          % Differenzenquotient)
-          test1 = Phi1dif - Phi1D_0;    % for constr1D vs constr1 q                        
-          test2 = Phi1difdq - Phi1Ddq_0; %for constr1gradD_q vs constr1grad_q
-          test3 = Phi1difdx - Phi1Ddx_0;% for constr1gradD_x vs constr1grad_x
-          test4 = Phi4D_diff - Phi4D_0;
-          test5 = Phi3difdq - Phi3Ddq_0; %for constr3gradD_q vs constr3grad_q
-          test6 = Phi3difdx - Phi3Ddx_0;% for constr3gradD_x vs constr3grad_x
-          test7 = Phi2difdq - Phi2Ddq_0; %for constr2gradD_q vs constr2grad_q
-          test8 = Phi2difdx - Phi2Ddx_0;% for constr2gradD_x vs constr2grad_x
-          % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
-          % Differenzenquotient) 
-          if any(abs(test1(:)) > 10e-2)
-            fprintf('Fehler translatorischer Teil:\n');
-            disp(test1(RP.I_constr_t)');
-            fprintf('Fehler rotatorischer Teil:\n');
-            disp(test1(RP.I_constr_r)');
-            error('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
-          end
           
           % Sehr kleine Einträge zu Null setzen (sonst kann der relative
           % Fehler unendlich werden)
@@ -293,118 +273,150 @@ for NNN = RobotNames
           Phi2Ddx_0(abs(Phi2Ddx_0(:))<1e-12) = 0;
           Phi3Ddq_0(abs(Phi3Ddq_0(:))<1e-12) = 0;
           Phi3Ddx_0(abs(Phi3Ddx_0(:))<1e-12) = 0;
+          %% Teste constr1D gegen constr1
+          % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
+          % Differenzenquotient)
+          AbsErr_1 = Phi1dif - Phi1D_0;    % for constr1D vs constr1 q                        
+          % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
+          % Differenzenquotient) 
+          if any(abs(AbsErr_1(:)) > 10e-2)
+            fprintf('Fehler translatorischer Teil:\n');
+            disp(AbsErr_1(RP.I_constr_t)');
+            fprintf('Fehler rotatorischer Teil:\n');
+            disp(AbsErr_1(RP.I_constr_r)');
+            error('%s: constr1D stimmt nicht gegen constr1 (Differenzenquotient vs symbolisch)', PName);
+          end
+
           %% Teste constr4D gegen constr4
-          if any(abs(test4(:)) > 10e-2)
+          test_4 = Phi4D_diff - Phi4D_0;
+          if any(abs(test_4(:)) > 10e-2)
              error('%s: constr4D stimmt nicht gegen constr4', PName);
           end
           % TODO: constr4gradD_q vs constr4grad_q
           % TODO: constr4gradD_x vs constr4grad_x
-          %% Teste constr1gradD_tq gegen constr1grad_tq
+          %% Teste constr1gradD_q gegen constr1grad_q
+          AbsErr_1q = Phi1difdq - Phi1Ddq_0; %for constr1gradD_q vs constr1grad_q
+          RelErr_1q  = Phi1Ddq_0./Phi1difdq - 1;
+          RelErr_1q(isnan(RelErr_1q)) = 0; % 0=0 -> relativer Fehler 0
+          % Teste constr1gradD_tq gegen constr1grad_tq
           % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
           % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
-          RelErr  = Phi1Ddq_0./Phi1difdq - 1;
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
           % Fehler für Translatorisch und Rotatorisch getrennt berechnen
-          I_tq_relerr = abs(RelErr(RP.I_constr_t,:)) > 10e-2; % Indizes mit Fehler größer 5%
-          I_tq_abserr = abs(test2(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_tq_relerr = abs(RelErr_1q(RP.I_constr_t,:)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tq_abserr = abs(AbsErr_1q(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_tq_relerr(:) & I_tq_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test2(II,JJ));
+            disp(AbsErr_1q(II,JJ));
             error('%s: constr1gradD_tq stimmt nicht gegen constr1grad_tq', PName);
           end
-          %% Teste constr1gradD_rq gegen constr1grad_rq
-          I_rq_relerr = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_rq_abserr = abs(test2(RP.I_constr_r,:)) > 1e10*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
+          % Teste constr1gradD_rq gegen constr1grad_rq
+          I_rq_relerr = abs(RelErr_1q(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_rq_abserr = abs(AbsErr_1q(RP.I_constr_r,:)) > 1e12*eps(1+max(abs(Phi1dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_rq_relerr(:) & I_rq_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test2(II,JJ));
+            disp(AbsErr_1q(II,JJ));
             error('%s: constr1gradD_rq stimmt nicht gegen constr1grad_rq', PName);
           end
-          %% Teste constr3gradD_tq gegen constr2grad_tq
-          RelErr  = Phi3Ddq_0./Phi3difdq - 1;
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+          %% Teste constr3gradD_q gegen constr3grad_q
+          AbsErr_3q = Phi3difdq - Phi3Ddq_0; %for constr3gradD_q vs constr3grad_q
+          RelErr_3q  = AbsErr_3q./Phi3Ddq_0;
+          % Bei sehr hohen Zahlenwerten in einzelnen Komponenten gibt es
+          % in anderen Komponenten durch Kopplung einen großen Fehler.
+          % Daher Bezug auf Maximalwert der Matrix für Fehlermaß
+          RelErrMax_3q  = AbsErr_3q / max(abs(Phi3Ddq_0(:)));
+          RelErr_3q(isnan(RelErr_3q)) = 0; % 0=0 -> relativer Fehler 0
+          % Teste constr3gradD_tq gegen constr2grad_tq
           % Fehler für Translatorisch und Rotatorisch getrennt berechnen
-          I_tq_relerr_3 = abs(RelErr(RP.I_constr_t,:)) > 10e-2; % Indizes mit Fehler größer 5%
-          I_tq_abserr_3 = abs(test5(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi3dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_tq_relerr_3 = abs(RelErr_3q(RP.I_constr_t,:)) > 5e-2 & ... % Indizes mit Komponenten-Fehler größer 5%
+                          abs(RelErrMax_3q(RP.I_constr_t,:)) > 1e-3; % und Gesamt-Fehler größer 0.1%
+          I_tq_abserr_3 = abs(AbsErr_3q(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi3dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_tq_relerr_3(:) & I_tq_abserr_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test5(II,JJ));
+            disp(AbsErr_3q(II,JJ));
             error('%s: constr2gradD_tq (=constr3gradD_tq) stimmt nicht gegen constr2grad_tq', PName);
           end
-          %% Teste constr3gradD_rq gegen constr3grad_rq
-          I_rq_relerr_3 = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_rq_abserr_3 = abs(test5(RP.I_constr_r,:)) > 1e10*eps(1+max(abs(Phi3dq_1(:)))); % Absoluter Fehler über Toleranz
+          % Teste constr3gradD_rq gegen constr3grad_rq
+          I_rq_relerr_3 = abs(RelErr_3q(RP.I_constr_r,:)) > 10e-2 & ... % Indizes mit Komponenten-Fehler größer 10%
+                          abs(RelErrMax_3q(RP.I_constr_r,:)) > 1e-3; % und Gesamt-Fehler größer 0.1%
+          I_rq_abserr_3 = abs(AbsErr_3q(RP.I_constr_r,:)) > 1e12*eps(1+max(abs(Phi3dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_rq_relerr_3(:) & I_rq_abserr_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test5(II,JJ));
+            disp(AbsErr_3q(II,JJ));
             error('%s: constr3gradD_rq stimmt nicht gegen constr3grad_rq', PName);
-          end      
-          %% Teste constr2gradD_tq gegen constr2grad_tq
-          RelErr  = Phi2Ddq_0./Phi2difdq - 1;
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+          end
+          %% Teste constr2gradD_q gegen constr2grad_q
+          AbsErr_2q = Phi2difdq - Phi2Ddq_0; %for constr2gradD_q vs constr2grad_q
+          RelErr_2q  = Phi2Ddq_0./Phi2difdq - 1;
+          RelErr_2q(isnan(RelErr_2q)) = 0; % 0=0 -> relativer Fehler 0
+          % Teste constr2gradD_tq gegen constr2grad_tq
           % Fehler für Translatorisch und Rotatorisch getrennt berechnen
-          I_tq_relerr_2 = abs(RelErr(RP.I_constr_t,:)) > 10e-2; % Indizes mit Fehler größer 5%
-          I_tq_abserr_2 = abs(test7(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz
+          I_tq_relerr_2 = abs(RelErr_2q(RP.I_constr_t,:)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tq_abserr_2 = abs(AbsErr_2q(RP.I_constr_t,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz
           if any( I_tq_relerr_2(:) & I_tq_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test7(II,JJ));
+            disp(AbsErr_2q(II,JJ));
             error('%s: constr2gradD_tq (=constr3gradD_tq) stimmt nicht gegen constr2grad_tq', PName);
           end
-          %% Teste constr2gradD_rq gegen constr2grad_rq
-          I_rq_relerr_2 = abs(RelErr(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_rq_abserr_2 = abs(test7(RP.I_constr_r,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz. Ca. 1e-3
+          % Teste constr2gradD_rq gegen constr2grad_rq
+          I_rq_relerr_2 = abs(RelErr_2q(RP.I_constr_r,:)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_rq_abserr_2 = abs(AbsErr_2q(RP.I_constr_r,:)) > 1e12*eps(1+max(abs(Phi2dq_1(:)))); % Absoluter Fehler über Toleranz. Ca. 1e-3
           if any( I_rq_relerr_2(:) & I_rq_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-            disp(test7(II,JJ));
+            disp(AbsErr_2q(II,JJ));
             error('%s: constr2gradD_rq stimmt nicht gegen constr2grad_rq', PName);
           end
           
-          %% Teste constr1gradD_tr gegen constr1grad_tr
+          %% Teste constr1gradD_x gegen constr1grad_x
+          AbsErr_1x = Phi1difdx - Phi1Ddx_0;
+          RelErr_1x = Phi1difdx./Phi1Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
+          RelErr_1x(isnan(RelErr_1x)) = 0; % 0=0 -> relativer Fehler 0
+          RelErr_1x(isinf(RelErr_1x)) = 0; % Bezugsgröße Null geht nicht
+          % Teste constr1gradD_tr gegen constr1grad_tr
           % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
           % gleich, kann man davon ausgehen, dass die Lösung richtig ist.,
-          RelErr = Phi1difdx./Phi1Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
-          RelErr(isinf(RelErr)) = 0; % Bezugsgröße Null geht nicht
           % Prüfe die Komponenten der Matrix einzeln
-          I_tr_relerr = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_tr_abserr = abs(test3(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:)))); % erlaubt ca. 4e-5
+          I_tr_relerr = abs(RelErr_1x(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tr_abserr = abs(AbsErr_1x(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:)))); % erlaubt ca. 4e-5
           if any( I_tr_relerr(:) & I_tr_abserr(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr1gradD_tr stimmt nicht gegen constr1grad_tr', PName);
           end
-          %% Teste constr1gradD_rr gegen constr1grad_rr
-          I_rr_relerr = abs(RelErr(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:))));
-          I_rr_abserr = abs(test3(RP.I_constr_r,4:6)) > 10;
+          % Teste constr1gradD_rr gegen constr1grad_rr
+          I_rr_relerr = abs(RelErr_1x(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi1dx_1(:))));
+          I_rr_abserr = abs(AbsErr_1x(RP.I_constr_r,4:6)) > 10;
           I_rr_err = I_rr_relerr & I_rr_abserr;
           if any( I_rr_err(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr1gradD_rr stimmt nicht gegen constr1grad_rr', PName);
           end
-          %% Teste constr2gradD_tr gegen constr2grad_tr
-          RelErr = Phi2difdx./Phi2Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
-          RelErr(isinf(RelErr)) = 0; % Bezugsgröße Null geht nicht
-          I_tr_relerr_2 = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_tr_abserr_2 = abs(test8(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:)))); % erlaubt ca. 4e-5
+          %% Teste constr2gradD_x gegen constr2grad_x
+          AbsErr_2x = Phi2difdx - Phi2Ddx_0;
+          RelErr_2x = Phi2difdx./Phi2Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
+          RelErr_2x(isnan(RelErr_2x)) = 0; % 0=0 -> relativer Fehler 0
+          RelErr_2x(isinf(RelErr_2x)) = 0; % Bezugsgröße Null geht nicht
+          % Teste constr2gradD_tr gegen constr2grad_tr
+          I_tr_relerr_2 = abs(RelErr_2x(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tr_abserr_2 = abs(AbsErr_2x(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:)))); % erlaubt ca. 4e-5
           if any( I_tr_relerr_2(:) & I_tr_abserr_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr2gradD_tr stimmt nicht gegen constr2grad_tr', PName);
           end
-          %% Teste constr2gradD_rr gegen constr2grad_rr
-          I_rr_relerr_2 = abs(RelErr(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:))));
-          I_rr_abserr_2 = abs(test8(RP.I_constr_r,4:6)) > 10;
+          % Teste constr2gradD_rr gegen constr2grad_rr
+          I_rr_relerr_2 = abs(RelErr_2x(RP.I_constr_r,4:6)) > 5e-2;
+          I_rr_abserr_2 = abs(AbsErr_2x(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:))));
           I_rr_err_2 = I_rr_relerr_2 & I_rr_abserr_2;
           if any( I_rr_err_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr2gradD_rr stimmt nicht gegen constr2grad_rr', PName);
           end
-          %% Teste constr3gradD_tr gegen constr3grad_tr
-          RelErr = Phi3difdx./Phi3Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
-          RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
-          RelErr(isinf(RelErr)) = 0; % Bezugsgröße Null geht nicht
-          I_tr_relerr_3 = abs(RelErr(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
-          I_tr_abserr_3 = abs(test6(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi3dx_1(:)))); % erlaubt ca. 4e-5
+          %% Teste constr3gradD_x gegen constr3grad_x
+          AbsErr_3x = Phi3difdx - Phi3Ddx_0;
+          RelErr_3x = Phi3difdx./Phi3Ddx_0 - 1; % Relative Error = ( Absolute Error / True Value )
+          RelErr_3x(isnan(RelErr_3x)) = 0; % 0=0 -> relativer Fehler 0
+          RelErr_3x(isinf(RelErr_3x)) = 0; % Bezugsgröße Null geht nicht
+          % Teste constr3gradD_tr gegen constr3grad_tr
+          I_tr_relerr_3 = abs(RelErr_3x(RP.I_constr_t,4:6)) > 5e-2; % Indizes mit Fehler größer 5%
+          I_tr_abserr_3 = abs(AbsErr_3x(RP.I_constr_t,4:6)) > 1e11*eps(1+max(abs(Phi3dx_1(:)))); % erlaubt ca. 4e-5
           if any( I_tr_relerr_3(:) & I_tr_abserr_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr3gradD_tr stimmt nicht gegen constr3grad_tr', PName);
           end
-          %% Teste constr3gradD_rr gegen constr3grad_rr
-          I_rr_relerr_3 = abs(RelErr(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi3dx_1(:))));
-          I_rr_abserr_3 = abs(test6(RP.I_constr_r,4:6)) > 10;
+          % Teste constr3gradD_rr gegen constr3grad_rr
+          I_rr_relerr_3 = abs(RelErr_3x(RP.I_constr_r,4:6)) > 10;
+          I_rr_abserr_3 = abs(AbsErr_3x(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi3dx_1(:))));
           I_rr_err_3 = I_rr_relerr_3 & I_rr_abserr_3;
           if any( I_rr_err_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr3gradD_rr stimmt nicht gegen constr3grad_rr', PName);
           end
-          
         end % Schleife für Variation der Elemente von qD oder xD
       end % Schleife über Testfälle (entweder qD oder xD variieren)
     end % Schleife über alle Gelenkwinkel-Konfigurationen
