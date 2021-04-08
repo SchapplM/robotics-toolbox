@@ -60,7 +60,7 @@ s_user = struct(...
 %% Standard-Einstellungen mit Eingaben überschreiben
 % Alle Standard-Einstellungen aus s_user mit in s_in übergebenen Einstellungen
 % überschreiben.
-if nargin >= 3 && ~isempty(s_in)
+if nargin == 4 && ~isempty(s_in)
   for f = fields(s_in)'
     if isfield(s_user, f{1})
       s_user.(f{1}) = s_in.(f{1});
