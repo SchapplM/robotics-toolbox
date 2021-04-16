@@ -772,19 +772,29 @@ for k = 1:nt
             sum(wn~=0)==1 % Bei einem einzigen Kriterium sollte es gehen.
           error('Die Richtung der Nullraumbewegung ist nicht gleich in beiden Koordinatenraeumen');
         end
-        test_qDD_N_ratio_rel = 1-test_qDD_N_ratio/test_qDD_N_ratio(1);
+        % Prüfe, ob das Verhältnis der Nullraumbewegungen für alle Gelenke
+        % gleich ist. Betrachte dafür nur Gelenke, die ungleich Null sind.
+        % Ist eine Beschl. fast Null und eine andere sehr hoch, ist die
+        % numerische Prüfung nicht genau genug.
+        % Zunächst Prüfung bezogen auf vollständige Gelenk-Koordinaten
+        [~,I_test_qDD_N_ratio_maxabs] = max(abs(test_qDD_N_ratio));
+        I_nonzero = abs(qDD_N_pre_voll) > 1e-3 * max(abs(qDD_N_pre_voll));
+        test_qDD_N_ratio_rel = 1-test_qDD_N_ratio/...
+          test_qDD_N_ratio(I_test_qDD_N_ratio_maxabs);
         if ~any(isnan(test_qDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
-          abs(diff(minmax2(test_qDD_N_ratio_rel'))) > 5e-2 % 5% genau (für kleine Zahlenwerte)
-          error('Die Nullraumbewegung aus Antriebs- oder vollstaendigen Koordinaten ist nicht gleichfoermig');
+          abs(diff(minmax2(test_qDD_N_ratio_rel(I_nonzero)'))) > 5e-2 % 5% genau (für kleine Zahlenwerte)
+          disp(test_qDD_N_ratio_rel);
+          error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
+            'Koordinaten ist nicht gleichfoermig (bzgl. vollstaendige)']);
         end
+        % Gleiche Prüfung bezogen auf Antriebe
         test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
         test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
-        if ~any(isnan([test_qDD_N_ratio;test_qaDD_N_ratio])) && ... % bei exakt h=0 kommt sonst Fehler
-          (abs(diff(minmax2(test_qDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2 || ... % Teste auf 1% genau. Lasse mehr Fehler zu, wenn schlecht konditioniert.
-           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2 || ...
-           abs(diff(minmax2([test_qaDD_N_ratio_rel',test_qDD_N_ratio_rel']))) > (1+condJ/1e3)*1e-2)
+        if ~any(isnan(test_qaDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
+          ...  % Teste auf 1% genau. Lasse mehr Fehler zu, wenn schlecht konditioniert.
+          abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2
           error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
-            'Koordinaten ist nicht gleichfoermig']);
+            'Koordinaten ist nicht gleichfoermig (bzgl. Antriebe)']);
         end
         if cond(Phi_q) < 1e10
           % Die Alternative Berechnung lohnt sich nur zu testen, wenn die
