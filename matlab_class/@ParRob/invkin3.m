@@ -66,7 +66,7 @@ s = struct(...
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
   'rng_seed', NaN, ...  % Initialwert für Zufallszahlengenerierung
-  'scale_lim', 1, ... % Herunterskalierung bei Grenzüberschreitung
+  'scale_lim', 0, ... % Herunterskalierung bei Grenzüberschreitung
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
