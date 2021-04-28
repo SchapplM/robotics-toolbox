@@ -540,20 +540,49 @@ fprintf('Alle Tests erfolgreich durchgeführt\n');
 Q_test = -0.5+rand(100,1);
 Qlim_test = -0.5+rand(100,2);
 Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2) = 1+Qlim_test(Qlim_test(:,1)>Qlim_test(:,2),2);
-for jj = 1:2
+for jj = 1:3
   for i = 1:size(Q_test,1)
     q = Q_test(i,:);
     qlim = Qlim_test(i,:);
     deltaq = 1e-6;
     q1 = q+deltaq; % Test-Winkel
+    
+    % Setze Schwellwert für Spline-Interpolation fest: 10% der Spannweite
+    % von der Grenze entfernt (jeweils oben und unten). Also 80% in der Mitte
+    % des Gelenkbereichs ist das Kriterium 2 Null.
+    qlim_thr = mean(qlim) + [-0.4, +0.4]*diff(qlim);
+    assert(all(qlim_thr(:)>qlim(1)) && all(qlim_thr(:)<qlim(2)), ...
+      'Schwellwert für Umschaltung muss innerhalb der Grenzen liegen');
+    qlim_sw = mean([qlim;qlim_thr]);
+    % Teste Stetigkeit der stückweise definierten Funktion
+    if jj == 3
+      h_left = NaN(4,1); h_right = NaN(4,1);
+      h_left(1) = invkin_optimcrit_limits2(qlim_thr(1)-eps, qlim, qlim_thr);
+      h_right(1) = invkin_optimcrit_limits2(qlim_thr(1)+eps, qlim, qlim_thr);
+      h_left(2) = invkin_optimcrit_limits2(qlim_thr(2)-eps, qlim, qlim_thr);
+      h_right(2) = invkin_optimcrit_limits2(qlim_thr(2)+eps, qlim, qlim_thr);
+      h_left(3) = invkin_optimcrit_limits2(qlim_sw(1)-eps, qlim, qlim_thr);
+      h_right(3) = invkin_optimcrit_limits2(qlim_sw(1)+eps, qlim, qlim_thr);
+      h_left(4) = invkin_optimcrit_limits2(qlim_sw(2)-eps, qlim, qlim_thr);
+      h_right(4) = invkin_optimcrit_limits2(qlim_sw(2)+eps, qlim, qlim_thr);
+      assert(all(abs(h_left-h_right) < 1e-8), ['Eine Umschaltbedingung in ', ...
+        'invkin_optimcrit_limits2 stimmt nicht']);
+    end
+    
     % Berechne Zielfunktion und Gradient für zwei Stellen
     if jj == 1
       [h, hdq] = invkin_optimcrit_limits1(q, qlim);
       h1 = invkin_optimcrit_limits1(q1, qlim);
-    else
+    elseif jj == 2 % hyperbolisch ohne Spline
       if q < qlim(1) || q > qlim(2), continue; end
       [h, hdq] = invkin_optimcrit_limits2(q, qlim);
       h1 = invkin_optimcrit_limits2(q1, qlim);
+    elseif jj == 3 % hyperbolisch mit Spline
+      if q < qlim(1) || q > qlim(2), continue; end
+      [h, hdq] = invkin_optimcrit_limits2(q, qlim, qlim_thr);
+      h1 = invkin_optimcrit_limits2(q1, qlim, qlim_thr);
+    else
+      error('Fall nicht definiert');
     end
     h1_diff = h+hdq*deltaq; % berechne ZF an zweiter Stelle mit Gradient
     % Vergleiche direkte Berechnung mit Berechnung aus Gradienten.
@@ -570,8 +599,12 @@ for jj = 1:2
       for k = 1:length(Qplot)
         if jj == 1
           Hplot(k) = invkin_optimcrit_limits1(Qplot(k), qlim);
-        else
+        elseif jj == 2
           Hplot(k) = invkin_optimcrit_limits2(Qplot(k), qlim);
+        elseif jj ==3
+          Hplot(k) = invkin_optimcrit_limits2(Qplot(k), qlim, qlim_thr);
+        else
+          error('Fall nicht definiert');
         end
       end
       plot(Qplot, Hplot);
