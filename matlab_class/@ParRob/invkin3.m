@@ -72,6 +72,10 @@ s = struct(...
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
   'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
   'finish_in_limits', false, ... % Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
+  ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
+  ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
+  ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
+  'optimcrit_limits_hyp_deact', NaN, ... 
   'retry_limit', 100); % Anzahl der Neuversuche
 if nargin == 4
   % Prüfe Felder der Einstellungs-Struktur und belasse Standard-Werte, 
@@ -149,7 +153,10 @@ qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = qmax - qmin;
-
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
@@ -230,7 +237,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(1)*h1dq'; % [SchapplerTapOrt2019], Gl. (44)
       end
       if wn(2) ~= 0
-        [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2);
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
@@ -551,7 +558,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
-  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim); end
+  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=Rob.constr3grad_q(q1, xE_soll);
   h(3) = cond(Jik);
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt

@@ -86,6 +86,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs           'debug', false,
 %$cgargs              'wn', zeros(10,1),
 %$cgargs    'thresh_ns_qa', 1,
+%$cgargs  'optimcrit_limits_hyp_deact', 0.9, 
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'I1constr_red', zeros(1,%NLEG%),
@@ -206,7 +207,10 @@ else
   qDDmin = -inf(NJ,1);
   qDDmax =  inf(NJ,1);
 end
-
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
 if ~any(wn ~= 0)
   nsoptim = false; % Keine zusätzlichen Optimierungskriterien
 end
@@ -310,6 +314,7 @@ s_tpl = struct(...
       'maxrelstep', s_ser.maxrelstep,...
    'maxrelstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
 'finish_in_limits', false,... % ohne Nullraumbewegung nicht sinnvoll
+'optimcrit_limits_hyp_deact', NaN, ... % nicht relevant (da keine Nullraumbewegung)
      'retry_limit', 0,... % keine Neuversuche (würde Sprung erzeugen)
       'I_constr_t', s.I_constr_t,...
       'I_constr_r', s.I_constr_r,...
@@ -591,7 +596,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-        [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim);
+        [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         % Projektion von Gesamt- in Antriebskoordinaten
         h2dqa = h2dq_diff * J_q_qa;
         % Berechnung mit Differenzenquotient ist numerisch nicht robust
@@ -697,7 +702,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(1)*h1dq(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-        [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         v_qD = v_qD - wn(8)*h2dq(:);
         v_qDD = v_qDD - wn(2)*h2dq(:);
       end

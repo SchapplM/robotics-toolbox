@@ -617,6 +617,10 @@ classdef SerRob < RobBase
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
+        ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
+        ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
+        ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
+        'optimcrit_limits_hyp_deact', NaN, ... 
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen

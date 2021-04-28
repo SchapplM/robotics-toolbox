@@ -72,6 +72,9 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = invkin_tr
 s_std = struct( ...
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
+  ... % Abschaltung des Optimierungskriteriums der hyperbolischen Grenzen
+  ... % Kriterium standardmäßig 5% vor oberer und unterer Grenze einschalten.
+  'optimcrit_limits_hyp_deact', 0.9, ...
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1e4, ...
   'wn', zeros(10,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
@@ -208,6 +211,10 @@ else
   qDDmin = -inf(Rob.NJ,1);
   qDDmax =  inf(Rob.NJ,1);
 end
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
 wn = [s.wn;zeros(10-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 % Grenze zum Umschalten zwischen Nullraumbewegung in Antriebs- oder
 % Gesamtkoordinaten. Ist die Konditionszahl schlechter, wird in Gesamt-
@@ -417,7 +424,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-        [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim);
+        [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         % Projektion von Gesamt- in Antriebskoordinaten
         h2dqa = h2dq_diff * J_q_qa;
         % Berechnung mit Differenzenquotient ist numerisch nicht robust
@@ -531,7 +538,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(1)*h1dq(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
-        [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         v_qD = v_qD - wn(8)*h2dq(:);
         v_qDD = v_qDD - wn(2)*h2dq(:);
       end

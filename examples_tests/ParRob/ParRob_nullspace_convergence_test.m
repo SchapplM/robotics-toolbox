@@ -367,6 +367,11 @@ for robnr = 1:4
         % Grenzen entspricht das dem Standard-Dämpfungsterm aus der
         % Literatur
         wn_traj(3) = 0.5;
+        % Zusätzlich Dämpfung bei Überschreitung des Grenzbereichs zu den
+        % Positions-Grenzen. Dadurch weniger Überschreitungen der Grenze.
+        wn_traj(2) = 1;
+        wn_traj(8) = 1;
+        optimcrit_limits_hyp_deact = 0.9;
         switch ii
           case 1 % P-Regler Quadratische Grenzfunktion
             wn_traj(1) = 1; % konvergiert schlecht ohne D-Anteil
@@ -375,9 +380,13 @@ for robnr = 1:4
             wn_traj(7) = 1;
           case 3 % P-Regler Hyperbolische Grenzfunktion
             wn_traj(2) = 1; % konvergiert schlecht ohne D-Anteil
+            % Damit das Zielkriterium optimiert werden kann, muss es im
+            % kompletten Gelenkbereich aktiv sein (nicht nur nahe Grenzen).
+            optimcrit_limits_hyp_deact = NaN;
           case 4 % PD-Regler Hyperbolische Grenzfunktion
             wn_traj(2) = 50; % ist mit Verstärkung 1 sehr langsam (aber in richtige Richtung)
             wn_traj(8) = 20;
+            optimcrit_limits_hyp_deact = NaN;
           case 5 % P-Regler IK-Jacobi-Konditionszahl
             wn_traj(5) = 1; % funktioniert ordentlich
           case 6 % PD-Regler IK-Jacobi-Konditionszahl
@@ -396,6 +405,9 @@ for robnr = 1:4
 
         % IK mit Einzelpunkt-Verfahren berechnen
         s_ep_ii.wn = wn_traj(I_wn_traj);
+        % Zur Konsistenz zwischen Trajektorien- und Einzelpunkt-IK. Da
+        % scale_lim gesetzt ist, wäre das eigentlich nicht notwendig.
+        s_ep_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
 %         s_ep_ii.wn(s_ep_ii.wn~=0) = 1; % Geht nicht. Sonst später kein Vergleich möglich!
         t1 = tic();
         [q_ep_ii, Phi,~,Stats_ep] = RP.invkin4(x_l, qs, s_ep_ii);
@@ -410,11 +422,15 @@ for robnr = 1:4
         Traj_X = repmat(x_l', n, 1);
         Traj_XD = zeros(n,6); Traj_XDD = Traj_XD;
         s_traj_ii = struct('wn', wn_traj);
+        s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
         t1 = tic();
         [Q_ii, QD_ii, QDD_ii, Phi_ii,~,~,~,Stats_traj] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
         t_traj = toc(t1);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
+        if all(I_noacc)
+          error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+        end
         I_finishacc = find(I_noacc==0,1,'last');
         fprintf(['Pkt. %d/ Ori. %d/ Fall %d. IK berechnet: %d Schritte Ein', ...
           'zelpunkt-IK (%1.1fs; %1.1fms); %d Schritte Traj.-IK (%1.1fs; %1.1fms)\n'], k, l, ...

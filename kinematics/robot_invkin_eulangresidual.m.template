@@ -61,6 +61,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs'finish_in_limits', false,
+%$cgargs'optimcrit_limits_hyp_deact', NaN,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
 %$cgargs      'lambda_min', 2e-4,
@@ -137,6 +138,10 @@ qmin_norm = qmin; qmax_norm = qmax;
 qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
 qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
 delta_qlim = qmax - qmin;
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
 delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
@@ -220,7 +225,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(1)*h1dq';
       end
       if wn(2) ~= 0 % Abstoßung von den Grenzen (hyperbolisch)
-        [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2);
         v = v - wn(2)*h2dq';
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
@@ -469,7 +474,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
-  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax]); end
+  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2); end
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Jdk = Jdk_voll(I_IK,:);
   h(3) = cond(Jdk);

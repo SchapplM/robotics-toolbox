@@ -79,6 +79,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs        'I_EElink', uint8(0),
 %$cgargs            'reci', true,
 %$cgargs    'simplify_acc', false,
+%$cgargs 'optimcrit_limits_hyp_deact', 0.9,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'wn', zeros(8,1),
@@ -142,7 +143,10 @@ else
   qDDmax(:) =  Inf;
   limits_qDD_set = false;
 end
-
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 wn = s.wn;
 if any(wn ~= 0)
   nsoptim = true;
@@ -179,6 +183,7 @@ s_pik = struct( ...
   'scale_lim', 0, ... % Herunterskalieren nicht sinnvoll (da keine NR-Bew.)
   'maxrelstep', s.maxrelstep, ... 
   'finish_in_limits', false, ... % Ohne Nullraumbewegung nicht möglich
+  'optimcrit_limits_hyp_deact', NaN, ... % nicht relevant (da keine Nullraumbewegung)
   'normalize', s.normalize, ... 
   'condlimDLS', 1, ... 
   'lambda_min', 2e-4, ... 
@@ -296,7 +301,7 @@ for k = 1:nt
       v_qDD = v_qDD - wn(1)*h1dq';
     end
     if wn(2) ~= 0 || wn(7) ~= 0 % Hyperbolischer Abstand von Gelenkgrenzen
-      [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim);
+      [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
       v_qD = v_qD - wn(7)*h2dq';
       v_qDD = v_qDD - wn(2)*h2dq';
     end
