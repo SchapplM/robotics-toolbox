@@ -71,6 +71,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, q0, s)
 %$cgargs'finish_in_limits', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
 %$cgargs     'retry_limit', 100,
+%$cgargs           'debug', false,
 %$cgargs      'I_constr_t', ones(1,%NLEG%*6/2),
 %$cgargs      'I_constr_r', ones(1,%NLEG%*6/2),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
@@ -353,17 +354,25 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq = (condJ_test-condJ)./qD_test';
           end
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
-            % Benutze Formel für Differential des Matrix-Produkts mit 
-            % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
             [~,Phi4_x_voll_test] = %PN%_constr4grad_x(xE_1+xD_test,s_x);
             [~,Phi4_q_voll_test] = %PN%_constr4grad_q(q1+qD_test,s_q);
-            Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
-            Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
-            Jinv_test = Jinv + ...
-              Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
-              -Phi4_q_voll\Phi4D_x_voll;
+            Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
             h4_test = cond(Jinv_test(s.I_qa,Rob_I_EE));
             h4dq = (h4_test-h(4))./qD_test';
+            if s.debug
+              % Benutze Formel für Differential des Matrix-Produkts mit 
+              % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
+              Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
+              Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
+              Jinv_test_2 = Jinv + ...
+                Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
+                -Phi4_q_voll\Phi4D_x_voll;
+              Jinv_test_2 = -Phi4_q_voll_test\Phi4_x_voll_test;
+              h4_test_2 = cond(Jinv_test_2(s.I_qa,Rob_I_EE));
+              if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJpkm) < 1
+                error('Beide Ansaetze fuer Delta Jinv stimmen nicht ueberein');
+              end
+            end
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede

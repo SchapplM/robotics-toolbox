@@ -78,7 +78,7 @@ s_std = struct( ...
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1e4, ...
   'wn', zeros(10,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
-  'debug', false); % Zusätzliche Ausgabe
+  'debug', false); % Zusätzliche Test-Berechnungen
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -121,28 +121,8 @@ else
   simplify_acc = s.simplify_acc;
 end
 
-nt = length(T);
-Q = NaN(nt, Rob.NJ);
-QD = Q;
-QDD = Q;
-Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
-% Definition der Jacobi-Matrix.
-% Hier werden die strukturellen FG des Roboters benutzt und nicht die
-% Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
-% bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
-% Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
-% Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
-% der Beine angegeben.
-JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
 
-qk0 = q0;
-qDk0 = zeros(Rob.NJ,1);
-qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
-qD_N_pre_alt = zeros(Rob.NJ,1);
-qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
-qDD_N_pre1 = zeros(Rob.NJ,1);
+
 % Eingabe für Positions-IK für Korrekturschritt. Müssen konsistent zu
 % ParRob/invkin2_traj sein. Auch konsistent mit SerRob/invkin2, falls von
 % dort übernommen
@@ -163,8 +143,7 @@ s_pik = struct(...
   'maxrelstep', 0.05, ... % Maximale Schrittweite relativ zu Grenzen
   'retry_limit', 0); % keine Neuversuche (würde Sprung erzeugen)
 
-
-% Eingabe s_inv3 struktuieren
+% Eingabe s_inv3 strukturieren
 s_inv3 = s_pik;
 s_inv3.maxstep_ns = 0; % hat keine Wirkung
 s_inv3.maxrelstep_ns = 0.005; % hat keine Wirkung
@@ -173,7 +152,7 @@ for f = fields(s_inv3)'
     s_inv3.(f{1}) = s.(f{1});
   end
 end
-% Eingabe s_ser struktuieren
+% Eingabe s_ser strukturieren
 s_ser = s_pik;
 s_ser.reci = false; % Standardmäßig keine reziproken Euler-Winkel
 for f = fields(s_ser)'
@@ -234,8 +213,31 @@ Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_E
 Phi_x_voll_alt = zeros(6*Rob.NLEG, 6);
 Phi_xD_voll = Phi_x_voll_alt;
 N = eye(Rob.NJ);
+
+nt = length(T);
+Q = NaN(nt, Rob.NJ);
+QD = Q;
+QDD = Q;
+Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
+% Definition der Jacobi-Matrix.
+% Hier werden die strukturellen FG des Roboters benutzt und nicht die
+% Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
+% bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
+Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
+JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+% Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
+% Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
+% der Beine angegeben.
+JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
+qk0 = q0;
+qDk0 = zeros(Rob.NJ,1);
+qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
+qD_N_pre_alt = zeros(Rob.NJ,1);
+qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
+qDD_N_pre1 = zeros(Rob.NJ,1);
 Stats = struct('h', NaN(nt,1+6));
 h = zeros(6,1);
+
 for k = 1:nt
   tic();
   x_k = X(k,:)';
@@ -381,7 +383,7 @@ for k = 1:nt
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
   qDD_N_pre = zeros(Rob.NJ, 1);
-  if nsoptim % Nullraumbewegung
+  if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
     condPhi = cond(Phi_q);
     h(5) = condPhi;
     Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
@@ -389,13 +391,16 @@ for k = 1:nt
     h(6) = condJ;
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
     % Notwendig für die constr4-Methode für Jacobi-Matrix.
-    % Benutze die erste Beinkette (direkte Kinematik dafür).
-    % (wird aber aktuell nicht benutzt).
-    % x_k_ist = Rob.fkineEE_traj(q_k')';
+    % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
+    % (wird aber aktuell nur für Debug-Modus benutzt).
+    [~, Phi_r] = Rob.constr3_rot(q_k, x_k);
+    x_k_ist = x_k + [zeros(5,1);Phi_r(1)]; % Rob.fkineEE_traj(q_k')'
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
     % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
-    xD_test = [zeros(5,1);1e-8];
+    % Klein wählen, damit lineare Näherung nicht verlassen wird. Nicht zu
+    % klein wählen, damit numerische Rundungsfehler nicht zu stark sind.
+    xD_test = [zeros(5,1);1e-6];
     % Benutze nur für die Jacobi-Matrix die red. Koordinaten (2T1R, 3T0R)
     qD_test = J_x_inv * xD_test(Rob.I_EE); % Gelenkänderung der Nullraumbewegung
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
@@ -462,45 +467,80 @@ for k = 1:nt
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
         h(6) = condJ;
-        % Alternative 1 für Berechnung: Allgemeine Zwangsbedingungen
-        % Nicht benutzen, da nicht mit constr3-Ergebnissen von oben kombinierbar.
-%         [~,Phi_q_voll_v4] = Rob.constr4grad_q(q_k);
-%         [~,Phi_x_voll_v4] = Rob.constr4grad_x(x_k_ist);
-%         [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
-%         [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k_ist+xD_test);
-%         PhiD_q_voll_v4 = Phi_q_voll_test-Phi_q_voll_v4;
-%         PhiD_x_voll_v4 = Phi_x_voll_test-Phi_x_voll_v4;
-%         J_x_inv_test_v4 = J_x_inv + ...
-%           Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4 + ...
-%           -Phi_q_voll_v4\PhiD_x_voll_v4;
-%         h6_test_v4 = cond(J_x_inv_test_v4(s.I_qa,:));
-%         h6drz_v4 = (h6_test_v4-h(6))/xD_test_3T3R(6);
-        
-        % Alternative 2 für Berechnung: Inkrement für beide Gradienten bestimmen.
-        % Benutze constr3, da dieser Term schon oben berechnet wurde.
+        % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
+        % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
+        % Entspricht direkt dem Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
+        % an Test-Konfiguration q_k+eps.
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
-        % Daraus mit Differenzenquotient das Differential annähern.
-        % (ist hier ausreichend genau).
-        PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
-        PhiD_x_voll_test = Phi_x_voll_test-Phi_x_voll;
-        % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
-        % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
-        J_x_inv_test = J_x_inv + ...
-          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
-          -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
+        J_x_inv_test_v3 = -Phi_q_voll_test\Phi_x_voll_test;
+        h6_test_v3 = cond(J_x_inv_test_v3(Rob.I_qa,:));
         
-        % Alternative 3: Direkte Berechnung. Entspricht direkt dem
-        % Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
-        % an Test-Konfiguration q_k+eps. Funktioniert nicht (schwingt stark).
-%         J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test;
-%         h6_test = cond(J_x_inv_test(Rob.I_qa,:));
-
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
-        h6_test = cond(J_x_inv_test(Rob.I_qa,:));
-        h6drz = (h6_test-h(6))/xD_test(6);
+        h6drz_v3 = (h6_test_v3-h(6))/xD_test(6);
+
+        if debug && abs(h6_test_v3-h(6))>1e-10 % Vergleich lohnt sich nur, wenn numerisch unterschiedlich
+          % Alternative 1 für Berechnung: Allgemeine Zwangsbedingungen.
+          % Nicht benutzen, da nicht mit constr3-Ergebnissen von oben kombinierbar.
+          [~,Phi_q_voll_v4] = Rob.constr4grad_q(q_k);
+          [~,Phi_x_voll_v4] = Rob.constr4grad_x(x_k_ist);
+          [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
+          [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k_ist+xD_test);
+          J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
+          h6_test_v1 = cond(J_x_inv_test(Rob.I_qa,:));
+          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+          h6drz_v1 = (h6_test_v1-h(6))/xD_test(6);
+          % Alternative 2: Differenzenquotient aus Differential der inv-
+          % versen Jacobi (gleichwertig, aber unnötig kompliziert)
+          PhiD_q_voll_v4 = Phi_q_voll_test-Phi_q_voll_v4;
+          PhiD_x_voll_v4 = Phi_x_voll_test-Phi_x_voll_v4;
+          J_x_inv_test_v2 = J_x_inv + ...
+            Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4(:,Rob.I_EE) + ...
+            -Phi_q_voll_v4\PhiD_x_voll_v4(:,Rob.I_EE);
+          h6_test_v2 = cond(J_x_inv_test_v2(Rob.I_qa,:));
+          h6drz_v2 = (h6_test_v2-h(6))/xD_test(6);
+
+          % Alternative 4 für Berechnung: Mit Differenzenquotient das Differential annähern.
+          % (ist hier ausreichend genau).
+          PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
+          PhiD_x_voll_test = Phi_x_voll_test-Phi_x_voll;
+          % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
+          % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
+          J_x_inv_test_v4 = J_x_inv + ...
+            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
+            -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
+          h6_test_v4 = cond(J_x_inv_test_v4(Rob.I_qa,:));
+          h6drz_v4 = (h6_test_v4-h(6))/xD_test(6);
+
+          % Debug-Teil: Vergleiche die vier Berechnungsalternativen.
+          % [h6drz_v1,h6drz_v2,h6drz_v3,h6drz_v4];
+          abserr_12 = h6drz_v1 - h6drz_v2;
+          relerr_12 = abserr_12/h6drz_v1;
+          if abs(abserr_12) > 1e-3 && abs(relerr_12)>1e-2
+            error(['Modellierungen 1 vs 2 stimmen nicht ueberein ', ...
+              '(abserr %1.1e, relerr %1.1e). condJ=%1.1e'], abserr_12, relerr_12, condJ);
+          end
+          abserr_34 = h6drz_v4 - h6drz_v3;
+          relerr_34 = abserr_34/h6drz_v3;
+          if abs(abserr_34) > 1e-3 && abs(relerr_34)>1e-2
+            error(['Modellierungen 3 vs 4 stimmen nicht ueberein ', ...
+              '(abserr %1.1e, relerr %1.1e). condJ=%1.1e'], abserr_34, relerr_34, condJ);
+          end
+          abserr_13 = h6drz_v1 - h6drz_v3;
+          relerr_13 = abserr_13/h6drz_v3;
+          if abs(abserr_13) > 1e-3 && abs(relerr_13)>1e-2
+            error(['Modellierungen 1 vs 3 stimmen nicht ueberein ', ...
+              '(abserr %1.1e, relerr %1.1e). condJ=%1.1e'], abserr_13, relerr_13, condJ);
+          end
+          abserr_24 = h6drz_v4 - h6drz_v2;
+          relerr_24 = abserr_24/h6drz_v2;
+          if abs(abserr_24) > 1e-3 && abs(relerr_24)>1e-2
+            error(['Modellierungen 2 vs 4 stimmen nicht ueberein ', ...
+              '(abserr %1.1e, relerr %1.1e). condJ=%1.1e'], abserr_24, relerr_24, condJ);
+          end
+        end
         % Projektion in Antriebskoordinaten
-        h6dqa = h6drz * J_ax(end,:);
+        h6dqa = h6drz_v3 * J_ax(end,:);
         v_qaD = v_qaD - wn(10)*h6dqa(:);
         v_qaDD = v_qaDD - wn(6)*h6dqa(:);
       end
@@ -568,18 +608,31 @@ for k = 1:nt
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test,x_k+xD_test);
         % Daraus mit Differenzenquotient das Differential annähern.
         % (ist hier ausreichend genau).
-        PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
-        PhiD_x_voll_test = Phi_x_voll_test-Phi_x_voll;
-        % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
-        % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
-        J_x_inv_test = J_x_inv + ...
-          Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
-          -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
-        h6_test = cond(J_x_inv_test(Rob.I_qa,:));
-        if abs(h6_test-h(6)) < 1e-12
+        % Alternative 1: Jacobi-Matrix direkt berechnen
+        J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
+        h6_test_v1 = cond(J_x_inv_test(Rob.I_qa,:));
+        
+        if debug && abs(h6_test_v1-h(6)) > 1e-12
+          % Teste zwei alternative Berechnungen (siehe oben bei Antriebskoord.)
+          % Alternative 2: Über Jacobi-Matrix-Inkrement
+          PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
+          PhiD_x_voll_test = Phi_x_voll_test-Phi_x_voll;
+          % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
+          % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
+          J_x_inv_test = J_x_inv + ...
+            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
+            -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
+          h6_test_v2 = cond(J_x_inv_test(Rob.I_qa,:));
+          abserr_12 = h6_test_v1 - h6_test_v2;
+          relerr_12 = abserr_12/(h6_test_v1-h(6));
+          if abs(abserr_12) > 1e-3 && abs(relerr_12)>1e-2
+            error('Modellierungen 1 vs 2 stimmen nicht ueberein');
+          end
+        end
+        if abs(h6_test_v1-h(6)) < 1e-12
           h6dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
-          h6dq = (h6_test-h(6))./(qD_test');
+          h6dq = (h6_test_v1-h(6))./(qD_test');
         end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);

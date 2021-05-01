@@ -76,7 +76,8 @@ s = struct(...
   ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
   ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
   'optimcrit_limits_hyp_deact', NaN, ... 
-  'retry_limit', 100); % Anzahl der Neuversuche
+  'retry_limit', 100, ...; % Anzahl der Neuversuche
+  'debug', false); % Zusätzliche Test-Berechnungen
 if nargin == 4
   % Prüfe Felder der Einstellungs-Struktur und belasse Standard-Werte, 
   % falls Eingabe nicht gesetzt
@@ -272,17 +273,24 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq = (condJ_test-condJ)./qD_test';
           end
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
-            % Benutze Formel für Differential des Matrix-Produkts mit 
-            % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
-            Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
-            Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
-            Jinv_test = Jinv + ...
-              Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
-              -Phi4_q_voll\Phi4D_x_voll;
+            Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
             h4_test = cond(Jinv_test(Rob.I_qa,Rob.I_EE));
             h4dq = (h4_test-h(4))./qD_test';
+            if s.debug
+              % Benutze Formel für Differential des Matrix-Produkts mit 
+              % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
+              Phi4D_x_voll = Phi4_x_voll_test-Phi4_x_voll;
+              Phi4D_q_voll = Phi4_q_voll_test-Phi4_q_voll;
+              Jinv_test_2 = Jinv + ...
+                Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
+                -Phi4_q_voll\Phi4D_x_voll;
+              h4_test_2 = cond(Jinv_test_2(Rob.I_qa,Rob.I_EE));
+              if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJpkm) < 1
+                error('Beide Ansätze für Delta Jinv stimmen nicht überein');
+              end
+            end
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
