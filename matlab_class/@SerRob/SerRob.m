@@ -687,6 +687,7 @@ classdef SerRob < RobBase
          'I_EElink', uint8(R.I_EElink), ...
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
+         'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
