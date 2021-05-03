@@ -76,6 +76,7 @@ s = struct(...
   ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
   ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
   'optimcrit_limits_hyp_deact', NaN, ... 
+  'retry_on_limitviol', false, ... % Bei Grenzverletzung neu versuchen mit true
   'retry_limit', 100, ...; % Anzahl der Neuversuche
   'debug', false); % Zusätzliche Test-Berechnungen
 if nargin == 4
@@ -601,4 +602,3 @@ if nargout >= 3
     out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
   end
 end
-

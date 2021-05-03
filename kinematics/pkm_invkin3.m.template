@@ -70,6 +70,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, q0, s)
 %$cgargs   'maxrelstep_ns', 0.005,
 %$cgargs'finish_in_limits', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
+%$cgargs'retry_on_limitviol', false,
 %$cgargs     'retry_limit', 100,
 %$cgargs           'debug', false,
 %$cgargs      'I_constr_t', ones(1,%NLEG%*6/2),
@@ -638,7 +639,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if nargout == 4
       Stats.retry_number = rr;
     end
-    break;
+    if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
+      break;
+    end
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
   if rr == 0 && ~isnan(s.rng_seed)

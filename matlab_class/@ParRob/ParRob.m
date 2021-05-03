@@ -332,6 +332,7 @@ classdef ParRob < RobBase
         'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+        'retry_on_limitviol', false, ... % Bei Grenzverletzung neu versuchen mit true
         'retry_limit', 100); % Anzahl der Neuversuche);
       % Alle Standard-Einstellungen in s_ser mit in s_in_ser übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung

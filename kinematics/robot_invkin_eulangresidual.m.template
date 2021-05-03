@@ -70,6 +70,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs        'rng_seed', NaN,
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
+%$cgargs 'retry_on_limitviol', false,
 %$cgargs     'retry_limit', 100)}
 
 %% Initialisierung
@@ -464,7 +465,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if nargout == 4
       Stats.retry_number = rr;
     end
-    break;
+    if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
+      break;
+    end
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
   if rr == 0 && ~isnan(s.rng_seed)

@@ -629,6 +629,7 @@ classdef SerRob < RobBase
         'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung der Neuversuche
         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+        'retry_on_limitviol', false, ... % Neuversuch auch, wenn Gelenkgrenzen verletzt werden
         'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
