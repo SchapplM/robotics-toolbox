@@ -87,33 +87,21 @@ RP.phi_P_B_all = zeros(3,6);
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X0 = [ [0;0;0.6]; [0;0;0]*pi/180 ];
-for i = 1:10 % Mehrere Versuche für "gute" Pose
-  q0 = -0.5+rand(36,1); % Startwerte für numerische IK (zwischen -0.5 und 0.5 rad)
-  q0(RP.I_qa) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
-
-  % Inverse Kinematik auf zwei Arten berechnen
-  [q1, Phi] = RP.invkin1(X0, q0);
-  if any(abs(Phi) > 1e-8)
-    error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
-  end
-  if any(q1(RP.I_qa) < 0)
-    warning('Start-Konfiguration ist umgeklappt mit Methode 1.');
-  end
-
-  [qs, Phis] = RP.invkin_ser(X0, rand(36,1));
-  if any(abs(Phis) > 1e-6)
-    error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
-  end
-  if any(qs(RP.I_qa) < 0)
-    warning('Versuch %d: Start-Konfiguration ist umgeklappt mit Methode Seriell. Erneuter Versuch.', i);
-    if i == 10
-      return
-    else
-      continue;
-    end
-  else
-    break;
-  end
+% Startwerte für numerische IK
+q0 = qlim_pkm(:,1)+rand(36,1).*(qlim_pkm(:,2)-qlim_pkm(:,1));
+q0(RP.I_qa) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
+% Inverse Kinematik auf zwei Arten berechnen
+[~, Phi] = RP.invkin1(X0, q0);
+if any(abs(Phi) > 1e-8)
+  error('Inverse Kinematik konnte in Startpose nicht berechnet werden (Beine gemeinsam)');
+end
+% IK berechnen. Dabei solange probieren, bis Schubgelenke nicht umklappen
+[q, Phis] = RP.invkin_ser(X0, q0, struct('retry_on_limitviol',true));
+if any(abs(Phis) > 1e-6)
+  error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
+end
+if any(q(RP.I_qa) < 0)
+  error('Start-Konfiguration ist umgeklappt mit Methode Seriell. Darf nicht passieren');
 end
 
 %% Wähle willkürlichen Winkel-Offset für Beinketten-Koppel-KS

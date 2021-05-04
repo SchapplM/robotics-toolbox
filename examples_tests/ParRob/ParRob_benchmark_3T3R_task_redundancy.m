@@ -152,28 +152,19 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR
   % Mittelstellung im Arbeitsraum
   X0 = [ [0.00;0.00;0.6]; [0;0;0]*pi/180 ];
   if all(I_EE_full == [1 1 0 0 0 1]), X0(3) = 0; end
-  for i = 1:10 % Mehrere Versuche für "gute" Pose
-    q0 = 0.5+rand(RP.NJ,1); % Startwerte für numerische IK (zwischen 0.5 und 1.5 rad)
-    q0(RP.MDH.sigma==1) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
-    % Inverse Kinematik auf zwei Arten berechnen
-    [q1, Phi] = RP.invkin1(X0, q0);
-    if any(abs(Phi) > 1e-8)
-      error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
-    end
-    [qs, Phis] = RP.invkin_ser(X0, rand(RP.NJ,1));
-    if any(abs(Phis) > 1e-6)
-      error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
-    end
-    if any(qs(RP.MDH.sigma==1) < 0)
-      warning('Versuch %d: Start-Konfiguration ist umgeklappt mit Methode Seriell. Erneuter Versuch.', i);
-      if i == 10
-        return
-      else
-        continue;
-      end
-    else
-      break;
-    end
+  q0 = 0.5+rand(RP.NJ,1); % Startwerte für numerische IK (zwischen 0.5 und 1.5 rad)
+  q0(RP.MDH.sigma==1) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
+  % Inverse Kinematik auf zwei Arten berechnen
+  [~, Phi] = RP.invkin1(X0, q0);
+  if any(abs(Phi) > 1e-8)
+    error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
+  end
+  [qs, Phis] = RP.invkin_ser(X0, q0, struct('retry_on_limitviol',true));
+  if any(abs(Phis) > 1e-6)
+    error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
+  end
+  if any(qs(RP.MDH.sigma==1) < 0)
+    error('Start-Konfiguration ist umgeklappt mit Methode Seriell. Darf nicht sein.');
   end
   
   %% Zwangsbedingungen in Startpose testen
