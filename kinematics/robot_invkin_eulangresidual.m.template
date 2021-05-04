@@ -181,6 +181,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   bestPhi = inf; % Merker für bislang bestes Residuum
+  % Zurücksetzen des Modus für Abbruch in Grenzen (falls Neuversuch unter-
+  % nommen wurde, weil die Grenzen doch verletzt wurden).
+  if limits_set
+    finish_in_limits = s.finish_in_limits;
+    nsoptim = true;
+    wn = s.wn;
+    if any(wn ~= 0), nsoptim = true; end
+    break_when_in_limits = false;
+  end
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);

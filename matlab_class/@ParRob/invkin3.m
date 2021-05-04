@@ -199,6 +199,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
   bestPhi = inf; % Merker für bislang bestes Residuum
+  % Zurücksetzen des Modus für Abbruch in Grenzen (falls Neuversuch unter-
+  % nommen wurde, weil die Grenzen doch verletzt wurden).
+  if limits_set
+    finish_in_limits = s.finish_in_limits;
+    nsoptim = true;
+    wn = s.wn;
+    if any(wn ~= 0), nsoptim = true; end
+    break_when_in_limits = false;
+  end
   for jj = 1:n_max
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     Jik=Rob.constr3grad_q(q1, xE_soll);
@@ -557,7 +566,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if nargout == 4
       Stats.retry_number = rr;
     end
-    break;
+    if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
+      break;
+    end
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
   if rr == 0 && ~isnan(s.rng_seed)
