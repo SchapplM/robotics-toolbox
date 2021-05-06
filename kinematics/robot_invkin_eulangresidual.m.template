@@ -183,9 +183,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   bestPhi = inf; % Merker für bislang bestes Residuum
   % Zurücksetzen des Modus für Abbruch in Grenzen (falls Neuversuch unter-
   % nommen wurde, weil die Grenzen doch verletzt wurden).
-  if limits_set
+  if limits_set % Siehe unten bei Fallabfrage finish_in_limits
     finish_in_limits = s.finish_in_limits;
-    nsoptim = true;
+    nsoptim = false;
     wn = s.wn;
     if any(wn ~= 0), nsoptim = true; end
     break_when_in_limits = false;
@@ -450,7 +450,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && Phi_iO && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
-        nsoptim && all(abs(delta_q_N) < maxstep_ns) ) % oder die Nullraumoptimierung läuft noch
+        nsoptim && all(abs(delta_q_N) <= maxstep_ns) ) % oder die Nullraumoptimierung läuft noch. "<=" für Fall 0.
       success = true;
       if nargout == 4
         Stats.iter = jj; % muss hier zugewiesen werden (für mex)
