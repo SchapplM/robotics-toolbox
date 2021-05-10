@@ -57,7 +57,7 @@ for i = 1:RP.NLEG
   % Begrenze die Länge der Schubgelenke
   RP.Leg(i).qlim(1,:) = [0.2, 0.7];
 end
-
+qlim_pkm = cat(1, RP.Leg.qlim);
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
 X = [ [0;0;0.7]; [10;10;5]*pi/180 ];
@@ -65,25 +65,9 @@ q0 = rand(36,1); % Startwerte für numerische IK
 q0(RP.I_qa) = 0.6; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
 
 % Inverse Kinematik berechnen (so dass Schubgelenk nicht umklappt)
-for i = 1:10
-  ik_umgeklappt = false;
-  [q, Phi] = RP.invkin_ser(X, q0);
-  q_a = q(RP.I_qa);
-  for j = 1:RP.NLEG
-    if q_a(j) > 0.7
-      ik_umgeklappt = true;
-      q0(RP.I1J_LEG(j):RP.I2J_LEG(j)) = rand(RP.Leg(j).NJ,1);
-    else
-      % Diese Beinkette hat funktioniert. Passe IK-Anfangswerte an.
-      q0(RP.I1J_LEG(j):RP.I2J_LEG(j)) = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
-    end
-  end
-  if ~ik_umgeklappt
-    break;
-  end
-end
-if ik_umgeklappt
-  warning('Konnte keine IK ohne Umklappen der Schubachse berechnen');
+[q, Phi] = RP.invkin_ser(X, q0, struct('retry_on_limitviol',true));
+if any(q(RP.I_qa)<qlim_pkm(RP.I_qa,1) | q(RP.I_qa)>qlim_pkm(RP.I_qa,2))
+  error('Konnte keine IK ohne Umklappen der Schubachse berechnen');
 end
 if any(abs(Phi) > 1e-6)
   error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');

@@ -54,6 +54,8 @@ s_ser_std = struct( ...
   'reci', false, ... % Keine reziproken Winkel für ZB-Def.
   'retry_limit', 100); % Anzahl der Neuversuche
 s_par = struct( ...
+  'Leg_I_EE_Task', cat(1,Rob.Leg.I_EE_Task), ...
+  'I_EE_Task', Rob.I_EE_Task, ...
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
@@ -79,8 +81,8 @@ if nargin == 5
     end
   end
 end
-if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
-  s.reci = true; % bei 3T2R geht es nicht ohne reziproke Winkel
+if Rob.I_EE(6) && ~s_par.I_EE_Task(6) % Aufgabenredundanz mit z-Rotation
+  s.reci = true; % bei z.B. 3T2R geht es nicht ohne reziproke Winkel (aber auch 3T1R/2T1R mit freier Rotation)
 end
 
 if isfield(s, 'K')
@@ -100,9 +102,9 @@ Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 
 if nargout == 4
-  Stats = struct('Q', NaN(s.n_max, Rob.NJ), 'PHI', NaN(s.n_max, Rob.I2constr_red(end)), ...
+  Stats = struct('Q', NaN(1+s.n_max, Rob.NJ), 'PHI', NaN(1+s.n_max, Rob.I2constr_red(end)), ...
     'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
-    'condJ', NaN(s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+    'condJ', NaN(1+s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
 end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
@@ -121,7 +123,7 @@ for i = 1:Rob.NLEG
   % Überschreibe evtl übergebene I_EE für PKM. Das I_EE hier gilt für die Beinkette
   % Damit wird der Standardwert gesetzt, der sowieso in SerRob/invkin2
   % genutzt wird
-  s.I_EE = Rob.Leg(i).I_EE_Task;
+  s.I_EE = s_par.Leg_I_EE_Task(i,:);
 
   % Initialisierung: Startwerte der IK
   if i == 1 || all(~isnan(q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i))))
@@ -158,7 +160,7 @@ for i = 1:Rob.NLEG
     Stats.condJ(:,i) = Stats_i.condJ;
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
-  if i == 1 && (Rob.I_EE(6) && ~Rob.I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt
+  if i == 1 && (Rob.I_EE(6) && ~s_par.I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt
       all(Rob.I_EE == [1 1 1 1 1 0])) % Roboter hat strukturell 3T2R FG und constr3-Methode.
     if any(isnan(Phi_i))
       % Führungsbeinkette konvergiert nicht. Keine weitere Berechnung möglich
@@ -198,7 +200,7 @@ return
 % Diese Rechnung ist zu zeitaufwändig und muss im Bedarfsfall manuell
 % durchgeführt werden.
 % Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
-if all(Rob.I_EE_Task == logical([1 1 1 1 1 0]))
+if all(s_par.I_EE_Task == logical([1 1 1 1 1 0]))
     if(length(q) == 25) % sym
         Phi = Rob.constr2(q, xE_soll, s_par.platform_frame);
     else  % asym mit genau einer Führungskette

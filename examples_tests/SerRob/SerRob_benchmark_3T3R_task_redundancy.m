@@ -58,6 +58,7 @@ short_traj = true; % Trajektorie stark abkürzen, um prinzipielle Funktionalitä
 eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
 debug_plot = false;
 use_mex_functions = true;
+save_results = false;
 
 % Definitionen
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
@@ -288,8 +289,10 @@ for robnr = 2
     xlabel('Eckpunkt lfd Nr');
     ylim([log10(0.9*min(h2_go(:))), log10(1.5*max(h2(:)))]);
     legend([hdl1(1), hdl2, hdl3], {'Ohne AR, 2°-Schritte.', 'Ohne AR, bester', 'Mit Aufgabenredundenz'});
-    saveas(100*robnr+1, fullfile(respath,sprintf( ...
-      'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RS.mdlname)));
+    if save_results
+      saveas(100*robnr+1, fullfile(respath,sprintf( ...
+        'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RS.mdlname)));
+    end
   end
   %% Zeitverlauf der Trajektorie generieren
   [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, 2e-3, 1e-2);
@@ -414,6 +417,7 @@ for robnr = 2
       otherwise
         error('Fall %d noch nicht definiert', kk);
     end
+    Namen_Methoden{kk} = name_method;
     % Positions-IK zum Startpunkt der Trajektorie mit genau den gleichen
     % Optimierungs-Nebenbedingungen wie in der Trajektorie. Dadurch keine
     % Nullraumbewegung am Anfang (Start in lokalem Optimum)
@@ -427,8 +431,6 @@ for robnr = 2
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
         'fehlgeschlagen']);
     end
-    
-    Namen_Methoden{kk} = name_method;
     t1=tic();
     [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk] = RS.invkin2_traj( ...
       X_t,XD_t,XDD_t,t,qs_kk,s_kk);
@@ -490,6 +492,7 @@ for robnr = 2
   %% Konsistenz von Position, Geschwindigkeit und Beschleunigung testen
   for kk = 1:length(Namen_Methoden)
     Q = Q_t_all(:,:,kk);
+    if any(isnan(Q(1,:))), continue; end % wurde nicht berechnet
     QD = QD_t_all(:,:,kk);
     QDD = QDD_t_all(:,:,kk);
     X = XE_all(:,:,kk);
@@ -530,7 +533,20 @@ for robnr = 2
       ylabel(sprintf('qDD %d', i)); grid on;
     end
     linkxaxes
-    saveas(100*robnr+40+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
+    if save_results
+      saveas(100*robnr+40+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
+    end
+    % Vergleiche die Verläufe rechnerisch
+    corrQ = diag(corr(Q, Q_int));
+    corrQD = diag(corr(QD, QD_int));
+    % Korrekturen für Sonderfälle. Siehe cds_constraints_traj.m (StruktSynth)
+    corrQ(all(abs(Q_int-Q)<1e-3)) = 1;
+    corrQD(all(abs(QD_int-QD)<1e-3)) = 1;
+    corrQD(isnan(corrQD)) = 1;
+    corrQ(isnan(corrQ)) = 1;
+    if any(corrQD < 0.95) || any(corrQ < 0.98)
+      error('Korrelation zwischen Q-QD oder QD-QDD zu gering. Vermutlich Fehler');
+    end
     % Integriere die Endeffektor Beschleunigung und Geschwindigkeit
     XD_int = cumtrapz(t, XDD) + repmat(XD(1,:),n,1);
     % Integriere die Geschwindigkeit zur Position
@@ -565,7 +581,9 @@ for robnr = 2
       ylabel(sprintf('xDD %d', i)); grid on;
     end
     linkxaxes
-    saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+    if save_results
+      saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+    end
   end
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
@@ -591,8 +609,9 @@ for robnr = 2
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
-  saveas(100*robnr+20, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
-  
+  if save_results
+    saveas(100*robnr+20, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
+  end
   change_current_figure(100*robnr+21); clf;
   set(100*robnr+21, 'Name', sprintf('Rob%d_Zielf_qD', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen (Geschwindigkeit)');
@@ -615,8 +634,9 @@ for robnr = 2
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
-  saveas(100*robnr+21, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
-  
+  if save_results
+    saveas(100*robnr+21, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
+  end
   change_current_figure(100*robnr+22); clf;
   set(100*robnr+22, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
   hdl=plot(t, Hcond_all);
@@ -624,8 +644,9 @@ for robnr = 2
   legend(leghdl, Namen_Methoden);
   title('Konditionszahl (mögliche Opt. Zielf.)');
   ylabel('Konditionszahl'); grid on;
-  saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
-  
+  if save_results
+    saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
+  end
   change_current_figure(100*robnr+23); clf;
   set(100*robnr+23, 'Name', sprintf('Rob%d_Zielf_sum', robnr), 'NumberTitle', 'off');
   hdl=plot(t, Hsum_all);
@@ -633,7 +654,9 @@ for robnr = 2
   legend(leghdl, Namen_Methoden);
   title('Gew. Summe der Zielfunktionen (je Opt.)');
   ylabel('Summe Zielfunktionen'); grid on;
-  saveas(100*robnr+23, fullfile(respath,sprintf('Rob%d_Zielf_sum', robnr)));
+  if save_results
+    saveas(100*robnr+23, fullfile(respath,sprintf('Rob%d_Zielf_sum', robnr)));
+  end
   %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
   change_current_figure(100*robnr+24); clf;
   set(100*robnr+24, 'Name', sprintf('Rob%d_Gelenke', robnr), 'NumberTitle', 'off');
@@ -665,8 +688,9 @@ for robnr = 2
     end
   end
   linkxaxes
-    
-  saveas(100*robnr+24, fullfile(respath,sprintf('Rob%d_Zielf', robnr)));
+  if save_results
+    saveas(100*robnr+24, fullfile(respath,sprintf('Rob%d_Gelenke', robnr)));
+  end
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:RS.NJ
     for j = 1:3
@@ -674,6 +698,47 @@ for robnr = 2
     end
   end
   legend(leghdl, Namen_Methoden);
+  
+  %% Trajektorie: Vergleich EE-Bewegung nach verschiedenen Methoden
+  change_current_figure(100*robnr+25); clf;
+  set(100*robnr+25, 'Name', sprintf('Rob%d_EE', robnr), 'NumberTitle', 'off');
+  sgtitle('EE-Verläufe');
+  hdl = NaN(3,RS.NJ,length(Namen_Methoden));
+  for kk = 1:length(Namen_Methoden)
+    X = XE_all(:,:,kk);
+    XD = XDE_all(:,:,kk);
+    XDD = XDDE_all(:,:,kk);
+    for i = 1:6
+      % Position
+      subplot(3,6,sprc2no(3,6, 1, i));
+      hold on;
+      hdl(1,i,kk)=plot(t, X(:,i));
+      if kk == 1, ylabel(sprintf('x %d', i)); grid on; end
+      % Geschwindigkeit
+      subplot(3,6,sprc2no(3,6, 2, i));
+      hold on;
+      hdl(2,i,kk)=plot(t, XD(:,i));
+      if kk == 1, ylabel(sprintf('xD %d', i)); grid on; end
+      % Beschleunigung
+      subplot(3,6,sprc2no(3,6, 3, i));
+      hold on;
+      hdl(3,i,kk)=plot(t, XDD(:,i));
+      if kk == 1, ylabel(sprintf('xDD %d', i)); grid on; end
+    end
+  end
+  linkxaxes
+  if save_results
+    saveas(100*robnr+25, fullfile(respath,sprintf('Rob%d_EE', robnr)));
+  end
+  % Linien nachträglich neu formatieren (bessere Lesbarkeit)
+  for k = 1:6
+    for j = 1:3
+      leghdl=line_format_publication(hdl(j,k,:), format_mlines);
+    end
+  end
+  h = legend(leghdl, Namen_Methoden);
+  hpos = get(h, 'position');
+  set(h, 'Position', [0.1,0.1,hpos(3:4)]);
   
   %% Prüfe, ob die Rechnung Unabhängigkeit von der Abtastzeit der Trajektorie
   dt_array = [5e-4, 1e-3, 2e-3];
@@ -747,8 +812,10 @@ for robnr = 2
   legend(squeeze(hdlq(j,k,:)), lstrs);
   legend(squeeze(hdlx(j,k,:)), lstrs);
   linkxaxes
-  saveas(100*robnr+60, fullfile(respath,sprintf('Rob%d_dt_Vergl_q', robnr)));
-  saveas(100*robnr+61, fullfile(respath,sprintf('Rob%d_dt_Vergl_x', robnr)));
+  if save_results
+    saveas(100*robnr+60, fullfile(respath,sprintf('Rob%d_dt_Vergl_q', robnr)));
+    saveas(100*robnr+61, fullfile(respath,sprintf('Rob%d_dt_Vergl_x', robnr)));
+  end
   %% Debug: Vergleich mit und ohne simplify_acc
   if debug_plot
   change_current_figure(100*robnr+70); clf; %#ok<UNRCH>
@@ -791,5 +858,7 @@ for robnr = 2
     
   end
   %% Ergebniss speichern
-  save(fullfile(respath,sprintf('Rob%d_%s_result.mat',robnr,RS.mdlname)));
+  if save_results
+    save(fullfile(respath,sprintf('Rob%d_%s_result.mat',robnr,RS.mdlname)));
+  end
 end

@@ -18,7 +18,12 @@
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
 %   (enthält alle Koordinatensysteme aus direkter Kinematik)
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
+%   .PHI (n+1)x6: Residuum
+%   .h (n+1x3): Leistungsmerkmale: (1) quadratischer Abstand von Grenzen,
+%     (2) hyperbolischer Abstand von Grenzen, (3) Konditionszahl Jacobi
+%   .condJ (n+1x1): Konditionszahl der IK-Jacobi-Matrix
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
@@ -52,8 +57,11 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
 %$cgargs              'wn', zeros(3,1),
+%$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
+%$cgargs'finish_in_limits', false,
+%$cgargs'optimcrit_limits_hyp_deact', NaN,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
 %$cgargs      'lambda_min', 2e-4,
@@ -62,6 +70,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs        'rng_seed', NaN,
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
+%$cgargs 'retry_on_limitviol', false,
 %$cgargs     'retry_limit', 100)}
 
 %% Initialisierung
@@ -82,36 +91,14 @@ T_N_E = s.T_N_E;
 pkin = s.pkin;
 NQJ = %NQJ%;
 sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
-qmin = s.qlim(:,1);
-qmax = s.qlim(:,2);
-if all(~isnan(s.qlim(:)))
-  limits_set = true;
-else
-  % Grenzen sind nicht wirksam
-  qmin(:) = -Inf;
-  qmax(:) =  Inf;
-  limits_set = false;
-  retry_limit = 0; % keine zufällige Neubestimmung möglich.
-end
-% Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
-% Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
-% Die Variable qmin/qmax wird für Nebenbedingungen benutzt.
-qmin_norm = qmin; qmax_norm = qmax;
-qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
-qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
-delta_qlim = qmax - qmin;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
 maxrelstep = s.maxrelstep;
+maxstep_ns = s.maxstep_ns;
+finish_in_limits = s.finish_in_limits;
+break_when_in_limits = false;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-
-if any(wn ~= 0)
-  nsoptim = true;
-else
-  % Keine zusätzlichen Optimierungskriterien
-  nsoptim = false;
-end
 
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
@@ -122,26 +109,61 @@ else
 end
 I_IK = I_IK2(s.I_EE);
 
+% Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
+% 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
+nsoptim = false;
+if NQJ > length(I_IK)
+  if any(wn ~= 0)
+    nsoptim = true;
+  end
+else
+  % Keine zusätzlichen Optimierungskriterien
+  finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
+end
+qmin = s.qlim(:,1);
+qmax = s.qlim(:,2);
+if all(~isnan(s.qlim(:)))
+  limits_set = true;
+else
+  % Grenzen sind nicht wirksam
+  qmin(:) = -Inf;
+  qmax(:) =  Inf;
+  limits_set = false;
+  retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  finish_in_limits = false;
+end
+% Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
+% Annahme: Betrifft nur Drehgelenke. Dort dann zwischen -pi und pi.
+% Die Variable qmin/qmax wird für Nebenbedingungen benutzt.
+qmin_norm = qmin; qmax_norm = qmax;
+qmin_norm(isinf(qmin)) = sign(qmin_norm(isinf(qmin)))*(pi);
+qmax_norm(isinf(qmax)) = sign(qmax_norm(isinf(qmax)))*(pi);
+delta_qlim = qmax - qmin;
+% Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
+% Variablen für Dämpfung der Inkremente
+delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
+delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
+damping_active = false; % Standardmäßig noch nicht aktiviert
+
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q1 = q0;
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
-
-% Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
-% 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
-if nsoptim && NQJ <= length(I_IK)
-  nsoptim = false;
-end
+scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
+N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
 success = false;
 
 if nargout == 4
-  Stats = struct('Q', NaN(n_max, NQJ), 'PHI', NaN(n_max, 6), 'iter', n_max, ...
-    'retry_number', retry_limit, 'condJ', NaN(n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(n_max,1+3));
+  Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
+    'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+3));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -151,9 +173,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Fehlermaß für Startwerte
   Phi_voll = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  if nargout == 4 % Anfangswerte eintragen
+    Stats.PHI(1,:) = Phi_voll;
+    Stats.Q(1,:) = q1;
+  end
   lambda_mult = lambda_min; % Zurücksetzen der Dämpfung
   lambda = 0.0;
   rejcount = 0; % Zurücksetzen des Zählers für Fehlversuche
+  bestPhi = inf; % Merker für bislang bestes Residuum
+  % Zurücksetzen des Modus für Abbruch in Grenzen (falls Neuversuch unter-
+  % nommen wurde, weil die Grenzen doch verletzt wurden).
+  if limits_set % Siehe unten bei Fallabfrage finish_in_limits
+    finish_in_limits = s.finish_in_limits;
+    nsoptim = false;
+    wn = s.wn;
+    if any(wn ~= 0), nsoptim = true; end
+    break_when_in_limits = false;
+  end
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
@@ -162,10 +198,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
-    % Bei Redundanz nur benutzen, falls Nullraumprojektion erfolglos.
+    % Bei Redundanz immer benutzen, nicht nur, falls Nullraumprojektion erfolglos.
     condJ = cond(Jdk);
     % manipJ = det(Jdk*Jdk'); % Manipulierbarkeit; nicht weiter verfolgt.
-    if condJ > condlimDLS && (~nsoptim || nsoptim && rejcount > 0)
+    if condJ > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
       % Pseudo-Inverse mit Dämpfung:
       % Passe die Dämpfung lambda im DLS-Verfahren an. Wähle die Kon-
       % ditionszahl als Kriterium, da z.B. Grenzen für Singulärwerte
@@ -188,8 +224,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && ... % Nullraum muss vorhanden sein und Kriterien gesetzt
-        jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
-        rejcount == 0 %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. Annahme: Schädlich für Konvergenz
+        ... %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. 
+        ... % Annahme: Schädlich für Konvergenz. Nur, falls Stagnation 
+        ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
+        (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(NQJ, 1);
       if wn(1) ~= 0 % Anziehung zu Gelenkwinkel-Mitte (linear)
@@ -197,7 +235,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(1)*h1dq';
       end
       if wn(2) ~= 0 % Abstoßung von den Grenzen (hyperbolisch)
-        [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax]);
+        [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2);
         v = v - wn(2)*h2dq';
       end
       if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
@@ -217,7 +255,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(3) = condJ;
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
-      delta_q_N(:) = (eye(NQJ) - pinv(Jdk)* Jdk) * v; % "(:)" notwendig für mex
+      N = (eye(NQJ) - pinv(Jdk)* Jdk);
+      delta_q_N(:) = N * v; % "(:)" notwendig für mex
     end
 
     % Reduziere Schrittweite auf einen absoluten Wert. Annahme: Newton-
@@ -244,6 +283,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % tuellen Oszillationen auszugleichen.
       delta_q_N = delta_q_N .* 0.035*(1-jj/n_max)/sum_abs_delta_qNrev;
     end
+    % Dämpfung der Nullraumbewegung. Verlangsamt die Konvergenz, reduziert
+    % dafür Schwingungen zwischen delta_q_T und delta_q_N, die durch keine
+    % der anderen Stabilisierungsmaßnahmen erfasst werden. Nur machen, wenn
+    % auch Bewegung im Nullraum (nicht wenn q_N deaktiviert wurde)
+    if nsoptim && damping_active && any(delta_q_N)
+      % Korrigiere den Altwert, da bezogen auf andere Gelenkkonfig.
+      delta_q_N_alt_N = N*delta_q_N_alt;
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      delta_q_N = delta_q_N_alt_N + 1/(1+2)*(1*delta_q_N-delta_q_N_alt_N);
+      delta_q_N_alt = delta_q_N;
+    end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
     % Verstärkungsfaktoren K und Kn oben bereits angewendet.
@@ -260,11 +310,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         delta_q = delta_q .* maxrelstep / max(abs_delta_q_rel);
       end
     end
+    % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
+    % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    if damping_active
+      % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
+      % Zusätzlich zu obiger Filterung von delta_q_N.
+      delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
+    elseif all(sign(delta_q) == -sign(delta_q_alt))
+      damping_active = true; % ab jetzt aktiviert lassen.
+    end
+    delta_q_alt = delta_q;
     
+    % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
     
     % Prüfe, ob die Gelenkwinkel ihre Grenzen überschreiten und reduziere
     % die Schrittweite, falls das der Fall ist
+    scale = 1;
     if scale_lim
       delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
       delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
@@ -309,11 +371,29 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
       delta_q_N(:) = 0;
     end
+    if scale_lim && scale == 0
+      % Die Bewegung wurde komplett herunterskaliert, da die Grenzen
+      % überschritten wurden. Erhöhe die Nullraumbewegung zur Vermeidung
+      % der Grenzen. Sonst wird die IK sowieso nicht konvergieren. Annahme:
+      % Keine Singularität, die mit DLS beseitigt wird.
+      wn(2) = wn(2) + 0.1;
+    end
     % Prüfe, ob Schritt erfolgreich war (an dieser Stelle, da der 
     % Altwert von Phi noch verfügbar ist). Siehe [CorkeIK].
-    Delta_Phi = norm(Phi_neu) - norm(Phi); % "neu" - "alt"; 
+    Phi_neu_norm = norm(Phi_neu);
+    Delta_Phi = Phi_neu_norm - norm(Phi); % "neu" - "alt";
+    bestPhi = min([bestPhi;Phi_neu_norm]);
+    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && (Delta_Phi > 0 || ...
+        Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
+      % Zusätzliches Optimierungskriterium hat sich verschlechtert und
+      % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
+      % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
+      % Nullraumbewegung. Annahme: Bewegung so groß, dass keine
+      % Linearisierungsfehler (außerhalb des Nullraums) zu groß.
+      Kn = Kn*0.8;
+    end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
-        || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && any(delta_q) % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
+        || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && Delta_Phi~=0 % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
       if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
         % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
         % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
@@ -347,21 +427,45 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
     end
     if nargout == 4
-      Stats.Q(jj,:) = q1;
-      Stats.PHI(jj,:) = Phi_voll;
+      Stats.Q(1+jj,:) = q1;
+      Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
+    % Prüfe Abbruchbedingung für Einhaltung der Winkelgrenzen. Ist dies bei
+    % "finish_in_limits" der Fall, muss die IK nur noch konvergiert sein.
+    if break_when_in_limits && (all(q1 >= qmin) && all(q1 <= qmax))
+      delta_q_N(:) = 0; % unvollständige Nullraumbewegung wird hiernach ignoriert.
+      % hiernach dürfen die Grenzen nicht mehr verlassen werden (falls
+      % noch weitere Iterationen gemacht werden)
+      scale_lim = 0.7;
+      % Reduziere die Nullraumbewegung ab hier ganz stark. Damit können die
+      % Grenzen noch leicht nachkorrigiert werden, es dominiert aber die
+      % Aufgabenbewegung.
+      Kn = Kn*0.8;
+    end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
         && Phi_iO && ... % Haupt-Bedingung ist erfüllt
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
-        nsoptim && all(abs(delta_q_N) < 1e-5) ) % oder die Nullraumoptimierung läuft noch
+        nsoptim && all(abs(delta_q_N) <= maxstep_ns) ) % oder die Nullraumoptimierung läuft noch. "<=" für Fall 0.
       success = true;
       if nargout == 4
         Stats.iter = jj; % muss hier zugewiesen werden (für mex)
+      end
+      if finish_in_limits && (any(q1 < qmin) || any(q1 > qmax))
+        % Es soll eigentlich abgebrochen werden. Die Grenzen wurden aber 
+        % nicht eingehalten. Mache noch mit dem Algorithmus weiter und 
+        % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
+        finish_in_limits = false; % Modus ist damit aktiviert
+        nsoptim = true;
+        wn = [0;1;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
+        % wenn die Grenzen erreicht sind.
+        break_when_in_limits = true;
+        continue
       end
       break;
     end
@@ -370,13 +474,24 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if nargout == 4
       Stats.retry_number = rr;
     end
-    break;
+    if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
+      break;
+    end
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
   q0(:) = qmin_norm + rand(NQJ,1).*(qmax_norm-qmin_norm); % "(:)" notwendig für mex
+end
+if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
+  if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2); end
+  Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  Jdk = Jdk_voll(I_IK,:);
+  h(3) = cond(Jdk);
+  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+  Stats.condJ(Stats.iter+1) = h(3);
 end
 
 q = q1;

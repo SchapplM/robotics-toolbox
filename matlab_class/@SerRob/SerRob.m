@@ -613,8 +613,14 @@ classdef SerRob < RobBase
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
         'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+        'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
+        'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
+        ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
+        ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
+        ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
+        'optimcrit_limits_hyp_deact', NaN, ... 
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
@@ -623,6 +629,7 @@ classdef SerRob < RobBase
         'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung der Neuversuche
         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
+        'retry_on_limitviol', false, ... % Neuversuch auch, wenn Gelenkgrenzen verletzt werden
         'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
@@ -646,7 +653,7 @@ classdef SerRob < RobBase
         [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
       end
     end
-    function [Q,QD,QDD,PHI,JointPos_all] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
+    function [Q,QD,QDD,PHI,JointPos_all,Stats] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin_traj`, die nicht kompilierbar ist.
@@ -664,6 +671,7 @@ classdef SerRob < RobBase
       % QDD: Gelenkbeschleunigungen
       % PHI: IK-Fehler (entspricht Zwangsbedingungen)
       % JointPos_all: Position aller Körper-KS für alle Zeitschritte
+      % Stats: Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
       %
       % Siehe auch: invkin2, invkin_traj
       
@@ -680,9 +688,10 @@ classdef SerRob < RobBase
          'I_EElink', uint8(R.I_EElink), ...
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
+         'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(5,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
@@ -699,9 +708,9 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
+      if length(s.wn) < 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
-      [Q,QD,QDD,PHI,JointPos_all] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
+      [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
     function [T, Treg] = ekin(R, q, qD)
       % Kinetische Energie
