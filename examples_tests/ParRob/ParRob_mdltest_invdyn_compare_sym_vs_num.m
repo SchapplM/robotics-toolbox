@@ -687,8 +687,9 @@ for DynParMode = 2:4
       Fx_traj2 = RP.invdyn3_platform_traj(Fx_traj1_reg);
       Fa_traj2 = RP.invdyn3_actjoint_traj(Fa_traj2_reg);
     end
-    test_Fxtraj1 = Fx_traj1 - Fx_traj;
-    if any(abs(test_Fxtraj1(:)) > 1e-6)
+    test_Fxtraj1_abs = Fx_traj1 - Fx_traj;
+    test_Fxtraj1_rel = test_Fxtraj1_abs./Fx_traj; % bei großen Werten rel.-Fehler auch notwendig zur Beurteilung
+    if any(abs(test_Fxtraj1_abs(:)) > 1e-6 & test_Fxtraj1_rel(:) > 1e-6)
       disp(test_Fxtraj1)
       error('Trajektorien-Funktion invdyn2_platform_traj stimmt nicht gegen vorherige Berechnung');
     end
