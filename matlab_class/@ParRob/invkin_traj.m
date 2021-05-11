@@ -617,7 +617,8 @@ for k = 1:nt
         J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
         h6_test_v1 = cond(J_x_inv_test(Rob.I_qa,:));
         
-        if debug && abs(h6_test_v1-h(6)) > 1e-12 && h(6) < 1e8 % Näherung nur bei akzeptabler Kondition vergleichbar
+        if debug && abs(h6_test_v1-h(6)) > 1e-12 && h(6) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
+            cond(Phi_q_voll) < 500 % IK sollte nicht singulär sein
           % Teste zwei alternative Berechnungen (siehe oben bei Antriebskoord.)
           % Alternative 2: Über Jacobi-Matrix-Inkrement
           PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
