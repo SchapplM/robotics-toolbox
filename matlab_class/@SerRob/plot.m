@@ -104,6 +104,7 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
   for i = 1:Rob.NJ
     % mu: 2=PKM-aktiv, 1=seriell-aktiv, 0=seriell-passiv
     cc = colors{Rob.MDH.mu(i)+1};
+    hdl_joint = [];
 
     if any(s.mode == 4)
       % Passe zu zeichnendes Gelenk von der Größe her an
@@ -155,9 +156,9 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
       if Rob.DesPar.joint_type(i) == 3  && ...% Kugelgelenk
           ... % 3 Einzelgelenke zu Kugelgelenk zusammengefasst. Zeichne mittleres.
           i>1 && i<Rob.NJ && all(Rob.DesPar.joint_type([i-1,i+1])==3)
-        drawSphere([r_W_Gi', 1.3*gd/2], 'FaceColor', cc);
+        hdl_joint = drawSphere([r_W_Gi', 1.3*gd/2], 'FaceColor', cc);
       elseif Rob.DesPar.joint_type(i) ~= 3 % Normaler Zylinder als Ersatzdarstellung für Drehgelenk
-        drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
+        hdl_joint = drawCylinder([r_W_P1', r_W_P2', gd/2], 'EdgeColor', cc, ...
           'FaceAlpha', 0.3, 'FaceColor', 'w');
       end
     elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
@@ -178,9 +179,12 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
       cubpar_c = r_W_Gi - r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
       cubpar_l = [gd; gd; gh]; % Dimension des Quaders
       cubpar_a = rotation3dToEulerAngles(R_W_i)'; % Orientierung des Quaders. Benutze Singularitäts-berücksichtigende Funktion
-      drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
+      hdl_joint = drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', cc, 'FaceAlpha', 0.3);
     else
       continue % kein Gelenk
+    end
+    if ~isempty(hdl_joint) % Benenne das gezeichnete Objekt (zum Wiederfinden)
+      set(hdl_joint, 'DisplayName', sprintf('Joint_%d', i));
     end
   end
 end
@@ -478,11 +482,14 @@ if ~s.only_bodies
     plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
       'LineWidth',1,'Color','k')  
   elseif any(s.mode == 4)
-    % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+    % Als Zylinder entsprechend der Entwurfsparameter zeichnen (falls >0)
     if Rob.DesPar.seg_type(i+1) == 1
-      drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
-        'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-        'EdgeAlpha', 0.1); 
+      if norm(T_W_N(1:3,4)'-T_W_E(1:3,4)')>1e-9
+        hdl = drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
+          'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+          'EdgeAlpha', 0.1);
+        set(hdl, 'DisplayName', sprintf('Link_%d', Rob.I_EElink));
+      end
     else
       error('Segmenttyp ist nicht definiert');
     end

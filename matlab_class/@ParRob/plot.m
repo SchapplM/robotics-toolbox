@@ -57,7 +57,8 @@ r_B1_ges = [r_B1_ges; r_B1_ges(1,:)];
 
 %% Basis
 % Basis-Koppelpunkte als Viel-Eck plotten
-plot3(r_A1_ges(:,1), r_A1_ges(:,2), r_A1_ges(:,3), 'k-');
+hdl = plot3(r_A1_ges(:,1), r_A1_ges(:,2), r_A1_ges(:,3), 'k-');
+set(hdl, 'DisplayName', 'Base');
 
 % Basis-KS
 trplot(Rob.T_W_0, 'frame', '0', 'rgb', 'length', 0.4)
@@ -76,6 +77,10 @@ for iLeg = 1:Rob.NLEG
   % Umbenennung der gezeichneten 3D-Körper (Ziel: "Leg1_Link2").
   for c = get(gca, 'children')'
     [~,tokens] = regexp(get(c, 'DisplayName'), '^Link_([\d]+)$', 'tokens', 'match');
+    if ~isempty(tokens)
+      set(c, 'DisplayName', sprintf('Leg_%d_%s', iLeg, tokens{1}));
+    end
+    [~,tokens] = regexp(get(c, 'DisplayName'), '^Joint_([\d]+)$', 'tokens', 'match');
     if ~isempty(tokens)
       set(c, 'DisplayName', sprintf('Leg_%d_%s', iLeg, tokens{1}));
     end
@@ -143,6 +148,7 @@ if s.mode == 3
       Tc_Pges_W(:,:,end-1));
   end
 end
+hdl_plf = [];
 if s.mode == 4
   if any(Rob.DesPar.platform_method == [1 2 3 8])
     h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
@@ -150,23 +156,27 @@ if s.mode == 4
       rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS
       rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
       % Plattform als Kreisscheibe modellieren
-      drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
-        'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3)
+      hdl_plf = drawCylinder([rh_W_P1u(1:3)', rh_W_P1o(1:3)', Rob.DesPar.platform_par(1)], ...
+        'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3);
     end
   elseif any(Rob.DesPar.platform_method == [4 5 6])
     h = Rob.DesPar.platform_par(3); % Dicke der Polygon-Platte
     % Polygon-Punkte zusammenstellen und zeichnen
     if h > 0
+      hdl_plf = NaN(2,1);
       for jj = 1:2
         pts = squeeze(Tc_Pges_W(1:4,4,end-Rob.NLEG-1:end-2));
         pts2 = pts + Tc_Pges_W(:,:,end-1)*[0;0;+(-1)^jj*h/2;0];
-        hdl=fillPolygon3d(pts2', 'm');
-        set(hdl, 'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3)
+        hdl_plf(jj) = fillPolygon3d(pts2', 'm');
+        set(hdl_plf(jj), 'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3)
       end
     end
   else
     error('Methode für platform_method nicht implementiert');
   end
+end
+for i = 1:length(hdl_plf)
+  set(hdl_plf(i), 'DisplayName', 'Platform');
 end
 % Plattform-bezogene KS
 for i = 1:size(Tc_Pges_W,3)
