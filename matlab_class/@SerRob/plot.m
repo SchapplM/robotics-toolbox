@@ -27,6 +27,8 @@
 %   nojoints
 %     0: Gelenke werden gezeichnet (Zylinder/Quader) [standard]
 %     1: Keine Gelenke zeichnen, nur Segmente
+%   length_frames
+%     Länge der Koordinatensysteme im Plot
 % 
 % Ausgabe:
 % hdl
@@ -50,7 +52,8 @@ s_std = struct( ...
              'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
              'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
              'jointcolors', 'serial', ... % Farben für die Gelenke
-             'nojoints', false); 
+             'nojoints', false, ...
+             'length_frames', 0.20); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -500,10 +503,10 @@ for i = 1:size(T_c_W,3)
   if ~any(s.ks == i)
     continue
   end
-  trplot(T_c_W(:,:,i), 'frame', sprintf('%d',i-1), 'rgb', 'length', 0.20)
+  trplot(T_c_W(:,:,i), 'frame', sprintf('%d',i-1), 'rgb', 'length', s.length_frames)
 end
 if any(s.ks == Rob.NJ+2)
-  trplot(T_W_E, 'frame', 'E', 'rgb', 'length', 0.20)
+  trplot(T_W_E, 'frame', 'E', 'rgb', 'length', s.length_frames)
 end
 
 %% Formatierung
