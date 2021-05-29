@@ -56,9 +56,10 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(3,1),
+%$cgargs              'wn', zeros(4,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
+%$cgargs      'scale_coll', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs'finish_in_limits', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
@@ -71,7 +72,12 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
 %$cgargs 'retry_on_limitviol', false,
-%$cgargs     'retry_limit', 100)}
+%$cgargs     'retry_limit', 100,
+%$cgargs      'collbodies', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]))}
 
 %% Initialisierung
 
@@ -94,12 +100,23 @@ sigmaJ = s.sigmaJ; % Marker für Dreh-/Schubgelenk (in den Minimalkoordinaten)
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
+scale_coll = s.scale_coll;
 maxrelstep = s.maxrelstep;
 maxstep_ns = s.maxstep_ns;
 finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-
+collbodies_ns = s.collbodies;
+% Kollisionskörper für die Nullraumbewegung 10% größer machen. Dadurch
+% werden Kollisionen auch tatsächlich verhindert
+if scale_coll
+  collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
+    1.1*collbodies_ns.params(collbodies_ns.type==6,1);
+  collbodies_ns.params(collbodies_ns.type==13,1) = ... % Kapseln (Basis-KS)
+    1.1*collbodies_ns.params(collbodies_ns.type==13,7);
+  collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
+    1.1*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+end
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
   % Reihenfolge hergeleitet in [SchapplerTapOrt2019]; siehe z.B. Gl. (21)
@@ -155,7 +172,7 @@ Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
-h = zeros(3,1); h_alt = inf(3,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(4,1); h_alt = inf(4,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
 success = false;
@@ -163,7 +180,7 @@ success = false;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+3));
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+4));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -171,7 +188,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  Phi_voll = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  [Phi_voll, Tc_stack] = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   if nargout == 4 % Anfangswerte eintragen
     Stats.PHI(1,:) = Phi_voll;
@@ -254,6 +271,44 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(3)*hdq';
         h(3) = condJ;
       end
+      if wn(4) ~= 0 % Kollisionsvermeidung
+        hdq = zeros(1,NQJ);
+        % Bestimme Kollisionen in aktueller Konfiguration. Nutze etwas
+        % größere Kollisionskörper, damit auch eine Nullraumbewegung
+        % stattfindet, wenn die Kollision noch nicht erreicht wird.
+        colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack(:,4)', struct('collsearch', true));
+        if any(colldet)
+          % Inkremente der Gelenkwinkel bilden. Dafür die Gelenkpositionen
+          % bestimmen (für Kollisionsprüfung)
+          JP_test = NaN(1+NQJ,size(Tc_stack,1));
+          JP_test(1,:) = Tc_stack(:,4)';
+          for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
+            q_test = q1; % ausgehend von aktueller Konfiguration
+            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+            % Bestimme Änderung der Gelenkpositionen mit diesem Inkrement
+            [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+            JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
+          end
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+          [~, colldist_test] = check_collisionset_simplegeom( ...
+            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+          % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
+          % Falls keine Kollision vorliegt (mit den kleineren
+          % Kollisionskörpern), dann Abstände negativ angeben.
+          h(4) = -min(colldist_test(1,:)); % zurückgegebene Distanz ist zuerst negativ
+          for kkk = 1:NQJ
+            % Kriterium für Inkrement berechnen
+            h4_test = -min(colldist_test(1+kkk, :));
+            % Differenzenquotient
+            hdq(kkk) = (h4_test'-h(4))/1e-6;
+          end
+          % Zu Nullraum-Vektor hinzufügen
+          v = v - wn(4)*hdq';
+        end
+      else
+        h(4) = 0; % Keine Kollisionen, Eindringtiefe Null. Keine Betrachtung der Abstände.
+      end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       N = (eye(NQJ) - pinv(Jdk)* Jdk);
       delta_q_N(:) = N * v; % "(:)" notwendig für mex
@@ -293,6 +348,30 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       delta_q_N = delta_q_N_alt_N + 1/(1+2)*(1*delta_q_N-delta_q_N_alt_N);
       delta_q_N_alt = delta_q_N;
+    end
+    
+    % Prüfe ob mit dem Inkrement eine Kollision erzeugt wird und reduziere
+    % die Bewegung darauf hin. Ist nur bezugen auf die Aufgabe, da die
+    % Nullraumbewegung keine Kollision erzeugt (falls das Kriterium benutzt wird)
+    if scale_coll
+      % Bestimme Abstand der Objekte vor und nach dem Schritt
+      [~, Tc_stack_pre] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q1, pkin);
+      [~, Tc_stack_post] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q1+delta_q_T, pkin);
+      [colldet_pp,colldist_pp] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
+        [Tc_stack_pre(:,4)';Tc_stack_post(:,4)'], struct('collsearch', false));
+      % Prüfe, ob eine Kollision passieren würde und berechne die
+      % Reduktion des Schrittes, die notwendig ist, um das zu verhindern
+      if any(colldet_pp(2,:)) % Mit dem geplanten Schritt tritt eine Kollision auf
+        mindist_pre = min(colldist_pp(1,:));
+        mindist_post = min(colldist_pp(2,:));
+        if mindist_pre ~= mindist_post % Nur sinnvoll, wenn Gelenkinkrement die Kollisions-Kennzahl ändert. Sonst entweder Inkrement Null oder Kollisionskörper passen nicht hierzu.
+          % Mit `scale` wird genau die Grenze zur Kollision erreicht
+          % (Wert 0; in linearer Näherung)
+          scale = (0-mindist_pre)/(mindist_post-mindist_pre);
+          % Durch `scale_coll` wird dieses Erreichen weiter nach "innen" gezogen
+          delta_q_T = scale_coll * scale * delta_q_T;
+        end
+      end
     end
 
     % [SchapplerTapOrt2019]/(35); [1], Gl. (23)
@@ -359,7 +438,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
 
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
-    Phi_voll = %RN%_constr2(q2, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    [Phi_voll, Tc_stack] = %RN%_constr2(q2, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Phi_neu = Phi_voll(I_IK);
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numerisch teilweise keine Verbesserung möglich.
@@ -461,7 +540,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;wn(4)]; % Nutze nur die hyperbolische Funktion des Abstands (und die Kollisionserkennung, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -490,6 +569,13 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Jdk = Jdk_voll(I_IK,:);
   h(3) = cond(Jdk);
+  if wn(4) ~= 0
+    [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
+      Tc_stack(:,4)', struct('collsearch', true));
+    if any(colldet)
+      h(4) = -min(colldist(colldet));
+    end
+  end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
 end
@@ -498,7 +584,8 @@ q = q1;
 if s.normalize
   q(sigmaJ==0) = normalize_angle(q(sigmaJ==0)); % nur Winkel normalisieren
 end
-if nargout >= 3
-  [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
-end
+% Letzte Ausgabe wird jetzt immer schon oben berechnet
+% if nargout >= 3
+%   [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
+% end
 

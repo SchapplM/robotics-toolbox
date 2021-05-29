@@ -67,6 +67,7 @@ classdef SerRob < RobBase
     CADstruct % Struktur mit Daten zu CAD-Modellen
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
     collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
+    collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -307,9 +308,12 @@ classdef SerRob < RobBase
       % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
       % * 9 Punkt am DH-KS-Ursprung (0 Parameter)
       R.collbodies = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'link', [], ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers
         'params', []); % Parameter des jeweiligen Ersatzkörpers
+      % Liste der Kollisionsprüfungen. Enzhält zwei Spalten mit Index der
+      % Kollisionsobjekte aus R.collbodies.
+      R.collchecks = uint8([]);
     end
     
     function mex_dep(R, force)
@@ -615,6 +619,7 @@ classdef SerRob < RobBase
         'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
         'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+        'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
         ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
@@ -630,7 +635,9 @@ classdef SerRob < RobBase
         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
         'retry_on_limitviol', false, ... % Neuversuch auch, wenn Gelenkgrenzen verletzt werden
-        'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
+        'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
+        'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+        'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
@@ -643,7 +650,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
+      if length(s.wn) ~= 4, s.wn=[s.wn;zeros(4-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
