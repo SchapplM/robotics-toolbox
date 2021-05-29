@@ -211,6 +211,7 @@ if any(s.mode == 3)
   end
 end
 %% Kollisionskörper zeichnen
+% Siehe dazu auch check_collisionset_simplegeom.m
 if any(s.mode == 5)
   for j = 1:size(Rob.collbodies.type,1)
     i = Rob.collbodies.link(j);
@@ -223,24 +224,28 @@ if any(s.mode == 5)
       r = Rob.collbodies.params(j,1);
       pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
       hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+      hdl = hdl(hdl~=0); % Entferne ein 0-Handle, das bei Degeneration der Kapsel auftreten kann
     elseif Rob.collbodies.type(j) == 5 % Zylinder zum vorherigen (schräg)
       T_body_iv = T_c_W(:,:,v(i)+1);
       r = Rob.collbodies.params(j,1);
       pts_W = [T_body_i(1:3,4)', T_body_iv(1:3,4)'];
       hdl=drawCylinder([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
-    elseif Rob.collbodies.type(j) == 3 % Kapsel mit Angabe von 2 Punkten
+    elseif Rob.collbodies.type(j) == 3 || ... % Kapsel mit Angabe von 2 Punkten
+        Rob.collbodies.type(j) == 13 % explizit im Basis-KS
       r = Rob.collbodies.params(j,7);
       pts_i = Rob.collbodies.params(j,1:6);
       pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
                eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
       hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
-    elseif Rob.collbodies.type(j) == 2 % Zylinder mit Angabe von 2 Punkten
+    elseif Rob.collbodies.type(j) == 2 || ... % Zylinder mit Angabe von 2 Punkten
+        Rob.collbodies.type(j) == 12 % explizit im Basis-KS
       r = Rob.collbodies.params(j,7);
       pts_i = Rob.collbodies.params(j,1:6);
       pts_W = [eye(3,4)*T_body_i*[pts_i(1:3)';1]; ...   % Punkt 1
                eye(3,4)*T_body_i*[pts_i(4:6)';1]]'; ... % Punkt 2
       hdl=drawCylinder([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
-    elseif Rob.collbodies.type(j) == 1 % Quader mit Angabe von 1 Punkt, 2 Kanten, 1 Länge
+    elseif Rob.collbodies.type(j) == 1 || ... % Quader mit Angabe von 1 Punkt, 2 Kanten, 1 Länge
+        Rob.collbodies.type(j) == 10 % explizit im Basis-KS
       q_W = eye(3,4)*T_body_i*[Rob.collbodies.params(j,1:3)';1];
       u1_W = T_body_i(1:3,1:3)*Rob.collbodies.params(j,4:6)';
       u2_W = T_body_i(1:3,1:3)*Rob.collbodies.params(j,7:9)';
@@ -252,6 +257,12 @@ if any(s.mode == 5)
       cubpar_a = 180/pi*tr2rpy([u1_W(:)/norm(u1_W), u2_W(:)/norm(u2_W), u3_W(:)/norm(u3_W)],'zyx')'; % Orientierung des Quaders
       hdl=drawCuboid([cubpar_c', cubpar_l', cubpar_a'], ...
         'FaceColor', 'b', 'FaceAlpha', 0.2);
+    elseif Rob.collbodies.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
+        Rob.collbodies.type(j) == 15 % explizit im Basis-KS
+      r = Rob.collbodies.params(j,4);
+      pt_i = Rob.collbodies.params(j,1:3);
+      pt_W = (eye(3,4)*T_body_i*[pt_i(1:3)';1])'; ... % Punkt
+      hdl=drawSphere([pt_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
     else
       error('Fall %d nicht definiert', Rob.collbodies.type(j));
     end
