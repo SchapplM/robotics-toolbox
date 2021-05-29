@@ -308,12 +308,12 @@ classdef SerRob < RobBase
       % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
       % * 9 Punkt am DH-KS-Ursprung (0 Parameter)
       R.collbodies = struct( ...
-        'link', [], ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
-        'type', [], ... % nx1 uint8, Art des Ersatzkörpers
-        'params', []); % Parameter des jeweiligen Ersatzkörpers
+        'link', uint8(zeros(0,2)), ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
+        'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
+        'params', zeros(0,10)); % Parameter des jeweiligen Ersatzkörpers
       % Liste der Kollisionsprüfungen. Enzhält zwei Spalten mit Index der
       % Kollisionsobjekte aus R.collbodies.
-      R.collchecks = uint8([]);
+      R.collchecks = uint8(zeros(0,2));
     end
     
     function mex_dep(R, force)
@@ -616,7 +616,7 @@ classdef SerRob < RobBase
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
         'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
-        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+        'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
         'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision

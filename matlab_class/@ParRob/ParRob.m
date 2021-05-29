@@ -346,7 +346,7 @@ classdef ParRob < RobBase
           end
         end
       end
-      s_ser.wn = [s_ser.wn;zeros(3-length(s_ser.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+      s_ser.wn = [s_ser.wn;zeros(4-length(s_ser.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat. Siehe SerRob/invkin2
       if nargin == 5 && ~isempty(s_in_par)
         for ff = fields(s_in_par)'
           if ~isfield(s_par, ff{1})
