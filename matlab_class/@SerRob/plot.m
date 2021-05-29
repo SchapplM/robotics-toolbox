@@ -475,9 +475,9 @@ end
 
   
 %% Verbindung zum Endeffektor
+T_W_N = T_c_W(:,:,Rob.I_EElink+1);
+T_W_E = T_W_N*Rob.T_N_E;
 if ~s.only_bodies
-  T_W_N = T_c_W(:,:,Rob.I_EElink+1);
-  T_W_E = T_W_N*Rob.T_N_E;
   if any(s.mode == 1)
     plot3([T_W_N(1,4),T_W_E(1,4)],[T_W_N(2,4),T_W_E(2,4)],[T_W_N(3,4),T_W_E(3,4)], ...
       'LineWidth',4,'Color','k')
