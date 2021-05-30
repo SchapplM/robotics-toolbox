@@ -698,14 +698,16 @@ classdef SerRob < RobBase
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(10,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
          'n_max', 1000, ... % Maximale Anzahl Iterationen
          'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
          'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-         'Phir_tol', 1e-12);% Toleranz für rotatorischen Fehler
+         'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
+         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+         'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       if nargin == 7
         for f = fields(s_in)'
           if ~isfield(s, f{1})
@@ -715,7 +717,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
+      if length(s.wn) < 10, s.wn=[s.wn;zeros(10-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

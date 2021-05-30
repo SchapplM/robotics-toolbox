@@ -106,16 +106,30 @@ maxstep_ns = s.maxstep_ns;
 finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
+% Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
-% Kollisionskörper für die Nullraumbewegung 10% größer machen. Dadurch
-% werden Kollisionen auch tatsächlich verhindert
-if scale_coll
+maxcolldepth = 0;
+collobjdist_thresh = 0;
+% Kollisionskörper für die Nullraumbewegung 20% größer machen. Dadurch
+% bereits Abstoßung bei Annäherung an Kollision.
+if scale_coll || wn(4)
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.1*collbodies_ns.params(collbodies_ns.type==6,1);
-  collbodies_ns.params(collbodies_ns.type==13,1) = ... % Kapseln (Basis-KS)
-    1.1*collbodies_ns.params(collbodies_ns.type==13,7);
+    1.2*collbodies_ns.params(collbodies_ns.type==6,1);
+  collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
+    1.2*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.1*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    1.2*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+  % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
+  % hyperbolischen Kollisionsfunktion zu bestimmen.
+  % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
+  % Kugeln und Zylindern)
+  maxcolldepth = 2*max([s.collbodies.params(s.collbodies.type==6,1);  ...
+                        s.collbodies.params(s.collbodies.type==13,7); ...
+                        s.collbodies.params(s.collbodies.type==4|s.collbodies.type==15,4)]);
+  % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
+  % Abständen ist sie Null). Dies sollte auch der Wert sein, ab dem die
+  % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  collobjdist_thresh = 0.15 * maxcolldepth;
 end
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
@@ -296,10 +310,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
           % Falls keine Kollision vorliegt (mit den kleineren
           % Kollisionskörpern), dann Abstände negativ angeben.
-          h(4) = -min(colldist_test(1,:)); % zurückgegebene Distanz ist zuerst negativ
+          h(4) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
-            h4_test = -min(colldist_test(1+kkk, :));
+            h4_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
             % Differenzenquotient
             hdq(kkk) = (h4_test'-h(4))/1e-6;
           end
@@ -573,7 +589,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
       Tc_stack(:,4)', struct('collsearch', true));
     if any(colldet)
-      h(4) = -min(colldist(colldet));
+      h(4) = invkin_optimcrit_limits2(-min(colldist(colldet)), ...
+        [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];

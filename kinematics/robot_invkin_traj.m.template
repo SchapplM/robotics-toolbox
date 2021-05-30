@@ -82,14 +82,19 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs 'optimcrit_limits_hyp_deact', 0.9,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(8,1),
+%$cgargs              'wn', zeros(10,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
 %$cgargs           'n_max', 1000,
 %$cgargs        'rng_seed', NaN,
 %$cgargs        'Phit_tol', 1.0000e-10,
-%$cgargs        'Phir_tol', 1.0000e-10)}
+%$cgargs        'Phir_tol', 1.0000e-10,
+%$cgargs      'collbodies', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]))}
 
 %% Initialisierung
 % Vorbelegung der Ausgabe
@@ -163,7 +168,31 @@ if sum(I_EE) >= NQJ
   % Keine Optimierungen im Nullraum möglich
   nsoptim = false;
 end
-
+% Definitionen für die Kollisionsprüfung
+collbodies_ns = s.collbodies;
+maxcolldepth = 0;
+collobjdist_thresh = 0;
+% Kollisionskörper für die Nullraumbewegung 20% größer machen. Dadurch
+% werden Kollisionen auch tatsächlich verhindert
+if any(wn(9:10))
+  collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
+    1.2*collbodies_ns.params(collbodies_ns.type==6,1);
+  collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
+    1.2*collbodies_ns.params(collbodies_ns.type==13,7);
+  collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
+    1.2*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+  % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
+  % hyperbolischen Kollisionsfunktion zu bestimmen.
+  % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
+  % Kugeln und Zylindern)
+  maxcolldepth = 2*max([s.collbodies.params(s.collbodies.type==6,1);  ...
+                        s.collbodies.params(s.collbodies.type==13,7); ...
+                        s.collbodies.params(s.collbodies.type==4|s.collbodies.type==15,4)]);
+  % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
+  % Abständen ist sie Null). Dies sollte auch der Wert sein, ab dem die
+  % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  collobjdist_thresh = 0.15 * maxcolldepth;
+end
 simplify_acc = s.simplify_acc;
 % Einstellungsvariable für Positions-IK zusammenstellen. Fast alle sind
 % gleich. Es dürfen aber keine überzähligen Felder übergeben werden.
@@ -204,8 +233,8 @@ s_pik = struct( ...
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(NQJ,1);
-% Gradient von Nebenbedingung 5
-h5dq = NaN(1,NQJ);
+% Gradient von Nebenbedingung 5 und 6
+h5dq = NaN(1,NQJ); h6dq = NaN(1,NQJ);
 
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
@@ -217,8 +246,8 @@ qDD_N_pre1 = zeros(NQJ,1);
 N = zeros(NQJ,NQJ);
 dt = 0;
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+5));
-h = zeros(5,1);
+Stats = struct('h', NaN(nt,1+6));
+h = zeros(6,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
   Tr0E_k = [eul2r(X(k,4:6)', s.phiconv_W_E), X(k,1:3)'];
@@ -334,7 +363,7 @@ for k = 1:nt
         condJ_test = cond(J_x_test(I_EE,:));
         % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
         h5drz = (condJ_test-condJ)/1e-6;
-        % Umrechung auf Gelenke mit Jacobi-Matrix
+        % Umrechnung auf Gelenke mit Jacobi-Matrix
         h5dq = h5drz*J_x(end,:);
       else
         % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
@@ -353,6 +382,66 @@ for k = 1:nt
       end
       v_qD = v_qD - wn(8)*h5dq';
       v_qDD = v_qDD - wn(5)*h5dq';
+    end
+    if wn(9) ~= 0 || wn(10) ~= 0 % Kollisionsvermeidung
+      % Prüfe ob eine Kollision vorliegt (bei den vergrößerten Koll.-Körpern)
+      colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+        Tc_stack_k(:,4)', struct('collsearch', true));
+      if any(colldet)
+        % Kollision im Warnbereich erkannt. Prüfe Abstände bzw.
+        % Eindringtiefen und erzeuge Bewegung von Kollision weg.
+        if NQJ - sum(I_EE) == 1 && ~I_EE(end)
+          % Gelenkpositionen für Kollisionsprüfung bilden
+          JP_test = NaN(1+1,size(Tc_stack_k,1));
+          JP_test(1,:) = Tc_stack_k(:,4)';
+          % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
+          % Numerischer Differenzenquotient aus Bewegung in EE-z-Drehung.
+          xD_test = [zeros(5,1);1e-6];
+          qD_test = J_x\xD_test;
+          [~, Tc_stack_test] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_k+qD_test, pkin);
+          JP_test(1+1,:) = Tc_stack_test(:,4);
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+          [~, colldist_test] = check_collisionset_simplegeom( ...
+            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+          % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
+          % Übergang beginnend im Warnbereich.
+          h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          h6_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ...
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+          h6drz = (h6_test - h(6))/1e-6;
+          % Umrechnung auf Gelenke mit Jacobi-Matrix
+          h6dq = h6drz*J_x(end,:);
+        else
+          % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
+          % Bilde Differenzenquotient in allen Gelenkachsen (siehe oben)
+          JP_test = NaN(1+NQJ,size(Tc_stack_k,1));
+          JP_test(1,:) = Tc_stack_k(:,4)';
+          for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
+            q_test = q_k; % ausgehend von aktueller Konfiguration
+            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+            [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+            JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
+          end
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+          [~, colldist_test] = check_collisionset_simplegeom( ...
+            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+          h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          for kkk = 1:NQJ
+            % Kriterium für Inkrement berechnen
+            h6_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            % Differenzenquotient
+            h6dq(kkk) = (h6_test'-h(6))/1e-6;
+          end
+        end
+        v_qD = v_qD - wn(10)*h6dq';
+        v_qDD = v_qDD - wn(9)*h6dq';
+      else
+        h(6) = 0;
+      end
     end
     % Begrenze die Werte für die Gradienten (können direkt an Grenzen
     % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
@@ -563,7 +652,7 @@ for k = 1:nt
   
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  Stats.h(k,:) = [sum(wn(1:5).*h(1:5)),h(1:5)'];
+  Stats.h(k,:) = [sum(wn(1:6).*h(1:6)),h(1:6)'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
