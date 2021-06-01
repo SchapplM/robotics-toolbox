@@ -22,7 +22,7 @@ s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ...
              'ks_platform', Rob.NLEG+2, ... % EE-KS
-             'ks_legs', Rob.I2L_LEG); % nur Basis- und EE-KS jedes Beins
+             'ks_legs', Rob.I2L_LEG); % nur EE-KS jedes Beins
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -112,7 +112,43 @@ for iLeg = 1:Rob.NLEG
   end
 end
 
-
+%% Kollisionskörper (der PKM) zeichnen
+% Siehe dazu auch check_collisionset_simplegeom.m
+% Kollisionskörper der einzelnen Beinketten werden bereits in SerRob/plot
+% gezeichnet.
+if any(s.mode == 5)
+  % Wandle das Datenformat von fkine_legs in das von invkin um. Das
+  % virtuelle EE-KS der Beinketten wird weggelassen. Zusätzlich Basis-KS.
+  Tc_PKM = NaN(4,4,Rob.NL-1+Rob.NLEG);
+  Tc_PKM(:,:,1) = Rob.T_W_0; % PKM-Basis
+  for kk = 1:Rob.NLEG
+    Tc_PKM(:,:,1+kk+(-1+Rob.I1J_LEG(kk):Rob.I2J_LEG(kk))) = ...
+      TcLges_W(:,:,kk*2+(-2+Rob.I1J_LEG(kk):-1+Rob.I2J_LEG(kk)));
+  end
+  % Zeichne Kollisionskörper
+  for j = 1:size(Rob.collbodies.type,1)
+    % Nummern der beteiligten Körper (0=PKM-Basis, 1=Beinkette1-Basis,...)
+    i1 = Rob.collbodies.link(j,1);
+    i2 = Rob.collbodies.link(j,2);
+    % Transformationsmatrix der Körper
+    T_body_i1 = Tc_PKM(:,:,i1+1);
+    T_body_i2 = Tc_PKM(:,:,i2+1);
+    if Rob.collbodies.type(j) == 6 % Kapsel zum vorherigen
+      r = Rob.collbodies.params(j,1); % Radius ist einziger Parameter.
+      pts_W = [T_body_i1(1:3,4)', T_body_i2(1:3,4)']; % Punkte bereits durch Körper-Nummern und Kinematik definiert.
+      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+      hdl = hdl(hdl~=0); % Entferne ein 0-Handle, das bei Degeneration der Kapsel auftreten kann
+    elseif Rob.collbodies.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
+        Rob.collbodies.type(j) == 15 % explizit im Basis-KS
+      r = Rob.collbodies.params(j,4);
+      pt_i = Rob.collbodies.params(j,1:3);
+      pt_W = (eye(3,4)*T_body_i1*[pt_i(1:3)';1])'; ... % Punkt
+      hdl=drawSphere([pt_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+    else
+      error('Fall %d nicht definiert', Rob.collbodies.type(j));
+    end
+  end
+end
 %% Plattform Plotten (von Plattform-Koppelpunkten her)
 % Anpassung der Ist-Plattform-Pose für den Fall der Aufgabenredundanz
 if Rob.I_EE_Task(6) ~= Rob.I_EE(6) % 3T2R, aber auch 3T1R/2T1R mit Redundanz

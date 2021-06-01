@@ -52,7 +52,10 @@ end
 % Namen der Optimierungskriterien der IK (für Diagramme)
 hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond IK-Jac.', 'cond PKM-Jac.'};
 % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
+% Reihenfolge: quadratischer Grenzabstand, hyperbolischer Grenzabstand,
+% Konditionszahl IK-Jacobi, Konditionszahl PKM-Jacobi
 I_wn_traj = [1 2 5 6];
+I_wn_ep = [1 2 3 4];
 %% Alle Robotermodelle durchgehen
 for robnr = 1:4
   %% Initialisierung
@@ -106,9 +109,12 @@ for robnr = 1:4
   if usr_recreate_mex
     serroblib_create_template_functions({RP.Leg(1).mdlname}, false, false);
     parroblib_create_template_functions({RP.mdlname(1:end-2)}, false, false);
-    matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
-    matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
-    matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
+    mexerr = matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
+    mexerr = mexerr & matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
+    mexerr = mexerr & matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
+    if mexerr
+      error('Fehler beim Kompilieren');
+    end
   end
   RP.fill_fcn_handles(use_mex_functions,true);
   % Definition der Freiheitsgrade (vollständig und reduziert)
@@ -476,7 +482,7 @@ for robnr = 1:4
         % Bilde Summe der Merkmale neu (eigentlich nur notwendig, wenn Ge-
         % wichtungen zwischen Trajektorie und Einzelpunkt unterschiedlich
         % sind aber hier trotzdem die Ergebnisse verglichen werden sollen.
-        h_ep_ii_sum = sum(Stats_ep.h(Stats_ep.iter,2:end)'.*wn_traj(I_wn_traj));
+        h_ep_ii_sum = sum(Stats_ep.h(Stats_ep.iter,1+I_wn_ep)'.*wn_traj(I_wn_traj));
         % Ergebnis prüfen
         reserr_q = q_traj_ii - q_ep_ii;
         reserr_h_sum = h_traj_ii_sum - h_ep_ii_sum;
