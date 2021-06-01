@@ -311,7 +311,7 @@ classdef SerRob < RobBase
         'link', uint8(zeros(0,2)), ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
         'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
         'params', zeros(0,10)); % Parameter des jeweiligen Ersatzkörpers
-      % Liste der Kollisionsprüfungen. Enzhält zwei Spalten mit Index der
+      % Liste der Kollisionsprüfungen. Enthält zwei Spalten mit Index der
       % Kollisionsobjekte aus R.collbodies.
       R.collchecks = uint8(zeros(0,2));
     end

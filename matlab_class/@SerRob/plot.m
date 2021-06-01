@@ -214,7 +214,7 @@ end
 % Siehe dazu auch check_collisionset_simplegeom.m
 if any(s.mode == 5)
   for j = 1:size(Rob.collbodies.type,1)
-    i = Rob.collbodies.link(j);
+    i = Rob.collbodies.link(j,1);
     if ~any(s.bodies == i)
       continue % Dieser Körper soll nicht gezeichnet werden
     end

@@ -317,7 +317,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h4_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
             [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
             % Differenzenquotient
-            hdq(kkk) = (h4_test'-h(4))/1e-6;
+            hdq(kkk) = (h4_test-h(4))/1e-6;
           end
           % Zu Nullraum-Vektor hinzufügen
           v = v - wn(4)*hdq';
