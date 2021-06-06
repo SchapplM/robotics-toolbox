@@ -110,25 +110,26 @@ n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
-% Kollisionskörper für die Nullraumbewegung 20% größer machen. Dadurch
-% bereits Abstoßung bei Annäherung an Kollision.
 if scale_coll || wn(4)
+  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.2*collbodies_ns.params(collbodies_ns.type==6,1);
+    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
-    1.2*collbodies_ns.params(collbodies_ns.type==13,7);
+    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.2*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
   % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
   % Kugeln und Zylindern)
-  maxcolldepth = 2*max([s.collbodies.params(s.collbodies.type==6,1);  ...
-                        s.collbodies.params(s.collbodies.type==13,7); ...
-                        s.collbodies.params(s.collbodies.type==4|s.collbodies.type==15,4)]);
+  maxcolldepth = 2*max([s.collbodies.params(collbodies_ns.type==6,1);  ...
+                        s.collbodies.params(collbodies_ns.type==13,7); ...
+                        s.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
-  % Abständen ist sie Null). Dies sollte auch der Wert sein, ab dem die
+  % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
   % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  % Die Erkennung wird durch `collbodies_ns` bestimmt. Diese müssen also
+  % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
   collobjdist_thresh = 0.15 * maxcolldepth;
 end
 % Indizes für kinematische Zwangsbedingungen festlegen
@@ -304,9 +305,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
             JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
           end
-          % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+          % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+          % Kollision angezeigt haben.
           [~, colldist_test] = check_collisionset_simplegeom( ...
-            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+            s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
           % Falls keine Kollision vorliegt (mit den kleineren
           % Kollisionskörpern), dann Abstände negativ angeben.

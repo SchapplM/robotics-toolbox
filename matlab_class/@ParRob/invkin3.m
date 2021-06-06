@@ -175,15 +175,14 @@ h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
-% Kollisionskörper für die Nullraumbewegung 20% größer machen. Dadurch
-% bereits Abstoßung bei Annäherung an Kollision.
 if scale_coll || wn(5)
+  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.2*collbodies_ns.params(collbodies_ns.type==6,1);
+    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
-    1.2*collbodies_ns.params(collbodies_ns.type==13,7);
+    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.2*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
   % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
@@ -192,8 +191,10 @@ if scale_coll || wn(5)
                         Rob.collbodies.params(collbodies_ns.type==13,7); ...
                         Rob.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
-  % Abständen ist sie Null). Dies sollte auch der Wert sein, ab dem die
+  % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
   % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  % Die Erkennung wird durch `collbodies_ns` bestimmt. Diese müssen also
+  % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
   collobjdist_thresh = 0.15 * maxcolldepth;
 end
 
@@ -343,11 +344,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
-              q_test(kkk) = q_test(kkk) - 1e-6; % minimales Inkrement
+              q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
               condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,Rob.I_EE));
-              h4dq(kkk) = -(condJpkm_kkk-condJpkm)/1e-6;
+              h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
             end
           end
         end
@@ -374,9 +375,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             qD_test = Jinv * xD_test;
             JP_test = [JP; NaN(1, size(JP,2))];
             [~, JP_test(2,:)] = Rob.fkine_coll(q1+qD_test);
-            % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+            % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+            % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+            % Kollision angezeigt haben.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
-              Rob.collbodies, Rob.collchecks, JP_test, struct('collsearch', false));
+              Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
             % Kollisionskörpern), dann Abstände negativ angeben.
@@ -395,9 +398,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               [~, JP_test(1+kkk,:)] = Rob.fkine_coll(q_test);
             end
-            % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+            % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
-              Rob.collbodies, Rob.collchecks, JP_test, struct('collsearch', false));
+              Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
             h(5) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
             for kkk = 1:Rob.NJ
@@ -654,7 +657,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;0;wn(5)]; % Nutze nur die hyperbolische Funktion des Abstands
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;

@@ -172,15 +172,14 @@ end
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
-% Kollisionskörper für die Nullraumbewegung 20% größer machen. Dadurch
-% werden Kollisionen auch tatsächlich verhindert
 if any(wn(9:10))
+  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.2*collbodies_ns.params(collbodies_ns.type==6,1);
+    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
-    1.2*collbodies_ns.params(collbodies_ns.type==13,7);
+    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.2*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
   % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
@@ -189,8 +188,10 @@ if any(wn(9:10))
                         s.collbodies.params(s.collbodies.type==13,7); ...
                         s.collbodies.params(s.collbodies.type==4|s.collbodies.type==15,4)]);
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
-  % Abständen ist sie Null). Dies sollte auch der Wert sein, ab dem die
+  % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
   % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  % Die Erkennung wird durch `collbodies_ns` bestimmt. Diese müssen also
+  % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
   collobjdist_thresh = 0.15 * maxcolldepth;
 end
 simplify_acc = s.simplify_acc;
@@ -400,9 +401,11 @@ for k = 1:nt
           qD_test = J_x\xD_test;
           [~, Tc_stack_test] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_k+qD_test, pkin);
           JP_test(1+1,:) = Tc_stack_test(:,4);
-          % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+          % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+          % Kollision angezeigt haben.
           [~, colldist_test] = check_collisionset_simplegeom( ...
-            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+            s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
           % Übergang beginnend im Warnbereich.
           h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
@@ -426,7 +429,7 @@ for k = 1:nt
           end
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal
           [~, colldist_test] = check_collisionset_simplegeom( ...
-            s.collbodies, s.collchecks, JP_test, struct('collsearch', false));
+            s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
             [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
           for kkk = 1:NQJ
