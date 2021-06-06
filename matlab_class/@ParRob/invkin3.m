@@ -190,6 +190,9 @@ if scale_coll || wn(5)
   maxcolldepth = 2*max([Rob.collbodies.params(collbodies_ns.type==6,1);  ...
                         Rob.collbodies.params(collbodies_ns.type==13,7); ...
                         Rob.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
+  % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
+  % erreicht werden (Probleme bei Gradientenbildung).
+  maxcolldepth = 1.05*maxcolldepth;
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
   % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
   % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
