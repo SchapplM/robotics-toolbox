@@ -126,22 +126,22 @@ if any(s.mode == 5)
       TcLges_W(:,:,kk*2+(-2+Rob.I1J_LEG(kk):-1+Rob.I2J_LEG(kk)));
   end
   % Zeichne Kollisionskörper
-  for j = 1:size(Rob.collbodies.type,1)
+  for j = 1:size(Rob.collbodies_nonleg.type,1)
     % Nummern der beteiligten Körper (0=PKM-Basis, 1=Beinkette1-Basis,...)
-    i1 = Rob.collbodies.link(j,1);
-    i2 = Rob.collbodies.link(j,2);
+    i1 = Rob.collbodies_nonleg.link(j,1);
+    i2 = Rob.collbodies_nonleg.link(j,2);
     % Transformationsmatrix der Körper
     T_body_i1 = Tc_PKM(:,:,i1+1);
     T_body_i2 = Tc_PKM(:,:,i2+1);
-    if Rob.collbodies.type(j) == 6 % Kapsel zum vorherigen
-      r = Rob.collbodies.params(j,1); % Radius ist einziger Parameter.
+    if Rob.collbodies_nonleg.type(j) == 6 % Kapsel zum vorherigen
+      r = Rob.collbodies_nonleg.params(j,1); % Radius ist einziger Parameter.
       pts_W = [T_body_i1(1:3,4)', T_body_i2(1:3,4)']; % Punkte bereits durch Körper-Nummern und Kinematik definiert.
       hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
       hdl = hdl(hdl~=0); % Entferne ein 0-Handle, das bei Degeneration der Kapsel auftreten kann
-    elseif Rob.collbodies.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
-        Rob.collbodies.type(j) == 15 % explizit im Basis-KS
-      r = Rob.collbodies.params(j,4);
-      pt_i = Rob.collbodies.params(j,1:3);
+    elseif Rob.collbodies_nonleg.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
+        Rob.collbodies_nonleg.type(j) == 15 % explizit im Basis-KS
+      r = Rob.collbodies_nonleg.params(j,4);
+      pt_i = Rob.collbodies_nonleg.params(j,1:3);
       pt_W = (eye(3,4)*T_body_i1*[pt_i(1:3)';1])'; ... % Punkt
       hdl=drawSphere([pt_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
     else
