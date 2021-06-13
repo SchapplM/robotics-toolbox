@@ -354,6 +354,7 @@ s_tpl = struct(...
       'maxrelstep', s_ser.maxrelstep,...
    'maxrelstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
 'finish_in_limits', false,... % ohne Nullraumbewegung nicht sinnvoll
+'avoid_collision_finish', false, ... % nicht sinnvoll
 'optimcrit_limits_hyp_deact', NaN, ... % nicht relevant (da keine Nullraumbewegung)
   'retry_on_limitviol', false, ... % keine Neuversuche
      'retry_limit', 0,... % keine Neuversuche (würde Sprung erzeugen)

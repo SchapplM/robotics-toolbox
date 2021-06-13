@@ -62,6 +62,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs      'scale_coll', 0,
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs'finish_in_limits', false,
+%$cgargs'avoid_collision_finish', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
@@ -105,12 +106,13 @@ maxrelstep = s.maxrelstep;
 maxstep_ns = s.maxstep_ns;
 finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
+avoid_collision_finish = s.avoid_collision_finish;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
-if scale_coll || wn(4)
+if scale_coll || wn(4) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
     1.5*collbodies_ns.params(collbodies_ns.type==6,1);
@@ -568,6 +570,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
         continue
+      end
+      if avoid_collision_finish
+        % Eigentlich soll abgebrochen werden. Prüfe nochmal auf Kollisionen
+        colldet = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
+          Tc_stack(:,4)', struct('collsearch', false));
+        if any(colldet)
+          wn(4) = 1; % Aktiviere Kollisionsvermeidung
+          wn(1:3) = 0; % Deaktiviere alle anderen Nebenbedingungen
+          avoid_collision_finish = false; % Nur einmal versuchen
+          continue
+        end
       end
       break;
     end

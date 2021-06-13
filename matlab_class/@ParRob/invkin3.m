@@ -73,6 +73,7 @@ s = struct(...
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
   'maxrelstep_ns', 0.005, ... % Maximale Schrittweite der Nullraumbewegung
+  'avoid_collision_finish', false,... % Nullraumbewegung am Ende zur Vermeidung von Kollisionen
   'finish_in_limits', false, ... % Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
   ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
   ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
@@ -111,6 +112,7 @@ maxrelstep = s.maxrelstep;
 maxrelstep_ns = s.maxrelstep_ns;
 maxstep_ns = s.maxstep_ns;
 finish_in_limits = s.finish_in_limits;
+avoid_collision_finish = s.avoid_collision_finish;
 break_when_in_limits = false;
 success = false;
 
@@ -176,7 +178,7 @@ h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
-if scale_coll || wn(5)
+if scale_coll || wn(5) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
     1.5*collbodies_ns.params(collbodies_ns.type==6,1);
@@ -667,6 +669,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
         continue
+      end
+      if avoid_collision_finish
+        % Eigentlich soll abgebrochen werden. Prüfe nochmal auf Kollisionen
+        [~, JP] = Rob.fkine_coll(q1);
+        colldet = check_collisionset_simplegeom_mex(Rob.collbodies, ...
+          Rob.collchecks, JP, struct('collsearch', false));
+        if any(colldet)
+          wn(5) = 1; % Aktiviere Kollisionsvermeidung
+          wn(1:4) = 0; % Deaktiviere alle anderen Nebenbedingungen
+          avoid_collision_finish = false; % Nur einmal versuchen
+          continue
+        end
       end
       break;
     end

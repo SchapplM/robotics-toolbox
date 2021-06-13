@@ -622,6 +622,7 @@ classdef SerRob < RobBase
         'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
+        'avoid_collision_finish', false, ... % Nullraumbewegung am Ende zum Vermeiden von Kollisionen (damit nicht permanent Prüfung in Optimierung notwendig)
         ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
         ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
         ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
