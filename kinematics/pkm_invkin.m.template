@@ -220,7 +220,7 @@ for i = 1:NLEG
   % Ergebnisse für dieses Bein abspeichern
   q(I1J_LEG(i):I2J_LEG(i)) = q_i;
   Phi_ser(I1constr_red(i):I2constr_red(i)) = Phi_i;
-  if nargout == 3
+  if nargout >= 3
     T_0_0i = invtr(T_0i_0);
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
     % zugeordnet sind. In Tc_stack_0i bei hybriden Systemen teilw. mehr. 
