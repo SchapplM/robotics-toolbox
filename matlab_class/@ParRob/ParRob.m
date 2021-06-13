@@ -1678,6 +1678,29 @@ classdef ParRob < RobBase
         end
         R.collbodies.link = [R.collbodies.link; ...
           R.Leg(i).collbodies.link + uint8(repmat(NLoffset,size(R.Leg(i).collbodies.link,1),2))];
+        % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
+        % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
+        % (ist für Implementierung der Kollisionserkennung besser)
+        I_legbase = R.collbodies.link == 0 + NLoffset;
+        for j = find(any(I_legbase,2)') % alle Körper, die geändert werden müssen
+          if R.collbodies.type(j) == 3 && all(I_legbase(j,:))
+            % Kapsel mit absoluten Positionsangaben
+            T_0_0i = R.Leg(i).T_W_0;
+            % Punkte bezüglich Beinketten-Basis-KS
+            pts_0i = R.collbodies.params(j,1:6);
+            pts_0 = [eye(3,4)*T_0_0i*[pts_0i(1:3)';1]; ...   % Punkt 1
+                     eye(3,4)*T_0_0i*[pts_0i(4:6)';1]]'; ... % Punkt 2
+            % Als bezüglich PKM-Basis eintragen
+            R.collbodies.params(j,1:6) = pts_0;
+            R.collbodies.type(j) = 13;
+          end
+        end
+      end
+      for i = 1:R.NLEG
+        % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
+        % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
+        % (ist für Implementierung der Kollisionserkennung besser)
+        I_legbase = R.collbodies.link == R.I1L_LEG(i);
       end
     end
   end
