@@ -4,13 +4,14 @@
 % Eingabe:
 % xE_soll
 %   EE-Lage (Sollwert)
-% q0
-%   Anfangs-Gelenkwinkel für Algorithmus
+% Q0 [%NJ% x N_init]
+%   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 %
 % Ausgabe:
-% q
+% q [%NJ% x 1]
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
@@ -37,12 +38,12 @@
 % Junnan Li, moritz.schappler@imes.uni-hannover.de, 2020-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin(xE_soll, q0, s_par, s_ser)
+function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin(xE_soll, Q0, s_par, s_ser)
 
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(6,1),zeros(%NJ%,1),struct(
+%$cgargs {zeros(6,1),coder.newtype('double',[%NJ%,inf]),struct(
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -139,7 +140,7 @@ Leg_pkin_gen = s_par.Leg_pkin_gen;%(%NLEG%,%NKP%)
 
 Phi_ser = NaN(I2constr_red(end),1);
 Phi = Phi_ser;
-q = q0;
+q = Q0(:,1);
 
 r_P_P_B_ges = r_P_B_all;
 T_0_E = [eul2r(xE_soll(4:6), phiconv_W_E), xE_soll(1:3); [0 0 0 1]];
@@ -170,12 +171,13 @@ for i = 1:NLEG
   s.I_EElink = Leg_I_EElink(i);
 
   % Initialisierung: Startwerte der IK
-  if i == 1 || all(~isnan(q0(I1J_LEG(i):I2J_LEG(i))))
-    q0_i = q0(I1J_LEG(i):I2J_LEG(i));
+  if i == 1 || all(~isnan(Q0(I1J_LEG(i):I2J_LEG(i),1)))
+    Q0_i = Q0(I1J_LEG(i):I2J_LEG(i),:);
   else
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
-    q0_i = q(I1J_LEG(1):I2J_LEG(1));
+    % Zusätzlich danach alle gegebenen Anfangswerte prüfen.
+    Q0_i = [q(I1J_LEG(1):I2J_LEG(1)),Q0(I1J_LEG(i):I2J_LEG(i),:)];
   end
   
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
@@ -191,9 +193,9 @@ for i = 1:NLEG
 
   % Inverse Kinematik für die serielle Beinkette berechnen
   if nargout < 4
-    [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), Q0_i, s);
   else % Aufruf und Verarbeitung der Statistik
-    [q_i, Phi_i, Tc_stack_0i, Stats_i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = %SN%_invkin_eulangresidual(T_0i_E(1:3,:), Q0_i, s);
     Stats.Q(:,I1J_LEG(i):I2J_LEG(i)) = Stats_i.Q;
     Stats.PHI(:,(i-1)*6+1:6*i) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;

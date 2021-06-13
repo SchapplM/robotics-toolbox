@@ -11,8 +11,9 @@
 % Eingabe:
 % xE_soll [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
-% q0 [Nx1]
-%   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
+% Q0 [N x N_init]
+%   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 % 
@@ -44,13 +45,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, Q0, s_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
   'ParRob/invkin3: xE_soll muss 6x1 sein');
-assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
-  'ParRob/invkin3: q0 muss %dx1 sein', Rob.NJ);
+assert(isreal(Q0) && all(size(Q0,1) == [Rob.NJ]), ...
+  'ParRob/invkin3: Q0 muss %dxn sein', Rob.NJ);
 
 %% Definitionen
 % Variablen zum Speichern der Zwischenergebnisse
@@ -147,7 +148,7 @@ else
   % Grenzen sind nicht wirksam
   qmin = -Inf(Rob.NJ,1);
   qmax =  Inf(Rob.NJ,1);
-  retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  retry_limit = size(Q0,2)-1; % keine zufällige Neubestimmung möglich.
   finish_in_limits = false;
 end
 % Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
@@ -200,7 +201,7 @@ if scale_coll || wn(5)
   % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
   collobjdist_thresh = 0.15 * maxcolldepth;
 end
-
+q0 = Q0(:,1);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -213,6 +214,7 @@ if nargout == 4
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
     NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5));
 end
+
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
@@ -681,7 +683,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
-  q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
+  if rr < size(Q0,2) % versuche eine weitere der vorgegebenen Konfigurationen
+    q0 = Q0(:,rr+1);
+  else % benutze eine zufällige Konfiguration
+    Q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
+  end
 end
 if nargout >= 3 || nargout >= 4 && wn(5) ~= 0
   Tc_stack_PKM = Rob.fkine_coll(q1);

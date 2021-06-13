@@ -11,13 +11,14 @@
 % Eingabe:
 % xE_soll [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
-% q0 [Nx1]
-%   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
+% Q0 [%NJ% x N_init]
+%   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 % 
 % Ausgabe:
-% q [Nx1]
+% q [%NJ% x 1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM als Lösung der IK
 % Phi
 %   Kinematische Zwangsbedingungen für die Lösung. Bei korrekter Berechnung
@@ -46,11 +47,11 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, q0, s)
+function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, Q0, s)
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(6,1),zeros(%NJ%,1), struct(
+%$cgargs {zeros(6,1),coder.newtype('double',[%NJ%,inf]), struct(
 %$cgargs       'I_EE_Task', true(1,6),
 %$cgargs           'sigma', zeros(%NJ%,1),
 %$cgargs               'K', zeros(%NJ%,1),
@@ -226,7 +227,7 @@ else
   % Grenzen sind nicht wirksam
   qmin = -Inf(NJ,1);
   qmax =  Inf(NJ,1);
-  retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  retry_limit = size(Q0,2)-1; % keine zufällige Neubestimmung möglich.
   finish_in_limits = false;
 end
 % Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
@@ -248,7 +249,8 @@ delta_q_alt = zeros(NJ,1); % Altwert für Tiefpassfilter
 delta_q_N_alt = zeros(NJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
-q1 = q0;
+q0 = Q0(:,1);
+q1 = NaN(NJ,1);
 rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
   sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 Phi = NaN(rownum_Phi_red,1);
@@ -771,7 +773,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
-  q0(:) = qmin_norm + rand(NJ,1).*(qmax_norm-qmin_norm); 
+  if rr < size(Q0,2) % versuche eine weitere der vorgegebenen Konfigurationen
+    q0(:) = Q0(:,rr+1);
+  else % benutze eine zufällige Konfiguration
+    q0(:) = qmin_norm + rand(NJ,1).*(qmax_norm-qmin_norm); % "(:)" notwendig für mex
+  end
 end
 if nargout >= 3 || nargout >= 4 && wn(5) ~= 0
   Tc_stack_PKM = %PN%_fkine_coll(q1, s_fkinecoll);

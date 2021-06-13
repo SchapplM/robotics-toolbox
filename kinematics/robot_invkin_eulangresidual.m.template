@@ -4,13 +4,13 @@
 % Eingabe:
 % Tr0E_soll [3x4]
 %   EE-Lage (Sollwert); homogene Transformationsmatrix ohne letzte Zeile
-% q0
-%   Anfangs-Gelenkwinkel für Algorithmus
+% Q0 [%NQJ% x N_init]
+%   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %
 % Ausgabe:
-% q [%NJ% x 1]
+% q [%NQJ% x 1]
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
@@ -41,11 +41,11 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s)
+function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s)
 
 %% Coder Information
 %#codegen
-%$cgargs {zeros(3,4),zeros(%NQJ%,1),struct(
+%$cgargs {zeros(3,4),coder.newtype('double',[%NQJ%,inf]),struct(
 %$cgargs            'pkin', zeros(%NKP%,1),
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs            'qlim', zeros(%NQJ%,2),
@@ -164,7 +164,7 @@ else
   qmin(:) = -Inf;
   qmax(:) =  Inf;
   limits_set = false;
-  retry_limit = 0; % keine zufällige Neubestimmung möglich.
+  retry_limit = size(Q0,2)-1; % keine zufällige Neubestimmung möglich.
   finish_in_limits = false;
 end
 % Grenzen für die Neubestimmung der Anfangswerte (falls unendl. vorkommt).
@@ -184,7 +184,8 @@ delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
-q1 = q0;
+q0 = Q0(:,1);
+q1 = NaN(NQJ,1);
 Phi = NaN(6,1); % Dimension kann sich noch verkleinern
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
@@ -206,7 +207,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Variablen zum Speichern der Zwischenergebnisse
   q1 = q0;
   % Fehlermaß für Startwerte
-  [Phi_voll, Tc_stack] = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  [Phi_voll, Tc_stack] = %RN%_constr2(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
   if nargout == 4 % Anfangswerte eintragen
     Stats.PHI(1,:) = Phi_voll;
@@ -583,7 +584,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr == 0 && ~isnan(s.rng_seed)
     rng(s.rng_seed); % Initialisiere Zufallszahlen, falls gewünscht
   end
-  q0(:) = qmin_norm + rand(NQJ,1).*(qmax_norm-qmin_norm); % "(:)" notwendig für mex
+  if rr < size(Q0,2) % versuche eine weitere der vorgegebenen Konfigurationen
+    q0(:) = Q0(:,rr+1);
+  else % benutze eine zufällige Konfiguration
+    q0(:) = qmin_norm + rand(NQJ,1).*(qmax_norm-qmin_norm); % "(:)" notwendig für mex
+  end
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
