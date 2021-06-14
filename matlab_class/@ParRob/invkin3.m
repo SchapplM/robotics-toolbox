@@ -214,7 +214,7 @@ condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5));
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5), 'coll', false);
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -722,9 +722,10 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(5) ~= 0
     [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks, ...
       Tc_stack_PKM(:,4)', struct('collsearch', true));
+    h(5) = invkin_optimcrit_limits2(-min(colldist), ...
+      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
     if any(colldet)
-      h(5) = invkin_optimcrit_limits2(-min(colldist(colldet)), ...
-        [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      Stats.coll = true;
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
