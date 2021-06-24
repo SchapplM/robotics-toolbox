@@ -8,8 +8,9 @@
 % Eingabe:
 % xE_soll [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS (Soll)
-% q0 [Nx1]
-%   Startkonfiguration: Alle Gelenkwinkel aller serieller Beinketten der PKM
+% Q0 [N x N_init]
+%   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
+%   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Identisch mit
 %   Feldern aus SerRob/invkin.m
@@ -39,13 +40,13 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin_ser(Rob, xE_soll, q0, s_ser_in, s_par_in)
+function [q, Phi, Tc_stack_PKM, Stats] = invkin_ser(Rob, xE_soll, Q0, s_ser_in, s_par_in)
 
 %% Initialisierung
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
   'ParRob/invkin_ser: xE_soll muss 6x1 sein');
-assert(isreal(q0) && all(size(q0) == [Rob.NJ 1]), ...
-  'ParRob/invkin_ser: q0 muss %dx1 sein', Rob.NJ);
+assert(isreal(Q0) && all(size(Q0,1) == Rob.NJ), ...
+  'ParRob/invkin_ser: Q0 muss %dxn sein', Rob.NJ);
 s_ser_std = struct( ...
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -110,7 +111,7 @@ end
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
 Phi = Phi_ser;
-q = q0;
+q = Q0;
 r_P_P_B_ges = Rob.r_P_B_all;
 if ~s_par.platform_frame
   T_P_E = Rob.T_P_E;
@@ -126,12 +127,13 @@ for i = 1:Rob.NLEG
   s.I_EE = s_par.Leg_I_EE_Task(i,:);
 
   % Initialisierung: Startwerte der IK
-  if i == 1 || all(~isnan(q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i))))
-    q0_i = q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
+  if i == 1 || all(~isnan(Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i))))
+    Q0_i = Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:);
   else
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
-    q0_i = q(Rob.I1J_LEG(1):Rob.I2J_LEG(1));
+    % Zusätzlich danach alle gegebenen Anfangswerte prüfen.
+    Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:)];
   end
   
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
@@ -150,9 +152,9 @@ for i = 1:Rob.NLEG
   end
   % Inverse Kinematik für die serielle Beinkette berechnen
   if nargout < 4
-    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
+    [q_i, Phi_i, Tc_stack_0i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), Q0_i, s); % Aufruf der kompilierten IK-Funktion als Einzeldatei
   else % Aufruf und Verarbeitung der Statistik
-    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), q0_i, s);
+    [q_i, Phi_i, Tc_stack_0i, Stats_i] = Rob.Leg(i).invkin2(T_0i_E(1:3,:), Q0_i, s);
     Stats.Q(:,Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = Stats_i.Q;
     Stats.PHI(:,Rob.I1constr(i):Rob.I2constr(i)) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;

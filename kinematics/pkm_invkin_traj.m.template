@@ -30,6 +30,8 @@
 %     (8) Wie Eintrag 2, aber auf Geschwindigkeitsebene
 %     (9) Wie Eintrag 5, aber auf Geschwindigkeitsebene
 %    (10) Wie Eintrag 6, aber auf Geschwindigkeitsebene
+%    (11) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%    (12), wie 11, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
 % Q
@@ -84,9 +86,14 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs    'simplify_acc', false,
 %$cgargs         'mode_IK', 2,
 %$cgargs           'debug', false,
-%$cgargs              'wn', zeros(10,1),
+%$cgargs              'wn', zeros(12,1),
 %$cgargs    'thresh_ns_qa', 1,
 %$cgargs  'optimcrit_limits_hyp_deact', 0.9, 
+%$cgargs      'collbodies', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'I1constr_red', zeros(1,%NLEG%),
@@ -214,6 +221,37 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 if ~any(wn ~= 0)
   nsoptim = false; % Keine zusätzlichen Optimierungskriterien
 end
+
+% Definitionen für die Kollisionsprüfung
+collbodies_ns = s.collbodies;
+maxcolldepth = 0;
+collobjdist_thresh = 0;
+if any(wn(11:12))
+  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
+  collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
+    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
+  collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
+    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
+  collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
+    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+  % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
+  % hyperbolischen Kollisionsfunktion zu bestimmen.
+  % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
+  % Kugeln und Zylindern)
+  maxcolldepth = 2*max([s.collbodies.params(collbodies_ns.type==6,1);  ...
+                        s.collbodies.params(collbodies_ns.type==13,7); ...
+                        s.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
+  % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
+  % erreicht werden (Probleme bei Gradientenbildung).
+  maxcolldepth = 1.05*maxcolldepth;
+  % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
+  % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
+  % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  % Die Erkennung wird durch `collbodies_ns` bestimmt. Diese müssen also
+  % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
+  collobjdist_thresh = 0.15 * maxcolldepth;
+end
+
 % Vergleiche FG der Aufgabe und FG des Roboters
 if ~nsoptim
   % Deaktiviere limits_qD_set, wenn es keinen Nullraum gibt
@@ -257,7 +295,7 @@ s_ik_ser = struct( ...
   'reci', s_ser.reci, ...
   'K', s_ser.K, ...
   'Kn', zeros(NQJ,1), ... % Keine Nullraumoptimierung sinnvoll. ...
-  'wn', zeros(3,1), ... % ... Wird in Traj. gemacht.
+  'wn', zeros(4,1), ... % ... Wird in Traj. gemacht.
   'maxstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
   ... % % Keine Herunterskalierung bei Grenzüberschreitung (würde Stillstand 
   ... % erzeugen; da keine Nullraumbewegung gemacht wird, kann die Grenz-
@@ -301,7 +339,7 @@ s_tpl = struct(...
            'sigma', s.sigma,...
                'K', repmat(s_ser.K,NLEG,1),...
               'Kn', zeros(NQJ*NLEG,1),...
-              'wn', zeros(4,1),...
+              'wn', zeros(5,1),...
       'maxstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
        'normalize', s_ser.normalize,...
       'condlimDLS', s_ser.condlimDLS, ... 
@@ -310,14 +348,21 @@ s_tpl = struct(...
            'n_max', s_ser.n_max,...
         'rng_seed', s_ser.rng_seed,...
        'scale_lim', 0,... % ohne Nullraumbewegung nicht sinnvoll
+      'scale_coll', 0,... % ohne Nullraumbewegung nicht sinnvoll
         'Phit_tol', s_ser.Phit_tol,...
         'Phir_tol', s_ser.Phir_tol,...
       'maxrelstep', s_ser.maxrelstep,...
    'maxrelstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
 'finish_in_limits', false,... % ohne Nullraumbewegung nicht sinnvoll
+'avoid_collision_finish', false, ... % nicht sinnvoll
 'optimcrit_limits_hyp_deact', NaN, ... % nicht relevant (da keine Nullraumbewegung)
   'retry_on_limitviol', false, ... % keine Neuversuche
      'retry_limit', 0,... % keine Neuversuche (würde Sprung erzeugen)
+      'collbodies', struct(... % Keine Kollisionskörper in Einzelpunkt-IK...
+               'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
+               'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
+               'params', zeros(0,10)), ...
+      'collchecks', uint8(zeros(0,2)), ...
            'debug', s.debug, ...
       'I_constr_t', s.I_constr_t,...
       'I_constr_r', s.I_constr_r,...
@@ -397,6 +442,10 @@ s_3 = struct(...
            'Leg_T_0_W_vec', s.Leg_T_0_W_vec,...
              'Leg_phi_W_0', s.Leg_phi_W_0,...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
+% Struktur für %PN%_fkine_coll
+s_fkinecoll = struct(...
+            'Leg_pkin_gen', s.Leg_pkin_gen,...
+           'Leg_T_0_W_vec', s.Leg_T_0_W_vec);
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt
 
@@ -429,8 +478,8 @@ q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 dt = T(2)-T(1); % Init. fuer tpl
-Stats = struct('h', NaN(nt,1+6));
-h = zeros(6,1);
+Stats = struct('h', NaN(nt,1+7));
+h = zeros(7,1);
 
 for k = 1:nt
   tic();
@@ -742,6 +791,32 @@ for k = 1:nt
         v_qaD = v_qaD - wn(10)*h6dqa(:);
         v_qaDD = v_qaDD - wn(6)*h6dqa(:);
       end
+      if wn(11) ~= 0 || wn(12) ~= 0 % Kollisionsprüfung
+        % Kollisionserkennung im vergrößerten Warnbereich
+        colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack_k(:,4)', struct('collsearch', true));
+        if any(colldet)
+          JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
+          [~, JP_test(2,:)] = %PN%_fkine_coll(q_k+qD_test, s_fkinecoll);
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+          % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+          % Kollision angezeigt haben.
+          [~, colldist_test] = check_collisionset_simplegeom( ...
+            s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
+          % Kollisions-Kriterium berechnen
+          h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+          h7drz = (h7_test-h(7))/xD_test(6);
+          h7dqa = h7drz * J_ax(end,:);
+          v_qaD = v_qaD - wn(10)*h7dqa(:);
+          v_qaDD = v_qaDD - wn(6)*h7dqa(:);
+        else
+          h(7) = 0;
+        end
+      end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -837,6 +912,30 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
+      end
+      if wn(11) ~= 0 || wn(12) ~= 0 % Kollisionsprüfung
+        % Kollisionserkennung im vergrößerten Warnbereich
+        colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack_k(:,4)', struct('collsearch', true));
+        if any(colldet)
+          JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
+          [~, JP_test(2,:)] = %PN%_fkine_coll(q_k+qD_test, s_fkinecoll);
+          % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+          % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+          % Kollision angezeigt haben.
+          [~, colldist_test] = check_collisionset_simplegeom( ...
+            s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
+          % Kollisions-Kriterium berechnen
+          h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+          h7dq = (h7_test-h(7))./(qD_test');
+          v_qD = v_qD - wn(12)*h7dq(:);
+          v_qDD = v_qDD - wn(11)*h7dq(:);
+        else
+          h(7) = 0;
+        end
       end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
@@ -1102,7 +1201,8 @@ for k = 1:nt
       end
     end
   end
-  Stats.h(k,:) = [sum(wn(1:6).*h),h(1:6)'];
+  % TODO: Konsistente Reihenfolge in wn und h.
+  Stats.h(k,:) = [sum(wn([1:6,11]).*h),h(1:7)'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

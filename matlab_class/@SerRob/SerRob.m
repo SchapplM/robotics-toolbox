@@ -67,6 +67,7 @@ classdef SerRob < RobBase
     CADstruct % Struktur mit Daten zu CAD-Modellen
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
     collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
+    collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -307,9 +308,12 @@ classdef SerRob < RobBase
       % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
       % * 9 Punkt am DH-KS-Ursprung (0 Parameter)
       R.collbodies = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
-        'type', [], ... % nx1 uint8, Art des Ersatzkörpers
-        'params', []); % Parameter des jeweiligen Ersatzkörpers
+        'link', uint8(zeros(0,2)), ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
+        'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
+        'params', zeros(0,10)); % Parameter des jeweiligen Ersatzkörpers
+      % Liste der Kollisionsprüfungen. Enthält zwei Spalten mit Index der
+      % Kollisionsobjekte aus R.collbodies.
+      R.collchecks = uint8(zeros(0,2));
     end
     
     function mex_dep(R, force)
@@ -612,11 +616,13 @@ classdef SerRob < RobBase
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
         'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
-        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
+        'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
         'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
+        'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'finish_in_limits', false, ...% Führe am Ende eine Nullraumoptimierung zur Wiederherstellung der Grenzen durch
+        'avoid_collision_finish', false, ... % Nullraumbewegung am Ende zum Vermeiden von Kollisionen (damit nicht permanent Prüfung in Optimierung notwendig)
         ... % Bei hyperbolischen Grenzen kann z.B. mit Wert 0.9 erreicht werden, 
         ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
         ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
@@ -630,7 +636,9 @@ classdef SerRob < RobBase
         'Phit_tol', 1e-10, ... % Toleranz für translatorischen Fehler
         'Phir_tol', 1e-10, ... % Toleranz für rotatorischen Fehler
         'retry_on_limitviol', false, ... % Neuversuch auch, wenn Gelenkgrenzen verletzt werden
-        'retry_limit', 100); % Anzahl der Neuversuche mit Zufallswert;
+        'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
+        'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+        'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
@@ -643,7 +651,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 3, s.wn=[s.wn;zeros(3-length(s.wn),1)]; end
+      if length(s.wn) ~= 4, s.wn=[s.wn;zeros(4-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
@@ -691,14 +699,16 @@ classdef SerRob < RobBase
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(10,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
          'n_max', 1000, ... % Maximale Anzahl Iterationen
          'rng_seed', NaN, ... Initialwert für Zufallszahlengenerierung
          'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-         'Phir_tol', 1e-12);% Toleranz für rotatorischen Fehler
+         'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
+         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+         'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       if nargin == 7
         for f = fields(s_in)'
           if ~isfield(s, f{1})
@@ -708,7 +718,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
+      if length(s.wn) < 10, s.wn=[s.wn;zeros(10-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end
