@@ -334,7 +334,7 @@ for Robot_Data = Robots
     fprintf('Trajektorie als Einzelpunkte\n');
     i_phiconv = uint8([2]);
     fig_count = 0;
-    Phirt_tol = 1e-8;
+    Phirt_tol = 1e-12;
 
   %   for i = 4:4%size(XE,1) % Beispielpunkt aus Mail mit Moritz
   %   for i = 7:7%size(XE,1) % Wechselt bei iter = 58 von 179.68° auf -179.59° UND 10
@@ -343,7 +343,7 @@ for Robot_Data = Robots
 
     angle_nolimred = NaN(size(XE,1),1);
     angle_limred = NaN(size(XE,1),1);
-    for i = 10:10%size(XE,1)
+    for i = 2:2%size(XE,1)
       RS.phiconv_W_E = i_phiconv;
       eulstr = euler_angle_properties(i_phiconv);
 
@@ -371,19 +371,22 @@ for Robot_Data = Robots
       % Aufgaben-FHG auf 3T2R
       RS.I_EE_Task = logical([1 1 1 1 1 0]);
 
-      s_wn_3T2R_regular = [0.99;0.01;0];
+      s_wn_3T2R_regular = [0.99;0.01];
+      s_wn_3T2R_cond    = 0;
       s_wn_3T2R_coll    = 0;
       s_wn_3T2R_limred  = 0;
+      s_wn_3T2R_ges     = [s_wn_3T2R_regular; s_wn_3T2R_cond; s_wn_3T2R_coll; s_wn_3T2R_limred];
       s_ep_3T2R = struct( ...
         'n_min', 0, 'n_max', 2500, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-        'scale_lim', 0, 'reci', true, 'wn', [s_wn_3T2R_regular;s_wn_3T2R_coll;s_wn_3T2R_limred], 'retry_limit', 0);
+        'scale_lim', 0, 'reci', true, 'wn', s_wn_3T2R_ges, 'retry_limit', 0);
 
-      s_wn_3T2R_regular = [0;0;0];
-      s_wn_3T2R_coll    = 0;
-      s_wn_3T2R_limred  = 5;
-      s_ep_limred = struct( ...
-        'n_min', 0, 'n_max', 2500, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-        'scale_lim', 0, 'reci', true, 'wn', [s_wn_3T2R_regular;s_wn_3T2R_coll;s_wn_3T2R_limred], 'retry_limit', 0); % wn(5) muss getestet werden
+      s_wn_limred_regular = [0;0];
+      s_wn_limred_cond    = 0;
+      s_wn_limred_coll    = 0;
+      s_wn_limred_limred  = 5;
+      s_wn_limred_ges     = [s_wn_limred_regular; s_wn_limred_cond; s_wn_limred_coll; s_wn_limred_limred];
+      s_ep_limred = s_ep_3T2R;
+      s_ep_limred.wn = s_wn_limred_ges; % wn(5) muss getestet werden
       s_ep_limred.xlim = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
 
 
@@ -394,8 +397,11 @@ for Robot_Data = Robots
   %     angle_limred(i) = Stats.PHI(Stats.iter,4)*180/pi;
   %     Stats_limred_save(i) = Stats; % für spätere Auswertung sichern
 
+      if any(abs(phi_IK_nolimred) > Phirt_tol)
+        error('Inverse Kinematik OHNE limred fehlerhaft');
+      end
       if any(abs(phi_IK) > Phirt_tol)
-        error('Inverse Kinematik konnte in Startpose nicht berechnet werden');
+        error('Inverse Kinematik MIT limred fehlerhaft');
       end
 
       % Plots
