@@ -583,12 +583,12 @@ classdef SerRob < RobBase
       % Gesamtmatrix
       JaD = [JtD; JeD];
     end
-    function [q, Phi, Tc_stack0, Stats] = invkin2(R, x, q0, s_in)
+    function [q, Phi, Tc_stack0, Stats] = invkin2(R, Tr0E_soll, q0, s_in)
       % Berechne die inverse Kinematik mit eigener Funktion für den Roboter
       % Die Berechnung erfolgt dadurch wesentlich schneller als durch die
       % Klassen-Methode `invkin`, die nicht kompilierbar ist.
       % Eingabe:
-      % x: EE-Lage (Soll)
+      % Tr0E_soll: EE-Lage (Soll) [3x4]; Transformationsmatrix (Zeile 1-3)
       % q0: Start-Pose
       % s_in: Einstellparameter für die IK. Felder, siehe Implementierung.
       %
@@ -654,11 +654,11 @@ classdef SerRob < RobBase
       if length(s.wn) ~= 4, s.wn=[s.wn;zeros(4-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
-        [q, Phi, Tc_stack0] = R.invkinfcnhdl(x, q0, s);
+        [q, Phi, Tc_stack0] = R.invkinfcnhdl(Tr0E_soll, q0, s);
       elseif nargout <= 2
-        [q, Phi] = R.invkinfcnhdl(x, q0, s);
+        [q, Phi] = R.invkinfcnhdl(Tr0E_soll, q0, s);
       else
-        [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(x, q0, s);
+        [q, Phi, Tc_stack0, Stats] = R.invkinfcnhdl(Tr0E_soll, q0, s);
       end
     end
     function [Q,QD,QDD,PHI,JointPos_all,Stats] = invkin2_traj(R, X, XD, XDD, T, q0, s_in)
