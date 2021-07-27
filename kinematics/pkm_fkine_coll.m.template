@@ -1,5 +1,5 @@
-% Direkte Kinematik für komplette Trajektorie berechnen (auch Geschwin-
-% digkeit und Beschleunigung. Basierend auf der direkten Kinematik einer Beinkette.
+% Direkte Kinematik für alle KS bzw. Gelenkpositionen der PKM, die für
+% Kollisionen notwendig sind
 % 
 % Eingabe:
 % q:

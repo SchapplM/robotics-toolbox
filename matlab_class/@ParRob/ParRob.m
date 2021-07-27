@@ -91,6 +91,7 @@ classdef ParRob < RobBase
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
+      fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
       constr4Dtrajfcnhdl % F.H. zum Aufruf der Zwangsbedingungs-Zeitableitung als Trajektorie
       invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
       invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
@@ -130,6 +131,7 @@ classdef ParRob < RobBase
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'},...
         {'fkintrajfcnhdl', 'fkineEE_traj'},...
+        {'fkincollfcnhdl', 'fkine_coll'},...
         {'constr4Dtrajfcnhdl', 'constr4D_traj'}, ...
         {'invkinfcnhdl', 'invkin'},...
         {'invkintrajfcnhdl', 'invkin_traj'},...
@@ -262,6 +264,26 @@ classdef ParRob < RobBase
       else
         [X, XD, XDD] = R.fkintrajfcnhdl(Q, QD, QDD, uint8(idx_leg), s);
       end
+    end
+    function [Tc_stack_PKM, JointPos_all] = fkine_coll2(R, q)
+      % Direkte Kinematik für alle KS bzw. Gelenkpositionen der PKM, die für
+      % Kollisionen notwendig sind
+      % Eingabe:
+      % q: Gelenkwinkel
+      % Ausgabe:
+      % Tc_stack_PKM: Gestapelte Transformationsmatrizen der PKM.
+      % JointPos_all: Gestapelte Positionen aller Gelenke der PKM
+      Leg_pkin_gen = cat(2,R.Leg.pkin_gen)';
+      Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
+      for i = 1:R.NLEG
+        T_0_W = R.Leg(i).T_0_W;
+        Leg_T_0_W_vec(1:3,i) = r2eulxyz(T_0_W(1:3,1:3));
+        Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
+      end
+      s = struct( ...
+        'Leg_pkin_gen', Leg_pkin_gen,...
+        'Leg_T_0_W_vec', Leg_T_0_W_vec);
+      [Tc_stack_PKM, JointPos_all] = R.fkincollfcnhdl(q, s);
     end
     function [q, Phi] = invkin(R, xE_soll, q0)
       % Inverse Kinematik berechnen
