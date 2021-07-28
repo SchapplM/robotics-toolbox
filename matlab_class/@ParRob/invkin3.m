@@ -190,7 +190,7 @@ if scale_coll || wn(5) || avoid_collision_finish
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
   % Kugeln und Zylindern)
-  maxcolldepth = 2*max([Rob.collbodies.params(collbodies_ns.type==6,1);  ...
+  maxcolldepth = 2*max([0; Rob.collbodies.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
                         Rob.collbodies.params(collbodies_ns.type==13,7); ...
                         Rob.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
