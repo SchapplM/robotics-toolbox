@@ -85,7 +85,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs 'optimcrit_limits_hyp_deact', 0.9,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(12,1),
+%$cgargs              'wn', zeros(15,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
@@ -152,8 +152,7 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xDlim_thr_h11 = [s.xDlim(:,1) s.xDlim(:,2)]*pi/180*0.8; % vorläufig auf 80% der Grenzen in xDlim
-xDDlim_thr_h12 = [s.xDDlim(:,1) s.xDDlim(:,2)]*pi/180*0.8; % vorläufig auf 80% der Grenzen in xDDlim
+xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xDlim
 wn = s.wn;
 if any(wn ~= 0)
   nsoptim = true;
@@ -186,7 +185,7 @@ s_pik = struct( ...
   'T_N_E', s.T_N_E, ...
   'K', s.K, ...
   'Kn', zeros(%NQJ%,1), ... % Keine Nullraumoptimierung sinnvoll. ...
-  'wn', zeros(5,1), ... % ... Wird in Traj. gemacht.
+  'wn', zeros(6,1), ... % ... Wird in Traj. gemacht.
   'maxstep_ns', 0, ... % keine Bedeutung, da keine Nullraumbewegung möglich
   'scale_lim', 0, ... % Herunterskalieren nicht sinnvoll (da keine NR-Bew.)
   'maxrelstep', s.maxrelstep, ... 
@@ -219,7 +218,7 @@ qDD_N_pre1 = zeros(NQJ,1);
 N = zeros(NQJ,NQJ);
 dt = 0;
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+9));
+Stats = struct('h', NaN(nt,1+9), 'phi_zD', NaN(nt,1));
 h = zeros(9,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -230,7 +229,7 @@ for k = 1:nt
   %% Gelenk-Position berechnen
   % Inverse Kinematik für aktuellen Bahnpunkt. Nutze Anfangswert aus der
   % differentiellen Kinematik hiernach von der letzten Iteration (k-1)
-  [q_k, Phi_k, Tc_stack_k] = %RN%_invkin_eulangresidual(Tr0E_k, qk0, s_pik);
+  [q_k, Phi_k, Tc_stack_k, Stats_k] = %RN%_invkin_eulangresidual(Tr0E_k, qk0, s_pik);
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
   PHI(k,:) = Phi_k;
@@ -362,28 +361,47 @@ for k = 1:nt
     if wn(10) ~= 0  % Reservierung für spätere Implementierung der Kollisionsvermeidung
       % leer
     end
-    if wn(11) ~= 0  % Limitierung der redundanten Koordinate bzgl. Position (vorerst nur 3T2R)
+    if wn(11) ~= 0 || wn(12) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
+      Phi_qk = Stats_k.PHI(Stats_k.iter+1,:);
+      h(7) = invkin_optimcrit_limits1(Phi_qk(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+      h7_test = invkin_optimcrit_limits1(Phi_qk(4)+1e-6, [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+      h7drz = (h7_test-h(7))/1e-6;
+      h7dq = h7drz*J_x(end,:);
+      v_qD  = v_qD  - wn(11)*h7dq';
+      v_qDD = v_qDD - wn(12)*h7dq';
+    end
+    if wn(13) ~= 0 || wn(14) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
       % Kriterium für aktuellen Schritt
-      h(8) = invkin_optimcrit_limits2(XD(k,6), [s.xDlim(6,1) s.xDlim(6,2)]*pi/180, xDlim_thr_h11);  % !!!Einheit prüfen!!!
+      Phi_qk = Stats_k.PHI(Stats_k.iter+1,:);
+      h(8) = invkin_optimcrit_limits2(Phi_qk(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h8(NQJ,:));
       % Kriterium für Inkrement berechnen
-      deltaxD_phiz_3T2R = [zeros(5,1);1e-6];
-      deltaqD = JD_x \ deltaxD_phiz_3T2R;  % Anwendung sollte bei Geschw. noch korrekt sein?
-      h8_test = invkin_optimcrit_limits2(XD(k,6)+deltaxD_phiz_3T2R, [s.xDlim(6,1) s.xDlim(6,2)]*pi/180, xDlim_thr_h11);  % !!!Einheit prüfen!!!
-      h8dq = (h8_test-h(8))./deltaqD';
-      v_qD = v_qD - wn(11)*h8dq';
-      % ODER?:
-      % h8drz = (h8_test-h8)/1e-6;
-      % h8dq = h8drz*JD_x(end,:);
-      % ODER MIT?:
-      % [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
-      % [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
-      % Jinv = -Phi4_q_voll\Phi4_x_voll;
-      error('Achtung! wn(11) und xDlim sind aktuell vermutlich noch nicht definiert!');
+      h8_test = invkin_optimcrit_limits2(Phi_qk(4)+1e-6, [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h8(NQJ,:));
+      if h(8) == Inf
+        if Phi_qk(4) <= s.xlim(NQJ,1)
+          h8drz = -1e10;
+        elseif Phi_qk(4) >= s.xlim(NQJ,2)
+          h8drz = +1e10;
+        else
+          error('Achtung! Fall sollte eigentlich nicht vorkommen');
+        end
+      else
+        h8drz = (h8_test-h(8))/1e-6;
+      end
+      h8dq = h8drz*J_x(end,:);
+      v_qD  = v_qD  - wn(13)*h8dq';
+      v_qDD = v_qDD - wn(14)*h8dq';
     end
-    if wn(12) ~= 0   % Limitierung der redundanten Koordinate bzgl. Geschwindigkeit (vorerst nur 3T2R)
-      % Achtung siehe Robotik-Skript bzgl. Rechnung mit qDD bzw. xDD
-    end
-    
+    if wn(15) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
+      % Kriterium für aktuellen Schritt
+      XD_k = J_x * qD_k;
+      XD_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+      h(9) = invkin_optimcrit_limits1(XD_k_diff, [s.xDlim(NQJ,1) s.xDlim(NQJ,2)]);
+      % Kriterium für Inkrement berechnen%
+      h9_test = invkin_optimcrit_limits1(XD_k_diff+1e-6, [s.xDlim(NQJ,1) s.xDlim(NQJ,2)]);
+      h9drz = (h9_test-h(9))/1e-6;
+      h9dq = h9drz*J_x(end,:);
+      v_qDD = v_qDD - wn(15)*h9dq';
+    end 
     % Begrenze die Werte für die Gradienten (können direkt an Grenzen
     % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
     % saubere Nullraumbewegung mehr möglich.
@@ -594,6 +612,8 @@ for k = 1:nt
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
   Stats.h(k,:) = [sum(wn(1:9).*h(1:9)),h(1:9)'];
+  XD_k_Stats = J_x * qD_k;
+  Stats.phi_zD(k,1) = XD_k_Stats(NQJ) - XD(k,NQJ); % siehe wn(15)
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

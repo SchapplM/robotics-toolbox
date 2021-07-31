@@ -57,7 +57,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(5,1),
+%$cgargs              'wn', zeros(6,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'maxrelstep', 0.1,
@@ -146,7 +146,8 @@ qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h5 = [s.xlim(:,1) s.xlim(:,2)]*pi/180*0.8; % vorläufig auf 80% der Grenzen in xlim
+xlim_thr_h6 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+JA_limred = NaN(NQJ,NQJ); % Belegung für Kompilierung
 Phi_voll = NaN(NQJ,1); % Belegung für Kompilierung
 
 % Variablen für Dämpfung der Inkremente
@@ -161,7 +162,7 @@ Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
-h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
 success = false;
@@ -169,11 +170,9 @@ success = false;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5));
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), ...
+    'xlimred_quad', NaN(1+n_max,1), 'xlimred_hyp', NaN(1+n_max,1));
 end
-
-
-show_checkerrors = true;
 
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
@@ -200,11 +199,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     break_when_in_limits = false;
   end
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
-jj
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
-
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
@@ -267,23 +264,45 @@ jj
       if wn(4) ~= 0 % Reservierung für spätere Implementierung der Kollisionsvermeidung
         % leer
       end
-      if wn(5) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (vorerst nur 3T2R)
-        testeintritt_iterationNr = jj
+      if wn(5) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits1
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(5) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(6,1) s.xlim(6,2)]*pi/180, xlim_thr_h5);
+        h(5) = invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
         % Kriterium für Inkrement berechnen
-        deltax_phiz_3T2R = [zeros(5,1);1e-6];
-        % Geom. Jacobimatrix zur Umrechnung von x nach q berechnen
-        J5 = %RN%_jacobig_sym_varpar(q1, I_EElink, s.T_N_E(1:3,4), pkin); % Geom. oder Analytisch???
-        deltaq = J5 \ deltax_phiz_3T2R; % dx = J(q)dq -> dq = J^(-1)(q)dx 
-                                        % Berechnung mit \ ist identisch mit inv(J5)
-        Phi5_inkrement_voll = %RN%_constr2(q1+deltaq, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-        h5_test = invkin_optimcrit_limits2(Phi5_inkrement_voll(4), [s.xlim(6,1) s.xlim(6,2)]*pi/180, xlim_thr_h5);
-        h5dq = (h5_test-h(5))./deltaq';
+        h5_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+        % Jacobimatrix
+        JG_limred = %RN%_jacobig_sym_varpar(q1, I_EElink, s.T_N_E(1:3,4), pkin); % geometrische Jacobi-Matrix
+        x_Tr0E_soll_limred = [Tr0E_soll(1:3,4); r2eul(Tr0E_soll(1:3,1:3), phiconv_W_E)]; % aus Rob.t2x
+        Tw_wn_limred = euljac(x_Tr0E_soll_limred(4:6), phiconv_W_E); % Euler-Transformationsmatrix mit x anstelle Phi
+        JA_limred = [JG_limred(1:3,:); Tw_wn_limred \ JG_limred(4:6,:)]; % analytische Jacobi-Matrix
+        h5drz = (h5_test-h(5))/1e-6;
+        h5dq = h5drz*JA_limred(end,:);
         v = v - wn(5)*h5dq';
-     	% ODER?:
-        % h5drz = (h5_test-h5)/1e-6;
-        % h5dq = h5drz*J5(end,:); % evtl. Analytische Jacobimatrix
+      end
+      if wn(6) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits2
+        % Kriterium für aktuellen Iterationsschritt berechnen
+        h(6) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h6(NQJ,:));
+        % Kriterium für Inkrement berechnen
+        h6_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h6(NQJ,:));   
+        % Jacobimatrix
+        if wn(5) == 0 % Berechnung nur nötig, wenn wn(5) nicht aktiv ist
+          JG_limred = %RN%_jacobig_sym_varpar(q1, I_EElink, s.T_N_E(1:3,4), pkin); % geometrische Jacobi-Matrix
+          x_Tr0E_soll_limred = [Tr0E_soll(1:3,4); r2eul(Tr0E_soll(1:3,1:3), phiconv_W_E)]; % aus Rob.t2x
+          Tw_wn_limred = euljac(x_Tr0E_soll_limred(4:6), phiconv_W_E); % Euler-Transformationsmatrix mit x anstelle Phi
+          JA_limred = [JG_limred(1:3,:); Tw_wn_limred \ JG_limred(4:6,:)]; % analytische Jacobi-Matrix
+        end
+        if isinf(h(6))
+          if Phi_voll(4) <= s.xlim(NQJ,1)
+            h6drz = -1e10;
+          elseif Phi_voll(4) >= s.xlim(NQJ,2)
+            h6drz = 1e10;
+          else
+            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h6drz = (h6_test-h(6))/1e-6;
+        end
+        h6dq = h6drz*JA_limred(end,:);
+        v = v - wn(6)*h6dq';
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       N = (eye(NQJ) - pinv(Jdk)* Jdk);
@@ -397,20 +416,12 @@ jj
     Phi_iO = all(abs(Phi_neu(1:n_Phi_t)) < Phit_tol) && ...
              all(abs(Phi_neu(n_Phi_t+1:end)) < Phir_tol);
     if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
-      if show_checkerrors == true
-      	check_break_iO1 = 1
-      	iterationNR = jj
-      end
       % Prüfe, ob sich die Nebenbedingungen überhaupt noch verbessern. Wenn
       % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
       delta_q_N(:) = 0;
     end
     if scale_lim && scale == 0
-      if show_checkerrors == true
-      	check_break_iO2 = 1
-      	iterationNR = jj
-      end
       % Die Bewegung wurde komplett herunterskaliert, da die Grenzen
       % überschritten wurden. Erhöhe die Nullraumbewegung zur Vermeidung
       % der Grenzen. Sonst wird die IK sowieso nicht konvergieren. Annahme:
@@ -424,10 +435,6 @@ jj
     bestPhi = min([bestPhi;Phi_neu_norm]);
     if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && (Delta_Phi > 0 || ...
         Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
-      if show_checkerrors == true
-      	check_break_iO3 = 1
-      	iterationNR = jj
-      end
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
@@ -443,15 +450,7 @@ jj
         % da lambda gegen unendlich geht und dann sich Phi nicht mehr mit
         % Minimal-Schritten numerisch verbessert.
         lambda_mult = lambda_mult*2;
-      if show_checkerrors == true
-      	check_break_iO4 = 1
-      	iterationNR = jj
-      end
       else
-      if show_checkerrors == true
-      	check_break_iO5 = 1
-      	iterationNR = jj
-      end
         % Erfolgreich. Verringere lambda bis auf Minimalwert.
         lambda_mult = max(lambda_mult/2, lambda_min); % Singularität überwunden
       end
@@ -463,10 +462,6 @@ jj
       Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
       rejcount = 0;
     else
-      if show_checkerrors == true
-      	check_break_iO6 = 1
-      	iterationNR = jj
-      end
       % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.
       % Setzt voraus, dass die Konditionszahl so schlecht ist, dass
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
@@ -488,6 +483,8 @@ jj
       Stats.condJ(jj) = condJ;
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
+      Stats.xlimred_quad(jj) = invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+      Stats.xlimred_hyp(jj)  = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h6(NQJ,:));
     end
     % Prüfe Abbruchbedingung für Einhaltung der Winkelgrenzen. Ist dies bei
     % "finish_in_limits" der Fall, muss die IK nur noch konvergiert sein.
@@ -500,8 +497,6 @@ jj
       % Grenzen noch leicht nachkorrigiert werden, es dominiert aber die
       % Aufgabenbewegung.
       Kn = Kn*0.8;
-      check_break_breakwheninlimits = 1
-      iterationNR = jj
     end
     % Abbruchbedingungen prüfen
     if jj >= n_min ... % Mindestzahl Iterationen erfüllt
@@ -509,7 +504,6 @@ jj
         ( ~nsoptim || ... %  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) <= maxstep_ns) ) % oder die Nullraumoptimierung läuft noch. "<=" für Fall 0.
       success = true;
-      check_success = 1;
       if nargout == 4
         Stats.iter = jj; % muss hier zugewiesen werden (für mex)
       end
@@ -519,11 +513,10 @@ jj
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;0;0;0]; % Nutze nur die hyperbolische Funktion des Abstands
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
-	check_finishinlimits = 1;
         continue
       end
       break;
@@ -549,7 +542,14 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Jdk = Jdk_voll(I_IK,:);
   h(3) = cond(Jdk);
-  if wn(5) ~= 0, h(5) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(6,1) s.xlim(6,2)]*pi/180, xlim_thr_h5); end
+  if wn(5) ~= 0
+    h(5) = invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+  end
+  if wn(6) ~= 0
+    h(6) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h6(NQJ,:));
+  end
+  Stats.xlimred_quad(Stats.iter+1)= invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+  Stats.xlimred_hyp(Stats.iter+1) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h6(NQJ,:));
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
 end
