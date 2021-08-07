@@ -19,7 +19,7 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
-%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [12x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
@@ -226,6 +226,9 @@ end
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  wn(11:12) = 0; % Deaktivierung der Kollisionsvermeidung
+end
 if any(wn(11:12))
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)

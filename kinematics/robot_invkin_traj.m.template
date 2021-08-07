@@ -24,7 +24,18 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext dieser Funktion und
 %   von `%RN%_invkin_eulangresidual` sowie aufrufende Methode aus
-%   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion.
+%   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
+%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
+%     (4) Hyperbolischer Abstand der Gelenkgeschwindigkeiten von ihren Grenzen
+%     (5) Konditionszahl der geometrischen Jacobi-Matrix
+%     (6) Wie Eintrag 1, aber auf Geschwindigkeitsebene
+%     (7) Wie Eintrag 2, aber auf Geschwindigkeitsebene
+%     (8) Wie Eintrag 5, aber auf Geschwindigkeitsebene
+%     (9) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%    (10) wie 9, aber auf Geschwindigkeitsebene
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -172,6 +183,9 @@ end
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  wn(9:10) = 0; % Deaktivierung der Kollisionsvermeidung
+end
 if any(wn(9:10))
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)

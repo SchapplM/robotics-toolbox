@@ -16,6 +16,13 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
+%   Auswahl der Einstellungen:	
+%   .wn [5x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%     (3) Konditionszahl der geometrischen Matrix der Inv. Kin.
+%     (4) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
+%     (5) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
 % 
 % Ausgabe:
 % q [%NJ% x 1]
@@ -268,6 +275,11 @@ h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  wn(5) = 0; % Deaktivierung der Kollisionsvermeidung
+  scale_coll = 0;
+  avoid_collision_finish = false;
+end
 if scale_coll || wn(5) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)

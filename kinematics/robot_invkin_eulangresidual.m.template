@@ -8,6 +8,12 @@
 %   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
+%   Auswahl der Einstellungen:	
+%   .wn [4x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%     (3) Konditionszahl der geometrischen Jacobi-Matrix
+%     (4) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
 %
 % Ausgabe:
 % q [%NQJ% x 1]
@@ -112,6 +118,11 @@ n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  wn(4) = 0; % Deaktivierung der Kollisionsvermeidung
+  scale_coll = 0;
+  avoid_collision_finish = false;
+end
 if scale_coll || wn(4) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
