@@ -444,8 +444,10 @@ classdef SerRob < RobBase
       for i = 1:size(Q,1)
         T_0_E_i = fkineEE(R, Q(i,:)');
         X(i,:) = R.t2x(T_0_E_i);
+        if nargout < 2, continue; end % Keine Geschwindigkeit gefragt
         Ja = jacobia(R, Q(i,:)');
         XD(i,:) = Ja*QD(i,:)';
+        if nargout < 3, continue; end % Keine Beschleunigung gefragt
         JaD = jacobiaD(R, Q(i,:)', QD(i,:)');
         XDD(i,:) = Ja*QDD(i,:)' + JaD*QD(i,:)';
       end
