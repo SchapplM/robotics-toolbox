@@ -1,4 +1,4 @@
-% Prüfe die Konvergenz der Nullraumbewegung der IK für parallele Roboter.
+% Prüfe die Konvergenz der Nullraumbewegung der IK für serielle Roboter.
 % Vergleich von Trajektorien-IK und Einzelpunkt-IK.
 % 
 % Ablauf:
@@ -12,7 +12,7 @@
 %   Nullraumbewegung auf der zulässigen Lösung statt (Aufgabenredundanz)
 % 
 % Der Ablauf wird für verschiedene Punkte im Arbeitsraum und Orientierungen
-% der PKM-Plattform durchgeführt. Bei vermehrten Abweichungen wird ein
+% des Endeffektors durchgeführt. Bei vermehrten Abweichungen wird ein
 % Fehler aufgeworfen.
 % 
 % Optional: Plotten der Ergebnisse und Erzeugen eines Videos. Einstellung
@@ -20,12 +20,12 @@
 % Falls viele Bilder erzeugt werden, läuft das Skript zu lange. In diesem
 % Fall sollten manuell die Testfälle ausgewählt werden (Schleife k/l).
 % 
-% Siehe auch: SerRob_nullspace_convergence_test.m
+% Siehe auch: ParRob_nullspace_convergence_test.m
 % Quelle: Schappler, M. and Ortmaier, T.: Singularity Avoidance of
 % Task-Redundant Robots in Pointing Tasks: On Nullspace Projection and
 % Cardan Angles as Orientation Coordinates, ICINCO 2021.
 
-% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021-03
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021-08
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 clear
@@ -44,125 +44,77 @@ usr_save_anim = false; % zur Erzeugung eines Videos
 %#ok<*UNRCH>
 % Sonstige Initialisierung:
 respath = fullfile(fileparts(which('robotics_toolbox_path_init.m')), ...
-  'examples_tests', 'results', 'ParRob_nullspace_convergence_test');
+  'examples_tests', 'results', 'SerRob_nullspace_convergence_test');
 mkdirs(respath);
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Skript nicht ausführbar.');
   return
 end
-if isempty(which('parroblib_path_init.m'))
-  warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Skript nicht ausführbar.');
-  return
-end
 % Namen der Optimierungskriterien der IK (für Diagramme)
-hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond IK-Jac.', 'cond PKM-Jac.'};
+hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond Jac.'};
 % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
 % Reihenfolge: quadratischer Grenzabstand, hyperbolischer Grenzabstand,
-% Konditionszahl IK-Jacobi, Konditionszahl PKM-Jacobi
-I_wn_traj = [1 2 5 6];
-I_wn_ep = [1 2 3 4];
+% Konditionszahl Jacobi
+I_wn_traj = [1 2 5]; % siehe S3RRR1_invkin_traj
+I_wn_ep = [1 2 3]; % siehe S3RRR1_invkin_eulangresidual
 %% Alle Robotermodelle durchgehen
-for robnr = 1:4
+for robnr = 1:2
   %% Initialisierung
-  if robnr == 1 % 3RRR
-    RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
-    pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
+  if robnr == 1 % RRR
+    RS = serroblib_create_robot_class('S3RRR1');
+    pkin_gen = zeros(length(RS.pkin_names),1);
     % Nachbearbeitung einiger Kinematikparameter
-    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.6;
-    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a3')) = 0.6;
-    for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_gen);
-    end
-  elseif robnr == 2 % 6UPS
-    RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 1.0, 0.2);
-  elseif robnr == 3 % 6PUS
-    RP = parroblib_create_robot_class('P6PRRRRR6V4G8P1A1', [0.8;0.3;pi/3], 0.2);
-    pkin = zeros(length(RP.Leg(1).pkin),1); % Namen, siehe RP.Leg(1).pkin_names
-    pkin(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.2;
-    pkin(strcmp(RP.Leg(1).pkin_names,'theta1')) = -pi/2; % So drehen, dass a2 nach oben zeigt
-    pkin(strcmp(RP.Leg(1).pkin_names,'a4')) = 0.4;
-    pkin(strcmp(RP.Leg(1).pkin_names,'alpha2')) = pi/2;
-    for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin);
-    end
-  elseif robnr == 4 % 6RUS (Hexa)
-    RP = parroblib_create_robot_class('P6RRRRRR10V6G6P4A1', [0.2; 0.1], [0.2; 0.1]);
-    pkin = NaN(length(RP.Leg(1).pkin_names),1);
-    pkin(strcmp(RP.Leg(1).pkin_names, 'd1')) = 0;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'a2')) = 0.4;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'd2')) = 0;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'alpha2')) = 0;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'a4')) = 0.5;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'alpha4')) = 0;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'd4')) = 0;
-    for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin);
-    end
+    pkin_gen(strcmp(RS.pkin_names,'a2')) = 0.4;
+    pkin_gen(strcmp(RS.pkin_names,'a3')) = 0.4;
+    RS.update_mdh(pkin_gen);
+    % Planarer Roboter: z-Achse des EE zeigt aus xy-Ebene heraus
+    RS.update_EE([0.3;0;0]);
+  elseif robnr == 2 % Industrieroboter
+    RS = serroblib_create_robot_class('S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1');
+    % EE-Transformation so, dass EE vor dem Werkzeug-Flansch ist und
+    % z-Achse nach oben gedreht ist.
+    RS.update_EE([0.3;0;0], [pi/2;0;0]);
   end
   % Entwurfsparameter eintragen (für Plot)
-  for i = 1:RP.NLEG
-    if robnr == 2
-      RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 5;
-    elseif robnr == 3
-      % Setze Schubgelenke als Linearachsen mit Führungsschiene
-      RP.Leg(i).DesPar.joint_type(RP.I_qa((RP.I1J_LEG(i):RP.I2J_LEG(i)))) = 4;
-    end
-    % Setze Segmente als Hohlzylinder mit Durchmesser 50mm
-    RP.Leg(i).DesPar.seg_par=repmat([5e-3,50e-3],RP.Leg(i).NL,1);
-  end
-  RP.DesPar.platform_par(end) = 5e-3;
+  % Setze Segmente als Hohlzylinder mit Durchmesser 50mm
+  RS.DesPar.seg_par=repmat([5e-3,50e-3],RS.NL,1);
   if usr_recreate_mex
-    serroblib_create_template_functions({RP.Leg(1).mdlname}, false, false);
-    parroblib_create_template_functions({RP.mdlname(1:end-2)}, false, false);
-    mexerr = matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
-    mexerr = mexerr & matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
-    mexerr = mexerr & matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
+    serroblib_create_template_functions({RS.mdlname}, false, false);
+    mexerr = matlabfcn2mex({[RS.mdlname, '_invkin_eulangresidual']});
+    mexerr = mexerr & matlabfcn2mex({[RS.mdlname, '_invkin_traj']});
     if mexerr
       error('Fehler beim Kompilieren');
     end
   end
-  RP.fill_fcn_handles(use_mex_functions,true);
+  RS.fill_fcn_handles(use_mex_functions,true);
   % Definition der Freiheitsgrade (vollständig und reduziert)
-  I_EE_full = RP.I_EE;
-  if all(RP.I_EE == [1 1 1 1 1 1])
+  I_EE_full = RS.I_EE;
+  if all(RS.I_EE == [1 1 1 1 1 1])
     I_EE_red = logical([1 1 1 1 1 0]);
-  elseif  all(RP.I_EE == [1 1 0 0 0 1])
+  elseif  all(RS.I_EE == [1 1 0 0 0 1])
     I_EE_red = logical([1 1 0 0 0 0]);
   else
     error('EE-FG des Roboters nicht vorgesehen');
   end
   I_EE_full_str = sprintf('%dT%dR', sum(I_EE_full(1:3)), sum(I_EE_full(4:6)));
   I_EE_red_str = sprintf('%dT%dR', sum(I_EE_red(1:3)), sum(I_EE_red(4:6)));
-  for i = 1:RP.NLEG
-    % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
-    RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
-    % Begrenze die Länge der Schubgelenke
-    if robnr == 2
-      qpris_minmax = [0.6, 1.5];
-    elseif robnr == 3 % Sonst überschneiden sich die Schienen
-      qpris_minmax = [0.1, 0.8];
-    else
-      qpris_minmax = [0.1, 1.5];
-    end
-    RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = ...
-      repmat(qpris_minmax, sum(RP.Leg(i).MDH.sigma==1), 1);
-    % Setze Geschwindigkeit und Beschleunigung auf moderate Werte, damit
-    % die Schrittweite in der Traj.-IK nicht zu groß wird und die Klein-
-    % winkelnäherung nicht verletzt wird.
-    RP.Leg(i).qDlim = repmat(2*[-5*pi, 5*pi], RP.Leg(i).NQJ, 1); % 2*pi sind 720deg/s
-    RP.Leg(i).qDlim(RP.Leg(i).MDH.sigma==1,:) = ...
-      repmat([-5, 5], sum(RP.Leg(i).MDH.sigma==1), 1); % 5m/s
-    
-    RP.Leg(i).qDDlim = repmat([-50, 50], RP.Leg(i).NQJ, 1); % 100 sind 10g auf 1m Länge
-    RP.Leg(i).qDDlim(RP.Leg(i).MDH.sigma==1,:) = ...
-      repmat([-20, 20], sum(RP.Leg(i).MDH.sigma==1), 1); % 50m/s² sind ca. 5g
-  end
-  qlim   = cat(1, RP.Leg.qlim);
-  qDlim  = cat(1, RP.Leg.qDlim);
-  qDDlim = cat(1, RP.Leg.qDDlim);
+  % Begrenze die Winkel der Gelenke auf +/- 360°
+  RS.qlim = repmat([-2*pi, 2*pi], RS.NQJ, 1);
+  % Setze Geschwindigkeit und Beschleunigung auf moderate Werte, damit
+  % die Schrittweite in der Traj.-IK nicht zu groß wird und die Klein-
+  % winkelnäherung nicht verletzt wird.
+  RS.qDlim = repmat(2*[-5*pi, 5*pi], RS.NQJ, 1); % 2*pi sind 720deg/s
+  RS.qDlim(RS.MDH.sigma==1,:) = ...
+    repmat([-5, 5], sum(RS.MDH.sigma==1), 1); % 5m/s
+  RS.qDDlim = repmat([-50, 50], RS.NQJ, 1); % 100 sind 10g auf 1m Länge
+  RS.qDDlim(RS.MDH.sigma==1,:) = ...
+    repmat([-20, 20], sum(RS.MDH.sigma==1), 1); % 50m/s² sind ca. 5g
+  qlim   = RS.qlim;
+  qDlim  = RS.qDlim;
+  qDDlim = RS.qDDlim;
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
-  X0 = [ [0.05;0.03;0.6]; [2;-3;0]*pi/180 ];
+  X0 = [ [0.5;0.5;0.6]; [2;-3;0]*pi/180 ];
   if all(I_EE_full == [1 1 0 0 0 1]), X0(3:5) = 0; end
   % Eckpunkte definieren, die einen Würfel ergeben
   traj_d=0.15; traj_h=0.15;
@@ -188,8 +140,8 @@ for robnr = 1:4
   XL(:,4:6) = 0.1*XL(:,4:6);
   % Entferne die Drehwinkel. Werden später sowieso überschrieben
   XL(:,6) = 0;
-  if ~all(RP.I_EE == [1 1 1 1 1 1])
-    XL(:, ~RP.I_EE) = 0; XL = uniquetol(XL, 1e-10,'ByRows',true);
+  if ~all(RS.I_EE == [1 1 1 1 1 1])
+    XL(:, ~RS.I_EE) = 0; XL = uniquetol(XL, 1e-10,'ByRows',true);
   end
   % Ergebnis-Tabellen vorbereiten (siehe Schleifen unten)
   ResStat = array2table(NaN(size(XL,1)*9*4,8));
@@ -197,16 +149,10 @@ for robnr = 1:4
     'h_err_abs', 'h_err_rel', 'h_step_traj', 'h_step_ep', 'Error'};
   ResStat_Start  = array2table(NaN(size(XL,1)*9,4));
   ResStat_Start.Properties.VariableNames = {'PktNr', 'OriNr', 'Erfolg', 'Grenzen'};
-  fprintf('Starte Untersuchung für Rob. %d (%s)\n', robnr, RP.mdlname);
+  fprintf('Starte Untersuchung für Rob. %d (%s)\n', robnr, RS.mdlname);
   %% Inverse Kinematik berechnen
-  q0 = -0.5+rand(RP.NJ,1);
-  if robnr == 2
-    q0(RP.I_qa) = 1.0; % damit bei 6UPS das Schubgelenk positiv bleibt
-  elseif robnr == 3
-    q0(RP.I_qa) = 0.2; % damit bei 6PUS das Schubgelenke nicht vorne übersteht
-  end
+  q0 = -0.5+rand(RS.NJ,1);
   q0_ik_fix = q0;
-  q0_ik_fix(RP.I1J_LEG(2):end) = NaN; % damit Übernahe Ergebnis Beinkette 1
   % Einstellungen für Einzelpunkt-IK.
   s_ep = struct( ...
     'n_max', 5000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % , 'finish_in_limits', true
@@ -214,8 +160,9 @@ for robnr = 1:4
   s_ep_dummy = s_ep;
   s_ep_dummy.retry_limit = 0;
   s_ep_dummy.wn = ones(4,1); % hierdurch werden die Kriterien berechnet
-  s_ep_dummy.K = zeros(RP.NJ,1); % hierdurch keine Bewegung und damit ...
-  s_ep_dummy.Kn = zeros(RP.NJ,1); % ... sofortiger Abbruch
+  s_ep_dummy.wn(4) = 0; % Keine Kollisions-Kennzahlen berechnen
+  s_ep_dummy.K = zeros(RS.NJ,1); % hierdurch keine Bewegung und damit ...
+  s_ep_dummy.Kn = zeros(RS.NJ,1); % ... sofortiger Abbruch
   ii_restab = 0; ii_restab_start = 0;
   for k = 1:size(XL,1) % Schleife über alle Eckpunkte
     x_k = XL(k,:)';
@@ -230,42 +177,11 @@ for robnr = 1:4
       q_jj = q0_ik_fix; % nehme immer den Wert von davor als Startwert. Dann weniger Konfigurationswechsel
       t0 = tic();
       for jj = 1:nn
-        RP.update_EE_FG(I_EE_full,I_EE_full); % Roboter auf 3T3R einstellen
+        RS.I_EE_Task = I_EE_full; % Roboter auf 3T3R einstellen
         x_jj = x_test_ges(jj,:)';
         t1=tic();
-        for iktrynum = 1:20 % mehrfache Versuche der IK für plausibles Ergebnis
-          s_ep_jj = s_ep; % Einstellungen so lassen (Grenzverletzung erlauben)
-          [q_jj, Phi,~,Stats] = RP.invkin2(x_jj, q_jj, s_ep_jj);
-          % Korrigiere die Konfiguration bei Robotern mit Schubantrieben.
-          % Hier ist ein Umklappen der Konfiguration möglich und unerwünscht.
-          if robnr == 2 && any(q_jj(RP.I_qa)<0)
-            if iktrynum < 20
-              % Ändere die Anfangswerte und versuche erneut
-              ILeg_invalid = find(q_jj(RP.I_qa)<0);
-              for iii = ILeg_invalid(:)'
-                q_jj(RP.I1J_LEG(iii):RP.I2J_LEG(iii)) = -0.5+rand(RP.Leg(iii).NJ,1);
-                if robnr == 3
-                  q_jj(1) = -0.8 + rand(1); % sehr niedrigen Wert für untere Konfiguration
-                end
-              end
-              continue
-            end
-            if robnr == 2
-              error('Die Schubgelenke sind in einer ungünstigen Konfiguration. Darf nicht sein.');
-            else
-              % Bei 6PUS sind die Schubgelenke teilweise unplausibel weit
-              % vorne (liegt an Plattform-Drehung)
-              continue
-            end
-            change_current_figure(999);clf;
-            set(999,'Name','Rob_Debug','NumberTitle','off');
-            hold on; grid on; view(3);
-            xlabel('x in m');ylabel('y in m');zlabel('z in m');
-            s_plot = struct( 'straight', 0, 'mode', 4);
-            RP.plot( q_jj, x_jj, s_plot );
-          end
-          break;
-        end
+        s_ep_jj = s_ep; % Einstellungen so lassen (Grenzverletzung erlauben)
+        [q_jj, Phi,~,Stats] = RS.invkin2(RS.x2tr(x_jj), q_jj, s_ep_jj);
         if jj == 1
           fprintf(['Rastere den Nullraum mit %d IK-Aufrufen. Dauer ', ...
             'für ersten Aufruf: %1.1fms. Gesamt geschätzt: %1.1fs\n'], ...
@@ -274,9 +190,9 @@ for robnr = 1:4
         if any(abs(Phi) > 1e-8)
           continue
         end
-        RP.update_EE_FG(I_EE_full,I_EE_red); % Roboter auf 3T2R einstellen
+        RS.I_EE_Task = I_EE_red; % Roboter auf 3T2R einstellen
         % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
-        [q_dummy, Phi,~,Stats_dummy] = RP.invkin4(x_jj, q_jj, s_ep_dummy);
+        [q_dummy, Phi,~,Stats_dummy] = RS.invkin2(RS.x2tr(x_jj), q_jj, s_ep_dummy);
         if any(abs(q_jj - q_dummy) > 1e-8)
           error('IK-Ergebnis hat sich bei Test verändert');
         end
@@ -286,21 +202,8 @@ for robnr = 1:4
         'abgeschlossen. %d/%d erfolgreich\n'], nn, toc(t0), sum(~isnan(h_ges(:,1))), nn);
       % Verdoppele die Daten aufgrund der Periodizität
       x_test_ges = [x_test_ges(:,1:5),x_test_ges(:,6)-2*pi; x_test_ges;
-                    x_test_ges(:,1:5),x_test_ges(:,6)+2*pi]; %#ok<AGROW>
+                    x_test_ges(:,1:5),x_test_ges(:,6)+2*pi];
       h_ges = repmat(h_ges,3,1);
-      % Debug: Verteilung der Zielfunktionen über die redundante Koordinate
-      % plotten. Wird jetzt weiter unten gemacht.
-%       figure(10);clf;
-%       optimcritaxhdl = NaN(3,1);
-%       hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond IK-Jac.', 'cond PKM-Jac.'};
-%       for i = 1:4
-%         optimcritaxhdl(i) = subplot(2,2,i); hold on;
-%         plot(x_test_ges(:,6)*180/pi, h_ges(:,i));
-%         ylabel(sprintf('h %d (%s)', i, hnames{i})); grid on;
-%         xlabel('x6 in deg');
-%       end
-%       sgtitle(sprintf('Zielfunktionen Punkt %d', k));
-%       linkxaxes
     end
     x6_l_range = [linspace(0,pi,5),linspace(0,-pi,5)];
     x6_l_range = unique(x6_l_range, 'stable');
@@ -309,18 +212,18 @@ for robnr = 1:4
       x_l = x_k;
       x_l(6) = x6_l_range(l);
       % Inverse Kinematik zum Startpunkt
-      RP.update_EE_FG(I_EE_full,I_EE_full); % Roboter auf 3T3R einstellen
+      RS.I_EE_Task = I_EE_full; % Roboter auf 3T3R einstellen
       s_ep_start = s_ep;
       s_ep_start.scale_lim = 0.5; % Grenzen nicht verlassen (lieber neu versuchen)
-      [qs, Phi_ep_s, ~, Stats_ep_s] = RP.invkin2(x_l, q0_ik_fix, s_ep_start);
+      [qs, Phi_ep_s, ~, Stats_ep_s] = RS.invkin2(RS.x2tr(x_l), q0_ik_fix, s_ep_start);
       if any(abs(Phi_ep_s) > 1e-8)
         % Mit Einhaltung der Grenzen keine Lösung gefunden. Dann eben mit
         % Verletzung der Grenzen. Führt auch zu Abbruch, ist aber für
         % Statistik wichtig, ob es rechnerisch überhaupt funktioniert.
         s_ep_start = s_ep;
-        [qs, Phi_ep_s, ~, Stats_ep_s] = RP.invkin2(x_l, q0_ik_fix, s_ep_start);
+        [qs, Phi_ep_s, ~, Stats_ep_s] = RS.invkin2(RS.x2tr(x_l), q0_ik_fix, s_ep_start);
       end
-      xs = RP.fkineEE_traj(qs')';
+      xs = RS.fkineEE_traj(qs')';
       ii_restab_start = ii_restab_start + 1;
       ResStat_Start.PktNr(ii_restab_start) = k;
       ResStat_Start.OriNr(ii_restab_start) = l;
@@ -330,10 +233,7 @@ for robnr = 1:4
         continue % ist nicht immer möglich (Erzwungene Einhaltung der Grenzen)
       end
       ResStat_Start.Erfolg(ii_restab_start) = 1;
-      if any(qs(RP.I_qa&RP.MDH.sigma==1)<0)
-        error('Die Schubgelenke sind umgeklappt. Darf nicht sein.');
-      end
-        qs_norm = (qs - qlim(:,1)) ./ (qlim(:,2)-qlim(:,1));
+      qs_norm = (qs - qlim(:,1)) ./ (qlim(:,2)-qlim(:,1));
       if any(qs<qlim(:,1)) || any(qs>qlim(:,2))
         % Dieser Fall sollte nicht mehr auftreten, da meistens scale_lim benutzt wird
         ResStat_Start.Grenzen(ii_restab_start) = 0;
@@ -345,13 +245,13 @@ for robnr = 1:4
         hold on; grid on; view(3);
         xlabel('x in m');ylabel('y in m');zlabel('z in m');
         s_plot = struct( 'straight', 0, 'mode', 4);
-        RP.plot( qs, xs, s_plot );
+        RS.plot( qs, xs, s_plot );
       end
       ResStat_Start.Grenzen(ii_restab_start) = 1;
       num_ik_qs_successfull = num_ik_qs_successfull + 1;
       % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
-      RP.update_EE_FG(I_EE_full,I_EE_red); % Roboter dafür auf 3T3R einstellen
-      [q_dummy, Phi_dummy,~,Stats_dummy] = RP.invkin4(x_l, qs, s_ep_dummy);
+      RS.I_EE_Task = I_EE_red; % Roboter dafür auf 3T3R einstellen
+      [q_dummy, Phi_dummy,~,Stats_dummy] = RS.invkin2(RS.x2tr(x_l), qs, s_ep_dummy);
       if any(abs(qs - q_dummy) > 1e-8)
         error('IK-Ergebnis hat sich bei Test verändert');
       end
@@ -363,8 +263,8 @@ for robnr = 1:4
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 8] % Schleife über verschiedene Zielkriterien
-        filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RP.mdlname);
+      for ii = [2 4 6] % Schleife über verschiedene Zielkriterien
+        filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RS.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
           s_ep_ii.maxrelstep = 0.005;
@@ -375,46 +275,40 @@ for robnr = 1:4
         % werden.
         s_ep_ii.scale_lim = 0.9;
         % Kriterien zusammenstellen
-        wn_traj = zeros(8,1);
+        wn_traj = zeros(10,1);
         % Dämpfung der Geschwindigkeit immer einbauen. Bei symmetrischen
         % Grenzen entspricht das dem Standard-Dämpfungsterm aus der
         % Literatur
         wn_traj(3) = 0.5;
-        % Zusätzlich Dämpfung bei Überschreitung des Grenzbereichs zu den
-        % Positions-Grenzen. Dadurch weniger Überschreitungen der Grenze.
-        wn_traj(2) = 1;
-        wn_traj(8) = 1;
+        % Optional:
+%         % Zusätzlich Dämpfung bei Überschreitung des Grenzbereichs zu den
+%         % Positions-Grenzen. Dadurch weniger Überschreitungen der Grenze.
+%         wn_traj(2) = 1; % P-Anteil hyperbolische Grenzen
+%         wn_traj(7) = 1; % D-Anteil hyperbolische Grenzen
         optimcrit_limits_hyp_deact = 0.9;
         switch ii
           case 1 % P-Regler Quadratische Grenzfunktion
             wn_traj(1) = 1; % konvergiert schlecht ohne D-Anteil
           case 2 % PD-Regler Quadratische Grenzfunktion
-            wn_traj(1) = 1;
-            wn_traj(7) = 1;
+            wn_traj(1) = 1; % P
+            wn_traj(6) = 1; % D
           case 3 % P-Regler Hyperbolische Grenzfunktion
             wn_traj(2) = 1; % konvergiert schlecht ohne D-Anteil
             % Damit das Zielkriterium optimiert werden kann, muss es im
             % kompletten Gelenkbereich aktiv sein (nicht nur nahe Grenzen).
             optimcrit_limits_hyp_deact = NaN;
           case 4 % PD-Regler Hyperbolische Grenzfunktion
-            wn_traj(2) = 50; % ist mit Verstärkung 1 sehr langsam (aber in richtige Richtung)
-            wn_traj(8) = 20;
+            wn_traj(2) = 50;
+            wn_traj(7) = 20;
             optimcrit_limits_hyp_deact = NaN;
-          case 5 % P-Regler IK-Jacobi-Konditionszahl
+          case 5 % P-Regler Jacobi-Konditionszahl
             wn_traj(5) = 1; % funktioniert ordentlich
-          case 6 % PD-Regler IK-Jacobi-Konditionszahl
+          case 6 % PD-Regler Jacobi-Konditionszahl
             wn_traj(5) = 1;
-            wn_traj(9) = 0.2; % höhere D-Verstärkung kann Schwingung verursachen
-          case 7 % P-Regler PKM-Jacobi-Konditionszahl
-            wn_traj(6) = 1; % funktioniert manchmal ordentlich, aber ohne D-Anteil unzuverlässig
-          case 8 % PD-Regler PKM-Jacobi-Konditionszahl
-            wn_traj(3) = 0.8;
-            wn_traj(6) = 1;
-            % Höhere Werte für D-Verstärkung führen zu (Dauer-)Schwingungen
-            wn_traj(10) = 0.1;
+            wn_traj(8) = 0.2;
         end
         % Roboter auf 3T2R einstellen
-        RP.update_EE_FG(I_EE_full,I_EE_red);
+        RS.I_EE_Task = I_EE_red;
 
         % IK mit Einzelpunkt-Verfahren berechnen
         s_ep_ii.wn = wn_traj(I_wn_traj);
@@ -423,9 +317,10 @@ for robnr = 1:4
         s_ep_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
 %         s_ep_ii.wn(s_ep_ii.wn~=0) = 1; % Geht nicht. Sonst später kein Vergleich möglich!
         t1 = tic();
-        [q_ep_ii, Phi,~,Stats_ep] = RP.invkin4(x_l, qs, s_ep_ii);
+        [q_ep_ii, Phi,~,Stats_ep] = RS.invkin2(RS.x2tr(x_l), qs, s_ep_ii);
         t_ep = toc(t1);
-        assert(all(abs(Stats_ep.PHI(1,RP.I_constr_red))<1e-9), 'Residuum im ersten Schritt muss Null sein');
+        assert(all(abs(Stats_ep.PHI(1,[1 2 3 5 6]))<1e-9), ... % Reziproke Winkel; nicht Ori-z-Residuum
+          'Residuum im ersten Schritt muss Null sein');
         % IK mit Trajektorien-Verfahren berechnen. Setze virtuelle
         % Trajektorie, die keine Soll-Vorgaben hat. Dadurch entsteht eine
         % reine Nullraumbewegung.
@@ -437,14 +332,16 @@ for robnr = 1:4
         s_traj_ii = struct('wn', wn_traj);
         s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
         t1 = tic();
-        [Q_ii, QD_ii, QDD_ii, Phi_ii,~,~,~,Stats_traj] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
+        [Q_ii, QD_ii, QDD_ii, Phi_ii,~,Stats_traj] = RS.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
         t_traj = toc(t1);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
-        if all(I_noacc)
-          error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+        if all(I_noacc) % Möglich, wenn das Nullraumkriterium konstant ist
+          warning('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+          I_finishacc = 1;
+        else
+          I_finishacc = find(I_noacc==0,1,'last');
         end
-        I_finishacc = find(I_noacc==0,1,'last');
         fprintf(['Pkt. %d/ Ori. %d/ Fall %d. IK berechnet: %d Schritte Ein', ...
           'zelpunkt-IK (%1.1fs; %1.1fms); %d Schritte Traj.-IK (%1.1fs; %1.1fms)\n'], k, l, ...
           ii, Stats_ep.iter, t_ep, 1e3*t_ep/Stats_ep.iter, I_finishacc, t_traj, 1e3*t_traj/I_finishacc);
@@ -459,6 +356,9 @@ for robnr = 1:4
         I_finalvalue = all(abs(repmat(q_traj_ii',I_finishacc,1)-Q_ii) < 1e-10,2) & ...
                        abs(repmat(Stats_traj.h(end,1),I_finishacc,1)-Stats_traj.h(:,1)) < 1e-10;
         I_finish = find(I_finalvalue==0,1,'last');
+        if isempty(I_finish)
+          I_finish = 1; % falls Abbruch bereits bei erstem Zeitschritt
+        end
         Traj_t = Traj_t(1:I_finish,:);
         Q_ii = Q_ii(1:I_finish,:);
         QD_ii = QD_ii(1:I_finish,:);
@@ -469,15 +369,15 @@ for robnr = 1:4
         % Speichere EE-Pose resultierend aus Gelenkwinkeln aus dem
         % Konvergenzverlauf. Benutze bei Einzelpunkt-IK nur i.O.-Posen
         % (keine Posen, bei denen die Ketten nicht geschlossen sind).
-        X_ii = RP.fkineEE2_traj(Q_ii);
-        Stats_ep.X = RP.fkineEE2_traj(Stats_ep.Q);
-        I_invalid = any(abs(Stats_ep.PHI(:,RP.I_constr_red))>1e-3,2);
+        X_ii = RS.fkineEE_traj(Q_ii);
+        Stats_ep.X = RS.fkineEE_traj(Stats_ep.Q);
+        I_invalid = any(abs(Stats_ep.PHI(:,[1 2 3 5 6]))>1e-3,2); % Residuum-Komponenten außer phi_z
         Stats_ep.X(I_invalid,:) = NaN;
 
         % TODO: Um 2pi verschoben, so dass am nächsten an Startwert
         % (aktuell springt das Ergebnis im Bild, falls es über +/- pi geht.
-        x_traj_ii = RP.fkineEE_traj(q_traj_ii')';
-        x_ep_ii = RP.fkineEE_traj(q_ep_ii')';
+        x_traj_ii = RS.fkineEE_traj(q_traj_ii')';
+        x_ep_ii = RS.fkineEE_traj(q_ep_ii')';
         
         % Summe der positionsbezogenen Leistungsmerkmale der Traj. am Ende.
         % Schließe geschwindigkeitsbezogene Merkmale aus Vergleich aus.
@@ -530,7 +430,7 @@ for robnr = 1:4
         if raise_error_h
           warning('Zielfunktion weicht bei beiden Methoden zu stark voneinander ab (relativer Fehler %1.1f%%)', reserr_h_rel*100);
         end
-        if ~any(ii == [1 3 5 7]) && step_h_traj >= 0
+        if ~any(ii == [1 3 5]) && step_h_traj >= 0
           % In Traj.-IK Schwingungen, wenn kein PD-Regler benutzt wird.
           warning('Nebenbedingungen haben sich bei Traj.-IK verschlechtert');
           if ResStat.Error(ii_restab)==0, ResStat.Error(ii_restab) = 1; end
@@ -577,8 +477,8 @@ for robnr = 1:4
           progr_traj = Traj_t/Traj_t(end);
           % Bild: Gelenkpositionen
           change_current_figure(1);clf;set(1,'Name','q','NumberTitle','off');
-          for i = 1:RP.NJ
-            subplot(6,6,i); hold on;
+          for i = 1:RS.NJ
+            subplot(2,3,i); hold on;
             plot(100*progr_ep, Stats_ep.Q_norm(1:Stats_ep.iter+1,i));
             plot(100*progr_traj, Q_ii_norm(:,i));
             ylabel(sprintf('q %d (norm)', i)); grid on;
@@ -594,8 +494,8 @@ for robnr = 1:4
           
           % Bild: Gelenk-Geschwindigkeiten
           change_current_figure(11);clf;set(11,'Name','qD','NumberTitle','off');
-          for i = 1:RP.NJ
-            subplot(6,6,i); hold on;
+          for i = 1:RS.NJ
+            subplot(2,3,i); hold on;
             plot(100*progr_traj, QD_ii_norm(:,i));
             ylabel(sprintf('qD %d (norm)', i)); grid on;
             xlabel('Fortschritt in %');
@@ -609,8 +509,8 @@ for robnr = 1:4
           
           % Bild: Gelenk-Beschleunigungen
           change_current_figure(12);clf;set(12,'Name','qDD','NumberTitle','off');
-          for i = 1:RP.NJ
-            subplot(6,6,i); hold on;
+          for i = 1:RS.NJ
+            subplot(2,3,i); hold on;
             plot(100*progr_traj, QDD_ii_norm(:,i));
             ylabel(sprintf('qDD %d (norm)', i)); grid on;
             xlabel('Fortschritt in %');
@@ -624,7 +524,7 @@ for robnr = 1:4
           
           % Bild: Zielkriterien (Zeitverlauf)
           change_current_figure(2);clf;set(2,'Name','h','NumberTitle','off');
-          for i = 1:4
+          for i = 1:3
             subplot(2,2,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+i));
             plot(100*progr_traj, Stats_traj.h(:,1+I_wn_traj(i)));
@@ -651,29 +551,6 @@ for robnr = 1:4
             saveas(25, fullfile(respath, [filename_pre,'RedKoordX.fig']));
             saveas(25, fullfile(respath, [filename_pre,'RedKoordX.png']));
           end
-          
-          % Bild: Konsistenz von Beschleunigung und Geschwindigkeit
-%           Q_int = cumtrapz(Traj_t, QD_ii) + repmat(Q_ii(1,:),length(Traj_t),1);
-%           QD_int = cumtrapz(Traj_t, QDD_ii) + repmat(QD_ii(1,:),length(Traj_t),1);
-%           change_current_figure(4);clf;
-%           for i = 1:RP.Leg(1).NJ % Für alle Beinketten reicht der Platz nicht
-%             subplot(3,RP.Leg(1).NJ,sprc2no(3,RP.Leg(1).NJ,1,i)); hold on;
-%             plot(Traj_t, Q_ii(:,i));
-%             plot(Traj_t, Q_int(:,i));
-%             title(sprintf('q %d', i)); grid on;
-%             if i == RP.Leg(1).NJ, legend({'direkt', 'Integral'}); end
-%             subplot(3,RP.Leg(1).NJ,sprc2no(3,RP.Leg(1).NJ,2,i)); hold on;
-%             plot(Traj_t, QD_ii(:,i));
-%             plot(Traj_t, QD_int(:,i));
-%             if i ==RP.Leg(1).NJ, legend({'direkt', 'Integral'}); end
-%             title(sprintf('qD %d', i)); grid on;
-%             subplot(3,RP.Leg(1).NJ,sprc2no(3,RP.Leg(1).NJ,3,i)); hold on;
-%             plot(Traj_t, QDD_ii(:,i));
-%             title(sprintf('qDD %d', i)); grid on;
-%             xlabel('Virt. Zeit in s');
-%           end
-%           linkxaxes
-%           sgtitle('Konsistenz q');
         end
         
         % Bild: Roboter
@@ -682,10 +559,10 @@ for robnr = 1:4
           set(100,'Name','Rob','NumberTitle','off');
           title(sprintf('Roboter in Punkt %d', k));
           hold on;grid on;
-          xlabel('x in m');ylabel('y in m');zlabel('z in m');
+          xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
           view(3);
           s_plot = struct( 'straight', 0);
-          RP.plot( qs, xs, s_plot );
+          RS.plot( qs, s_plot );
           plot3(XL(:,1), XL(:,2), XL(:,3), 'k+');
           if usr_save_figures
             saveas(100, fullfile(respath, [filename_pre,'Robot.fig']));
@@ -696,13 +573,13 @@ for robnr = 1:4
         % In Zielfunktions-Bild eintragen
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
           change_current_figure(20);clf;set(20,'Name','h_x6','NumberTitle','off');
-          for jj = 1:4
+          for jj = 1:3
             subplot(2,2,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,jj));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj})); grid on;
             xlabel('x6 in deg');
           end
-          for jj = find(s_ep_ii.wn(1:4)~=0)'
+          for jj = find(s_ep_ii.wn(1:3)~=0)'
             subplot(2,2,jj); hold on;
             % Debug: Ortskurve der Zwischenzustände einzeichnen
             hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_wn_traj(jj)), 'r+-');
@@ -751,9 +628,9 @@ for robnr = 1:4
               warning(['Es gibt nicht genug Zwischenschritte für ein ', ...
                 'flüssiges Video (%d Video-Bilder, %d IK-Schritte)'], length(I_anim), max(I_anim));
             end
-            s_plot = struct( 'ks_legs', [], 'straight', 0, 'mode', 4);
+            s_plot = struct( 'straight', 1, 'mode', 4);
             s_anim = struct('mp4_name', [fullfile(respath, [filename_pre, anim_name]),'.mp4'] );
-            RP.anim( Q_anim, X_anim, s_anim, s_plot);
+            RS.anim( Q_anim, X_anim, s_anim, s_plot);
           end
         end
         if raise_error_h && usr_raise_on_err
@@ -765,15 +642,15 @@ for robnr = 1:4
     fprintf('%d/%d Posen für Punkt %d geprüft. Bei restlichen IK nicht erfolgreich\n', ...
       num_ik_qs_successfull, length(x6_l_range), k);
   end % for k (Punkte)
-  fprintf('Berechnungen für Rob %d (%s) abgeschlossen\n', robnr, RP.mdlname);
+  fprintf('Berechnungen für Rob %d (%s) abgeschlossen\n', robnr, RS.mdlname);
   % Reduzieren auf tatsächliche Daten
   ResStat = ResStat(1:ii_restab,:);
   ResStat_Start = ResStat_Start(1:ii_restab_start,:);
   % Ergebnis für Roboter speichern
   writetable(ResStat, fullfile(respath, sprintf('Rob%d_%s_Stats_Nullspace.csv', ...
-    robnr, RP.mdlname)), 'Delimiter', ';');
+    robnr, RS.mdlname)), 'Delimiter', ';');
   writetable(ResStat_Start, fullfile(respath, sprintf('Rob%d_%s_Stats_IK.csv', ...
-    robnr, RP.mdlname)), 'Delimiter', ';');
+    robnr, RS.mdlname)), 'Delimiter', ';');
   % Ergebnisse prüfen: Bei zu vielen Fehlern Abbruch.
   IK_success_ratio_start = sum(ResStat_Start.Erfolg==1)/size(ResStat_Start,1);
   fprintf('Die IK-Erfolgsquote liegt bei %1.1f%% (%d/%d Konfigurationen)\n', ...
@@ -789,7 +666,7 @@ for robnr = 1:4
   end
   fprintf('Die Nullraumbewegung war in %1.1f%% der Fälle optimal (%d/%d)\n', ...
     100*sum(ResStat.Error==0)/size(ResStat,1), sum(ResStat.Error==0), size(ResStat,1));
-  for ii = [2 4 6 8]
+  for ii = [2 4 6]
     ResStat_Filt = ResStat(ResStat.IK_Fall==ii,:);
     Nullspace_Error_ratio = sum(ResStat_Filt.Error~=0)/size(ResStat_Filt,1);
     if Nullspace_Error_ratio > 0.25 % TODO: Kann kleiner gewählt werden, wenn Parameter getuned sind.
