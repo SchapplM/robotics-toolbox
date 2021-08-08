@@ -31,7 +31,7 @@ RName='S6RRRRRR10V2_KUKA1';
 % serroblib_create_robot_csv_all
 % serroblib_generate_mapleinput({'S6RRRRRR10V2'})
 % serroblib_generate_code({'S6RRRRRR10V2'})
-
+% serroblib_create_template_functions({SName}, false);
 % Instanz der Roboterklasse erstellen
 
 RS = serroblib_create_robot_class(SName, RName);
@@ -54,6 +54,8 @@ xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
 
 RS.fkine(q0);
 RS.fkineEE(q0);
+RS.fkineEE_traj(q0', qD0', qDD0');
+RS.fkineEE2_traj(q0', qD0', qDD0');
 RS.jacobiR(q0);
 RS.jacobig(q0);
 RS.jacobit(q0);

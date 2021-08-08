@@ -120,6 +120,7 @@ classdef SerRob < RobBase
     invkintrajfcnhdl% Funktions-Handle für inverse Kinematik einer Trajektorie
     jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     dynparconvfcnhdl% Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+    fkintrajfcnhdl  % Funktions-Handle zum Aufruf der direkten Kinematik als Trajektorie
     all_fcn_hdl     % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
 
@@ -258,6 +259,7 @@ classdef SerRob < RobBase
       {'invdyntrajfcnhdl4', 'invdynJ_fixb_mdp_slag_vp_traj'}, ...
       {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
       {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
+      {'fkintrajfcnhdl', 'fkineEE_traj'}, ... 
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
       qunit_eng = cell(R.NJ,1);
       qunit_sci = cell(R.NJ,1);
@@ -450,6 +452,26 @@ classdef SerRob < RobBase
         if nargout < 3, continue; end % Keine Beschleunigung gefragt
         JaD = jacobiaD(R, Q(i,:)', QD(i,:)');
         XDD(i,:) = Ja*QDD(i,:)' + JaD*QD(i,:)';
+      end
+    end
+    function [X,XD,XDD] = fkineEE2_traj(R, Q, QD, QDD)
+      % Direkte Kinematik für komplette Trajektorie berechnen (als Datei)
+      % Eingabe:
+      % Q: Gelenkkoordinaten (Trajektorie)
+      % QD: Gelenkgeschwindigkeiten (Trajektorie)
+      % QDD: Gelenkbeschleunigung (Trajektorie)
+      %
+      % Ausgabe:
+      % X: EE-Lage bzgl Basis-KS (als Zeitreihe)
+      % XD, XDD: Zeitableitungen
+      if nargout <= 1
+        QD = NaN(size(Q)); QDD = QD;
+        X = R.fkintrajfcnhdl(Q, QD, QDD, R.pkin_gen, R.T_N_E, R.phiconv_W_E, uint8(R.I_EElink));
+      elseif nargout == 2
+        QDD = NaN(size(Q));
+        [X, XD] = R.fkintrajfcnhdl(Q, QD, QDD, R.pkin_gen, R.T_N_E, R.phiconv_W_E, uint8(R.I_EElink));
+      else
+        [X, XD, XDD] = R.fkintrajfcnhdl(Q, QD, QDD, R.pkin_gen, R.T_N_E, R.phiconv_W_E, uint8(R.I_EElink));
       end
     end
     function Ja = jacobia(R, q)

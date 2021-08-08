@@ -1,0 +1,63 @@
+% Direkte Kinematik für komplette Trajektorie berechnen
+%
+% Eingabe:
+% Q, QD, QDD:
+%   Gelenkkoordinaten, -geschwindigkeiten, beschleunigungen (Trajektorie)
+% pkin
+%   Kinematik-Parameter
+% T_N_E
+%   Transformationsmatrix EE-Segment-KS -> EE-KS
+% phiconv_W_E
+%   Winkelkonvention der Euler-Winkel Welt->End-Effektor. Siehe eul2r.m
+% I_EElink
+%   Nummer des Segmentes, an dem der EE befestigt ist (0=Basis)
+%
+% Ausgabe:
+% X, XD, XDD
+%   Endeffektorkoordinaten, -geschwindigkeiten, -beschleunigungen
+%   (Rotations-Komponente als Euler-Winkel und deren Zeitableitung,
+%   bezogen auf Basis-KS des Roboters)
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021-08
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+
+function [X, XD, XDD] = %RN%_fkineEE_traj(Q, QD, QDD, pkin, T_N_E, phiconv_W_E, I_EElink)
+
+%% Coder Information
+%#codegen
+%$cgargs {coder.newtype('double',[inf,%NQJ%]),
+%$cgargs coder.newtype('double',[inf,%NQJ%]),
+%$cgargs coder.newtype('double',[inf,%NQJ%]),
+%$cgargs zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0)}
+
+assert(size(Q,2) == %NQJ%, 'Q muss nt x %NQJ% sein');
+assert(size(QD,2) == %NQJ%, 'QD muss nt x %NQJ% sein');
+assert(size(QDD,2) == %NQJ%, 'QDD muss nt x %NQJ% sein');
+
+X = NaN(size(Q,1),6);
+XD = X; XDD = X;
+
+for i = 1:size(Q,1)
+  T_0_N_i = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(Q(i,:)', I_EElink, pkin);
+  T_0_E_i = T_0_N_i * T_N_E;
+  X(i,:) = [T_0_E_i(1:3,4); r2eul(T_0_E_i(1:3,1:3), phiconv_W_E)];
+  if nargout < 2, continue; end % Keine Geschwindigkeit gefragt
+  % Geometrische Jacobi-Matrix in analytische Jacobi umrechnen
+  Jg = %RN%_jacobig_sym_varpar(Q(i,:)', I_EElink, T_N_E(1:3,4), pkin);
+  Tw = euljac(X(i,4:6)', phiconv_W_E); % Euler-Transformationsmatrix
+  Ja = [Jg(1:3,:); Tw \ Jg(4:6,:)]; % analytische Jacobi-Matrix
+  XD(i,:) = Ja*QD(i,:)';
+  if nargout < 3, continue; end % Keine Beschleunigung gefragt
+  % Zeitableitung der geometrischen Jacobi-Matrix
+  JgD = %RN%_jacobigD_sym_varpar(Q(i,:)', QD(i,:)', I_EElink, T_N_E(1:3,4), pkin);
+  % Zeitableitung der Euler-Transformationsmatrix
+  TDw = euljacD(X(i,4:6)', XD(i,4:6)', phiconv_W_E);
+  % Zeitableitung der inversen Euler-Transformationsmatrix
+  TwD_inv = -Tw\TDw/Tw;
+  % Zeitableitung der analytischen Jacobi (Rotationsteil "e")
+  JeD = Tw\JgD(4:6,:) + TwD_inv *Jg(4:6,:);
+  % Zeitableitung analytische Jacobi komplett
+  JaD = [JgD(1:3,:); JeD];
+  XDD(i,:) = Ja*QDD(i,:)' + JaD*QD(i,:)';
+end
