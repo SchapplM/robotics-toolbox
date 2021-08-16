@@ -480,7 +480,7 @@ J_ax = NaN(sum(Rob_I_EE), sum(s.I_qa));
 q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
-dt = T(2)-T(1); % Init. fuer tpl
+dt = 0; % Initialisierung, wird überschrieben.
 Stats = struct('h', NaN(nt,1+7));
 h = zeros(7,1);
 
