@@ -1135,6 +1135,15 @@ classdef SerRob < RobBase
       end
       R.T_N_E = [[eul2r(R.phi_N_E, R.phiconv_N_E), R.r_N_E]; [0 0 0 1]];
     end
+    function update_EE_FG(R, ~, I_EE_Task)
+      % Aktualisiere die Aufgaben-Freiheitsgrade des Endeffektors
+      % Analog zur gleichnamigen Funktion in ParRob-Klasse
+      % Eingabe:
+      % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert).
+      %   Wird nicht beachtet, da einmalig bei Initialisierung gesetzt
+      % I_EE_Task [1x6] logical; Belegung der EE-FG der Aufgabe
+      R.I_EE_Task = I_EE_Task;
+    end
     function update_base(R, r_W_0, phi_W_0, phiconv_W_0)
       % Aktualisiere die Transformationsmatrix T_W_0 für die Basis
       % Eingabe:
