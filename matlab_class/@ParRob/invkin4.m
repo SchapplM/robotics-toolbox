@@ -83,7 +83,12 @@ if sum(R.I_EE) <= sum(R.I_EE_Task)
   % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
   s_user.wn(:) = 0;
 end
-
+% Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
+if s_user.wn(5) && (isempty(R.collchecks) || isempty(R.collbodies))
+  s_user.wn(5) = 0;
+  s_user.scale_coll = 0;
+  s_user.avoid_collision_finish = false;
+end
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 % Diese Reihenfolge ermöglicht für Kompilierung geforderte gleichbleibende 
 % Feldreihenfolge in Eingabevariablen

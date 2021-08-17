@@ -676,6 +676,12 @@ classdef SerRob < RobBase
         end
       end
       if length(s.wn) ~= 4, s.wn=[s.wn;zeros(4-length(s.wn),1)]; end
+      % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
+      if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
+        s.wn(4) = 0;
+        s.scale_coll = 0;
+        s.avoid_collision_finish = false;
+      end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(Tr0E_soll, q0, s);
