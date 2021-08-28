@@ -80,6 +80,7 @@ s_std = struct( ...
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1, ... % immer vollständigen Gelenkraum benutzen
   'wn', zeros(12,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'debug', false); % Zusätzliche Test-Berechnungen
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -233,9 +234,11 @@ end
 % koordinaten gerechnet. In Antriebskoordinaten weniger Rechenaufwand.
 thresh_ns_qa = s.thresh_ns_qa;
 % Vergleiche FG der Aufgabe und FG des Roboters
-if ~nsoptim
-  % Deaktiviere limits_qD_set, wenn es keinen Nullraum gibt
-  limits_qD_set = false;
+if ~taskred_rot % Bislang nur diese Redundanzart geprüft
+  % Keine Redundanz vorliegend
+  redundant = false;
+else
+  redundant = true;
 end
 % Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
 JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
@@ -325,7 +328,7 @@ for k = 1:nt
       J_x_inv = -Phi_q \ Phi_x;
     end
   end
-  if ~(nsoptim || limits_qD_set)
+  if ~(nsoptim || redundant)
     if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
         dof_3T2R % beliebige 3T2R-PKM
       qD_k = J_x_inv * xD_k(I_EE);
@@ -411,13 +414,18 @@ for k = 1:nt
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
   end
+  if nsoptim || redundant
+    % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss auch für
+    % Grenzkorrekturen weiter unten berechnet werden
+    N = (eye(NJ) - pinv(Phi_q)* Phi_q);
+    condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
+  end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
   qDD_N_pre = zeros(Rob.NJ, 1);
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
-    condPhi = cond(Phi_q);
     h(5) = condPhi;
     Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
     condJ = cond(Jinv_ax);
@@ -624,9 +632,6 @@ for k = 1:nt
       % Formel noch unklar. So erstmal halb geraten und passt nicht ganz.
       qDD_N_pre = qDD_N_pre / norm(J_q_qa);
     end
-    % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss immer
-    % berechnet werden (für Grenzkorrekturen weiter unten)
-    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
     % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
     % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
@@ -812,7 +817,7 @@ for k = 1:nt
   % wird aber zur Verbesserung der Robustheit auch zusätzlich noch unten
   % gemacht. Hat unten zur Folge, dass Verletzung von Positions- und
   % Geschwindigkeitsgrenzen nicht mit allen Mitteln verhindert werden
-  if nsoptim && limits_qDD_set
+  if redundant && limits_qDD_set
     delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
     delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
     if any([delta_ul_rel;delta_ll_rel] < 0)
@@ -833,7 +838,7 @@ for k = 1:nt
     end
   end
   
-  if nsoptim && limits_qD_set && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  if redundant && limits_qD_set && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
@@ -890,7 +895,7 @@ for k = 1:nt
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
-  if nsoptim && limits_q_set && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+  if redundant && limits_q_set && s.enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
