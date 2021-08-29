@@ -104,6 +104,8 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
       collcase = uint8(4);
     elseif any(cb.type(cc(i,1)) == [6,13]) && cb.type(cc(i,2)) == 15
       collcase = uint8(5); % Kapsel+Kugel (Basis-KS)
+    elseif any(cb.type(cc(i,2)) == [6,13]) && cb.type(cc(i,1)) == 15
+      collcase = uint8(6); % Kugel+Kapsel (Basis-KS)
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
     end
@@ -156,6 +158,8 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
           [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, [b1_cbparam,0.0]);
         case 5
           [di, coll_geom, ~, d_min] = collision_capsule_sphere(b1_cbparam, b2_cbparam);
+        case 6
+          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, b1_cbparam);
         otherwise
           error('Fall nicht definiert. Dieser Fehler darf gar nicht auftreten');
       end
@@ -180,12 +184,14 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
       if collcase == 1
         drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
         drawCapsule(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
-        plot3(pkol(:,1), pkol(:,2), pkol(:,3), '-kx', 'MarkerSize', 5, 'LineWidth', 3);
       elseif collcase == 5
         drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
         drawSphere(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
-        plot3(pkol(:,1), pkol(:,2), pkol(:,3), '-kx', 'MarkerSize', 5, 'LineWidth', 3);
+      elseif collcase == 6
+        drawCapsule(b2_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
+        drawSphere(b1_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
       end
+      plot3(pkol(:,1), pkol(:,2), pkol(:,3), '-kx', 'MarkerSize', 5, 'LineWidth', 3);
     end
   end
 end
