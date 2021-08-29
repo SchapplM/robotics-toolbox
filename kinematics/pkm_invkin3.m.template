@@ -821,13 +821,19 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     h(4) = cond(Jinv(s.I_qa,Rob_I_EE));
   end
-  if wn(5) ~= 0
-    [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
-      Tc_stack_PKM(:,4)', struct('collsearch', true));
-    h(5) = invkin_optimcrit_limits2(-min(colldist), ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-    if any(colldet)
-      Stats.coll = true;
+  if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
+    colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack_PKM(:,4)', struct('collsearch', true));
+    if any(colldet) % Jetzt Betrachtung der eigentlichen Kollisionskörper
+      [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks(colldet,:), ...
+        Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
+      h(5) = invkin_optimcrit_limits2(-min(colldist), ...
+        [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      if any(colldet)
+        Stats.coll = true;
+      end
+    else
+      h(5) = 0;
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];

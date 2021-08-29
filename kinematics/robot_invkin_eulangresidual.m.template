@@ -620,13 +620,19 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   Jdk = Jdk_voll(I_IK,:);
   h(3) = cond(Jdk);
-  if wn(4) ~= 0
-    [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
-      Tc_stack(:,4)', struct('collsearch', true));
-    h(4) = invkin_optimcrit_limits2(-min(colldist), ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-    if any(colldet)
-      Stats.coll = true;
+  if wn(4) ~= 0 % Berechnung muss genauso sein wie oben
+    colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack(:,4)', struct('collsearch', true));
+    if any(colldet) % Jetzt Betrachtung der eigentlichen Kollisionskörper
+      [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks(colldet,:), ...
+        Tc_stack(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
+      h(4) = invkin_optimcrit_limits2(-min(colldist), ...
+        [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      if any(colldet)
+        Stats.coll = true;
+      end
+    else
+      h(4) = 0;
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
