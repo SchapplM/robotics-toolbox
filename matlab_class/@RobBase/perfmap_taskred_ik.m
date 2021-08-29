@@ -166,6 +166,8 @@ end
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch
 s_ep_dummy.optimcrit_limits_hyp_deact = s.optimcrit_limits_hyp_deact;
+s_ep_dummy.Phit_tol = 1; % Deaktiviere Einhaltung einer IK-Toleranz. Es findet ...
+s_ep_dummy.Phir_tol = 1; % ... sowieso keine Bewegung statt.
 % Einstellung für IK bei globaler Diskretisierung über Trajektorie
 s_ep_glbdscr = s_ep; % leave as is (temporarily permit limit violations; no scaling until limit)
 s_ep_glbdscr.retry_limit = 10;
