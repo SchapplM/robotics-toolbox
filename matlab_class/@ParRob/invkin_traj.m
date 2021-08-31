@@ -417,7 +417,7 @@ for k = 1:nt
   if nsoptim || redundant
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss auch für
     % Grenzkorrekturen weiter unten berechnet werden
-    N = (eye(NJ) - pinv(Phi_q)* Phi_q);
+    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
     condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
   end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
