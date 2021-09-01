@@ -178,8 +178,10 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.optname = sprintf('dimsynth_energy_consistency_DoF_%dT%dR', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
       % Set.general.create_template_functions = true; % Debug
       Traj = Traj_W;
-      cds_start
+      cds_start(Set, Traj);
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
+      ds = load(fullfile(resmaindir, [Set.optimization.optname, '_settings.mat']));
+      Structures = ds.Structures;
       i_select = 0;
       for i = 1:length(Structures) % alle Ergebnisse durchgehen (falls mehrere theta-Varianten)
         resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Details.mat', Structures{i}.Number, PName));
