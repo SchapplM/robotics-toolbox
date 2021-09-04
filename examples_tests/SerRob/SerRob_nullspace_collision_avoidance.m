@@ -239,9 +239,18 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung nicht erf
 [coll_CAPD, dist_CAPD] = check_collisionset_simplegeom(RS.collbodies, ...
   RS.collchecks, JP_CAPD, struct('collsearch', false));
 
+% Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler, größerer
+% Aktivitätsbereich der Kennzahl)
+s_traj_KollPDw = s_traj_KollPD;
+s_traj_KollPDw.collbodies_thresh = 2; % 100% größere Kollisionskörper für Aktivierung
+[Q_CAPDw, QD_CAPDw, QDD_CAPDw, PHI, JP_CAPDw, Stats_CAPDw] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollPDw);
+assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung (großer Aktivitätsbereich) nicht erfolgreich berechnet');
+[coll_CAPDw, dist_CAPDw] = check_collisionset_simplegeom(RS.collbodies, ...
+  RS.collchecks, JP_CAPDw, struct('collsearch', false));
+
 % Zeitverläufe plotten
-Namen = {'3T3R', '3T2R', 'CAP', 'CAPD'};
-for kk = 1:4
+Namen = {'3T3R', '3T2R', 'CAP', 'CAPD', 'CAPDw'};
+for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; CD_kk = dist_3T3R;
     h_kk = Stats_3T3R.h;
@@ -254,6 +263,9 @@ for kk = 1:4
   elseif kk == 4
     Q_kk = Q_CAPD; QD_kk = QD_CAPD; QDD_kk = QDD_CAPD; CD_kk = dist_CAPD;
     h_kk = Stats_CAPD.h;
+  elseif kk == 5
+    Q_kk = Q_CAPDw; QD_kk = QD_CAPDw; QDD_kk = QDD_CAPDw; CD_kk = dist_CAPDw;
+    h_kk = Stats_CAPDw.h;
   end
   change_current_figure(20); if kk == 1, clf; end
   for i = 1:RS.NJ
@@ -273,22 +285,22 @@ for kk = 1:4
     plot(T, QDD_kk(:,i));
     ylabel(sprintf('qDD %d', i)); grid on;
   end
-  if kk == 4
+  if kk == length(Namen)
     sgtitle('Gelenkbewegung');
     legend(Namen);
   end
   change_current_figure(21); if kk == 1, clf; end
   subplot(2,1,1); hold on;
   plot(T, min(CD_kk,[],2));
-  if kk == 4
+  if kk == length(Namen)
     ylabel('Abstand Kollisionskörper (<0 ist Koll.)'); grid on;
   end
   subplot(2,1,2); hold on;
   plot(T, h_kk(:,1+6));
-  if kk == 4
+  if kk == length(Namen)
     ylabel('Zielfunktion'); grid on;
   end
-  if kk == 4
+  if kk == length(Namen)
     sgtitle('Kollisionsprüfung');
     legend(Namen);
     xlim([0,T(end)]);
@@ -298,7 +310,7 @@ end
 
 %% Animation der Trajektorien-Bewegungen mit und ohne Kollisionsvermeidung
 if usr_create_anim
-for k = 1:4
+for k = 1:length(Namen)
   if k == 1
     Q_t_plot = Q_3T3R;
     filesuffix = 'no_collavoidance_3T3R';
@@ -315,6 +327,10 @@ for k = 1:4
     Q_t_plot = Q_CAPD;
     filesuffix = 'with_collavoidance_PD';
     plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance';
+  elseif k == 5
+    Q_t_plot = Q_CAPDw;
+    filesuffix = 'with_collavoidance_PD_wide';
+    plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance (early activation)';
   end
   t = (1:size(Q_t_plot,1))';
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden

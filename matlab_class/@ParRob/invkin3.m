@@ -69,6 +69,7 @@ s = struct(...
   'rng_seed', NaN, ...  % Initialwert für Zufallszahlengenerierung
   'scale_lim', 0, ... % Herunterskalierung bei Grenzüberschreitung
   'scale_coll', 0, ... % Herunterskalierung bei Kollision
+  'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
   'maxrelstep', 0.1, ... % Maximale Schrittweite relativ zu Grenzen
@@ -179,20 +180,20 @@ collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if scale_coll || wn(5) || avoid_collision_finish
-  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
+  % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
-    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
   % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
   % Kugeln und Zylindern)
-  maxcolldepth = 2*max([0; Rob.collbodies.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
-                        Rob.collbodies.params(collbodies_ns.type==13,7); ...
-                        Rob.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
+  maxcolldepth = 2*max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
+                        collbodies_ns.params(collbodies_ns.type==13,7); ...
+                        collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
   % erreicht werden (Probleme bei Gradientenbildung).
   maxcolldepth = 1.05*maxcolldepth;

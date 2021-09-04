@@ -81,6 +81,7 @@ s_std = struct( ...
   'thresh_ns_qa', 1, ... % immer vollständigen Gelenkraum benutzen
   'wn', zeros(12,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
+  'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'debug', false); % Zusätzliche Test-Berechnungen
 if nargin < 7
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -204,20 +205,20 @@ collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if any(wn(11:12))
-  % Kollisionskörper für die Kollisionserkennung 50% größer machen.
+  % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-    1.5*collbodies_ns.params(collbodies_ns.type==6,1);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
-    1.5*collbodies_ns.params(collbodies_ns.type==13,7);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
-    1.5*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
+    s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
   % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
   % hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
   % Kugeln und Zylindern)
-  maxcolldepth = 2*max([0;Rob.collbodies.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
-                        Rob.collbodies.params(collbodies_ns.type==13,7); ...
-                        Rob.collbodies.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
+  maxcolldepth = 2*max([0;collbodies_ns.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
+                        collbodies_ns.params(collbodies_ns.type==13,7); ...
+                        collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
   % erreicht werden (Probleme bei Gradientenbildung).
   maxcolldepth = 1.05*maxcolldepth;

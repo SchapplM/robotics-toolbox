@@ -662,6 +662,7 @@ classdef SerRob < RobBase
         'retry_on_limitviol', false, ... % Neuversuch auch, wenn Gelenkgrenzen verletzt werden
         'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+        'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
         'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
@@ -739,6 +740,7 @@ classdef SerRob < RobBase
          'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
          'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
          'collbodies', R.collbodies, ... % Liste der Kollisionskörper
+         'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
          'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
       if nargin == 7
         for f = fields(s_in)'

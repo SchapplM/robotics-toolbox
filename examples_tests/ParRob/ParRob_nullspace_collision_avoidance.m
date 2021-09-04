@@ -9,6 +9,7 @@
 
 clc
 clear
+close all
 
 usr_create_anim = false; % zum Aktivieren der Video-Animationen (dauert etwas)
 usr_test_class = true;
@@ -452,7 +453,7 @@ for k = 1:4
   RP.anim( Q_t_plot(I_anim,:), X_t_plot(I_anim,:), s_anim, s_plot);
 end
 end
-% end
+
 %% Trajektorien-IK mit Aufgabenredundanz
 % Definieren Trajektorie. Muss relativ geringe Geschwindigkeit haben, damit
 % Nullraumbewegung zur Kollisionsvermeidung noch gut funktioniert.
@@ -519,7 +520,7 @@ s_traj_Koll2.wn(12) = 1e-3; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_Koll2, QD_Koll2, QDD_Koll2, PHI, ~, ~, JP_Koll2, Stats_Koll2] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll2);
 if usr_test_class
-  [Q_Koll_2, QD_Koll2_2, QDD_Koll2_2, PHI_2, ~, ~, JP_Koll2_2, Stats_Koll2_2] = RP.invkin_traj(X,XD,XDD,T,q0,s_traj_Koll2);
+  [Q_Koll2_2, QD_Koll2_2, QDD_Koll2_2, PHI_2, ~, ~, JP_Koll2_2, Stats_Koll2_2] = RP.invkin_traj(X,XD,XDD,T,q0,s_traj_Koll2);
 end
 fprintf('Trajektorien-IK mit schwacher Kollisionsvermeidung berechnet. Dauer: %1.1fs\n', toc(t1));
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit Kollisionsvermeidung Var. 2 nicht erfolgreich berechnet');
@@ -530,12 +531,31 @@ if any(coll_Koll2(:))
   % funktioniert. Dann assert
   warning('Trotz Kollisionsvermeidung gibt es Kollisionen in Zwischenschritten');
 end
+
+% Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler, größerer
+% Aktivitätsbereich der Kennzahl)
+t1 = tic();
+s_traj_Koll3 = s_traj_Koll1;
+s_traj_Koll3.collbodies_thresh = 3; % 200% größere Kollisionskörper für Aktivierung
+RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
+[Q_Koll3, QD_Koll3, QDD_Koll3, PHI, ~, ~, JP_Koll3, Stats_Koll3] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll3);
+if usr_test_class
+  [Q_Koll3_2, QD_Koll3_2, QDD_Koll3_2, PHI_2, ~, ~, JP_Koll3_2, Stats_Koll3_2] = RP.invkin_traj(X,XD,XDD,T,q0,s_traj_Koll3);
+end
+fprintf('Trajektorien-IK mit starker Kollisionsvermeidung und früher Aktivierung berechnet. Dauer: %1.1fs\n', toc(t1));
+assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit Kollisionsvermeidung Var. 3 nicht erfolgreich berechnet');
+[coll_Koll3, dist_Koll3] = check_collisionset_simplegeom_mex(RP.collbodies, ...
+  RP.collchecks, JP_Koll3, struct('collsearch', false));
+if any(coll_Koll3(:)) % TODO: Mit assert
+  warning(['Trotz Kollisionsvermeidung (Var. 3) ', ...
+  'gibt es Kollisionen in Zwischenschritten']);
+end
 %% Debug-Plots für Trajektorien-IK
 % Definiere die vergrößerten Warn-Kollisionskörper nochmal neu. Muss
 % konsistent zu den IK-Funktionen sein.
 collbodies_ns = RP.collbodies;
 collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
-  1.5*collbodies_ns.params(collbodies_ns.type==6,1);
+  1.5*collbodies_ns.params(collbodies_ns.type==6,1); % Faktor 1.5 Standard-Wert. In einer Variante auf 2 gesetzt
 collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
   1.5*collbodies_ns.params(collbodies_ns.type==13,7);
 collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
@@ -550,7 +570,7 @@ maxcolldepth = 1.05*maxcolldepth;
 collobjdist_thresh = 0.15*maxcolldepth;
 
 t1 = tic();
-Namen = {'3T3R', '3T2R', 'CollAvoid1', 'CollAvoid2'};
+Namen = {'3T3R', '3T2R', 'CollAvoid1', 'CollAvoid2', 'CollAvoid3'};
 for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; JP_all_kk = JP_3T3R;
@@ -564,6 +584,9 @@ for kk = 1:length(Namen)
   elseif kk == 4
     Q_kk = Q_Koll2; QD_kk = QD_Koll2; QDD_kk = QDD_Koll2; JP_all_kk = JP_Koll2;
     h_kk = Stats_Koll2.h;
+  elseif kk == 5
+    Q_kk = Q_Koll3; QD_kk = QD_Koll3; QDD_kk = QDD_Koll3; JP_all_kk = JP_Koll3;
+    h_kk = Stats_Koll3.h;
   end
 %   [colldet_kk, colldist_kk] = check_collisionset_simplegeom_mex(RP.collbodies, ...
 %     RP.collchecks, JP_all_kk, struct('collsearch', false));
@@ -650,9 +673,9 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Gelenkbeschleunigungen');
     legend(Namen);
+    linkxaxes
+    saveas(42, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QDD.fig'));
   end
-  linkxaxes
-  saveas(42, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QDD.fig'));
   change_current_figure(43);
   if kk == 1
     set(43, 'Name', 'TrajIK_Coll', 'NumberTitle', 'off');
@@ -681,9 +704,10 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Kollisionsprüfung');
     legend(Namen);
+    linkxaxes
+    saveas(43, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Koll.fig'));
   end
-  linkxaxes
-  saveas(43, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Koll.fig'));
+  
   change_current_figure(44);
   if kk == 1
     set(44, 'Name', 'TrajIK_X', 'NumberTitle', 'off');
@@ -709,16 +733,16 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Plattform-Koordinaten (Beinkette 1)');
     legend(Namen);
+    linkxaxes
+    saveas(44, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_X.fig'));
   end
-  linkxaxes
-  saveas(44, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_X.fig'));
 end
 fprintf(['Debug-Bilder für Trajektorien-IK generiert. Dauer: %1.1fs. ', ...
   'Gespeichert nach %s\n'], toc(t1), resdir);
 
 %% Animation der Trajektorien-Bewegungen mit und ohne Kollisionsvermeidung
 if usr_create_anim
-for k = 1:4
+for k = 1:length(Namen)
   if k == 1
     Q_t_plot = Q_3T3R;
     filesuffix = 'no_collavoidance_3T3R';
@@ -735,6 +759,10 @@ for k = 1:4
     Q_t_plot = Q_Koll2;
     filesuffix = 'with_collavoidance_weak';
     plottitle = 'Inverse Kinematics with Weak Collision Avoidance';
+  elseif k == 5
+    Q_t_plot = Q_Koll1;
+    filesuffix = 'with_collavoidance_strong_early';
+    plottitle = 'Inverse Kinematics with Strong and Early Collision Avoidance';
   end
   X_t_plot = RP.fkineEE2_traj(Q_t_plot);
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden
