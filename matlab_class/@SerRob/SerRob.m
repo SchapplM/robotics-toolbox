@@ -68,6 +68,8 @@ classdef SerRob < RobBase
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
     collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
     collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
+    collbodies_instspc % Struktur mit Ersatzkörpern zur Bauraumprüfung
+    collchecks_instspc % Liste von zu prüfenden Kollisionen in `collbodies_instspc`
   end
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
@@ -316,6 +318,11 @@ classdef SerRob < RobBase
       % Liste der Kollisionsprüfungen. Enthält zwei Spalten mit Index der
       % Kollisionsobjekte aus R.collbodies.
       R.collchecks = uint8(zeros(0,2));
+      % Zusätzliche virtuelle Kollisionsobjekte für Prüfung des Bauraums.
+      % Die Prüfung erfolgt umgekehrt: Die Körper des Roboters müssen
+      % innerhalb liegen
+      R.collbodies_instspc = R.collbodies;
+      R.collchecks_instspc = R.collchecks;
     end
     
     function mex_dep(R, force)
@@ -663,7 +670,10 @@ classdef SerRob < RobBase
         'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
         'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
-        'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
+        'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
+        'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
+        'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)
+        'collchecks_instspc', R.collchecks_instspc); % Prüfungen
       % Alle Standard-Einstellungen mit in s_in übergebenen Einstellungen
       % überschreiben. Diese Reihenfolge ermöglicht für Kompilierung
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen
@@ -676,7 +686,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 4, s.wn=[s.wn;zeros(4-length(s.wn),1)]; end
+      if length(s.wn) ~= 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
         s.wn(4) = 0;
@@ -741,7 +751,10 @@ classdef SerRob < RobBase
          'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
          'collbodies', R.collbodies, ... % Liste der Kollisionskörper
          'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
-         'collchecks', R.collchecks); % Liste der zu prüfenden Kollisionsfälle
+         'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
+         'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
+         'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)
+         'collchecks_instspc', R.collchecks_instspc); % Prüfungen
       if nargin == 7
         for f = fields(s_in)'
           if ~isfield(s, f{1})
@@ -751,7 +764,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 10, s.wn=[s.wn;zeros(10-length(s.wn),1)]; end
+      if length(s.wn) < 12, s.wn=[s.wn;zeros(12-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

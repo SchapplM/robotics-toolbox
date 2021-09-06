@@ -9,11 +9,12 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %   Auswahl der Einstellungen:	
-%   .wn [4x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [5x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Jacobi-Matrix
 %     (4) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%     (5) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
 %
 % Ausgabe:
 % q [%NQJ% x 1]
@@ -27,8 +28,7 @@
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
 %   .PHI (n+1)x6: Residuum
-%   .h (n+1x3): Leistungsmerkmale: (1) quadratischer Abstand von Grenzen,
-%     (2) hyperbolischer Abstand von Grenzen, (3) Konditionszahl Jacobi
+%   .h (n+1x6): Leistungsmerkmale: siehe Reihenfolge in Eingabefeld "wn"
 %   .condJ (n+1x1): Konditionszahl der IK-Jacobi-Matrix
 
 % Quelle:
@@ -45,7 +45,7 @@
 
 % %VERSIONINFO%
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s)
 
@@ -62,7 +62,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(4,1),
+%$cgargs              'wn', zeros(5,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'scale_coll', 0,
@@ -85,7 +85,13 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
-%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]))}
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
+%$cgargs 'installspace_thresh', 0.1, 
+%$cgargs  'collbodies_instspc', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]))}
 
 %% Initialisierung
 
@@ -123,6 +129,9 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
   wn(4) = 0; % Deaktivierung der Kollisionsvermeidung
   scale_coll = 0;
   avoid_collision_finish = false;
+end
+if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
+  wn(5) = 0; % Deaktivierung der Bauraumprüfung
 end
 if scale_coll || wn(4) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
@@ -205,7 +214,7 @@ Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
-h = zeros(4,1); h_alt = inf(4,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
 
 % Ausgabe belegen
 success = false;
@@ -213,7 +222,7 @@ success = false;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+4), 'coll', false);
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5), 'coll', false);
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -345,6 +354,51 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
       else
         h(4) = 0; % Keine Kollisionen, Eindringtiefe Null. Keine Betrachtung der Abstände.
+      end
+      if wn(5) ~= 0 % Bauraumeinhaltung
+        hdq = zeros(1,NQJ);
+        % Inkremente der Gelenkwinkel bilden. Dafür die Gelenkpositionen
+        % bestimmen (für Kollisionsprüfung)
+        JP_test = NaN(1+NQJ,size(Tc_stack,1));
+        JP_test(1,:) = Tc_stack(:,4)';
+        for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q1; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          % Bestimme Änderung der Gelenkpositionen mit diesem Inkrement
+          [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+          JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
+        end
+        [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+          s.collchecks_instspc, JP_test, struct('collsearch', false));
+        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+        mindist_all = -inf(size(JP_test,1),1);
+        for i = 1:size(s.collbodies_instspc.link,1)
+          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+          I = s.collchecks_instspc(:,1) == i; % erste Spalte für Roboter-Obj.
+          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+          mindist_i = min(absdist(:,I),[],2);
+          % Nehme den schlechtesten Wert von allen Objekten
+          mindist_all = max([mindist_i,mindist_all],[],2);
+        end
+        % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
+        % positiver ist außerhalb (schlecht). Größter positiver Wert
+        % maßgeblich
+        h(5) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+          [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+          [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+        for kkk = 1:NQJ
+          % Kriterium für Inkrement berechnen
+          h5_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ...
+            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+          % Differenzenquotient
+          hdq(kkk) = (h5_test-h(5))/1e-6;
+        end
+        % Zu Nullraum-Vektor hinzufügen
+        v = v - wn(5)*hdq';
+      else
+        h(5) = 0;
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       N = (eye(NQJ) - pinv(Jdk)* Jdk);
@@ -577,7 +631,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;wn(4)]; % Nutze nur die hyperbolische Funktion des Abstands (und die Kollisionserkennung, falls vorher aktiv)
+        wn = [0;1;0;wn(4);wn(5)]; % Nutze nur die hyperbolische Funktion des Abstands (und die Kollisionserkennung, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -637,6 +691,19 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     else
       h(4) = 0;
     end
+  end
+  if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
+    [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+      s.collchecks_instspc, Tc_stack(:,4)', struct('collsearch', false));
+    mindist_all = -inf;
+    for i = 1:size(s.collbodies_instspc.link,1)
+      I = s.collchecks_instspc(:,1) == i;
+      if ~any(I), continue; end
+      mindist_i = min(absdist(:,I),[],2);
+      mindist_all = max([mindist_i,mindist_all],[],2);
+    end
+    h(5) = invkin_optimcrit_limits2(mindist_all, ...
+      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

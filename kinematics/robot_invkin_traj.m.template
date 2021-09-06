@@ -36,6 +36,8 @@
 %     (8) Wie Eintrag 5, aber auf Geschwindigkeitsebene
 %     (9) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
 %    (10) wie 9, aber auf Geschwindigkeitsebene
+%    (11) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%    (12) wie 11, aber auf Geschwindigkeitsebene
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -94,7 +96,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs 'optimcrit_limits_hyp_deact', 0.9,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(10,1),
+%$cgargs              'wn', zeros(12,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
@@ -107,7 +109,13 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
-%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]))}
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]), 
+%$cgargs 'installspace_thresh', 0.1, 
+%$cgargs  'collbodies_instspc', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]))}
 
 %% Initialisierung
 % Vorbelegung der Ausgabe
@@ -192,6 +200,9 @@ collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
   wn(9:10) = 0; % Deaktivierung der Kollisionsvermeidung
 end
+if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
+  wn(11:12) = 0; % Deaktivierung der Bauraumprüfung
+end
 if any(wn(9:10))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
@@ -231,7 +242,7 @@ s_pik = struct( ...
   'T_N_E', s.T_N_E, ...
   'K', s.K, ...
   'Kn', zeros(%NQJ%,1), ... % Keine Nullraumoptimierung sinnvoll. ...
-  'wn', zeros(4,1), ... % ... Wird in Traj. gemacht.
+  'wn', zeros(5,1), ... % ... Wird in Traj. gemacht.
   'maxstep_ns', 0, ... % keine Bedeutung, da keine Nullraumbewegung möglich
   'scale_lim', 0, ... % Herunterskalieren nicht sinnvoll ...
   'scale_coll', 0, ... % (da keine Nullraum-Bewegung)
@@ -249,18 +260,23 @@ s_pik = struct( ...
   'Phir_tol', s.Phir_tol, ...
   'retry_on_limitviol', false, ... % nicht sinnvoll
   'retry_limit', 0, ...
-  'collbodies', struct(... % Keine Kollisionskörper in Einzepunkt-IK...
+  'collbodies', struct(... % Keine Kollisionskörper in Einzelpunkt-IK...
     'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
     'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
     'params', zeros(0,10)), ...
   'collbodies_thresh', 1.5, ... % keine Wirkung
-  'collchecks', uint8(zeros(0,2)));
-
+  'collchecks', uint8(zeros(0,2)), ...
+  'installspace_thresh', 0.100, ... % keine Wirkung
+  'collbodies_instspc', struct(... % Keine Bauraumprüfung in Einzelpunkt-IK...
+    'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
+    'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
+    'params', zeros(0,10)), ...
+  'collchecks_instspc', uint8(zeros(0,2)));
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(NQJ,1);
-% Gradient von Nebenbedingung 5 und 6
-h5dq = NaN(1,NQJ); h6dq = NaN(1,NQJ);
+% Gradient von Nebenbedingung 5, 6 und 7
+h5dq = NaN(1,NQJ); h6dq = NaN(1,NQJ); h7dq = NaN(1,NQJ);
 
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
@@ -272,8 +288,8 @@ qDD_N_pre1 = zeros(NQJ,1);
 N = zeros(NQJ,NQJ);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+6));
-h = zeros(6,1);
+Stats = struct('h', NaN(nt,1+7));
+h = zeros(7,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
   Tr0E_k = [eul2r(X(k,4:6)', s.phiconv_W_E), X(k,1:3)'];
@@ -470,6 +486,79 @@ for k = 1:nt
       else
         h(6) = 0;
       end
+    end
+    if wn(11) ~= 0 || wn(12) ~= 0 % Bauraumprüfung
+      if NQJ - sum(I_EE) == 1 && ~I_EE(end) % Aufgabenredundanz
+        % Gelenkpositionen für Kollisionsprüfung bilden
+        JP_test = NaN(1+1,size(Tc_stack_k,1));
+        JP_test(1,:) = Tc_stack_k(:,4)';
+        % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
+        % Numerischer Differenzenquotient aus Bewegung in EE-z-Drehung.
+        xD_test = [zeros(5,1);1e-6];
+        qD_test = J_x\xD_test;
+        [~, Tc_stack_test] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_k+qD_test, pkin);
+        JP_test(1+1,:) = Tc_stack_test(:,4);
+        [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+          s.collchecks_instspc, JP_test, struct('collsearch', false));
+        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+        mindist_all = -inf(size(JP_test,1),1);
+        for i = 1:size(s.collbodies_instspc.link,1)
+          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt j
+          I = s.collchecks_instspc(:,1) == i; % erste Spalte für Roboter-Obj.
+          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+          mindist_i = min(absdist(:,I),[],2);
+          % Nehme den schlechtesten Wert von allen Objekten
+          mindist_all = max([mindist_i,mindist_all],[],2);
+        end
+        % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
+        % positiver ist außerhalb (schlecht). Größter positiver Wert
+        % maßgeblich
+        h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+          [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+          [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+        h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
+          [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+        % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+        h7drz = (h7_test - h(7))/1e-6;
+        % Umrechnung auf Gelenke mit Jacobi-Matrix
+        h7dq = h7drz*J_x(end,:);
+      else
+        % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
+        % Bilde Differenzenquotient in allen Gelenkachsen (siehe oben)
+        JP_test = NaN(1+NQJ,size(Tc_stack_k,1));
+        JP_test(1,:) = Tc_stack_k(:,4)';
+        for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
+          q_test = q_k; % ausgehend von aktueller Konfiguration
+          q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+          JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
+        end
+        % Kollisionsprüfung für alle Gelenkpositionen auf einmal
+        [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+          s.collchecks_instspc, JP_test, struct('collsearch', false));
+        mindist_all = -inf(size(JP_test,1),1);
+        for i = 1:size(s.collbodies_instspc.link,1)
+          I = s.collchecks_instspc(:,1) == i;
+          if ~any(I), continue; end
+          mindist_i = min(absdist(:,I),[],2);
+          mindist_all = max([mindist_i,mindist_all],[],2);
+        end
+        h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+          [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+        for kkk = 1:NQJ
+          % Kriterium für Inkrement berechnen
+          h7_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
+            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+          % Differenzenquotient
+          h7dq(kkk) = (h7_test'-h(7))/1e-6;
+        end
+      end
+      v_qD = v_qD - wn(12)*h7dq';
+      v_qDD = v_qDD - wn(11)*h7dq';
+    else
+      h(7) = 0;
     end
     % Begrenze die Werte für die Gradienten (können direkt an Grenzen
     % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
@@ -675,7 +764,7 @@ for k = 1:nt
   
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  Stats.h(k,:) = [sum(wn(1:6).*h(1:6)),h(1:6)'];
+  Stats.h(k,:) = [sum(wn([1:5,9,11]).*h(1:7)),h(1:7)'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
