@@ -951,7 +951,7 @@ for k = 1:nt
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
-      if any(abs(v_qD)>1e6),  v_qD  = v_qD* 1e6/max(abs(v_qD));  end
+      if any(abs(v_qD)>1e3),  v_qD  = v_qD* 1e3/max(abs(v_qD));  end
       if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
       if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE) || debug
@@ -1046,10 +1046,6 @@ for k = 1:nt
         scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
       end
       qDD_N_pre = scale*qDD_N_pre;
-      % Reduktion der Beschleunigung auf Altwert für gewünschte Nullraum-
-      % geschwindigkeit übertragen. Entspricht Anti-Windup für Integrator.
-      qaD_N_pre_alt = qaD_N_pre_alt - (1-scale)*qaDD_N_pre1*dt;
-      qD_N_pre_alt = qD_N_pre_alt - (1-scale)*qDD_N_pre1*dt;
     end
   end
   
