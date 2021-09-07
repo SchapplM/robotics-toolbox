@@ -25,7 +25,7 @@
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext dieser Funktion und
 %   von `%RN%_invkin_eulangresidual` sowie aufrufende Methode aus
 %   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
-%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [12x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte

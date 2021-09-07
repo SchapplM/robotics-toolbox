@@ -19,18 +19,25 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
-%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [12x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%         (entspricht h(1))
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%         (entspricht h(2))
 %     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
+%         (entspricht h(3))
 %     (4) Hyperbolischer Abstand der Gelenkgeschwindigkeiten von ihren Grenzen
+%         (entspricht h(4))
 %     (5) Konditionszahl der geometrischen Matrix der Inv. Kin.
+%         (entspricht h(5))
 %     (6) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
+%         (entspricht h(6))
 %     (7) Wie Eintrag 1, aber auf Geschwindigkeitsebene
 %     (8) Wie Eintrag 2, aber auf Geschwindigkeitsebene
 %     (9) Wie Eintrag 5, aber auf Geschwindigkeitsebene
 %    (10) Wie Eintrag 6, aber auf Geschwindigkeitsebene
 %    (11) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%         (entspricht h(7))
 %    (12), wie 11, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
@@ -55,7 +62,9 @@
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
+%      Kriterien, siehe Beschreibung von Eingabe wn)
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
@@ -611,8 +620,8 @@ for k = 1:nt
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h7drz = (h7_test-h(7))/xD_test(6);
           h7dqa = h7drz * J_ax(end,:);
-          v_qaD = v_qaD - wn(10)*h7dqa(:);
-          v_qaDD = v_qaDD - wn(6)*h7dqa(:);
+          v_qaD = v_qaD - wn(12)*h7dqa(:);
+          v_qaDD = v_qaDD - wn(11)*h7dqa(:);
         else
           h(7) = 0;
         end
