@@ -356,9 +356,6 @@ classdef ParRob < RobBase
       s_ser = struct( ...
         'reci', false, ... % Keine reziproken Winkel für ZB-Def.
         'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
-        'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
-        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
-        'maxstep_ns', 1e-10, ... % Abbruchbedingung für Nullraumbewegung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°
@@ -383,7 +380,6 @@ classdef ParRob < RobBase
           end
         end
       end
-      s_ser.wn = [s_ser.wn;zeros(4-length(s_ser.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat. Siehe SerRob/invkin2
       if nargin == 5 && ~isempty(s_in_par)
         for ff = fields(s_in_par)'
           if ~isfield(s_par, ff{1})
