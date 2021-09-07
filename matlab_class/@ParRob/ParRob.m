@@ -1740,8 +1740,9 @@ classdef ParRob < RobBase
               pts_0 = [eye(3,4)*T_0_0i*[pts_0i(1:3)';1]; ...   % Punkt 1
                        eye(3,4)*T_0_0i*[pts_0i(4:6)';1]]'; ... % Punkt 2
               % Als bezüglich PKM-Basis eintragen
-              R.collbodies.params(j,1:6) = pts_0;
-              R.collbodies.type(j) = 13;
+              R_collbodies.params(j,1:6) = pts_0;
+              R_collbodies.type(j) = 13;
+              R_collbodies.link(j,:) = 0;
             end
           end
         end
