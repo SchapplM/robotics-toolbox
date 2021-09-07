@@ -19,7 +19,7 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
-%   .wn [12x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [14x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %         (entspricht h(1))
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
@@ -39,6 +39,9 @@
 %    (11) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
 %         (entspricht h(7))
 %    (12), wie 11, aber auf Geschwindigkeitsebene
+%    (13) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%         (entspricht h(8))
+%    (14) wie 13, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
 % Q
@@ -95,7 +98,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs    'simplify_acc', false,
 %$cgargs         'mode_IK', 2,
 %$cgargs           'debug', false,
-%$cgargs              'wn', zeros(12,1),
+%$cgargs              'wn', zeros(14,1),
 %$cgargs    'thresh_ns_qa', 1,
 %$cgargs  'optimcrit_limits_hyp_deact', 0.9, 
 %$cgargs      'collbodies', struct(
@@ -104,6 +107,12 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
+%$cgargs 'installspace_thresh', 0.1, 
+%$cgargs 'collbodies_instspc', struct(
+%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
+%$cgargs                    'params', coder.newtype('double',[inf,10])),
+%$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]),
 %$cgargs  'I_constr_t_red', coder.newtype('double',[1,inf]),
 %$cgargs  'I_constr_r_red', coder.newtype('double',[1,inf]),
 %$cgargs    'I1constr_red', zeros(1,%NLEG%),
@@ -353,7 +362,7 @@ s_tpl = struct(...
            'sigma', s.sigma,...
                'K', repmat(s_ser.K,NLEG,1),...
               'Kn', zeros(NQJ*NLEG,1),...
-              'wn', zeros(5,1),...
+              'wn', zeros(6,1),...
       'maxstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
        'normalize', s_ser.normalize,...
       'condlimDLS', s_ser.condlimDLS, ... 
@@ -378,6 +387,12 @@ s_tpl = struct(...
                'params', zeros(0,10)), ...
 'collbodies_thresh', 1.5, ... % keine Wirkung
       'collchecks', uint8(zeros(0,2)), ...
+'installspace_thresh', 0, ... % keine Wirkung
+'collbodies_instspc', struct(... % Keine Kollisionskörper in Einzelpunkt-IK...
+               'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
+               'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
+               'params', zeros(0,10)), ...
+'collchecks_instspc', uint8(zeros(0,2)), ...
            'debug', s.debug, ...
       'I_constr_t', s.I_constr_t,...
       'I_constr_r', s.I_constr_r,...
@@ -493,8 +508,8 @@ q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 dt = 0; % Initialisierung, wird überschrieben.
-Stats = struct('h', NaN(nt,1+7));
-h = zeros(7,1);
+Stats = struct('h', NaN(nt,1+8));
+h = zeros(8,1);
 
 for k = 1:nt
   tic();
@@ -837,6 +852,36 @@ for k = 1:nt
           h(7) = 0;
         end
       end
+      if wn(13) ~= 0 || wn(14) ~= 0 % Bauraumprüfung
+        JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
+        [~, JP_test(2,:)] = %PN%_fkine_coll(q_k+qD_test, s_fkinecoll);
+        % Bauraumprüfung für alle Gelenkpositionen auf einmal
+        [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+          s.collchecks_instspc, JP_test, struct('collsearch', false));
+        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+        mindist_all = -inf(size(JP_test,1),1);
+        for i = 1:size(s.collbodies_instspc.link,1)
+          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+          I = s.collchecks_instspc(:,1) == i; % erste Spalte für Roboter-Obj.
+          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+          mindist_i = min(absdist(:,I),[],2);
+          % Nehme den schlechtesten Wert von allen Objekten
+          mindist_all = max([mindist_i,mindist_all],[],2);
+        end
+        % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
+        h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+            [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+            [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+        h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
+            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+        % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+        h8drz = (h8_test-h(8))/xD_test(6);
+        h8dqa = h8drz * J_ax(end,:);
+        v_qaD = v_qaD - wn(14)*h8dqa(:);
+        v_qaDD = v_qaDD - wn(13)*h8dqa(:);
+      end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -953,6 +998,36 @@ for k = 1:nt
         else
           h(7) = 0;
         end
+      end
+      if wn(13) ~= 0 || wn(14) ~= 0 % Bauraumprüfung
+        JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
+        [~, JP_test(2,:)] = %PN%_fkine_coll(q_k+qD_test, s_fkinecoll);
+        % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
+        % nur die Fälle, bei denen die vergrößerten Objekte bereits eine
+        % Kollision angezeigt haben.
+        [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
+          s.collchecks_instspc, JP_test, struct('collsearch', false));
+        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+        mindist_all = -inf(size(JP_test,1),1);
+        for i = 1:size(s.collbodies_instspc.link,1)
+          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+          I = s.collchecks_instspc(:,1) == i; % erste Spalte für Roboter-Obj.
+          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+          mindist_i = min(absdist(:,I),[],2);
+          % Nehme den schlechtesten Wert von allen Objekten
+          mindist_all = max([mindist_i,mindist_all],[],2);
+        end
+        % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
+        h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+            [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+            [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+        h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
+            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+        h8dq = (h8_test-h(8))./(qD_test');
+        v_qD = v_qD - wn(14)*h8dq(:);
+        v_qDD = v_qDD - wn(13)*h8dq(:);
       end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
@@ -1215,7 +1290,7 @@ for k = 1:nt
     end
   end
   % TODO: Konsistente Reihenfolge in wn und h.
-  Stats.h(k,:) = [sum(wn([1:6,11]).*h),h(1:7)'];
+  Stats.h(k,:) = [sum(wn([1:6,11,13]).*h),h(1:8)'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

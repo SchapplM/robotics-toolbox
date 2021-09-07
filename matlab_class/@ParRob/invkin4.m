@@ -78,7 +78,7 @@ if nargin == 4 && ~isempty(s_in)
     end
   end
 end
-if length(s_user.wn) < 5, s_user.wn=[s_user.wn;zeros(5-length(s_user.wn),1)]; end
+if length(s_user.wn) < 6, s_user.wn=[s_user.wn;zeros(6-length(s_user.wn),1)]; end
 if sum(R.I_EE) <= sum(R.I_EE_Task)
   % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
   % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
@@ -136,6 +136,9 @@ s = struct(...
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', s_user.collbodies_thresh,...
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
+'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
+'collbodies_instspc', R.collbodies_instspc, ... % Ersatzkörper zur Bauraumprüfung
+'collchecks_instspc', R.collchecks_instspc, ... % Prüfliste für Bauraum
           'debug', s_user.debug,...
      'I_constr_t', R.I_constr_t,...
      'I_constr_r', R.I_constr_r,...
