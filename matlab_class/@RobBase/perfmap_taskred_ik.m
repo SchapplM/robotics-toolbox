@@ -161,9 +161,9 @@ s_ep.scale_lim = 0;
 s_ep_dummy = s_ep;
 s_ep_dummy.retry_limit = 0;
 if R.Type == 0
-  s_ep_dummy.wn = ones(4,1); % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn = ones(5,1); % hierdurch werden die Kriterien berechnet
 else
-  s_ep_dummy.wn = ones(5,1);
+  s_ep_dummy.wn = ones(6,1);
 end
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch

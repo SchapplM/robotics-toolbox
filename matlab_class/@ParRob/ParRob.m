@@ -153,6 +153,10 @@ classdef ParRob < RobBase
       % Kollisionsobjekte aus R.collbodies und danach R.Leg(1).collbodies
       % und allen weiteren Beinketten.
       R.collchecks = uint8(zeros(0,2));
+      % Platzhalter-Variablen auch für Bauraumprüfung
+      R.collbodies_instspc_nonleg = R.collbodies_nonleg;
+      R.collbodies_instspc = R.collbodies_nonleg;
+      R.collchecks_instspc = R.collchecks;
     end
     function [X,XD,XDD] = fkineEE_traj(R, Q, QD, QDD, idx_leg, platform_frame)
       % Direkte Kinematik für komplette Trajektorie berechnen. Basierend
