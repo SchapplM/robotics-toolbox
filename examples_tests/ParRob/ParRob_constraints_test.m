@@ -157,7 +157,8 @@ for NNN = RobotNames
       
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
-      for id = 1:length(q0) 
+      for id = 1:length(q0)
+        raiseerr = false;
         % Neue Koordinaten q1 durch Verschiebung in einer Komponente
         dq = zeros(length(q0),1);
         dq(id) = 1e-4;
@@ -192,7 +193,9 @@ for NNN = RobotNames
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test1) > 8e10*eps(1+max(abs(Phi1_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
+          warning(['%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 1; Delta q%d)'], PName, id);
+          raiseerr = true;
         end
         
         dPhi_grad2 = Phi2dq_0*dq;
@@ -202,7 +205,9 @@ for NNN = RobotNames
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test2) > 8e10*eps(max(1+abs(Phi2_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta q%d)', PName, id);
+          warning(['%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 2; Delta q%d)'], PName, id);
+          raiseerr = true;
         end  
         
         if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
@@ -214,8 +219,18 @@ for NNN = RobotNames
         I_abserr = abs(test3) > 8e10*eps(max(1+abs(Phi3_1))); % Absoluter Fehler über Toleranz
         I_nan = isnan(Phi3_0);
         if any( I_nan | I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta q%d)', PName, id);
+          warning(['%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 3; Delta q%d)'], PName, id);
+          raiseerr = true;
         end
+        end
+        if raiseerr
+          if cond(Phi3dq_0) > 1e3
+            warning(['Fehler aufgetreten, aber aufgrund der schlechten ', ...
+              'Kondition (%1.1e) numerisch unsicher'], cond(Phi3dq_0));
+          else
+            error('Ein Fehler ist aufgetreten (siehe vorherige Warnungen)');
+          end
         end
       end
       % Alle Komponenten der EE-Koordinaten einmal verschieben und
@@ -257,7 +272,8 @@ for NNN = RobotNames
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test1) > 8e10*eps(1+max(abs(Phi1_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta x%d)', PName, id);
+          error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 1; Delta x%d)'], PName, id);
         end
         
         dPhi_grad2 = Phi2dx_0*dx;
@@ -267,7 +283,8 @@ for NNN = RobotNames
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test2) > 8e10*eps(max(1+abs(Phi2_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 2; Delta x%d)', PName, id);
+          error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 2; Delta x%d)'], PName, id);
         end
         if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
         dPhi_grad3 = Phi3dx_0*dx;
@@ -277,7 +294,8 @@ for NNN = RobotNames
         I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
         I_abserr = abs(test3) > 8e10*eps(max(1+abs(Phi3_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
-          error('%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit Zwangsbedingungen überein (Var. 3; Delta x%d)', PName, id);
+          error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 3; Delta x%d)'], PName, id);
         end
         end
       end
