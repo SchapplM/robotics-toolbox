@@ -144,7 +144,6 @@ if s.verbose
 end
 % IK-Grundeinstellungen
 s_ik = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ... % sehr genau rechnen
-  'maxstep_ns', 1e-5, ... % Schrittweite für Nullraum-Inkremente gering halten
   'wn', [0;1], ... % keine Vorgabe von K oder Kn (Standard-Werte)
   'scale_lim', 0.7, ...
   'retry_limit', 0);
@@ -211,7 +210,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   for i = 1:size(X_ref,1) % loop trajectory samples
     t1_i = tic();
     % Get joint configurations using a virtual trajectory
-    if i > 1
+    if i > 1 && all(~isnan(Q_all_ii(1, :, i-1)))
       q0_j = Q_all_ii(1, :, i-1)';
     else
       q0_j = s.q0;
@@ -234,15 +233,21 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
       kk_add_count = 0;
       for kk = 1:size(Q_i,1)  % Trajektorie für jeden Punkt berechnen. Bei Abbruch Rest neu berechnen
         if any(isnan(Q_i(kk,:))) || any(abs(Phi_i(kk,:))>1e-6)
-          if kk == 1
-            q0_kk = s.q0;
+          if kk > 1 && ~all(isnan(Q_i(kk-1,:)))
+            q0_kk = Q_i(kk-1,:)'; % nehme vom vorherigen (oben/unten zu Anfangswert)
+          elseif i > 1 && ~all(isnan(Q_all_ii(kk, :, i-1)))
+            q0_kk = Q_all_ii(kk, :, i-1)'; % nehme von links daneben, falls verfügbar
           else
-            q0_kk = Q_i(kk-1,:)';
+            q0_kk = s.q0;
           end
           if R.Type == 0 %#ok<IFBDUP> % Seriell
-            [Q_i_add,~,~,Phi_i_add] = R.invkin2_traj(X_i_traj(kk:end,:), XD_i_traj(kk:end,:), XDD_i_traj(kk:end,:), T_i_traj(kk:end,:), q0_kk, s_traj_glbdscr); 
+            [Q_i_add,~,~,Phi_i_add] = R.invkin2_traj(X_i_traj(kk:end,:), ...
+              [zeros(1,6);XD_i_traj(kk+1:end,:)], XDD_i_traj(kk:end,:), ...
+              T_i_traj(kk:end,:), q0_kk, s_traj_glbdscr); 
           else % Parallel
-            [Q_i_add,~,~,Phi_i_add] = R.invkin2_traj(X_i_traj(kk:end,:), XD_i_traj(kk:end,:), XDD_i_traj(kk:end,:), T_i_traj(kk:end,:), q0_kk, s_traj_glbdscr); 
+            [Q_i_add,~,~,Phi_i_add] = R.invkin2_traj(X_i_traj(kk:end,:), ...
+              [zeros(1,6);XD_i_traj(kk+1:end,:)], XDD_i_traj(kk:end,:), ...
+              T_i_traj(kk:end,:), q0_kk, s_traj_glbdscr); 
           end
           Q_i(kk:end,:) = Q_i_add;  % alle weiteren ab NaN mit neuen Gelenkwinkeln belegen und weiter prüfen
           Phi_i(kk:end,:) = Phi_i_add;
@@ -257,18 +262,26 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
       for j = 1:length(phiz_range_ii)
         x_j = [X_ref(i,1:5), phiz_range_ii(j)]';
         q_j = Q_i(j,:)';
+        if ~all(abs(Phi_i(j,:)) < 1e-8), continue; end
         % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
         if R.Type == 0
-          [q_dummy, Phi, ~,Stats_dummy] = R.invkin2(R.x2tr(x_j), q_j, s_ep_dummy);
+          [q_dummy, ~, ~,Stats_dummy] = R.invkin2(R.x2tr(x_j), q_j, s_ep_dummy);
         else
-          [q_dummy, Phi, ~,Stats_dummy] = R.invkin4(x_j, q_j, s_ep_dummy);
+          [q_dummy, ~, ~,Stats_dummy] = R.invkin4(x_j, q_j, s_ep_dummy);
         end
         if any(abs(q_j - q_dummy) > 1e-8) % darf nicht sein (Logik-Fehler)
           error('IK-Ergebnis hat sich bei Test verändert');
         end
         Q_all_ii(j, :, i) = q_j;
-        if all(abs(Phi)<1e-6) % Bei IK-Fehlschlag NaN lassen.
-          H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+        H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+        % Bauraumverletzung und Kollision nochmal gesondert eintragen
+        if R.Type == 0, idxshift = 0; % Seriell
+        else, idxshift = 1; end % PKM
+        if H_all_ii(i,j,4+idxshift) > Stats_dummy.h_coll_thresh
+          H_all_ii(i,j,4+idxshift) = inf; % Kollision liegt vor
+        end
+        if H_all_ii(i,j,5+idxshift) > Stats_dummy.h_instspc_thresh
+          H_all_ii(i,j,5+idxshift) = inf; % Bauraumverletzung liegt vor
         end
       end
     elseif strcmp(s.discretization_type, 'position-level')
@@ -330,8 +343,10 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         if i == 1 && j == 1
           % Add random poses to be able to start with the best pose
-          q0_list = [q0_list; repmat(qlim(:,1)',200,1)+rand(200, R.NJ).* ...
-            repmat(qlim(:,2)' - qlim(:,1)',200,1)];  %#ok<AGROW>
+          qlim_noninf = qlim;
+          qlim_noninf(isinf(qlim_noninf)) = pi*sign(qlim(isinf(qlim)));
+          q0_list = [q0_list; repmat(qlim_noninf(:,1)',200,1)+rand(200, R.NJ).* ...
+            repmat(qlim_noninf(:,2)' - qlim_noninf(:,1)',200,1)];  %#ok<AGROW>
         end
         % In case of second run overwrite everything and directly take
         % results for phi=0. Otherwise their may be a discontinuity
@@ -358,12 +373,12 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
           q_j_list(k,:) = q_k;
         end
         if all(isnan(q_j_list(:)))
-          warning('IK did not find a solution for phi_z=%1.1fdeg', 180/pi*x_j(6));
+          % warning('IK did not find a solution for phi_z=%1.1fdeg', 180/pi*x_j(6));
           continue % this IK configuration did not work.
         end
         % Compute performance criteria
         R.update_EE_FG(s.I_EE_full,s.I_EE_red); % Roboter auf 3T2R einstellen
-        h_list = NaN(size(q_j_list,1),4);
+        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn));
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
           [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
@@ -417,6 +432,19 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
     H_all(:,I_all,k) = H_all_ii(:,I_phi,k);
   end
 end
+% Debug: Nachrechnen der direkten Kinematik: Stimmen die Werte im Plot?
+% Funktioniert nur, wenn IK-Fehlschlag mit NaN eingetragen wird
+if false
+  for i = 1:size(Q_all,1) %#ok<UNRCH>
+    phi_i = phiz_range(i);
+    X_traj = [X_ref(:,1:5),repmat(phi_i,size(Q_all,3),1)];
+    Q_traj = squeeze(Q_all(i,:,:))';
+    X_EE = R.fkineEE2_traj(Q_traj);
+    phiz_test = angleDiff(X_traj(:,6),X_EE(:,6));
+    assert(all(abs(phiz_test) < 1e-6), 'Gelenkkoordinaten stimmen nicht zu phiz-Werten');
+  end
+end
+
 if s.verbose
   fprintf('Finished discretization of the trajectory. Total %1.1fmin)\n', toc(t1)/60);
 end
