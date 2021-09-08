@@ -64,7 +64,9 @@ if nargin == 4
   end
 end
 if isnan(s.map_phistart) || s.map_phistart > s.maplim_phi(2) || ...
-    s.map_phistart < s.maplim_phi(2) % Abfangen ungültiger Eingaben
+    s.map_phistart < s.maplim_phi(1) % Abfangen ungültiger Eingaben
+  warning(['Feld map_phistart aus Eingabe ungültig (%1.1f). Grenzen: ', ...
+    '%1.1f und %1.1f'], s.map_phistart, s.maplim_phi(1), s.maplim_phi(2));
   s.map_phistart = mean(s.maplim_phi);
 end
 if all(s.I_EE_full == s.I_EE_red)
@@ -176,6 +178,18 @@ s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work withou
 s_traj_glbdscr = struct('simplify_acc', true);
 H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn));
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
+
+% Startwert prüfen. Roboter dafür auf 3T3R einstellen
+if R.Type == 0,   R.I_EE_Task = s.I_EE_full;
+else,             R.update_EE_FG(s.I_EE_full,s.I_EE_full); end
+if R.Type == 0
+  [q0, Phi, ~, ~] = R.invkin2(R.x2tr([X_ref(1,1:5)';s.map_phistart]), s.q0, s_ik);
+else
+  [q0, Phi, ~, ~] = R.invkin4([X_ref(1,1:5)';s.map_phistart], s.q0, s_ik);
+end
+if any(abs(q0-s.q0)>1e-3) || any(abs(Phi)>1e-5)
+  warning('initial value q0 for performance map does not match parameter map_phistart');
+end
 %% Rasterung durchführen
 for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if s.verbose
