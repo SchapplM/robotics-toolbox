@@ -380,8 +380,10 @@ classdef ParRob < RobBase
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen.
       if nargin >= 4
         for ff = fields(s_in_ser)'
-          if ~isfield(s_ser, ff{1})
-            error('Feld %s kann nicht übergeben werden', ff{1});
+          if ~isfield(s_ser, ff{1}) 
+            if ~any(strcmp(ff{1},{'wn','maxstep_ns'})) % Aus Kompatibilitätsgründen akzeptieren
+              error('Feld %s kann nicht übergeben werden', ff{1});
+            end
           else
             s_ser.(ff{1}) = s_in_ser.(ff{1});
           end

@@ -324,7 +324,7 @@ if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NJ), 'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
     NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false, ...
-    'instspc_mindst', NaN(n_max,1));
+    'instspc_mindst', NaN(n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 end
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
@@ -938,6 +938,9 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     else
       h(5) = 0;
     end
+    % Trage den Wert ein, ab dem eine Kollision vorliegt
+    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
+      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(6) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
@@ -951,14 +954,13 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     h(6) = invkin_optimcrit_limits2(mindist_all, ...
       [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-    if nargout == 4
-      Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
-    end
+    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
+    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
+      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
   end
-  if nargout == 4
-    Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-    Stats.condJ(Stats.iter+1) = h(3);
-  end
+  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+  Stats.condJ(Stats.iter+1) = h(3);
 end
 q = q1;
 if s.normalize
