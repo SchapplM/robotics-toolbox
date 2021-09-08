@@ -402,7 +402,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           for kkk = 1:NQJ
             hdq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6;
           end
-          hdq = hdq/max(abs(hdq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
+          if max(abs(hdq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
+            hdq = hdq/max(abs(hdq)) * .1; % wird weiter unten reduziert
+          end
         end
         if nargout == 4
           Stats.instspc_mindst(jj) = mindist_all(1);

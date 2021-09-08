@@ -466,7 +466,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
             % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
             h6dq = (mindist_all(2)-mindist_all(1))./qD_test';
-            h6dq = h6dq/max(abs(h6dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
+            if max(abs(h6dq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
+              h6dq = h6dq/max(abs(h6dq)) * .1; % wird weiter unten reduziert
+            end
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
@@ -500,7 +502,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             for kkk = 1:Rob.NJ
               h6dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6';
             end
-            h6dq = h6dq/max(abs(h6dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
+            if max(abs(h6dq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
+              h6dq = h6dq/max(abs(h6dq)) * .1; % wird weiter unten reduziert
+            end
           end
         end
         if nargout == 4
