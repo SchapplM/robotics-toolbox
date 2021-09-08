@@ -285,7 +285,7 @@ qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
 qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
-Stats = struct('h', NaN(nt,1+8));
+Stats = struct('h', NaN(nt,1+8), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 h = zeros(8,1);
 
 for k = 1:nt
@@ -1089,4 +1089,16 @@ for k = 1:nt
   end
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
+end
+if nargout == 4
+  if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
+    % Trage den Wert ein, ab dem eine Kollision vorliegt
+    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
+      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+  end
+  if wn(11) ~= 0
+    % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
+    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
+      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+  end
 end

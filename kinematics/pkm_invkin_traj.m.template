@@ -508,7 +508,7 @@ q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 dt = 0; % Initialisierung, wird überschrieben.
-Stats = struct('h', NaN(nt,1+8));
+Stats = struct('h', NaN(nt,1+8), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 h = zeros(8,1);
 
 for k = 1:nt
@@ -1311,4 +1311,16 @@ for k = 1:nt
   end
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
+end
+if nargout == 4
+  if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
+    % Trage den Wert ein, ab dem eine Kollision vorliegt
+    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
+      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+  end
+  if wn(11) ~= 0
+    % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
+    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
+      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+  end
 end
