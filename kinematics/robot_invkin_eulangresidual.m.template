@@ -222,7 +222,8 @@ success = false;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5), 'coll', false);
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5), 'coll', false, ...
+    'instspc_mindst', NaN(n_max,1));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -388,13 +389,22 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(5) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
           [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        for kkk = 1:NQJ
-          % Kriterium für Inkrement berechnen
-          h5_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ...
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-          % Differenzenquotient
-          hdq(kkk) = (h5_test-h(5))/1e-6;
+        if ~isinf(h(5))
+          for kkk = 1:NQJ
+            % Kriterium für Inkrement berechnen
+            h5_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ...
+              [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            % Differenzenquotient
+            hdq(kkk) = (h5_test-h(5))/1e-6;
+          end
+        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
+          % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
+          for kkk = 1:NQJ
+            h5dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6;
+          end
+          h5dq = h5dq/max(abs(h5dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
         end
+        Stats.instspc_mindst(jj) = mindist_all(1);
         % Zu Nullraum-Vektor hinzufügen
         v = v - wn(5)*hdq';
       else
@@ -704,6 +714,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     h(5) = invkin_optimcrit_limits2(mindist_all, ...
       [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1)
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

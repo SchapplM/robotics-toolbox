@@ -216,7 +216,8 @@ condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false);
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false, ...
+    'instspc_mindst', NaN(n_max,1));
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -460,7 +461,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           h6_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
             [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
           % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
-          h6dq = (h6_test-h(6))./qD_test';
+          if ~isinf(h(6))
+            h6dq = (h6_test-h(6))./qD_test';
+          else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
+            % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
+            h6dq = (mindist_all(2)-mindist_all(1))./qD_test';
+            h6dq = h6dq/max(abs(h6dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
+          end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
@@ -482,12 +489,21 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-          for kkk = 1:Rob.NJ
-            h6_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
-              [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-            h6dq(kkk) = (h6_test-h(6))/1e-6; % Differenzenquotient bzgl. Inkrement
+          if ~isinf(h(6))
+            for kkk = 1:Rob.NJ
+              h6_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
+                [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+              h6dq(kkk) = (h6_test-h(6))/1e-6; % Differenzenquotient bzgl. Inkrement
+            end
+          else
+            % Indirekte Bestimmung über Abstand
+            for kkk = 1:Rob.NJ
+              h6dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6';
+            end
+            h6dq = h6dq/max(abs(h6dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
           end
         end
+        Stats.instspc_mindst(jj) = mindist_all(1);
         v = v - wn(6)*h6dq';
       end
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
@@ -800,6 +816,20 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     if any(colldet)
       Stats.coll = true;
     end
+  end
+  if wn(6) ~= 0 % Berechnung muss genauso sein wie oben
+    [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
+      Rob.collchecks_instspc, Tc_stack_PKM(:,4)', struct('collsearch', false));
+    mindist_all = -inf;
+    for i = 1:size(s.collbodies_instspc.link,1)
+      I = s.collchecks_instspc(:,1) == i;
+      if ~any(I), continue; end
+      mindist_i = min(absdist(:,I),[],2);
+      mindist_all = max([mindist_i,mindist_all],[],2);
+    end
+    h(6) = invkin_optimcrit_limits2(mindist_all, ...
+      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
