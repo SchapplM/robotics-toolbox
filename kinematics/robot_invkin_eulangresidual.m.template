@@ -400,11 +400,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
           % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
           for kkk = 1:NQJ
-            h5dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6;
+            hdq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6;
           end
-          h5dq = h5dq/max(abs(h5dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
+          hdq = hdq/max(abs(hdq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
         end
-        Stats.instspc_mindst(jj) = mindist_all(1);
+        if nargout == 4
+          Stats.instspc_mindst(jj) = mindist_all(1);
+        end
         % Zu Nullraum-Vektor hinzufügen
         v = v - wn(5)*hdq';
       else

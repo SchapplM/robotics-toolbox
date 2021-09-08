@@ -503,7 +503,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h6dq = h6dq/max(abs(h6dq)) * 0.1; % Normiere auf Wert 0.1 für größtes Gelenk
           end
         end
-        Stats.instspc_mindst(jj) = mindist_all(1);
+        if nargout == 4
+          Stats.instspc_mindst(jj) = mindist_all(1);
+        end
         v = v - wn(6)*h6dq';
       end
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
@@ -829,10 +831,14 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     h(6) = invkin_optimcrit_limits2(mindist_all, ...
       [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    if nargout == 4
+      Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    end
   end
-  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1) = h(3);
+  if nargout == 4
+    Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+    Stats.condJ(Stats.iter+1) = h(3);
+  end
 end
 q = q1;
 if s.normalize

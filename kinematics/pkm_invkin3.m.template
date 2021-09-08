@@ -562,7 +562,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
           % positiver ist außerhalb (schlecht). Größter positiver Wert
           % maßgeblich
-          Stats.instspc_mindst(jj) = mindist_all(1); % muss hier passieren, da mindist_all sonst var. Dim. hat
+          if nargout == 4
+            Stats.instspc_mindst(jj) = mindist_all(1); % muss hier passieren, da mindist_all sonst var. Dim. hat
+          end
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
             [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
@@ -595,7 +597,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             mindist_i = min(absdist(:,I),[],2);
             mindist_all = max([mindist_i,mindist_all],[],2);
           end
-          Stats.instspc_mindst(jj) = mindist_all(1); % muss hier passieren, da mindist_all sonst var. Dim. hat
+          if nargout == 4
+            Stats.instspc_mindst(jj) = mindist_all(1); % muss hier passieren, da mindist_all sonst var. Dim. hat
+          end
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
           if ~isinf(h(6))
@@ -924,7 +928,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
         Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
       h(5) = invkin_optimcrit_limits2(-min(colldist), ...
         [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-      if any(colldet)
+      if any(colldet) && nargout == 4
         Stats.coll = true;
       end
     else
@@ -943,10 +947,14 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     h(6) = invkin_optimcrit_limits2(mindist_all, ...
       [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    if nargout == 4
+      Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    end
   end
-  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1) = h(3);
+  if nargout == 4
+    Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
+    Stats.condJ(Stats.iter+1) = h(3);
+  end
 end
 q = q1;
 if s.normalize
