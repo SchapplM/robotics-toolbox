@@ -53,6 +53,7 @@ s_user = struct(...
       'scale_lim', 0, ... % Herunterskalierung bei Grenzüberschreitung
      'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
 'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
        'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
        'Phir_tol', 1e-8, ... % Toleranz für rotatorischen Fehler
      'maxrelstep', 0.1, ...% Maximale Schrittweite relativ zu Grenzen 
@@ -136,7 +137,7 @@ s = struct(...
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', s_user.collbodies_thresh,...
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
-'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
+'installspace_thresh', s_user.installspace_thresh, ...
 'collbodies_instspc', R.collbodies_instspc, ... % Ersatzkörper zur Bauraumprüfung
 'collchecks_instspc', R.collchecks_instspc, ... % Prüfliste für Bauraum
           'debug', s_user.debug,...
