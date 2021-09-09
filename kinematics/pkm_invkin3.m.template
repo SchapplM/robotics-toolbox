@@ -289,28 +289,27 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
 end
 if scale_coll || wn(5) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
+  % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
     s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==6,1);
   collbodies_ns.params(collbodies_ns.type==13,7) = ... % Kapseln (Basis-KS)
     s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==13,7);
   collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4) = ... % Kugeln
     s.collbodies_thresh*collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4);
-  % Maximal mögliche Eindringtiefe bestimmen um daraus die Grenzen der
-  % hyperbolischen Kollisionsfunktion zu bestimmen.
+  % Maximal mögliche Eindringtiefe der Warnungs-Ersatzkörper bestimmen um
+  % daraus die Grenzen der hyperbolischen Kollisionsfunktion zu bestimmen.
   % Ist eine etwas größere Schätzung (abhängig von relativer Größe von
   % Kugeln und Zylindern)
-  maxcolldepth = 2*max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ... % 1. Eintrag damit nicht leer
-                        collbodies_ns.params(collbodies_ns.type==13,7); ...
-                        collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
-  % Vergrößere den Wert darüber hinaus. War ursprünglich dazu gedacht,
-  % dass der Wert der Koll-Zielfunktion nicht unendlich werden kann.
-  maxcolldepth = 1.05*maxcolldepth;
+  maxcolldepth = max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ... % 1. Eintrag damit nicht leer
+                         collbodies_ns.params(collbodies_ns.type==13,7); ...
+                         collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
   % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
-  % Erkennung beginnt. Unklar, ob dieser Wert immer passt. (Geht auch so).
+  % Erkennung beginnt (sonst Sprung). Unklar, ob dieser Wert immer passt.
   % Die Erkennung wird durch `collbodies_ns` bestimmt. Diese müssen also
-  % eher zu groß gewählt werden. TODO: Geometrische Berechnung.
-  collobjdist_thresh = 0.15 * maxcolldepth;
+  % eher zu groß gewählt werden (über Parameter collbodies_thresh).
+  % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
+  collobjdist_thresh = 0.3 * maxcolldepth;
 end
 
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
