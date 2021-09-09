@@ -497,10 +497,10 @@ for k = 1:nt
           else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
             % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
             for kkk = 1:NQJ
-              hdq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+              h6dq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
             end
-            if max(abs(hdq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-              hdq = hdq/max(abs(hdq)) * 1e3; % wird weiter unten reduziert (für qDD_max)
+            if max(abs(h6dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              h6dq = h6dq/max(abs(h6dq)) * 1e3; % wird weiter unten reduziert (für qDD_max)
             end
           end
         end
@@ -550,7 +550,7 @@ for k = 1:nt
           h7drz = (h7_test - h(7))/1e-6;
         else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
           % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
-          h7drz = (mindist_all(1+kkk)-mindist_all(1));
+          h7drz = (mindist_all(2)-mindist_all(1));
           if abs(h7drz) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
             h7drz = sign(h7drz) * 1e3; % wird weiter unten reduziert
           end
@@ -596,7 +596,7 @@ for k = 1:nt
             h7dq(kkk) = (mindist_all(1+kkk)-mindist_all(1));
           end
           if max(abs(h7dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-            h7dq = hdq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (bei qDD)
+            h7dq = h7dq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (bei qDD)
           end
         end
       end
