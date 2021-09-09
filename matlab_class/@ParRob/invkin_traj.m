@@ -617,13 +617,24 @@ for k = 1:nt
           % Kollision angezeigt haben.
           [~, colldist_test] = check_collisionset_simplegeom_mex( ...
             Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
+          mincolldist_test = min(colldist_test,[],2);
           % Kollisions-Kriterium berechnen
-          h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
+          h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
-          h7drz = (h7_test-h(7))/xD_test(6);
+          if h(7) == 0 % nichts tun. Noch im Toleranzbereich
+            h7drz = 0;
+          elseif ~isinf(h(7))
+            h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+            % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+            h7drz = (h7_test-h(7))/xD_test(6);
+          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+            h7drz = (-mincolldist_test(2)-(-mincolldist_test(1)));
+            if abs(h7drz) > 100*eps % Normiere auf Wert 1e3
+              h7drz = sign(h7drz) * 1e3; % wird weiter unten reduziert (für qDD)
+            end
+          end
           h7dqa = h7drz * J_ax(end,:);
           v_qaD = v_qaD - wn(12)*h7dqa(:);
           v_qaDD = v_qaDD - wn(11)*h7dqa(:);
@@ -653,10 +664,19 @@ for k = 1:nt
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
             [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
-        % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
-        h8drz = (h8_test-h(8))/xD_test(6);
+        if h(8) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          h8drz = 0;
+        elseif ~isinf(h(8))
+          h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
+              [-100.0, 0], [-90, -s.installspace_thresh]);
+          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+          h8drz = (h8_test-h(8))/xD_test(6);
+        else
+          h8drz = (mindist_all(2)-mindist_all(1));
+          if abs(h8drz) > 100*eps % Normiere auf Wert 1e3
+            h8drz = sign(h8drz) * 1e3; % wird weiter unten reduziert (für qDD)
+          end
+        end
         h8dqa = h8drz * J_ax(end,:);
         v_qaD = v_qaD - wn(14)*h8dqa(:);
         v_qaDD = v_qaDD - wn(13)*h8dqa(:);
@@ -766,12 +786,23 @@ for k = 1:nt
           % Kollision angezeigt haben.
           [~, colldist_test] = check_collisionset_simplegeom_mex( ...
             Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
+          mincolldist_test = min(colldist_test,[],2);
           % Kollisions-Kriterium berechnen
           h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h7dq = (h7_test-h(7))./(qD_test');
+          if h(7) == 0 % nichts tun. Noch im Toleranzbereich
+            h7dq = zeros(1,Rob.NJ);
+          elseif ~isinf(h(7))
+            h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+            h7dq = (h7_test-h(7))./(qD_test');
+          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+            h7dq = (-mincolldist_test(2)-(-mincolldist_test(1)))./(qD_test');
+            if max(abs(h7dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              h7dq = h7dq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
+            end
+          end
           v_qD = v_qD - wn(12)*h7dq(:);
           v_qDD = v_qDD - wn(11)*h7dq(:);
         else
@@ -801,9 +832,19 @@ for k = 1:nt
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], [-90, -s.installspace_thresh]);
-        h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
-            [-100.0, 0], [-90, -s.installspace_thresh]);
-        h8dq = (h8_test-h(8))./(qD_test');
+        if h(8) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          h8dq = zeros(1,Rob.NJ);
+        elseif ~isinf(h(8))
+          h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
+              [-100.0, 0], [-90, -s.installspace_thresh]);
+          h8dq = (h8_test-h(8))./(qD_test');
+        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+          % Indirekte Bestimmung über Abstand
+          h8dq = (mindist_all(2)-mindist_all(1))./(qD_test');
+          if max(abs(h8dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+            h8dq = h8dq/max(abs(h8dq)) * 1e3; % wird weiter unten reduziert
+          end
+        end
         v_qD = v_qD - wn(14)*h8dq(:);
         v_qDD = v_qDD - wn(13)*h8dq(:);
       end

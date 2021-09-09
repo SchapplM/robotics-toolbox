@@ -422,6 +422,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
+            mincolldist_test = min(colldist_test,[],2);
             h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
             if h(5) == 0 % nichts tun. Noch im Toleranzbereich

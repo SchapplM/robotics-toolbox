@@ -448,14 +448,25 @@ for k = 1:nt
           % Kollision angezeigt haben.
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
+          mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
           % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
           % Übergang beginnend im Warnbereich.
-          h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
+          h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h6_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ...
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
-          h6drz = (h6_test - h(6))/1e-6;
+          if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+            h6drz = 0;
+          elseif ~isinf(h(6))
+            h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+            % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+            h6drz = (h6_test - h(6))/1e-6;
+          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+            h6drz = (-mincolldist_test(2)-(-mincolldist_test(1)));
+            if abs(h6drz) > 100*eps % Normiere auf Wert 1e3
+              h6drz =  sign(h6drz)*1e3; % wird weiter unten reduziert (für qDD_max)
+            end
+          end
           % Umrechnung auf Gelenke mit Jacobi-Matrix
           h6dq = h6drz*J_x(end,:);
         else
@@ -472,14 +483,27 @@ for k = 1:nt
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
-          h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
+          mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          for kkk = 1:NQJ
-            % Kriterium für Inkrement berechnen
-            h6_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-            % Differenzenquotient
-            h6dq(kkk) = (h6_test'-h(6))/1e-6;
+          if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+            h6dq(:) = 0;
+          elseif ~isinf(h(6))
+            for kkk = 1:NQJ
+              % Kriterium für Inkrement berechnen
+              h6_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              % Differenzenquotient
+              h6dq(kkk) = (h6_test'-h(6))/1e-6;
+            end
+          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+            for kkk = 1:NQJ
+              hdq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+            end
+            if max(abs(hdq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              hdq = hdq/max(abs(hdq)) * 1e3; % wird weiter unten reduziert (für qDD_max)
+            end
           end
         end
         v_qD = v_qD - wn(10)*h6dq';
@@ -519,10 +543,20 @@ for k = 1:nt
         h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, 0], ... % obere Grenze: Bei Überschreitung des Bauraums ist Wert inf
           [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-          [-100.0, 0], [-90, -s.installspace_thresh]);
-        % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
-        h7drz = (h7_test - h(7))/1e-6;
+        if h(7) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          h7drz = 0;
+        elseif ~isinf(h(7))
+          h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
+            [-100.0, 0], [-90, -s.installspace_thresh]);
+          % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+          h7drz = (h7_test - h(7))/1e-6;
+        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+          % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
+          h7drz = (mindist_all(1+kkk)-mindist_all(1));
+          if abs(h7drz) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+            h7drz = sign(h7drz) * 1e3; % wird weiter unten reduziert
+          end
+        end
         % Umrechnung auf Gelenke mit Jacobi-Matrix
         h7dq = h7drz*J_x(end,:);
       else
@@ -548,12 +582,24 @@ for k = 1:nt
         end
         h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, 0], [-90, -s.installspace_thresh]);
-        for kkk = 1:NQJ
-          % Kriterium für Inkrement berechnen
-          h7_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
-          % Differenzenquotient
-          h7dq(kkk) = (h7_test'-h(7))/1e-6;
+        if h(7) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          h7dq(:) = 0;
+        elseif ~isinf(h(7))
+          for kkk = 1:NQJ
+            % Kriterium für Inkrement berechnen
+            h7_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
+              [-100.0, 0], [-90, -s.installspace_thresh]);
+            % Differenzenquotient
+            h7dq(kkk) = (h7_test'-h(7))/1e-6;
+          end
+        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+          % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
+          for kkk = 1:NQJ
+            h7dq(kkk) = (mindist_all(1+kkk)-mindist_all(1));
+          end
+          if max(abs(h7dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+            h7dq = hdq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (bei qDD)
+          end
         end
       end
       v_qD = v_qD - wn(12)*h7dq';
