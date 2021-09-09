@@ -265,8 +265,9 @@ if any(wn(11:12))
   maxcolldepth = 2*max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ... % 1. Eintrag damit nicht leer
                         collbodies_ns.params(collbodies_ns.type==13,7); ...
                         collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
-  % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
-  % erreicht werden (Probleme bei Gradientenbildung).
+  % Vergrößere den Wert darüber hinaus. Der Wert unendlich kann erreicht werden.
+  % Dann funktioniert die Gradientenbildung nicht mehr. Das ist dann aber
+  % auch egal, da die Lösung nicht mehr zulässig ist.
   maxcolldepth = 1.05*maxcolldepth;
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
   % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
@@ -840,9 +841,9 @@ for k = 1:nt
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Kollisions-Kriterium berechnen
           h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h7drz = (h7_test-h(7))/xD_test(6);
           h7dqa = h7drz * J_ax(end,:);
@@ -872,10 +873,10 @@ for k = 1:nt
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+            [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
             [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            [-100.0, 0], [-90, -s.installspace_thresh]);
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h8drz = (h8_test-h(8))/xD_test(6);
         h8dqa = h8drz * J_ax(end,:);
@@ -989,9 +990,9 @@ for k = 1:nt
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Kollisions-Kriterium berechnen
           h(7) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           h7_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           h7dq = (h7_test-h(7))./(qD_test');
           v_qD = v_qD - wn(12)*h7dq(:);
           v_qDD = v_qDD - wn(11)*h7dq(:);
@@ -1021,10 +1022,9 @@ for k = 1:nt
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
-            [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+            [-100.0, 0], [-90, -s.installspace_thresh]);
         h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            [-100.0, 0], [-90, -s.installspace_thresh]);
         h8dq = (h8_test-h(8))./(qD_test');
         v_qD = v_qD - wn(14)*h8dq(:);
         v_qDD = v_qDD - wn(13)*h8dq(:);
@@ -1316,11 +1316,11 @@ if nargout == 4
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
   end
 end

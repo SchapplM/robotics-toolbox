@@ -148,8 +148,8 @@ if scale_coll || wn(4) || avoid_collision_finish
   maxcolldepth = 2*max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
                         collbodies_ns.params(collbodies_ns.type==13,7); ...
                         collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
-  % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
-  % erreicht werden (Probleme bei Gradientenbildung).
+  % Vergrößere den Wert darüber hinaus. War ursprünglich dazu gedacht,
+  % dass der Wert der Koll-Zielfunktion nicht unendlich werden kann.
   maxcolldepth = 1.05*maxcolldepth;
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
   % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
@@ -341,14 +341,27 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
           % Falls keine Kollision vorliegt (mit den kleineren
           % Kollisionskörpern), dann Abstände negativ angeben.
-          h(4) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-          for kkk = 1:NQJ
-            % Kriterium für Inkrement berechnen
-            h4_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-            % Differenzenquotient
-            hdq(kkk) = (h4_test-h(4))/1e-6;
+          mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          h(4) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+          if h(4) == 0 % nichts tun. Noch im Toleranzbereich
+            hdq(:) = 0;
+          elseif ~isinf(h(4))
+            for kkk = 1:NQJ
+              % Kriterium für Inkrement berechnen
+              h4_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              % Differenzenquotient
+              hdq(kkk) = (h4_test-h(4))/1e-6;
+            end
+          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+            for kkk = 1:NQJ
+              hdq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+            end
+            if max(abs(hdq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              hdq = hdq/max(abs(hdq)) * 1e3; % wird weiter unten reduziert (für delta_q)
+            end
           end
           % Zu Nullraum-Vektor hinzufügen
           v = v - wn(4)*hdq';
@@ -387,9 +400,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % positiver ist außerhalb (schlecht). Größter positiver Wert
         % maßgeblich
         h(5) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-          [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+          [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
           [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        if ~isinf(h(5))
+        if h(5) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          hdq(:) = 0;
+        elseif ~isinf(h(5))
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
             h5_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ...
@@ -397,13 +412,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Differenzenquotient
             hdq(kkk) = (h5_test-h(5))/1e-6;
           end
-        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
+        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
           % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
           for kkk = 1:NQJ
-            hdq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6;
+            hdq(kkk) = (mindist_all(1+kkk)-mindist_all(1));
           end
-          if max(abs(hdq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
-            hdq = hdq/max(abs(hdq)) * .1; % wird weiter unten reduziert
+          if max(abs(hdq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+            hdq = hdq/max(abs(hdq)) * 1e3; % wird weiter unten reduziert
           end
         end
         if nargout == 4
@@ -549,10 +564,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % numerisch teilweise keine Verbesserung möglich.
     Phi_iO = all(abs(Phi_neu(1:n_Phi_t)) < Phit_tol) && ...
              all(abs(Phi_neu(n_Phi_t+1:end)) < Phir_tol);
-    if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
+    if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && ~any(isinf(h))
       % Prüfe, ob sich die Nebenbedingungen überhaupt noch verbessern. Wenn
       % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
+      % Wert von unendlich führt dazu, dass sehr große Gradienten erzeugt
+      % werden. Dann wird nicht abgebrochen
       delta_q_N(:) = 0;
     end
     if scale_lim && scale == 0
@@ -567,13 +584,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     Phi_neu_norm = norm(Phi_neu);
     Delta_Phi = Phi_neu_norm - norm(Phi); % "neu" - "alt";
     bestPhi = min([bestPhi;Phi_neu_norm]);
-    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && (Delta_Phi > 0 || ...
+    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && ~any(isinf(h)) && (Delta_Phi > 0 || ...
         Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
       % Nullraumbewegung. Annahme: Bewegung so groß, dass keine
       % Linearisierungsfehler (außerhalb des Nullraums) zu groß.
+      % Nicht bei Kriterium unendlich (separate Gradientenberechnung)
       Kn = Kn*0.8;
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
@@ -698,7 +716,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks(colldet,:), ...
         Tc_stack(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
       h(4) = invkin_optimcrit_limits2(-min(colldist), ...
-        [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+        [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
       if any(colldet)
         Stats.coll = true;
       end
@@ -707,7 +725,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
@@ -720,11 +738,11 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       mindist_all = max([mindist_i,mindist_all],[],2);
     end
     h(5) = invkin_optimcrit_limits2(mindist_all, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
     Stats.instspc_mindst(Stats.iter+1) = mindist_all(1)
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

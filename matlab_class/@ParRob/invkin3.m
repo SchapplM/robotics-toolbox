@@ -393,12 +393,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
             % Kollisionskörpern), dann Abstände negativ angeben.
-            h(5) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
-              [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-            h5_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ... % zurückgegebene Distanz ist zuerst negativ
-              [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-            % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
-            h5dq = (h5_test-h(5))./qD_test';
+            mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+            h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+            if h(5) == 0 % nichts tun. Noch im Toleranzbereich
+              h5dq(:) = 0;
+            elseif ~isinf(h(5))
+              h5_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
+                [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              % Einfacher Differenzenquotient
+              h5dq = (h5_test-h(5))./qD_test';
+            else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+              % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+              h5dq = (-mincolldist_test(2)-(-mincolldist_test(1)))./qD_test';
+              if max(abs(h5dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+                h5dq = h5dq/max(abs(h5dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
+              end
+            end
           else
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
             % Gelenkkoordinate.
@@ -411,12 +422,24 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
-            h(5) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ... % zurückgegebene Distanz ist zuerst negativ
-              [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-            for kkk = 1:Rob.NJ
-              h5_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk,:)), ... % zurückgegebene Distanz ist zuerst negativ
-                [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-              h5dq(kkk) = (h5_test-h(5))/1e-6;
+            h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+            if h(5) == 0 % nichts tun. Noch im Toleranzbereich
+              h5dq(:) = 0;
+            elseif ~isinf(h(5))
+              for kkk = 1:Rob.NJ
+                h5_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
+                  [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                h5dq(kkk) = (h5_test-h(5))/1e-6;
+              end
+            else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+              % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+              for kkk = 1:Rob.NJ
+                h5dq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+              end
+              if max(abs(h5dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+                h5dq = h5dq/max(abs(h5dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
+              end
             end
           end
           v = v - wn(5)*h5dq';
@@ -456,10 +479,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % positiver ist außerhalb (schlecht). Größter positiver Wert
           % maßgeblich
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+            [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
             [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
           h6_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            [-100.0, 0], [-90, -s.installspace_thresh]);
           % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
           if ~isinf(h(6))
             h6dq = (h6_test-h(6))./qD_test';
@@ -490,20 +513,22 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             mindist_all = max([mindist_i,mindist_all],[],2);
           end
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
-          if ~isinf(h(6))
+            [-100.0, 0], [-90, -s.installspace_thresh]);
+          if h(6) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+            h6dq(:) = 0;
+          elseif ~isinf(h(6))
             for kkk = 1:Rob.NJ
               h6_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
-                [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+                [-100.0, 0], [-90, -s.installspace_thresh]);
               h6dq(kkk) = (h6_test-h(6))/1e-6; % Differenzenquotient bzgl. Inkrement
             end
-          else
+          else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
             % Indirekte Bestimmung über Abstand
             for kkk = 1:Rob.NJ
               h6dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6';
             end
-            if max(abs(h6dq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
-              h6dq = h6dq/max(abs(h6dq)) * .1; % wird weiter unten reduziert
+            if max(abs(h6dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              h6dq = h6dq/max(abs(h6dq)) * 1e3; % wird weiter unten reduziert
             end
           end
         end
@@ -661,10 +686,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % numerisch teilweise keine Verbesserung möglich.
     Phi_iO = all(abs(Phi_neu(I_constr_t_red)) < Phit_tol) && ...
              all(abs(Phi_neu(I_constr_r_red)) < Phir_tol);
-    if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt)
+    if Phi_iO && any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && ~any(isinf(h))
       % Prüfe, ob sich die Nebenbedingungen überhaupt noch verbessern. Wenn
       % nicht, kann auch abgebrochen werden. Variable delta_q_N dient zur
       % Ablaufsteuerung für folgende Abfragen (nicht für Ergebnis selbst).
+      % Wert von unendlich führt dazu, dass sehr große Gradienten erzeugt
+      % werden. Dann wird nicht abgebrochen
       delta_q_N(:) = 0;
     end
     if scale_lim && scale == 0
@@ -679,13 +706,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     Phi_neu_norm = norm(Phi_neu);
     Delta_Phi = Phi_neu_norm - norm(Phi); % "neu" - "alt";
     bestPhi = min([bestPhi;Phi_neu_norm]);
-    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && (Delta_Phi > 0 || ...
+    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && ~any(isinf(h)) && (Delta_Phi > 0 || ...
         Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
       % Nullraumbewegung. Annahme: Bewegung so groß, dass keine
       % Linearisierungsfehler (außerhalb des Nullraums) zu groß.
+      % Nicht bei Kriterium unendlich (separate Gradientenberechnung)
       Kn = Kn*0.8;
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums

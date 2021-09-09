@@ -218,8 +218,9 @@ if any(wn(9:10))
   maxcolldepth = 2*max([0; collbodies_ns.params(collbodies_ns.type==6,1);  ...% 1. Eintrag damit nicht leer
                         collbodies_ns.params(collbodies_ns.type==13,7); ...
                         collbodies_ns.params(collbodies_ns.type==4|collbodies_ns.type==15,4)]);
-  % Vergrößere den Wert darüber hinaus. Der Wert unendlich sollte nie
-  % erreicht werden (Probleme bei Gradientenbildung).
+  % Vergrößere den Wert darüber hinaus. Der Wert unendlich kann erreicht werden.
+  % Dann funktioniert die Gradientenbildung nicht mehr. Das ist dann aber
+  % auch egal, da die Lösung nicht mehr zulässig ist.
   maxcolldepth = 1.05*maxcolldepth;
   % Abstand der Objekte, ab dem die Zielfunktion anfängt (bei größeren
   % Abständen ist sie Null). Dies Wert muss kleiner sein als der, ab dem die
@@ -450,9 +451,9 @@ for k = 1:nt
           % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
           % Übergang beginnend im Warnbereich.
           h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           h6_test = invkin_optimcrit_limits2(-min(colldist_test(2,:)), ...
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
           h6drz = (h6_test - h(6))/1e-6;
           % Umrechnung auf Gelenke mit Jacobi-Matrix
@@ -472,11 +473,11 @@ for k = 1:nt
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           h(6) = invkin_optimcrit_limits2(-min(colldist_test(1,:)), ...
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
             h6_test = invkin_optimcrit_limits2(-min(colldist_test(1+kkk, :)), ...
-            [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
             % Differenzenquotient
             h6dq(kkk) = (h6_test'-h(6))/1e-6;
           end
@@ -516,10 +517,10 @@ for k = 1:nt
         % positiver ist außerhalb (schlecht). Größter positiver Wert
         % maßgeblich
         h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-          [-100.0, s.installspace_thresh], ... % obere Grenze: z.B. 100mm außerhalb ist Wert inf
+          [-100.0, 0], ... % obere Grenze: Bei Überschreitung des Bauraums ist Wert inf
           [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-          [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+          [-100.0, 0], [-90, -s.installspace_thresh]);
         % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
         h7drz = (h7_test - h(7))/1e-6;
         % Umrechnung auf Gelenke mit Jacobi-Matrix
@@ -546,11 +547,11 @@ for k = 1:nt
           mindist_all = max([mindist_i,mindist_all],[],2);
         end
         h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-          [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+          [-100.0, 0], [-90, -s.installspace_thresh]);
         for kkk = 1:NQJ
           % Kriterium für Inkrement berechnen
           h7_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
-            [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            [-100.0, 0], [-90, -s.installspace_thresh]);
           % Differenzenquotient
           h7dq(kkk) = (h7_test'-h(7))/1e-6;
         end
@@ -783,11 +784,11 @@ if nargout == 4
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
   end
 end
