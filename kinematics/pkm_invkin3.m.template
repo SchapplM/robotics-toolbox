@@ -396,7 +396,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
-      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-3) % Bestimme PKM-Jacobi für Iterationsschritt
+      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) % Bestimme PKM-Jacobi für Iterationsschritt
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -409,7 +409,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
-        if all(abs(Phi)<1e-3) && taskred_rotsym
+        if all(abs(Phi)<1e-6) && taskred_rotsym
           % Bestimme Nullraumbewegung durch Differenzenquotient für die 
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
@@ -482,7 +482,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
           % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
           % Siehe Berechnung für vorheriges Kriterium
-          if all(abs(Phi)<1e-3) && taskred_rotsym
+          if all(abs(Phi)<1e-6) && taskred_rotsym
             % Bestimme Nullraumbewegung durch Differenzenquotient für die 
             % redundante Koordinate. Dadurch nur eine neue Funktions- 
             % auswertung
@@ -558,7 +558,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         % Siehe Berechnung für vorheriges Kriterium
-        if all(abs(Phi)<1e-3) && taskred_rotsym
+        if all(abs(Phi)<1e-6) && taskred_rotsym
           % Bestimme Nullraumbewegung durch Differenzenquotient für die 
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
@@ -680,13 +680,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Bei nur gemeinsamer Reduzierung kann die Nullraumbewegung zu groß
     % werden; Dokumentation siehe unten
     if limits_set && ~isnan(maxrelstep)
-      abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim .* K);
+      abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim);
       if any(abs_delta_q_T_rel > maxrelstep)
         delta_q_T = delta_q_T .* maxrelstep / max(abs_delta_q_T_rel);
       end
     end
     if nsoptim && limits_set && ~isnan(maxrelstep_ns)
-      abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim .* Kn);
+      abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim);
       if any(abs_delta_q_N_rel > maxrelstep_ns)
         delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
       end
