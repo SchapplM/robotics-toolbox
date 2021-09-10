@@ -98,6 +98,9 @@ s = struct('I_EE', R.I_EE,...
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
+'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
+'collbodies_instspc', R.collbodies_instspc, ... % Ersatzkörper zur Bauraumprüfung
+'collchecks_instspc', R.collchecks_instspc, ... % Prüfliste für Bauraum
  'I_constr_t_red', R.I_constr_t_red,...
  'I_constr_r_red', R.I_constr_r_red,...
    'I1constr_red', R.I1constr_red,...
@@ -154,7 +157,7 @@ if nargin >= 7 && ~isempty(s_in)
     end
   end
 end
-if length(s.wn) < 12, s.wn=[s.wn;zeros(12-length(s.wn),1)]; end
+if length(s.wn) < 14, s.wn=[s.wn;zeros(14-length(s.wn),1)]; end
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
 end

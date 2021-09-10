@@ -125,27 +125,42 @@ if any(s.mode == 5)
     Tc_PKM(:,:,1+kk+(-1+Rob.I1J_LEG(kk):Rob.I2J_LEG(kk))) = ...
       TcLges_W(:,:,kk*2+(-2+Rob.I1J_LEG(kk):-1+Rob.I2J_LEG(kk)));
   end
-  % Zeichne Kollisionskörper
-  for j = 1:size(Rob.collbodies_nonleg.type,1)
-    % Nummern der beteiligten Körper (0=PKM-Basis, 1=Beinkette1-Basis,...)
-    i1 = Rob.collbodies_nonleg.link(j,1);
-    i2 = Rob.collbodies_nonleg.link(j,2);
-    % Transformationsmatrix der Körper
-    T_body_i1 = Tc_PKM(:,:,i1+1);
-    T_body_i2 = Tc_PKM(:,:,i2+1);
-    if Rob.collbodies_nonleg.type(j) == 6 % Kapsel zum vorherigen
-      r = Rob.collbodies_nonleg.params(j,1); % Radius ist einziger Parameter.
-      pts_W = [T_body_i1(1:3,4)', T_body_i2(1:3,4)']; % Punkte bereits durch Körper-Nummern und Kinematik definiert.
-      hdl=drawCapsule([pts_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
-      hdl = hdl(hdl~=0); % Entferne ein 0-Handle, das bei Degeneration der Kapsel auftreten kann
-    elseif Rob.collbodies_nonleg.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
-        Rob.collbodies_nonleg.type(j) == 15 % explizit im Basis-KS
-      r = Rob.collbodies_nonleg.params(j,4);
-      pt_i = Rob.collbodies_nonleg.params(j,1:3);
-      pt_W = (eye(3,4)*T_body_i1*[pt_i(1:3)';1])'; ... % Punkt
-      hdl=drawSphere([pt_W, r], 'FaceColor', 'b', 'FaceAlpha', 0.2);
+  for cbtype = 1:2
+    if cbtype == 1
+      collbodies_nonleg = Rob.collbodies_nonleg;
+      color = 'b';
     else
-      error('Fall %d nicht definiert', Rob.collbodies.type(j));
+      collbodies_nonleg = Rob.collbodies_instspc_nonleg;
+      color = 'g';
+    end
+    % Zeichne Kollisionskörper
+    for j = 1:size(collbodies_nonleg.type,1)
+      % Nummern der beteiligten Körper (0=PKM-Basis, 1=Beinkette1-Basis,...)
+      i1 = collbodies_nonleg.link(j,1);
+      i2 = collbodies_nonleg.link(j,2);
+      % Transformationsmatrix der Körper
+      T_body_i1 = Tc_PKM(:,:,i1+1);
+      T_body_i2 = Tc_PKM(:,:,i2+1);
+      if collbodies_nonleg.type(j) == 6 % Kapsel zum vorherigen
+        r = collbodies_nonleg.params(j,1); % Radius ist einziger Parameter.
+        pts_W = [T_body_i1(1:3,4)', T_body_i2(1:3,4)']; % Punkte bereits durch Körper-Nummern und Kinematik definiert.
+        drawCapsule([pts_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
+      elseif collbodies_nonleg.type(j) == 4 || ...  % Kugel mit Angabe des Mittelpunkts
+          collbodies_nonleg.type(j) == 15 % explizit im Basis-KS
+        r = collbodies_nonleg.params(j,4);
+        pt_i = collbodies_nonleg.params(j,1:3);
+        pt_W = (eye(3,4)*T_body_i1*[pt_i(1:3)';1])'; ... % Punkt
+        drawSphere([pt_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
+      elseif collbodies_nonleg.type(j) == 12 % Zylinder im Basis-KS
+        r = collbodies_nonleg.params(j,7);
+        pt1_i = collbodies_nonleg.params(j,1:3);
+        pt2_i = collbodies_nonleg.params(j,4:6);
+        pt1_W = (eye(3,4)*T_body_i1*[pt1_i(1:3)';1])';
+        pt2_W = (eye(3,4)*T_body_i1*[pt2_i(1:3)';1])';
+        drawCylinder([pt1_W,pt2_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
+      else
+        error('Fall %d nicht definiert', collbodies_nonleg.type(j));
+      end
     end
   end
 end
@@ -168,13 +183,13 @@ end
 [~,Tc_Pges_W] = Rob.fkine_platform(x);
 
 % Plattform als Objekt
-if s.mode == 1
+if any(s.mode == 1)
   r_B2_ges = squeeze(Tc_Pges_W(1:3,4,1:Rob.NLEG))';
   r_B2_ges = [r_B2_ges; r_B2_ges(1,:)]; % damit Viel-Eck geschlossen wird
   plot3(r_B2_ges(:,1), r_B2_ges(:,2), r_B2_ges(:,3), ...
     'color', 'm','LineWidth',3);
 end
-if s.mode == 3
+if any(s.mode == 3)
   % Trägheitsellipse. Nur plotten, wenn Dynamikparameter gegeben.
   if ~any(isnan([Rob.DynPar.Icges(end,:), Rob.DynPar.mges(end), Rob.DynPar.rSges(end,:)]))
     inertia_ellipsoid( ...
@@ -185,7 +200,7 @@ if s.mode == 3
   end
 end
 hdl_plf = [];
-if s.mode == 4
+if any(s.mode == 4)
   if any(Rob.DesPar.platform_method == [1 2 3 8])
     h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
     if h > 0
@@ -233,7 +248,7 @@ axis auto
 
 
 %% Plattform Plotten (von Bein-Endpunkten her; als Viel-Eck)
-if s.mode == 1
+if any(s.mode == 1)
   plot3(r_B1_ges(:,1), r_B1_ges(:,2), r_B1_ges(:,3), '--', ...
     'color', 'c','LineWidth',2);
 end

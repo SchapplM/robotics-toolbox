@@ -76,8 +76,11 @@ classdef ParRob < RobBase
       I_constr_r_red % ... Indizes der rotatorischen ZB in den reduzierten ZB
       I_platform_dynpar % Auswahlvektor für Dynamikparameter der Plattform
       collbodies_nonleg % Struktur mit Ersatzkörpern zur Kollisionserkennung (nur Plattform und Gestell)
+      collbodies_instspc_nonleg % das gleiche für Bauraumprüfungs-Ersatzkörper
       collbodies % Enthält auch die Kollisionskörper der Beinketten
+      collbodies_instspc % das gleiche für Bauraumprüfung
       collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
+      collchecks_instspc % Liste für Bauraumprüfungen aus `collbodies_instspc`
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
@@ -150,6 +153,10 @@ classdef ParRob < RobBase
       % Kollisionsobjekte aus R.collbodies und danach R.Leg(1).collbodies
       % und allen weiteren Beinketten.
       R.collchecks = uint8(zeros(0,2));
+      % Platzhalter-Variablen auch für Bauraumprüfung
+      R.collbodies_instspc_nonleg = R.collbodies_nonleg;
+      R.collbodies_instspc = R.collbodies_nonleg;
+      R.collchecks_instspc = R.collchecks;
     end
     function [X,XD,XDD] = fkineEE_traj(R, Q, QD, QDD, idx_leg, platform_frame)
       % Direkte Kinematik für komplette Trajektorie berechnen. Basierend
@@ -356,9 +363,6 @@ classdef ParRob < RobBase
       s_ser = struct( ...
         'reci', false, ... % Keine reziproken Winkel für ZB-Def.
         'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
-        'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
-        'wn', zeros(3,1), ... % Gewichtung der Nebenbedingung
-        'maxstep_ns', 1e-10, ... % Abbruchbedingung für Nullraumbewegung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°
@@ -376,14 +380,15 @@ classdef ParRob < RobBase
       % geforderte gleichbleibende Feldreihenfolge in Eingabevariablen.
       if nargin >= 4
         for ff = fields(s_in_ser)'
-          if ~isfield(s_ser, ff{1})
-            error('Feld %s kann nicht übergeben werden', ff{1});
+          if ~isfield(s_ser, ff{1}) 
+            if ~any(strcmp(ff{1},{'wn','maxstep_ns'})) % Aus Kompatibilitätsgründen akzeptieren
+              error('Feld %s kann nicht übergeben werden', ff{1});
+            end
           else
             s_ser.(ff{1}) = s_in_ser.(ff{1});
           end
         end
       end
-      s_ser.wn = [s_ser.wn;zeros(4-length(s_ser.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat. Siehe SerRob/invkin2
       if nargin == 5 && ~isempty(s_in_par)
         for ff = fields(s_in_par)'
           if ~isfield(s_par, ff{1})
@@ -1682,47 +1687,73 @@ classdef ParRob < RobBase
         end
       end
     end
-    function update_collbodies(R)
-      % Aktualisiere die Klassenvariable collbodies aus den Daten der
-      % Beinkette und den PKM-spezifischen Körpern.
-      R.collbodies = R.collbodies_nonleg;
-      for i = 1:R.NLEG
-        % Hänge die Kollisionskörper der Beinketten an.
-        R.collbodies.type = [R.collbodies.type; ...
-          R.Leg(i).collbodies.type];
-        R.collbodies.params = [R.collbodies.params; ...
-          R.Leg(i).collbodies.params];
-        % Offset für die Nummern der Körper. 0 in Beinketten-Variable ist
-        % Beinketten-Basis, 1 ist erster bewegter Körper der Kette, ...
-        NLoffset = 1; % Für Basis der Beinkette
-        if i > 1
-          NLoffset = 1+R.I2L_LEG(i-1)-(i-1); % in I1L wird auch Basis und EE-Link noch mitgezählt. Hier nicht.
+    function update_collbodies(R, cbtype_selection)
+      % Aktualisiere die Kollisionskörper für die PKM. Notwendig, da Körper
+      % für die Beinketten getrennt gespeichert sind. Ergebnis: In Klassen-
+      % variable R.collbodies sind alle Kollisionskörper (Beinkette+Platt-
+      % form) gespeichert.
+      % 
+      % Eingabe:
+      % cbtype_selection
+      % 1: Nur Kollisionskörper
+      % 2: Nur Bauraum-Körper
+      % [1 2]: Beides (Standard)
+      if nargin < 2
+        cbtype_selection = [1 2];
+      end
+      % Beide Typen von Kollisionskörpern durchgehen
+      for cbtype = cbtype_selection
+        if cbtype == 1
+          R_collbodies = R.collbodies_nonleg;
+        else
+          R_collbodies = R.collbodies_instspc_nonleg;
         end
-        R.collbodies.link = [R.collbodies.link; ...
-          R.Leg(i).collbodies.link + uint8(repmat(NLoffset,size(R.Leg(i).collbodies.link,1),2))];
-        % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
-        % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
-        % (ist für Implementierung der Kollisionserkennung besser)
-        I_legbase = R.collbodies.link == 0 + NLoffset;
-        for j = find(any(I_legbase,2)') % alle Körper, die geändert werden müssen
-          if R.collbodies.type(j) == 3 && all(I_legbase(j,:))
-            % Kapsel mit absoluten Positionsangaben
-            T_0_0i = R.Leg(i).T_W_0;
-            % Punkte bezüglich Beinketten-Basis-KS
-            pts_0i = R.collbodies.params(j,1:6);
-            pts_0 = [eye(3,4)*T_0_0i*[pts_0i(1:3)';1]; ...   % Punkt 1
-                     eye(3,4)*T_0_0i*[pts_0i(4:6)';1]]'; ... % Punkt 2
-            % Als bezüglich PKM-Basis eintragen
-            R.collbodies.params(j,1:6) = pts_0;
-            R.collbodies.type(j) = 13;
+        % Aktualisiere die Klassenvariable collbodies aus den Daten der
+        % Beinkette und den PKM-spezifischen Körpern.
+        for i = 1:R.NLEG
+          if cbtype == 1
+            R_Leg_i_collbodies = R.Leg(i).collbodies;
+          else
+            R_Leg_i_collbodies = R.Leg(i).collbodies_instspc;
+          end
+          % Hänge die Kollisionskörper der Beinketten an.
+          R_collbodies.type = [R_collbodies.type; ...
+            R_Leg_i_collbodies.type];
+          R_collbodies.params = [R_collbodies.params; ...
+            R_Leg_i_collbodies.params];
+          % Offset für die Nummern der Körper. 0 in Beinketten-Variable ist
+          % Beinketten-Basis, 1 ist erster bewegter Körper der Kette, ...
+          NLoffset = 1; % Für Basis der Beinkette
+          if i > 1
+            NLoffset = 1+R.I2L_LEG(i-1)-(i-1); % in I1L wird auch Basis und EE-Link noch mitgezählt. Hier nicht.
+          end
+          R_collbodies.link = [R_collbodies.link; ...
+            R_Leg_i_collbodies.link + uint8(repmat(NLoffset,size(R_Leg_i_collbodies.link,1),2))];
+          % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
+          % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
+          % (ist für Implementierung der Kollisionserkennung besser)
+          I_legbase = R_collbodies.link == 0 + NLoffset;
+          for j = find(any(I_legbase,2)') % alle Körper, die geändert werden müssen
+            if R_collbodies.type(j) == 3 && all(I_legbase(j,:))
+              % Kapsel mit absoluten Positionsangaben
+              T_0_0i = R.Leg(i).T_W_0;
+              % Punkte bezüglich Beinketten-Basis-KS
+              pts_0i = R_collbodies.params(j,1:6);
+              pts_0 = [eye(3,4)*T_0_0i*[pts_0i(1:3)';1]; ...   % Punkt 1
+                       eye(3,4)*T_0_0i*[pts_0i(4:6)';1]]'; ... % Punkt 2
+              % Als bezüglich PKM-Basis eintragen
+              R_collbodies.params(j,1:6) = pts_0;
+              R_collbodies.type(j) = 13;
+              R_collbodies.link(j,:) = 0;
+            end
           end
         end
-      end
-      for i = 1:R.NLEG
-        % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
-        % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
-        % (ist für Implementierung der Kollisionserkennung besser)
-        I_legbase = R.collbodies.link == R.I1L_LEG(i);
+        % Trage wieder in Klassen-Variable ein
+        if cbtype == 1
+          R.collbodies = R_collbodies;
+        else
+          R.collbodies_instspc = R_collbodies;
+        end
       end
     end
   end

@@ -160,6 +160,65 @@ end
 assert(all(~colldet_cst(:)), ['Trotz absoluter Kollisionsvermeidung ', ...
   'gibt es Kollisionen in Zwischenschritten']);
 
+%% Debuggen der PTP-Bewegung
+Namen = {'3T3R', '3T2R', 'CollAV', 'CollStop'};
+for kk = 1:length(Namen)
+  if kk == 1
+    Stats = Stats_3T3R;
+  elseif kk == 2
+    Stats = Stats_3T2R;
+  elseif kk == 3
+    Stats = Stats_CollAvoid;
+  elseif kk == 4
+    Stats = Stats_CollStop;
+  end
+  change_current_figure(20); if kk == 1, clf; end
+  for i = 1:6
+    subplot(2,6,sprc2no(2,6,1,i)); hold on;
+    plot(Stats.Q(:,i)); ylabel(sprintf('q %d', i)); grid on;
+  end
+  for i = 1:6
+    subplot(2,6,sprc2no(2,6,2,i)); hold on;
+    plot(diff(Stats.Q(:,i))); ylabel(sprintf('dq %d', i)); grid on;
+  end
+  if kk == length(Namen)
+    sgtitle('Verlauf Gelenkwinkel');
+    legend(Namen);
+  end
+  JP_all = NaN(1+Stats.iter, 3*RS.NL); % Menge aller Gelenkpositionen
+  for i = 1:1+Stats.iter
+    [~,~,Tc_stack_i] = RS.fkine(Stats.Q(i,:)');
+    JP_all(i,:) = Tc_stack_i(:,4)';
+  end
+  [colldet, colldist] = check_collisionset_simplegeom(RS.collbodies, ...
+    RS.collchecks, JP_all, struct('collsearch', false));
+  change_current_figure(21); if kk == 1, clf; hold on; grid on; end
+  plot(min(colldist,[],2)); % 'r-', , 'LineWidth', 3
+  if kk == length(Namen)
+    sgtitle('Kollisionsverlauf');
+    ylabel('Eindringtiefe (negativ=Kollision)');
+    legend(Namen);
+  end
+  change_current_figure(22); if kk == 1, clf; end
+  subplot(2,2,kk); hold on; grid on;
+  plot(colldist);
+  plot(min(colldist,[],2), 'r--', 'LineWidth', 3);
+  title(Namen{kk});
+  ylabel('Eindringtiefe (negativ=Kollision)');
+  if kk == length(Namen)
+    sgtitle('Kollisionsverlauf Einzelkörper');
+  end
+  
+  change_current_figure(23); if kk == 1, clf; end
+  for i = 1:6
+    subplot(2,3,i); hold on;
+    plot(Stats.PHI(:,i)); ylabel(sprintf('Phi %d', i)); grid on;
+  end
+  if kk == length(Namen)
+    sgtitle('Verlauf Residuum');
+    legend(Namen);
+  end
+end
 %% Animation der PTP-Bewegungen mit und ohne Kollisionsvermeidung
 if usr_create_anim
 for k = 1:4
