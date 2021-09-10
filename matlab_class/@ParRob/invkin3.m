@@ -176,6 +176,8 @@ N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
 h3dq = zeros(1,Rob.NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq;
 h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
+bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
+bestinsspcdist = inf; currinsspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
@@ -269,7 +271,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     %% Optimierung der Nebenbedingungen (Nullraum)
     delta_q_N = zeros(size(delta_q_T));
     if nsoptim && ... % Nullraum muss vorhanden sein und Kriterien gesetzt
-        jj < n_max-10 && ...% die letzten Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
         ... %% falls vorherige Iterationen erfolglos, keine Nullraumbewegung. 
         ... % Annahme: Schädlich für Konvergenz. Nur, falls Stagnation 
         ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
@@ -404,10 +405,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h5dq = (h5_test-h(5))./qD_test';
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
-              h5dq = (-mincolldist_test(2)-(-mincolldist_test(1)))./qD_test';
-              if max(abs(h5dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-                h5dq = h5dq/max(abs(h5dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
-              end
+              h5dq = 1e3*(-mincolldist_test(2)-(-mincolldist_test(1)))./qD_test';
+              currcolldepth = -mincolldist_test(1);
+              bestcolldepth = min(bestcolldepth,currcolldepth);
             end
           else
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
@@ -435,12 +435,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
               for kkk = 1:Rob.NJ
-                h5dq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+                % Muss stetiges Kriterium sein, damit es nicht zu Dauer-
+                % schwingungen kommt. Wähle relativ großen Wert als Faktor
+                h5dq(kkk) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))/1e-6;
               end
-              if max(abs(h5dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-                h5dq = h5dq/max(abs(h5dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
-              end
+              currcolldepth = -mincolldist_test(1);
+              bestcolldepth = min(bestcolldepth,currcolldepth);
             end
+          end
+          if nargout == 4
+            Stats.maxcolldepth(jj) = -mincolldist_test(1);
           end
           v = v - wn(5)*h5dq';
         end
@@ -488,10 +492,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h6dq = (h6_test-h(6))./qD_test';
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
             % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
-            h6dq = (mindist_all(2)-mindist_all(1))./qD_test';
-            if max(abs(h6dq)) > .1 % Normiere auf Wert 0.1 für größtes Gelenk
-              h6dq = h6dq/max(abs(h6dq)) * .1; % wird weiter unten reduziert
-            end
+            h6dq = 1e3*(mindist_all(2)-mindist_all(1))./qD_test';
+            currinsspcdist = mindist_all(1);
+            bestinsspcdist = min(bestinsspcdist,currinsspcdist);
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
@@ -525,11 +528,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
             % Indirekte Bestimmung über Abstand
             for kkk = 1:Rob.NJ
-              h6dq(kkk) = (mindist_all(1+kkk)-mindist_all(1))/1e-6';
+              h6dq(kkk) = 1e3*(mindist_all(1+kkk)-mindist_all(1))/1e-6';
             end
-            if max(abs(h6dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-              h6dq = h6dq/max(abs(h6dq)) * 1e3; % wird weiter unten reduziert
-            end
+            currinsspcdist = mindist_all(1);
+            bestinsspcdist = min(bestinsspcdist,currinsspcdist);
           end
         end
         if nargout == 4
@@ -706,8 +708,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     Phi_neu_norm = norm(Phi_neu);
     Delta_Phi = Phi_neu_norm - norm(Phi); % "neu" - "alt";
     bestPhi = min([bestPhi;Phi_neu_norm]);
-    if any(delta_q_N) && sum(wn.*h)>=sum(wn.*h_alt) && ~any(isinf(h)) && (Delta_Phi > 0 || ...
-        Phi_neu_norm > bestPhi) % zusätzlich prüfen gegen langsamere Oszillationen
+    if any(delta_q_N) && (Delta_Phi > 0 || Phi_neu_norm > bestPhi) && ...  % zusätzlich prüfen gegen langsamere Oszillationen
+        (~any(isinf(h)) && sum(wn.*h)>=sum(wn.*h_alt) || ... % Verschlechterung der Opt.-Kriterien
+         isinf(h(5)) && currcolldepth > bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
+         isinf(h(6)) && currinsspcdist > bestinsspcdist) % das gleiche für Bauraumverletzung
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
@@ -807,6 +811,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       break;
     end
+    if jj == n_max-10
+      % die letzten 10 Iterationen sind zum Ausgleich des Positionsfehlers (ohne Nullraum)
+      nsoptim = false;
+      h(:) = NaN; % sonst wird der bisherige Wert gehalten. Missverständlich.
+    end
   end
   if success
     if nargout == 4
@@ -823,7 +832,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr < size(Q0,2) % versuche eine weitere der vorgegebenen Konfigurationen
     q0 = Q0(:,rr+1);
   else % benutze eine zufällige Konfiguration
-    Q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
+    q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
   end
 end
 if nargout >= 3 || nargout >= 4 && wn(5) ~= 0
@@ -842,17 +851,24 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     h(4) = cond(Jinv(Rob.I_qa,Rob.I_EE));
   end
-  if wn(5) ~= 0
-    [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks, ...
+  if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
+    colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
       Tc_stack_PKM(:,4)', struct('collsearch', true));
-    h(5) = invkin_optimcrit_limits2(-min(colldist), ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
-    if any(colldet)
-      Stats.coll = true;
+    if any(colldet) % Jetzt Betrachtung der eigentlichen Kollisionskörper
+      [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks(colldet,:), ...
+        Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
+      Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
+      h(5) = invkin_optimcrit_limits2(Stats.maxcolldepth(Stats.iter+1), ...
+        [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+      if any(colldet)
+        Stats.coll = true;
+      end
+    else
+      h(5) = 0;
     end
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, maxcolldepth], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(6) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
@@ -865,11 +881,11 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       mindist_all = max([mindist_i,mindist_all],[],2);
     end
     h(6) = invkin_optimcrit_limits2(mindist_all, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
     Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+      [-100.0, 0], [-90, -s.installspace_thresh]);
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
