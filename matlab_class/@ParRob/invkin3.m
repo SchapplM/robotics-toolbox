@@ -177,7 +177,7 @@ N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
 h3dq = zeros(1,Rob.NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq;
 h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
-bestinsspcdist = inf; currinsspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
+bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
@@ -407,7 +407,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
               h5dq = 1e3*(-mincolldist_test(2)-(-mincolldist_test(1)))./qD_test';
               currcolldepth = -mincolldist_test(1);
-              bestcolldepth = min(bestcolldepth,currcolldepth);
+              if all(abs(Phi) < 1e-3)
+                bestcolldepth = min(bestcolldepth,currcolldepth);
+              end
             end
           else
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
@@ -440,7 +442,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 h5dq(kkk) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))/1e-6;
               end
               currcolldepth = -mincolldist_test(1);
-              bestcolldepth = min(bestcolldepth,currcolldepth);
+              if all(abs(Phi) < 1e-3)
+                bestcolldepth = min(bestcolldepth,currcolldepth);
+              end
             end
           end
           if nargout == 4
@@ -493,8 +497,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
             % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
             h6dq = 1e3*(mindist_all(2)-mindist_all(1))./qD_test';
-            currinsspcdist = mindist_all(1);
-            bestinsspcdist = min(bestinsspcdist,currinsspcdist);
+            currinstspcdist = mindist_all(1);
+            if all(abs(Phi) < 1e-3)
+              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+            end
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
@@ -530,8 +536,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             for kkk = 1:Rob.NJ
               h6dq(kkk) = 1e3*(mindist_all(1+kkk)-mindist_all(1))/1e-6';
             end
-            currinsspcdist = mindist_all(1);
-            bestinsspcdist = min(bestinsspcdist,currinsspcdist);
+            currinstspcdist = mindist_all(1);
+            if all(abs(Phi) < 1e-3)
+              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+            end
           end
         end
         if nargout == 4
@@ -711,7 +719,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if any(delta_q_N) && (Delta_Phi > 0 || Phi_neu_norm > bestPhi) && ...  % zusätzlich prüfen gegen langsamere Oszillationen
         (~any(isinf(h)) && sum(wn.*h)>=sum(wn.*h_alt) || ... % Verschlechterung der Opt.-Kriterien
          isinf(h(5)) && currcolldepth > bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
-         isinf(h(6)) && currinsspcdist > bestinsspcdist) % das gleiche für Bauraumverletzung
+         isinf(h(6)) && currinstspcdist > bestinstspcdist) % das gleiche für Bauraumverletzung
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
@@ -874,8 +882,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
       Rob.collchecks_instspc, Tc_stack_PKM(:,4)', struct('collsearch', false));
     mindist_all = -inf;
-    for i = 1:size(s.collbodies_instspc.link,1)
-      I = s.collchecks_instspc(:,1) == i;
+    for i = 1:size(Rob.collbodies_instspc.link,1)
+      I = Rob.collchecks_instspc(:,1) == i;
       if ~any(I), continue; end
       mindist_i = min(absdist(:,I),[],2);
       mindist_all = max([mindist_i,mindist_all],[],2);

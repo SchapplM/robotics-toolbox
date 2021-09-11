@@ -126,6 +126,20 @@ xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_cav, s_plot );
 title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
 
+% Prüfe Kollisionen in Zwischenschritten
+JP_all_cav = NaN(1+Stats_CollAvoid.iter, 3*RS.NL); % Menge aller Gelenkpositionen
+for i = 1:1+Stats_CollAvoid.iter
+  [~,~,Tc_stack_i] = RS.fkine(Stats_CollAvoid.Q(i,:)');
+  JP_all_cav(i,:) = Tc_stack_i(:,4)';
+end
+[colldet_cav,colldist_cav] = check_collisionset_simplegeom(RS.collbodies, ...
+  RS.collchecks, JP_all_cav, struct('collsearch', false));
+maxcolldepth_cav_2 = max(-colldist_cav,[],2);
+test_maxcolldepth_cav = maxcolldepth_cav_2 - ...
+  Stats_CollAvoid.maxcolldepth(1:1+Stats_CollAvoid.iter);
+assert(all(abs(test_maxcolldepth_cav)<1e-10), 'Nachrechnung der Kollisionstiefen stimmt nicht');
+assert(~any(colldet_cav(end,:)), 'Trotz Kollisionsvermeidungsstrategie gibt es in Endpose eine Kollision');
+
 % Verfahrbewegung mit Kollisionsvermeidung (aufgabenredundant). Kollisionen
 % in Zwischenphasen verbieten.
 s_collstop = s_basic;
@@ -143,10 +157,6 @@ trplot(RS.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.3);
 RS.plot( q1_cst, s_plot );
 title('Zielpose des Roboters mit strikter Kollisionsvermeidung');
 
-% Kollisionsprüfung für Endposen beider Verfahren
-[colldet,colldist] = check_collisionset_simplegeom(RS.collbodies, RS.collchecks, ...
-  [Tcstack1_cst(:,4)'; Tcstack1_cav(:,4)'], struct('collsearch', true));
-assert(~any(colldet(:)), 'Trotz Kollisionsvermeidungsstrategie gibt es in Endpose eine Kollision');
 % Prüfe Kollisionsprüfung in Zwischenschritten. Erneute Berechnung
 % notwendig, da in IK die Kollision noch hyperbolisch gewichtet wird. 
 % Schwellwert zwischen Warnbereich und Eindringung bei Kollision unbekannt.
@@ -158,7 +168,7 @@ end
 [colldet_cst, colldist_cst] = check_collisionset_simplegeom(RS.collbodies, ...
   RS.collchecks, JP_all_cst, struct('collsearch', true));
 assert(all(~colldet_cst(:)), ['Trotz absoluter Kollisionsvermeidung ', ...
-  'gibt es Kollisionen in Zwischenschritten']);
+  'gibt es Kollisionen in Zwischenschritten oder am Ende']);
 
 %% Debuggen der PTP-Bewegung
 Namen = {'3T3R', '3T2R', 'CollAV', 'CollStop'};
@@ -172,7 +182,8 @@ for kk = 1:length(Namen)
   elseif kk == 4
     Stats = Stats_CollStop;
   end
-  change_current_figure(20); if kk == 1, clf; end
+  change_current_figure(20);
+  if kk == 1, clf; set(20, 'Name', 'PTP_Q', 'NumberTitle', 'Off'); end
   for i = 1:6
     subplot(2,6,sprc2no(2,6,1,i)); hold on;
     plot(Stats.Q(:,i)); ylabel(sprintf('q %d', i)); grid on;
@@ -184,6 +195,7 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Verlauf Gelenkwinkel');
     legend(Namen);
+    linkxaxes;
   end
   JP_all = NaN(1+Stats.iter, 3*RS.NL); % Menge aller Gelenkpositionen
   for i = 1:1+Stats.iter
@@ -192,14 +204,18 @@ for kk = 1:length(Namen)
   end
   [colldet, colldist] = check_collisionset_simplegeom(RS.collbodies, ...
     RS.collchecks, JP_all, struct('collsearch', false));
-  change_current_figure(21); if kk == 1, clf; hold on; grid on; end
+  
+  change_current_figure(21);
+  if kk == 1, clf; hold on; set(21, 'Name', 'PTP_Coll', 'NumberTitle', 'Off'); grid on; end
   plot(min(colldist,[],2)); % 'r-', , 'LineWidth', 3
   if kk == length(Namen)
     sgtitle('Kollisionsverlauf');
     ylabel('Eindringtiefe (negativ=Kollision)');
     legend(Namen);
   end
-  change_current_figure(22); if kk == 1, clf; end
+  
+  change_current_figure(22);
+  if kk == 1, clf; set(22, 'Name', 'PTP_Coll_All', 'NumberTitle', 'Off'); end
   subplot(2,2,kk); hold on; grid on;
   plot(colldist);
   plot(min(colldist,[],2), 'r--', 'LineWidth', 3);
@@ -207,9 +223,11 @@ for kk = 1:length(Namen)
   ylabel('Eindringtiefe (negativ=Kollision)');
   if kk == length(Namen)
     sgtitle('Kollisionsverlauf Einzelkörper');
+    linkxaxes;
   end
   
-  change_current_figure(23); if kk == 1, clf; end
+  change_current_figure(23);
+  if kk == 1, clf; set(23, 'Name', 'PTP_Phi', 'NumberTitle', 'Off'); end
   for i = 1:6
     subplot(2,3,i); hold on;
     plot(Stats.PHI(:,i)); ylabel(sprintf('Phi %d', i)); grid on;
@@ -217,6 +235,7 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Verlauf Residuum');
     legend(Namen);
+    linkxaxes;
   end
 end
 %% Animation der PTP-Bewegungen mit und ohne Kollisionsvermeidung
@@ -326,7 +345,8 @@ for kk = 1:length(Namen)
     Q_kk = Q_CAPDw; QD_kk = QD_CAPDw; QDD_kk = QDD_CAPDw; CD_kk = dist_CAPDw;
     h_kk = Stats_CAPDw.h;
   end
-  change_current_figure(20); if kk == 1, clf; end
+  change_current_figure(30);
+  if kk == 1, clf; set(30, 'Name', 'Traj_Q', 'NumberTitle', 'off'); end
   for i = 1:RS.NJ
     % Gelenkposition
     subplot(3,RS.NJ,sprc2no(3, RS.NJ, 1, i));
@@ -347,8 +367,10 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Gelenkbewegung');
     legend(Namen);
+    linkxaxes;
   end
-  change_current_figure(21); if kk == 1, clf; end
+  change_current_figure(31);
+  if kk == 1, clf; set(31, 'Name', 'Traj_Coll', 'NumberTitle', 'off'); end
   subplot(2,1,1); hold on;
   plot(T, min(CD_kk,[],2));
   if kk == length(Namen)
@@ -362,10 +384,10 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     sgtitle('Kollisionsprüfung');
     legend(Namen);
+    linkxaxes;
     xlim([0,T(end)]);
   end
 end
-
 
 %% Animation der Trajektorien-Bewegungen mit und ohne Kollisionsvermeidung
 if usr_create_anim

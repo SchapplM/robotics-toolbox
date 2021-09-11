@@ -215,7 +215,7 @@ scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
-bestinsspcdist = inf; currinsspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
+bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 
 % Ausgabe belegen
 success = false;
@@ -365,7 +365,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               hdq(kkk) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))/1e-6;
             end
             currcolldepth = -mincolldist_test(1);
-            bestcolldepth = min(bestcolldepth,currcolldepth);
+            if all(abs(Phi) < 1e-3) % Nur bei finaler Nullraumbewegung sinnvoll
+              % (sonst Anfahrtbewegung und nicht aussagekräftig)
+              bestcolldepth = min(bestcolldepth,currcolldepth);
+            end
           end
           % Zu Nullraum-Vektor hinzufügen
           v = v - wn(4)*hdq';
@@ -421,8 +424,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           for kkk = 1:NQJ
             hdq(kkk) = 1e3*(mindist_all(1+kkk)-mindist_all(1))/1e-6;
           end
-          currinsspcdist = mindist_all(1);
-          bestinsspcdist = min(bestinsspcdist,currinsspcdist);
+          currinstspcdist = mindist_all(1);
+          if all(abs(Phi) < 1e-3)
+            bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+          end
         end
         if nargout == 4
           Stats.instspc_mindst(jj) = mindist_all(1);
@@ -590,7 +595,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if any(delta_q_N) && (Delta_Phi > 0 || Phi_neu_norm > bestPhi) && ...  % zusätzlich prüfen gegen langsamere Oszillationen
         (~any(isinf(h)) && sum(wn.*h)>=sum(wn.*h_alt) || ... % Verschlechterung der Opt.-Kriterien
          isinf(h(4)) && currcolldepth > bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
-         isinf(h(5)) && currinsspcdist > bestinsspcdist) % das gleiche für Bauraumverletzung
+         isinf(h(5)) && currinstspcdist > bestinstspcdist) % das gleiche für Bauraumverletzung
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
@@ -750,7 +755,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     h(5) = invkin_optimcrit_limits2(mindist_all, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
-    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1)
+    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
