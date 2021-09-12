@@ -788,9 +788,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
      ( ~nsoptim || ...%  und keine Nebenoptimierung läuft
         nsoptim && all(abs(delta_q_N) <= maxstep_ns) ) % oder die Nullraumoptimierung läuft noch. "<=" für Fall 0.
       success = true;
-      if nargout == 4
-        Stats.iter = jj;
-      end
       if finish_in_limits && (any(q1 < qlim(:,1)) || any(q1 > qlim(:,2)))
         % Es soll eigentlich abgebrochen werden. Die Grenzen wurden aber 
         % nicht eingehalten. Mache noch mit dem Algorithmus weiter und 
@@ -816,6 +813,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
           continue
         end
+      end
+      if nargout == 4
+        Stats.iter = jj;
       end
       break;
     end
