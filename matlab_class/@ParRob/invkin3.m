@@ -799,6 +799,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
         success = false; % Bereits gesetzten Wert wieder zurücknehmen
+        Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen
         continue
       end
       if avoid_collision_finish
@@ -807,10 +808,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom_mex(Rob.collbodies, ...
           Rob.collchecks, JP, struct('collsearch', false));
         if any(colldet)
-          wn(5) = 1; % Aktiviere Kollisionsvermeidung
+          wn(5) = 1e3; % Starke Kollisionsvermeidung
           wn(1:4) = 0; % Deaktiviere alle anderen Nebenbedingungen
           avoid_collision_finish = false; % Nur einmal versuchen
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
+          Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen
           continue
         end
       end
