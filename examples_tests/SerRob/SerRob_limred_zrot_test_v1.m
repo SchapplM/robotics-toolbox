@@ -61,6 +61,7 @@ for Robot_Data = Robots
   % serroblib_create_template_functions({SName}, false, false);
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
+%   matlabfcn2mex({[RS.mdlname, '_invkin_eulangresidual'], [RS.mdlname, '_invkin_traj']});
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
   RS.qDlim = repmat([-4*pi, 4*pi], RS.NQJ, 1); % 2rpm
@@ -172,7 +173,7 @@ for Robot_Data = Robots
   Task_save = RS.I_EE_Task;
   RS.I_EE_Task = logical([1 1 1 1 1 1]);
   q_nn = zeros(6,size(XE,1));
-  Stats_nn_save = NaN(1001,6,size(XE,1));
+  Stats_nn_save = NaN(1001,7,size(XE,1));
   qnn_norm = zeros(6,size(XE,1));
   for nn = 1:size(XE,1)
     if nn == 1
@@ -345,8 +346,8 @@ for Robot_Data = Robots
       
       % IK aufrufen, um Residuum zu bekommen
       [q_IK_nolimred, phi_IK_nolimred, ~, Stats_nolimred] = RS.invkin2(RS.x2tr(XE(i,:)'), q0_ep, s_ep_3T2R);
-      h5_save_nolimred(:,i)   = Stats_nolimred.xlimred_quad(:);
-      h6_save_nolimred(:,i)   = Stats_nolimred.xlimred_hyp(:);
+%       h5_save_nolimred(:,i)   = Stats_nolimred.xlimred_quad(:);
+%       h6_save_nolimred(:,i)   = Stats_nolimred.xlimred_hyp(:);
       phiz_save_nolimred(:,i) = Stats_nolimred.PHI(:,4);
       iter_nolimred(i,1) = Stats_nolimred.iter;
       Q_save_nolimred(:,:,i) = Stats_nolimred.Q(:,:);
@@ -362,8 +363,8 @@ for Robot_Data = Robots
       end
       
       [q_IK, phi_IK, ~, Stats_limred] = RS.invkin2(RS.x2tr(XE(i,:)'), q0_ep, s_ep_limred);
-      h5_save_limred(:,i)   = Stats_limred.xlimred_quad(:);
-      h6_save_limred(:,i)   = Stats_limred.xlimred_hyp(:);
+%       h5_save_limred(:,i)   = Stats_limred.xlimred_quad(:);
+%       h6_save_limred(:,i)   = Stats_limred.xlimred_hyp(:);
       phiz_save_limred(:,i) = Stats_limred.PHI(:,4);
       iter_limred(i,1) = Stats_limred.iter;    
       Q_save_limred(:,:,i) = Stats_limred.Q(:,:);
@@ -379,8 +380,8 @@ for Robot_Data = Robots
       end
 
       [q_IK2, phi_IK2, ~, Stats_limred2] = RS.invkin2(RS.x2tr(XE(i,:)'), q0_ep, s_ep_limred2);
-      h5_save_limred2(:,i)   = Stats_limred2.xlimred_quad(:);
-      h6_save_limred2(:,i)   = Stats_limred2.xlimred_hyp(:);
+%       h5_save_limred2(:,i)   = Stats_limred2.xlimred_quad(:);
+%       h6_save_limred2(:,i)   = Stats_limred2.xlimred_hyp(:);
       phiz_save_limred2(:,i) = Stats_limred2.PHI(:,4);
       iter_limred2(i,1) = Stats_limred2.iter;    
       Q_save_limred2(:,:,i) = Stats_limred2.Q(:,:);
@@ -630,7 +631,7 @@ for Robot_Data = Robots
         plot([0;index_phiz_limred(end)], RS.qlim(kkk,1)*[1;1]/RS.qunitmult_eng_sci(kkk), 'r--');
         plot([0;index_phiz_limred(end)], RS.qlim(kkk,2)*[1;1]/RS.qunitmult_eng_sci(kkk), 'r--');
         xlabel('t [s]');
-        ylabel(sprintf('q_%d / %s', k, RS.qunit_eng{kkk}));
+        ylabel(sprintf('q_%d / %s', kkk, RS.qunit_eng{kkk}));
         grid on;
       end  
       
@@ -642,7 +643,7 @@ for Robot_Data = Robots
         plot([0;index_phiz_limred2(end)], RS.qlim(kkk,1)*[1;1]/RS.qunitmult_eng_sci(kkk), 'r--');
         plot([0;index_phiz_limred2(end)], RS.qlim(kkk,2)*[1;1]/RS.qunitmult_eng_sci(kkk), 'r--');
         xlabel('t [s]');
-        ylabel(sprintf('q_%d / %s', k, RS.qunit_eng{kkk}));
+        ylabel(sprintf('q_%d / %s', kkk, RS.qunit_eng{kkk}));
         grid on;
       end  
       

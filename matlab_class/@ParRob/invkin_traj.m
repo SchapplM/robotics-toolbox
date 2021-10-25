@@ -42,6 +42,11 @@
 %    (13) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
 %         (entspricht h(8))
 %    (14) wie 13, aber auf Geschwindigkeitsebene
+%    (15) Abstand von phiz zu xlim (quadratisch gewertet)
+%    (16) wie 15, aber auf Beschleunigungsebene
+%    (17) Abstand von phiz zu xlim (hyperbolisch gewertet)
+%    (18) wie 17, aber auf Beschleunigungsebene
+%    (19) Abstand von phizD zu xDlim (quadratisch gewertet) als Dämpfung
 % 
 % Ausgabe:
 % Q
@@ -209,13 +214,14 @@ else
   qDDmin = -inf(Rob.NJ,1);
   qDDmax =  inf(Rob.NJ,1);
 end
+enforce_qlim = s.enforce_qlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h10 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xDlim
+xlim_thr_h10 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
 wn = [s.wn;zeros(19-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 
 % Definitionen für die Kollisionsprüfung
@@ -533,7 +539,7 @@ for k = 1:nt
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
         J_x_inv_test_v3 = -Phi_q_voll_test\Phi_x_voll_test;
-        h6_test_v3 = cond(J_x_inv_test_v3(Rob.I_qa,:));       
+        h6_test_v3 = cond(J_x_inv_test_v3(Rob.I_qa,:));
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6drz_v3 = (h6_test_v3-h(6))/xD_test(6);
 
@@ -701,7 +707,7 @@ for k = 1:nt
           elseif Phi_r(1) >= s.xlim(6,2)
             h10drz = +1e10;
           else
-            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+            error('Fall sollte eigentlich nicht vorkommen');
           end
         else
           h10drz = (h10_test-h(10))/1e-6;
@@ -899,11 +905,11 @@ for k = 1:nt
         h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
         if h(10) == Inf % Hier noch inf verwenden und daher kein hdrz = 1e10? Oder neues Phi+-altes? 
           if Phi_r(1) <= s.xlim(6,1)
-            h10dq = -1e6*qD_test'; % variabel für q(7:end)
+            h10dq = -1e6*qD_test';
           elseif Phi_r(1) >= s.xlim(6,2)
             h10dq = +1e6*qD_test';
           else
-            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+            error('Fall sollte eigentlich nicht vorkommen');
           end
         else
           h10dq = (h10_test-h(10))./qD_test';
@@ -912,9 +918,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(18)*h10dq(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
-        J_x_inv_test = -Phi_q_voll \ Phi_x_voll;
-        XD_k = J_x_inv_test \ qD_k; % Matrix nicht quadratisch. Keine Invertierung mit "/" sinnvoll. Wenn dann"\". Falsche Matrix (qD=Jinv*xD)
-%         XD_k = J_x_inv_test / qD_k;
+        XD_k = J_x_inv(Rob.I_qa,:) \ qD_k(Rob.I_qa);
         XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
         h11_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2)); % nehme hier v2 und vorher altes XD_k_diff
@@ -1181,8 +1185,10 @@ for k = 1:nt
       end
     end
   end
-  Stats.h(k,:) = [sum(wn([1:6,11,13]).*h([1:8])),h'];
-  Stats.phi_zD(k,:) = xD_k(6);  %% Anfangswerte für Positionsberechnung in nächster Iteration
+  % TODO: Konsistente Reihenfolge in wn und h.
+  Stats.h(k,:) = [sum(wn([1:6,11,13,15,17]).*h(1:10)),h'];
+  Stats.phi_zD(k,:) = xD_k(6);  
+  %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt

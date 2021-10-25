@@ -185,7 +185,8 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h9 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xDlim
+xlim_thr_h9 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 wn = s.wn;
 if any(wn ~= 0)
   nsoptim = true;
@@ -312,6 +313,7 @@ for k = 1:nt
   % Inverse Kinematik für aktuellen Bahnpunkt. Nutze Anfangswert aus der
   % differentiellen Kinematik hiernach von der letzten Iteration (k-1)
   [q_k, Phi_k, Tc_stack_k, Stats_k] = %RN%_invkin_eulangresidual(Tr0E_k, qk0, s_pik);
+  Phi_k_voll = Stats_k.PHI(1+Stats_k.iter,:)';
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
   PHI(k,:) = Phi_k;
@@ -619,46 +621,48 @@ for k = 1:nt
       h(7) = 0;
     end
     if wn(13) ~= 0 || wn(14) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
-      h(8) = invkin_optimcrit_limits1(Stats_k.PHI(Stats_k.iter+1,4), s.xlim(6,1:2));
-      h8_test = invkin_optimcrit_limits1(Stats_k.PHI(Stats_k.iter+1,4)+1e-6, s.xlim(6,1:2));
+      h(8) = invkin_optimcrit_limits1(Phi_k_voll(4), s.xlim(6,1:2));
+      h8_test = invkin_optimcrit_limits1(Phi_k_voll(4)+1e-6, s.xlim(6,1:2));
       h8drz = (h8_test-h(8))/1e-6;
       h8dq = h8drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
-      v_qD  = v_qD  - wn(13)*h8dq';
-      v_qDD = v_qDD - wn(14)*h8dq';
+      v_qD  = v_qD  - wn(14)*h8dq'; % D-Anteil (auf qDD)
+      v_qDD = v_qDD - wn(13)*h8dq'; % P-Anteil (auf qDD)
     end
     if wn(15) ~= 0 || wn(16) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
       % Kriterium für aktuellen Schritt
-      h(9) = invkin_optimcrit_limits2(Stats_k.PHI(Stats_k.iter+1,4), ...
+      h(9) = invkin_optimcrit_limits2(Phi_k_voll(4), ...
         s.xlim(6,1:2), xlim_thr_h9(6,:));
       % Kriterium für Inkrement berechnen
-      h9_test = invkin_optimcrit_limits2(Stats_k.PHI(Stats_k.iter+1,4)+1e-6, ...
+      h9_test = invkin_optimcrit_limits2(Phi_k_voll(4)+1e-9, ...
         s.xlim(6,1:2), xlim_thr_h9(6,:));
-      if h(9) == Inf
-        if Stats_k.PHI(Stats_k.iter+1,4) <= s.xlim(6,1)
+      if isinf(h(9)) || isinf(h9_test)
+        if Phi_k_voll(4) <= s.xlim(6,1) + 1e-9
           h9drz = -1e10;
-        elseif Stats_k.PHI(Stats_k.iter+1,4) >= s.xlim(6,2)
+        elseif Phi_k_voll(4) >= s.xlim(6,2) - 1e-9
           h9drz = +1e10;
         else
-          error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          error('Fall sollte eigentlich nicht vorkommen');
         end
       else
-        h9drz = (h9_test-h(9))/1e-6;
+        h9drz = (h9_test-h(9))/1e-9;
       end
       h9dq = h9drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
-      v_qD  = v_qD  - wn(15)*h9dq';
-      v_qDD = v_qDD - wn(16)*h9dq';
+      v_qD  = v_qD  - wn(16)*h9dq'; % D-Anteil (auf qDD)
+      v_qDD = v_qDD - wn(15)*h9dq'; % P-Anteil (auf qDD)
     end
     if wn(17) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
       % Kriterium für aktuellen Schritt
       XD_k = J_x * qD_k;
       XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
       h(10) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
-      % Kriterium für Inkrement berechnen%
-      h10_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
-      h10drz = (h10_test-h(10))/1e-6;
+      % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
+      % für Nulldurchgang)
+      h10_test1 = invkin_optimcrit_limits1(XD6_k_diff-1e-6, s.xDlim(6,1:2));
+      h10_test2 = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
+      h10drz = (h10_test2-h10_test1)/2e-6;
       h10dq = h10drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
       v_qDD = v_qDD - wn(17)*h10dq';
-    end 
+    end
     % Begrenze die Werte für die Gradienten (können direkt an Grenzen
     % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
     % saubere Nullraumbewegung mehr möglich.
@@ -863,7 +867,7 @@ for k = 1:nt
   
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  Stats.h(k,:) = [sum(wn([1:5,9,11]).*h(1:7)),h(1:10)'];
+  Stats.h(k,:) = [sum(wn([1:5,9,11,13,15]).*h(1:9)),h(1:10)'];
   XD_k_Stats = J_x * qD_k;
   Stats.phi_zD(k,1) = XD_k_Stats(6) - XD(k,6); % siehe wn(17)
   %% Anfangswerte für Positionsberechnung in nächster Iteration

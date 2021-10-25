@@ -42,8 +42,6 @@ classdef SerRob < RobBase
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
     qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
-    xlim % Minimal und maximal zulässige Endeffektorbewegung
-    xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
@@ -201,8 +199,6 @@ classdef SerRob < RobBase
       R.qlim = repmat([-inf, inf], R.NQJ,1);
       R.qDlim = repmat([-inf, inf], R.NQJ,1);
       R.qDDlim = repmat([-inf, inf], R.NQJ,1);
-      R.xlim = NaN(6,2);
-      R.xDlim = NaN(6,2);
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
       R.T_N_E = eye(4);
@@ -770,7 +766,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 17, s.wn=[s.wn;zeros(15-length(s.wn),1)]; end
+      if length(s.wn) < 17, s.wn=[s.wn;zeros(17-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

@@ -36,6 +36,8 @@ if ~use_parrob
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName);
   RS.fill_fcn_handles(true, true);
+%  serroblib_create_template_functions({SName}, false, false);
+%   matlabfcn2mex({[RS.mdlname, '_invkin_eulangresidual']});
   % RS.mex_dep(true)
   RP = ParRob('P6RRPRRR14V3G1P4A1');
   RP.create_symmetric_robot(6, RS, 0.5, 0.2);
@@ -60,7 +62,10 @@ if use_parrob
   RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
 end
-
+% parroblib_create_template_functions({RP.mdlname}, false, false);
+% matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
+% matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
+% matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
 %% Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
 % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
@@ -362,46 +367,50 @@ s_ep = struct( ...
   'n_min', 0, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
   'scale_lim', 0, 'wn', zeros(7,1), 'retry_limit', 0);
 s_ep.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
-  
+
 for i = 1:size(XL,1)
   % Inverse Kinematik für die Auswertung mit Stats
   for k = 1:amount_optcrit
     s_ep.wn = s_ep_wn(:,k); % k verschiedene Optimierungskriterien
     [q_IK_ep, phi_IK_ep, ~, Stats_IK_ep] = RP.invkin3(XL(i,:)', q0_ep, s_ep);
-      h7_ep(:,k,i)   = Stats_IK_ep.h(:,8);
-      h8_ep(:,k,i)   = Stats_IK_ep.h(:,9);
-      phiz_ep(:,k,i) = Stats_IK_ep.PHI(:,4);
-      iter_ep(i,k)   = Stats_IK_ep.iter;
-      Q_ep(:,:,i,k)  = Stats_IK_ep.Q(:,:);
-      
-      % Test-Berechnung ob wn(6) bzw. wn(7) aktiv ist (phi<1e-3, siehe invkin)
-      for nn = 1:(Stats_IK_ep.iter+1)
-        Stats_Phi_temp = Stats_IK_ep.PHI(nn,:);
-        I_EE_sort = [2:36];
-        I_EE_sort(1:5) = [1 2 3 6 5]; % ohne red. FHG
-        if all(abs(Stats_Phi_temp(I_EE_sort))<1e-3)  % vierten Eintrag ignorieren
-          limred_crit_active(nn,k,i) = 1;
-        end
+    h7_ep(:,k,i)   = Stats_IK_ep.h(:,8);
+    h8_ep(:,k,i)   = Stats_IK_ep.h(:,9);
+    phiz_ep(:,k,i) = Stats_IK_ep.PHI(:,4);
+    iter_ep(i,k)   = Stats_IK_ep.iter;
+    Q_ep(:,:,i,k)  = Stats_IK_ep.Q(:,:);
+    % Testweise Aufruf der kompilierten Funktion
+    [q_IK_ep2, phi_IK_ep2, ~, Stats_IK_ep2] = RP.invkin4(XL(i,:)', q0_ep, s_ep);
+    test_q_v3v4 = q_IK_ep-q_IK_ep2;
+    assert(all(abs(normalizeAngle(test_q_v3v4,0)) < 1e-6), 'Ergebnis von invkin3 und invkin4 stimmt nicht überein');
+
+    % Test-Berechnung ob wn(6) bzw. wn(7) aktiv ist (phi<1e-3, siehe invkin)
+    for nn = 1:(Stats_IK_ep.iter+1)
+      Stats_Phi_temp = Stats_IK_ep.PHI(nn,:);
+      I_EE_sort = [2:36];
+      I_EE_sort(1:5) = [1 2 3 6 5]; % ohne red. FHG
+      if all(abs(Stats_Phi_temp(I_EE_sort))<1e-3)  % vierten Eintrag ignorieren
+        limred_crit_active(nn,k,i) = 1;
       end
-      
-      % Warnung, wenn aktuelle IK ungültig -> Fehlerausgabe am Ende
-      if (any(abs(phi_IK_ep) > Phirt_tol)) && (k == 4)  % nur bei vollständiger Optimierung interessant
-        warning('Inverse Kinematik bei Punkt %d für Optimierungsmethode %d fehlerhaft!', i, k); 
-        warning_phi_count = warning_phi_count + 1;
-        warnplot_needed_state = 1;
+    end
+
+    % Warnung, wenn aktuelle IK ungültig -> Fehlerausgabe am Ende
+    if (any(abs(phi_IK_ep) > Phirt_tol)) && (k == 4)  % nur bei vollständiger Optimierung interessant
+      warning('Inverse Kinematik bei Punkt %d für Optimierungsmethode %d fehlerhaft!', i, k); 
+      warning_phi_count = warning_phi_count + 1;
+      warnplot_needed_state = 1;
+    end
+
+    if k > 1
+      if phiz_ep(Stats_IK_ep.iter+1,k,i) <= s_ep.xlim(6,1) || phiz_ep(Stats_IK_ep.iter+1,k,i) >= s_ep.xlim(6,2)
+        phiz_oob(k-1,i) = 1;  % k-1, damit Vektor nicht mit 3T3R befüllt wird
+        phiz_oob_state = 1;
+      else
+        if phiz_ep(Stats_IK_ep.iter+1,k,i) <= s_ep.xlim(6,1)*0.8 || phiz_ep(Stats_IK_ep.iter+1,k,i) >= s_ep.xlim(6,2)*0.8
+          phiz_oob_thresh(k-1,i) = 1;
+          phiz_oob_thresh_state = 1;
+        end 
       end
-      
-      if k > 1
-        if phiz_ep(Stats_IK_ep.iter+1,k,i) <= s_ep.xlim(6,1) || phiz_ep(Stats_IK_ep.iter+1,k,i) >= s_ep.xlim(6,2)
-          phiz_oob(k-1,i) = 1;  % k-1, damit Vektor nicht mit 3T3R befüllt wird
-          phiz_oob_state = 1;
-        else
-          if phiz_ep(Stats_IK_ep.iter+1,k,i) <= s_ep.xlim(6,1)*0.8 || phiz_ep(Stats_IK_ep.iter+1,k,i) >= s_ep.xlim(6,2)*0.8
-            phiz_oob_thresh(k-1,i) = 1;
-            phiz_oob_thresh_state = 1;
-          end 
-        end
-      end
+    end
   end
   
   % Auswertung 1 - Teil 2: Endergebnis aus der IK für Optimierungsmethode liegt NICHT innerhalb von xlim
@@ -668,7 +677,7 @@ for k = 6:length(Namen_Methoden)
     'reci', true, 'I_EE', RP.I_EE_Task, 'wn', s_traj_wn, 'enforce_qlim', false);
   s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
   s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
-  s_qhyp = 1; % Schalter/Wert für Abstand von Gelenkwinkelgrenzen (Hyp.)
+  s_qhyp = 0; % Schalter/Wert für Abstand von Gelenkwinkelgrenzen (Hyp.)
   switch k
     % Zum Debuggen kann vollständiges Kriterium an Anfang gestellt und Rest
     % auskommentiert werden -> Schleifen auf 1:1 und Namen_Methoden = cell(1,1);
@@ -696,12 +705,17 @@ for k = 6:length(Namen_Methoden)
     case 6 % vollständiges Optimierungskriterium immer ans Ende stellen
       name_method = sprintf('3T2R-IK mit wn(15:19)=1');
       s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(15:19) = 1;
+      s_traj.wn(15) = 1; % P-Regler quadratisch
+      s_traj.wn(16) = 0.2; % D-Regler quadratisch
+      s_traj.wn(17) = 1; % P-Regler hyperbolisch
+      s_traj.wn(18) = 0.2; % D-Regler hyperbolisch
+      s_traj.wn(19) = 0.5; % Dämpfung xlim quadratisch
   end
   wn_limred_save(:,k) = s_traj.wn(15:19);
     
   % IK berechnen
-  [Q_k, QD_k, QDD_k, Phi_k, ~, ~, ~, Stats_Traj_k] = RP.invkin_traj(X_t,XD_t,XDD_t,t,q1,s_traj);
+  [q0_traj, phi_IK_ep] = RP.invkin3(XL(i,:)', q1, s_ep);
+  [Q_k, QD_k, QDD_k, Phi_k, ~, ~, ~, Stats_Traj_k] = RP.invkin_traj(X_t,XD_t,XDD_t,t,q0_traj,s_traj);
   Q_k_ges(:,:,k) = Q_k;
   QD_k_ges(:,:,k) = QD_k;
   QDD_k_ges(:,:,k) = QDD_k;
@@ -710,6 +724,14 @@ for k = 6:length(Namen_Methoden)
   if max(abs(Phi_k(:))) > max(s_traj.Phit_tol,s_traj.Phir_tol)
    warning('Fehler in Trajektorie zu groß. IK nicht berechenbar');
   end
+  
+  % Testweise Aufruf der kompilierten Funktion
+  [Q_k2, QD_k2, QDD_k2, Phi_k2, ~, ~, ~, Stats_Traj_k2] = RP.invkin2_traj( ...
+    X_t,XD_t,XDD_t,t,q0_traj,s_traj);
+%   test_q_traj = Q_k2-Q_k;
+%   assert(all(abs(normalizeAngle(test_q_traj(:),0)) < 1e-6), ['Ergebnis von ', ...
+%     'invkin_traj und invkin2_traj stimmt nicht überein']);
+
 
   % Actual platform trajectory
   [X_ist_k, XD_ist_k, ~] = RP.fkineEE2_traj(Q_k, QD_k, QDD_k);
@@ -871,8 +893,8 @@ if traj_plot_needed
       ylable_first_plot_incolumn(5) = false;
     end
     xlabel('Zeit in s'); grid on;
-    
   end
+  linkxaxes
   fprintf('\nPlot für Trajektorie beendet\n');
 end
  

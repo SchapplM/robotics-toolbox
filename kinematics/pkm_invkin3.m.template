@@ -46,6 +46,8 @@
 % [NakamuraHan1986] Y. Nakamura, H. Hanafusa: Inverse Kinematic Solutions 
 % With Singularity Robustness for Robot Manipulator Control, 1986
 % [CorkeIK] Peter Corke, Robotics Toolbox, ikine.m
+% [SchapplerOrt2021] Schappler, M. et al.: Singularity Avoidance of Task-
+% Redundant Robots in Pointing Tasks (...); ICINCO 2021
 
 % Diese Datei ist identisch mit: ParRob/invkin3.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
@@ -63,7 +65,8 @@ function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, Q0, s)
 %$cgargs           'sigma', zeros(%NJ%,1),
 %$cgargs               'K', zeros(%NJ%,1),
 %$cgargs              'Kn', zeros(%NJ%,1),
-%$cgargs              'wn', zeros(6,1),
+%$cgargs              'wn', zeros(8,1),
+%$cgargs            'xlim', zeros(6,2),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'normalize', true,
 %$cgargs      'condlimDLS', 60,
@@ -258,6 +261,9 @@ delta_qlim = qmax - qmin;
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
+% Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
 I_constr_t_red = s.I_constr_t_red;
 I_constr_r_red = s.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
@@ -267,6 +273,7 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q0 = Q0(:,1);
 q1 = NaN(NJ,1);
+qD_test = NaN(NJ,1);
 rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
   sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
 Phi = NaN(rownum_Phi_red,1);
@@ -276,10 +283,10 @@ Phi4_x_voll = NaN(NLEG*6,6);
 q2 = q0;
 N = NaN(NJ,NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
-h3dq = zeros(1,NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq;
-h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
+h3dq = zeros(1,NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq; h7dq = h3dq; h8dq = h3dq;
+h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
-bestinsspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
+bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
@@ -324,7 +331,7 @@ condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NJ), 'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false, ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
     'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
     'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 end
@@ -398,7 +405,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
-      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) % Bestimme PKM-Jacobi für Iterationsschritt
+      % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
+      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) || ...
+                  any(wn(7:8)) && taskred_rotsym && all(abs(Phi)<1e-6)
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -613,7 +622,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h6dq = 1e3*(mindist_all(2)-mindist_all(1))./qD_test';
             currinstspcdist = mindist_all(1);
             if all(abs(Phi) < 1e-3)
-              bestinsspcdist = min(bestinsspcdist,currinstspcdist);
+              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
             end
           end
         else
@@ -655,11 +664,37 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             currinstspcdist = mindist_all(1);
             if all(abs(Phi) < 1e-3)
-              bestinsspcdist = min(bestinsspcdist,currinstspcdist);
+              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
             end
           end
         end
         v = v - wn(6)*h6dq';
+      end
+      if wn(7) ~= 0 || wn(8) ~= 0 % Jacobi-Matrizen für wn(7) und/oder wn(8)
+        xD_test_limred = [zeros(5,1);1e-6];
+        qD_test = Jinv * xD_test_limred;
+      end
+      if wn(7) ~= 0 && all(abs(Phi)<1e-6) % quadratische Limitierung der redundanten Koordinate (3T2R)
+        h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+        h7_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
+        h7dq = (h7_test-h(7))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        v = v - wn(7)*h7dq';
+      end
+      if wn(8) ~= 0 && all(abs(Phi)<1e-6) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
+        h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
+        h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
+        if isinf(h(8))
+          if Phi_voll(4) <= s.xlim(6,1)
+            h8dq = -1e6*qD_test';
+          elseif Phi_voll(4) >= s.xlim(6,2)
+            h8dq = +1e6*qD_test';
+          else
+            error('Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h8dq = (h8_test-h(8))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        end
+        v = v - wn(8)*h8dq';
       end
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
       % [SchapplerTapOrt2019], Gl. (43)
@@ -833,7 +868,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if any(delta_q_N) && (Delta_Phi > 0 || Phi_neu_norm > bestPhi) && ...  % zusätzlich prüfen gegen langsamere Oszillationen
         (~any(isinf(h)) && sum(wn.*h)>=sum(wn.*h_alt) || ... % Verschlechterung (bzw. keine Verbesserung) der Opt.-Kriterien
          isinf(h(5)) && currcolldepth >= bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
-         isinf(h(6)) && currinstspcdist >= bestinsspcdist) % das gleiche für Bauraumverletzung
+         isinf(h(6)) && currinstspcdist >= bestinstspcdist) % das gleiche für Bauraumverletzung
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
@@ -908,7 +943,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;wn(5);wn(6)]; % Nutze nur die hyperbolische Funktion des Abstands (und die Kollisionserkennung, falls vorher aktiv)
+        wn = [0;1;0;0;0;0;wn(7);wn(8)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -1010,6 +1045,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
+  end
+  if wn(7) ~= 0
+    h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+  end
+  if wn(8) ~= 0
+    h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

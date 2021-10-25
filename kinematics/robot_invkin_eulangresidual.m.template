@@ -207,9 +207,18 @@ qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h7 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+xlim_thr_h7 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 Jak = NaN(6,NQJ); % Belegung für Kompilierung
 Phi_voll = NaN(6,1); % Belegung für Kompilierung
+delta_phi_z = NaN(3,1);
+if wn(6) ~= 0 || wn(7) ~= 0 % Euler-Winkel der Soll-Transformation berechnen
+  xr_0_E_soll = r2eul(Tr0E_soll(1:3,1:3), phiconv_W_E);
+  Tw_wn = euljac(xr_0_E_soll, phiconv_W_E); % Euler-Transformationsmatrix
+else
+  xr_0_E_soll = NaN(3,1);
+  Tw_wn = NaN(3,3);
+end
 
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
@@ -451,31 +460,35 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(5) = 0;
       end
       if wn(6) ~= 0 || wn(7) ~= 0 % Jacobi-Matrizen für wn(6) und/oder wn(7)
-        xr_0_E_soll = r2eul(Tr0E_soll(1:3,1:3), phiconv_W_E); % Euler-Winkel der Soll-Transformation 
-        Tw_wn = euljac(xr_0_E_soll, phiconv_W_E); % Euler-Transformationsmatrix mit x anstelle Phi
         Jak = [Jgk(1:3,:); Tw_wn \ Jgk(4:6,:)]; % analytische Jacobi-Matrix
+        T_0_N = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q1, I_EElink, pkin);
+        T_0_E = T_0_N * T_N_E;
+        % Bestimme die Abweichung der EE-Rotation zum Sollwert. Benutze
+        % nicht Phi_voll(4), da der Wert unten widerrufen werden kann.
+        xr_0_E_ist = r2eul(T_0_E(1:3,1:3), phiconv_W_E);
+        delta_phi_z = xr_0_E_soll - xr_0_E_ist;
       end
-      if wn(6) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits1
+      if wn(6) ~= 0 && all(abs(Phi)<1e-3) % quadratische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(6) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+        h(6) = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
         % Kriterium für Inkrement berechnen
-        h6_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
+        h6_test = invkin_optimcrit_limits1(-delta_phi_z(3)+1e-6, s.xlim(6,1:2));
         h6drz = (h6_test-h(6))/1e-6;
         h6dq = h6drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
         v = v - wn(6)*h6dq';
       end
-      if wn(7) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits2
+      if wn(7) ~= 0 && all(abs(Phi)<1e-3) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(7) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h7(6,:));
+        h(7) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h7(6,:));
         % Kriterium für Inkrement berechnen
-        h7_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h7(6,:));   
-        if isinf(h(7))
-          if Phi_voll(4) <= s.xlim(6,1)
+        h7_test = invkin_optimcrit_limits2(-delta_phi_z(3)+1e-6, s.xlim(6,1:2), xlim_thr_h7(6,:));   
+        if isinf(h(7)) || isinf(h7_test)
+          if -delta_phi_z(3) <= s.xlim(6,1) + 1e-6
             h7drz = -1e10;
-          elseif Phi_voll(4) >= s.xlim(6,2)
+          elseif -delta_phi_z(3) >= s.xlim(6,2) - 1e-6
             h7drz = 1e10;
           else
-            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+            error('Dieser Fall sollte eigentlich nicht vorkommen');
           end
         else
           h7drz = (h7_test-h(7))/1e-6;
@@ -716,7 +729,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;wn(6);wn(7)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn = [0;1;0;0;0;wn(6:7)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -809,10 +822,10 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       [-100.0, 0], [-90, -s.installspace_thresh]);
   end
   if wn(6) ~= 0
-    h(6) = invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+    h(6) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
   end
   if wn(7) ~= 0
-    h(7) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h7(NQJ,:));
+    h(7) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h7(6,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
@@ -826,4 +839,3 @@ end
 % if nargout >= 3
 %   [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
 % end
-

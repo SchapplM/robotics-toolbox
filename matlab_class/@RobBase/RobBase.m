@@ -26,6 +26,8 @@ classdef RobBase < matlab.mixin.Copyable
     gravity % Gravitationsvektor ausgedrückt im Basis-KS
     I_EE % Indizes der verfügbaren EE-FG des Roboters (EE-Position, Euler-Winkel aus phiconv_W_E)
     I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
+    xlim % Minimal und maximal zulässige Endeffektorbewegung
+    xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
   end
 
   methods
@@ -40,6 +42,9 @@ classdef RobBase < matlab.mixin.Copyable
       R.phiconv_W_0 = uint8(2);
       % Bodenmontage
       R.gravity = [0;0;-9.81];
+      % Leere Initialisierung
+      R.xlim = NaN(6,2);
+      R.xDlim = NaN(6,2);
     end
     function x_W_E = t2x(R, T_W_E)
       % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten
