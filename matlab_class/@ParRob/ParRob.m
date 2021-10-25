@@ -81,6 +81,8 @@ classdef ParRob < RobBase
       collbodies_instspc % das gleiche für Bauraumprüfung
       collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
       collchecks_instspc % Liste für Bauraumprüfungen aus `collbodies_instspc`
+      xlim % Minimal und maximal zulässige Endeffektorbewegung
+      xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
@@ -120,6 +122,9 @@ classdef ParRob < RobBase
         'base_par', 0, ... % Parameter dafür (Radius,...)
         'platform_method', uint8(0), ... % Modellierungsart Plattform siehe align_platform_coupling.m
         'platform_par', zeros(1,2)); % Parameter dafür (Radius, ..., Stärke)
+      R.xlim = NaN(6,2);
+      R.xDlim = NaN(6,2);
+    
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
@@ -363,6 +368,10 @@ classdef ParRob < RobBase
       s_ser = struct( ...
         'reci', false, ... % Keine reziproken Winkel für ZB-Def.
         'K', ones(R.Leg(1).NQJ,1), ... % Verstärkung Aufgabenbewegung
+        'Kn', ones(R.Leg(1).NQJ,1), ... % Verstärkung Nullraumbewegung
+        'wn', zeros(6,1), ... % Gewichtung der Nebenbedingung
+        'xlim', R.xlim, ... % Endeffektor-Positionsgrenzen
+        'maxstep_ns', 1e-10, ... % Abbruchbedingung für Nullraumbewegung
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'maxrelstep', 0.05, ... % Maximale auf Grenzen bezogene Schrittweite
         'normalize', true, ... % Normalisieren auf +/- 180°
@@ -389,6 +398,7 @@ classdef ParRob < RobBase
           end
         end
       end
+      s_ser.wn = [s_ser.wn;zeros(7-length(s_ser.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat. Siehe SerRob/invkin2
       if nargin == 5 && ~isempty(s_in_par)
         for ff = fields(s_in_par)'
           if ~isfield(s_par, ff{1})

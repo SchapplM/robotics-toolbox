@@ -42,6 +42,8 @@ classdef SerRob < RobBase
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
     qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
+    xlim % Minimal und maximal zulässige Endeffektorbewegung
+    xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
@@ -199,7 +201,8 @@ classdef SerRob < RobBase
       R.qlim = repmat([-inf, inf], R.NQJ,1);
       R.qDlim = repmat([-inf, inf], R.NQJ,1);
       R.qDDlim = repmat([-inf, inf], R.NQJ,1);
-
+      R.xlim = NaN(6,2);
+      R.xDlim = NaN(6,2);
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
       R.T_N_E = eye(4);
@@ -640,6 +643,7 @@ classdef SerRob < RobBase
         'pkin', R.pkin_gen, ... % Kinematik-Parameter
         'sigmaJ', sigmaJ, ... % Marker für Schubgelenke der Minimalkoordinaten (für hybride Roboter wichtig)
         'qlim', R.qlim, ... % Gelenkwinkel-Grenzen
+        'xlim', R.xlim, ... % Endeffektor-Positionsgrenzen
         'I_EE', R.I_EE_Task, ... % Indizes der EE-FG der Aufgabe
         'phiconv_W_E', R.phiconv_W_E, ... % Euler-Winkel-Konvention
         'I_EElink', uint8(R.I_EElink), ... % Nummer des EE-Segments
@@ -647,7 +651,7 @@ classdef SerRob < RobBase
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
         'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
-        'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
+        'wn', zeros(7,1), ... % Gewichtung der Nebenbedingung
         'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
@@ -686,7 +690,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 5, s.wn=[s.wn;zeros(5-length(s.wn),1)]; end
+      if length(s.wn) ~= 7, s.wn=[s.wn;zeros(7-length(s.wn),1)]; end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
         s.wn(4) = 0;
@@ -733,6 +737,8 @@ classdef SerRob < RobBase
          'qDlim', R.qDlim, ...
          'qDDlim', R.qDDlim, ...
          'enforce_qlim', true, ... % Standardmäßig Positions-Grenzen um jeden Preis versuchen einzuhalten
+         'xlim', R.xlim, ...
+         'xDlim', R.xDlim, ...
          'I_EE', R.I_EE_Task, ...
          'phiconv_W_E', R.phiconv_W_E, ...
          'I_EElink', uint8(R.I_EElink), ...
@@ -741,7 +747,7 @@ classdef SerRob < RobBase
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(10,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(17,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
@@ -764,7 +770,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 12, s.wn=[s.wn;zeros(12-length(s.wn),1)]; end
+      if length(s.wn) < 17, s.wn=[s.wn;zeros(15-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

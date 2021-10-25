@@ -76,6 +76,8 @@
 % [3] Aufzeichnungen Schappler vom 06.07.2020
 % [RMG16] Reiter et al.: Inverse Kinematics in Minimum-Time Trajectory
 % Planning for Kinematically Redundant Manipulators (2016)
+% [SchapplerOrt2021] Schappler, M. et al.: Singularity Avoidance of Task-
+% Redundant Robots in Pointing Tasks (...); ICINCO 2021
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
@@ -91,7 +93,7 @@ s_std = struct( ...
   'optimcrit_limits_hyp_deact', 0.9, ...
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1, ... % immer vollständigen Gelenkraum benutzen
-  'wn', zeros(12,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'wn', zeros(19,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
@@ -211,7 +213,10 @@ end
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
-wn = [s.wn;zeros(14-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+% Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+xlim_thr_h10 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xDlim
+wn = [s.wn;zeros(19-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = Rob.collbodies;
@@ -284,8 +289,8 @@ qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
 qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
-Stats = struct('h', NaN(nt,1+8), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
-h = zeros(8,1);
+Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
+h = zeros(11,1);
 
 for k = 1:nt
   tic();
@@ -679,6 +684,42 @@ for k = 1:nt
         v_qaD = v_qaD - wn(14)*h8dqa(:);
         v_qaDD = v_qaDD - wn(13)*h8dqa(:);
       end
+      if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
+        h(9) = invkin_optimcrit_limits1(Phi_r(1), s.xlim(6,1:2)); % Phi_r(1) sollte Z-Komponente sein
+        h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
+        h9drz = (h9_test-h(9))/1e-6; % 1e-6 ist xD_test(6)
+        h9dqa = h9drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
+        v_qaD  = v_qaD  - wn(15)*h9dqa(:);
+        v_qaDD = v_qaDD - wn(16)*h9dqa(:);
+      end
+      if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
+        h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
+        if h(10) == Inf
+          if Phi_r(1) <= s.xlim(6,1)
+            h10drz = -1e10;
+          elseif Phi_r(1) >= s.xlim(6,2)
+            h10drz = +1e10;
+          else
+            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h10drz = (h10_test-h(10))/1e-6;
+        end
+        h10dqa = h10drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
+        v_qaD  = v_qaD  - wn(17)*h10dqa(:);
+        v_qaDD = v_qaDD - wn(18)*h10dqa(:);
+      end
+      if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
+        J_x_inv_test = -Phi_q_voll \ Phi_x_voll;
+        XD_k = J_x_inv_test \ qD_k;
+        XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+        h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
+        h11_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
+        h11drz = (h11_test-h(11))/1e-6;
+        h11dqa = h11drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
+        v_qaDD = v_qaDD - wn(19)*h11dqa(:);
+      end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -845,6 +886,40 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(14)*h8dq(:);
         v_qDD = v_qDD - wn(13)*h8dq(:);
+      end
+      if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
+        h(9) = invkin_optimcrit_limits1(Phi_r(1), s.xlim(6,1:2));
+        h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
+        h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
+        v_qD  = v_qD  - wn(15)*h9dq(:);
+        v_qDD = v_qDD - wn(16)*h9dq(:);
+      end
+      if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
+        h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
+        if h(10) == Inf % Hier noch inf verwenden und daher kein hdrz = 1e10? Oder neues Phi+-altes? 
+          if Phi_r(1) <= s.xlim(6,1)
+            h10dq = -1e6*qD_test'; % variabel für q(7:end)
+          elseif Phi_r(1) >= s.xlim(6,2)
+            h10dq = +1e6*qD_test';
+          else
+            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h10dq = (h10_test-h(10))./qD_test';
+        end
+        v_qD  = v_qD  - wn(17)*h10dq(:);
+        v_qDD = v_qDD - wn(18)*h10dq(:);
+      end
+      if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
+        J_x_inv_test = -Phi_q_voll \ Phi_x_voll;
+        XD_k = J_x_inv_test \ qD_k; % Matrix nicht quadratisch. Keine Invertierung mit "/" sinnvoll. Wenn dann"\". Falsche Matrix (qD=Jinv*xD)
+%         XD_k = J_x_inv_test / qD_k;
+        XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+        h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
+        h11_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2)); % nehme hier v2 und vorher altes XD_k_diff
+        h11dq = (h11_test-h(11))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        v_qDD = v_qDD - wn(19)*h11dq(:);
       end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
@@ -1106,9 +1181,8 @@ for k = 1:nt
       end
     end
   end
-  % TODO: Konsistente Reihenfolge in wn und h.
-  Stats.h(k,:) = [sum(wn([1:6,11,13]).*h),h(1:8)'];
-  %% Anfangswerte für Positionsberechnung in nächster Iteration
+  Stats.h(k,:) = [sum(wn([1:6,11,13]).*h([1:8])),h'];
+  Stats.phi_zD(k,:) = xD_k(6);  %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt

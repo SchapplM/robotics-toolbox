@@ -31,6 +31,8 @@
 % Phi_dq [6xN]
 %   Matrix mit Ableitungen der 6 Zwangsbedingungskomponenten (in den Zeilen)
 %   nach den N Gelenkwinkeln (in den Spalten)
+% Jg [6xN]
+%   Geometrische Jacobi-Matrix
 
 % Quelle:
 % [1] Schappler, M. et al.: Resolution of Functional
@@ -43,7 +45,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function Phi_dq = %RN%_constr2grad(q, Tr0E, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
+function [Phi_dq, Jg] = %RN%_constr2grad(q, Tr0E, pkin, T_N_E, phiconv_W_E, I_EElink, reci)
 
 %% Coder Information
 %#codegen
@@ -102,6 +104,8 @@ dPhir_dq = ddeltaR_dRb * dPi_dRb2 * dRb_0E_dq;
 % Entspricht Gradient in [1]/(23)
 Phi_dq = [dPhit_dq; dPhir_dq];
 
+% Geometrische Jacobi-Matrix
+Jg = [J0_i_trans; J0_i_rot];
 return
 
 % % Alternative Berechnung von Term III aus [1], Gl. (31)

@@ -98,7 +98,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs    'simplify_acc', false,
 %$cgargs         'mode_IK', 2,
 %$cgargs           'debug', false,
-%$cgargs              'wn', zeros(14,1),
+%$cgargs              'wn', zeros(15,1),
 %$cgargs    'thresh_ns_qa', 1,
 %$cgargs  'optimcrit_limits_hyp_deact', 0.9, 
 %$cgargs      'collbodies', struct(
@@ -139,6 +139,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
+%$cgargs            'xlim', zeros(6,2),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
@@ -319,6 +320,10 @@ s_par = struct('r_P_B_all', s.r_P_B_all,...
 s_ik_ser = struct( ...
   'reci', s_ser.reci, ...
   'K', s_ser.K, ...
+  'Kn', zeros(NQJ,1), ... % Keine Nullraumoptimierung sinnvoll. ...
+  'wn', zeros(6,1), ... % ... Wird in Traj. gemacht.
+  'xlim', s_ser.xlim, ...
+  'maxstep_ns', 0,... % ohne Nullraumbewegung nicht sinnvoll
   ... % % Keine Herunterskalierung bei Grenzüberschreitung (würde Stillstand 
   ... % erzeugen; da keine Nullraumbewegung gemacht wird, kann die Grenz-
   ... % verletzung sowieso nicht verhindert werden.

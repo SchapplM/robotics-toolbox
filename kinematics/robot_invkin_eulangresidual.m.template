@@ -9,12 +9,14 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %   Auswahl der Einstellungen:	
-%   .wn [5x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [6x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Jacobi-Matrix
 %     (4) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
 %     (5) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%     (6) Abstand von phiz zur Grenze xlim (quadratisch gewertet)
+%     (7) Abstand von phiz zur Grenze xlim (hyperbolisch gewertet)
 %
 % Ausgabe:
 % q [%NQJ% x 1]
@@ -42,6 +44,8 @@
 % [NakamuraHan1986] Y. Nakamura, H. Hanafusa: Inverse Kinematic Solutions 
 % With Singularity Robustness for Robot Manipulator Control, 1986
 % [CorkeIK] Peter Corke, Robotics Toolbox, ikine.m
+% [SchapplerOrt2021] Schappler, M. et al.: Singularity Avoidance of Task-
+% Redundant Robots in Pointing Tasks (...); ICINCO 2021
 
 % %VERSIONINFO%
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
@@ -55,6 +59,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs            'pkin', zeros(%NKP%,1),
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs            'qlim', zeros(%NQJ%,2),
+%$cgargs            'xlim', zeros(6,2),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs        'I_EElink', uint8(0),
@@ -62,7 +67,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(5,1),
+%$cgargs              'wn', zeros(7,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'scale_coll', 0,
@@ -200,6 +205,12 @@ delta_qlim = qmax - qmin;
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
+% Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+xlim_thr_h7 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+Jak = NaN(6,NQJ); % Belegung für Kompilierung
+Phi_voll = NaN(6,1); % Belegung für Kompilierung
+
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
 delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
@@ -213,7 +224,7 @@ Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
-h = zeros(5,1); h_alt = inf(5,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(7,1); h_alt = inf(7,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 
@@ -223,7 +234,7 @@ success = false;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+5), 'coll', false, ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+7), 'coll', false, ...
     'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
     'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 end
@@ -249,14 +260,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     finish_in_limits = s.finish_in_limits;
     nsoptim = false;
     wn = s.wn;
+    if isempty(collbodies_ns.type) % Keine Kollisionskörper
+      wn(4) = 0; % Deaktivierung der Kollisionsvermeidung
+    end
     if any(wn ~= 0), nsoptim = true; end
     break_when_in_limits = false;
   end
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
-    Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    [Jdk_voll, Jgk] = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
-
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
@@ -436,6 +449,39 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(5)*hdq';
       else
         h(5) = 0;
+      end
+      if wn(6) ~= 0 || wn(7) ~= 0 % Jacobi-Matrizen für wn(6) und/oder wn(7)
+        xr_0_E_soll = r2eul(Tr0E_soll(1:3,1:3), phiconv_W_E); % Euler-Winkel der Soll-Transformation 
+        Tw_wn = euljac(xr_0_E_soll, phiconv_W_E); % Euler-Transformationsmatrix mit x anstelle Phi
+        Jak = [Jgk(1:3,:); Tw_wn \ Jgk(4:6,:)]; % analytische Jacobi-Matrix
+      end
+      if wn(6) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits1
+        % Kriterium für aktuellen Iterationsschritt berechnen
+        h(6) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+        % Kriterium für Inkrement berechnen
+        h6_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
+        h6drz = (h6_test-h(6))/1e-6;
+        h6dq = h6drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        v = v - wn(6)*h6dq';
+      end
+      if wn(7) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits2
+        % Kriterium für aktuellen Iterationsschritt berechnen
+        h(7) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h7(6,:));
+        % Kriterium für Inkrement berechnen
+        h7_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h7(6,:));   
+        if isinf(h(7))
+          if Phi_voll(4) <= s.xlim(6,1)
+            h7drz = -1e10;
+          elseif Phi_voll(4) >= s.xlim(6,2)
+            h7drz = 1e10;
+          else
+            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h7drz = (h7_test-h(7))/1e-6;
+        end
+        h7dq = h7drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        v = v - wn(7)*h7dq';
       end
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       N = (eye(NQJ) - pinv(Jdk)* Jdk);
@@ -670,7 +716,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;wn(4);wn(5)]; % Nutze nur die hyperbolische Funktion des Abstands (und die Kollisionserkennung, falls vorher aktiv)
+        wn = [0;1;0;0;0;wn(6);wn(7)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -761,6 +807,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
+  end
+  if wn(6) ~= 0
+    h(6) = invkin_optimcrit_limits1(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)]);
+  end
+  if wn(7) ~= 0
+    h(7) = invkin_optimcrit_limits2(Phi_voll(4), [s.xlim(NQJ,1) s.xlim(NQJ,2)], xlim_thr_h7(NQJ,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);

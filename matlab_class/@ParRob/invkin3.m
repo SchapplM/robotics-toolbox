@@ -39,6 +39,8 @@
 % [NakamuraHan1986] Y. Nakamura, H. Hanafusa: Inverse Kinematic Solutions 
 % With Singularity Robustness for Robot Manipulator Control, 1986
 % [CorkeIK] Peter Corke, Robotics Toolbox, ikine.m
+% [SchapplerOrt2021] Schappler, M. et al.: Singularity Avoidance of Task-
+% Redundant Robots in Pointing Tasks (...); ICINCO 2021
 % 
 % Siehe auch: SerRob/invkin2 (bzw. robot_invkin_eulangresidual.m.template)
 
@@ -59,7 +61,8 @@ sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
 s = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
-  'wn', zeros(6,1), ... % Gewichtung der Nebenbedingung
+  'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
+  'xlim', zeros(6,2), ...
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -101,7 +104,7 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-s.wn = [s.wn;zeros(6-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+s.wn = [s.wn;zeros(8-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
@@ -166,6 +169,9 @@ delta_qlim = qmax - qmin;
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
+% Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
@@ -174,8 +180,8 @@ delta_q_N_alt = zeros(Rob.NJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
-h3dq = zeros(1,Rob.NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq;
-h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
+h3dq = zeros(1,Rob.NJ); h4dq = zeros(1,Rob.NJ); h5dq = zeros(1,Rob.NJ);
+h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 % Definitionen für die Kollisionsprüfung
@@ -217,7 +223,7 @@ condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false, ...
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
     'instspc_mindst', NaN(1+n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 end
 
@@ -547,6 +553,38 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
         v = v - wn(6)*h6dq';
       end
+      if wn(7) ~= 0 || wn(8) ~= 0 % Jacobi-Matrizen für wn(7) und/oder wn(8)
+        % Berechnung von Jinv: wird zwar bereits bei if wn(4) || any(wn(3:5)) durchgeführt, ist jedoch nicht immer aktiv
+        % ToDo: Abfrage oben erweitern
+        [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
+        [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
+        xD_test_limred = [zeros(5,1);1e-6];
+        Jinv_limred = -Phi4_q_voll\Phi4_x_voll;
+        qD_test_limred = Jinv_limred * xD_test_limred;
+%         J_ax = inv(Jinv_limred(Rob.I_qa,:));
+      end
+      if wn(7) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits1
+        h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+        h7_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
+        h7dq = (h7_test-h(7))./qD_test_limred'; % Siehe [SchapplerOrt2021], Gl. 28
+        v = v - wn(7)*h7dq';
+      end
+      if wn(8) ~= 0 && all(abs(Phi)<1e-3) % Limitierung der redundanten Koordinate (3T2R) mit invkin_optimcrit_limits2
+        h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
+        h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
+        if isinf(h(8))
+          if Phi_voll(4) <= s.xlim(6,1)
+            h8dq = -1e6*qD_test_limred'; % 1e16*1e-6 entspricht 1e10, jedoch variabel für q(7:end)
+          elseif Phi_voll(4) >= s.xlim(6,2)
+            h8dq = +1e6*qD_test_limred'; % 1e16*1e-6 entspricht 1e10, jedoch variabel für q(7:end)
+          else
+            error('Achtung! Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h8dq = (h8_test-h(8))./qD_test_limred'; %  Siehe [SchapplerOrt2021], Gl. 28
+        end
+        v = v - wn(8)*h8dq';
+      end
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
       % [SchapplerTapOrt2019], Gl. (43)
       N = (eye(Rob.NJ) - pinv(Jik)* Jik);
@@ -794,7 +832,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;wn(5);wn(6)]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;0;0;0;wn(7);wn(8)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -896,6 +934,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
+  end
+  if wn(7) ~= 0
+    h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+  end
+  if wn(8) ~= 0
+    h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
