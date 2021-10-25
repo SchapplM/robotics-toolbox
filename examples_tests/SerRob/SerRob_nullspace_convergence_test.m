@@ -51,12 +51,14 @@ if isempty(which('serroblib_path_init.m'))
   return
 end
 % Namen der Optimierungskriterien der IK (für Diagramme)
-hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond Jac.'};
+hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond Jac.', 'xlim quadrat.', ...
+  'xlim hyperb.'};
 % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
 % Reihenfolge: quadratischer Grenzabstand, hyperbolischer Grenzabstand,
-% Konditionszahl Jacobi
-I_wn_traj = [1 2 5]; % siehe S3RRR1_invkin_traj
-I_wn_ep = [1 2 3]; % siehe S3RRR1_invkin_eulangresidual
+% Konditionszahl Jacobi, quadr. EE-Grenzen, hyperb. EE-Grenzen
+I_wn_traj = [1 2 5 13 15]; % siehe S3RRR1_invkin_traj (Eingabe wn)
+I_stats_traj = [1 2 5 8 9]; % siehe S3RRR1_invkin_traj (Ausgabe Stats.h)
+I_wn_ep = [1 2 3 6 7]; % siehe S3RRR1_invkin_eulangresidual (Eingabe wn, Ausgabe h)
 %% Alle Robotermodelle durchgehen
 for robnr = 1:2
   %% Initialisierung
@@ -112,6 +114,9 @@ for robnr = 1:2
   qlim   = RS.qlim;
   qDlim  = RS.qDlim;
   qDDlim = RS.qDDlim;
+  RS.xDlim = [repmat([-2, 2], 3, 1);repmat([-pi, pi], 3, 1)];
+  xlim_abs = NaN(6,2); % Absolute Grenzen für EE-Koordinate (in Funktion relativ)
+  xlim_abs(6,:) = [-45, 45]*pi/180;
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
   X0 = [ [0.5;0.5;0.6]; [2;-3;0]*pi/180 ];
@@ -154,13 +159,13 @@ for robnr = 1:2
   q0 = -0.5+rand(RS.NJ,1);
   q0_ik_fix = q0;
   % Einstellungen für Einzelpunkt-IK.
-  s_ep = struct( ...
+  s_ep = struct( 'xlim', NaN(6,2), 'wn', zeros(7,1), ... % Platzhalter einsetzen
     'n_max', 5000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % , 'finish_in_limits', true
   % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
   s_ep_dummy = s_ep;
   s_ep_dummy.retry_limit = 0;
-  s_ep_dummy.wn = ones(4,1); % hierdurch werden die Kriterien berechnet
-  s_ep_dummy.wn(4) = 0; % Keine Kollisions-Kennzahlen berechnen
+  s_ep_dummy.wn = ones(7,1); % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn(4:5) = 0; % Keine Kollisions-Kennzahlen berechnen
   s_ep_dummy.K = zeros(RS.NJ,1); % hierdurch keine Bewegung und damit ...
   s_ep_dummy.Kn = zeros(RS.NJ,1); % ... sofortiger Abbruch
   ii_restab = 0; ii_restab_start = 0;
@@ -173,7 +178,7 @@ for robnr = 1:2
       nn = 90;
       x_test_ges = repmat(x_k',nn,1);
       x_test_ges(:,6) = linspace(-pi,pi,nn);
-      h_ges = NaN(nn,4);
+      h_ges = NaN(nn,7); % Konsistent mit SerRob/invkin2
       q_jj = q0_ik_fix; % nehme immer den Wert von davor als Startwert. Dann weniger Konfigurationswechsel
       t0 = tic();
       for jj = 1:nn
@@ -192,6 +197,8 @@ for robnr = 1:2
         end
         RS.I_EE_Task = I_EE_red; % Roboter auf 3T2R einstellen
         % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
+        % Grenzen setzen. xlim ist relativ definiert zur Soll-Pose aus x_l
+        s_ep_dummy.xlim = xlim_abs - [zeros(5,2);repmat(x_jj(6),1,2)];
         [q_dummy, Phi,~,Stats_dummy] = RS.invkin2(RS.x2tr(x_jj), q_jj, s_ep_dummy);
         if any(abs(q_jj - q_dummy) > 1e-8)
           error('IK-Ergebnis hat sich bei Test verändert');
@@ -202,7 +209,7 @@ for robnr = 1:2
         'abgeschlossen. %d/%d erfolgreich\n'], nn, toc(t0), sum(~isnan(h_ges(:,1))), nn);
       % Verdoppele die Daten aufgrund der Periodizität
       x_test_ges = [x_test_ges(:,1:5),x_test_ges(:,6)-2*pi; x_test_ges;
-                    x_test_ges(:,1:5),x_test_ges(:,6)+2*pi];
+                    x_test_ges(:,1:5),x_test_ges(:,6)+2*pi]; %#ok<AGROW>
       h_ges = repmat(h_ges,3,1);
     end
     x6_l_range = [linspace(0,pi,5),linspace(0,-pi,5)];
@@ -211,10 +218,13 @@ for robnr = 1:2
     for l = 1:length(x6_l_range) % Schleife über Anfangswerte der IK
       x_l = x_k;
       x_l(6) = x6_l_range(l);
+      % Grenzen setzen. xlim ist relativ definiert zur Soll-Pose aus x_l
+      xlim_l = xlim_abs - [zeros(5,2);repmat(x_l(6),1,2)];
       % Inverse Kinematik zum Startpunkt
       RS.I_EE_Task = I_EE_full; % Roboter auf 3T3R einstellen
       s_ep_start = s_ep;
       s_ep_start.scale_lim = 0.5; % Grenzen nicht verlassen (lieber neu versuchen)
+      s_ep_start.xlim = xlim_l;
       [qs, Phi_ep_s, ~, Stats_ep_s] = RS.invkin2(RS.x2tr(x_l), q0_ik_fix, s_ep_start);
       if any(abs(Phi_ep_s) > 1e-8)
         % Mit Einhaltung der Grenzen keine Lösung gefunden. Dann eben mit
@@ -251,6 +261,7 @@ for robnr = 1:2
       num_ik_qs_successfull = num_ik_qs_successfull + 1;
       % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
       RS.I_EE_Task = I_EE_red; % Roboter dafür auf 3T3R einstellen
+      s_ep_dummy.xlim = xlim_l; % aktualisieren, damit Kriterien zu xlim richtig berechnet werden
       [q_dummy, Phi_dummy,~,Stats_dummy] = RS.invkin2(RS.x2tr(x_l), qs, s_ep_dummy);
       if any(abs(qs - q_dummy) > 1e-8)
         error('IK-Ergebnis hat sich bei Test verändert');
@@ -263,19 +274,20 @@ for robnr = 1:2
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6] % Schleife über verschiedene Zielkriterien
+      for ii = [2 4 6 7 8] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RS.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
           s_ep_ii.maxrelstep = 0.005;
           s_ep_ii.n_max = s_ep_ii.n_max * 2;
         end
+        s_ep_ii.xlim = xlim_l;
         s_ep_ii.retry_limit = 0; %nur ein Versuch. Sonst zufällig neue Gelenkwinkel.
         % Grenzen dürfen auch in Zwischenschritten nicht überschritten
         % werden.
         s_ep_ii.scale_lim = 0.9;
         % Kriterien zusammenstellen
-        wn_traj = zeros(10,1);
+        wn_traj = zeros(17,1); % Konsistent mit SerRob/invkin2_traj
         % Dämpfung der Geschwindigkeit immer einbauen. Bei symmetrischen
         % Grenzen entspricht das dem Standard-Dämpfungsterm aus der
         % Literatur
@@ -306,12 +318,25 @@ for robnr = 1:2
           case 6 % PD-Regler Jacobi-Konditionszahl
             wn_traj(5) = 1;
             wn_traj(8) = 0.2;
+          case 7 % PD-Regler EE-Grenze für phi_z (quadratisch gewichtet)
+            wn_traj(13) = 1;
+            wn_traj(14) = 0.5;
+            wn_traj(17) = 0.1; % zusätzliche Dämpfung
+          case 8 % PD-Regler EE-Grenze für phi_z (quadratisch+hyperb. gewichtet)
+            wn_traj(13) = 1; % P quadr.
+            wn_traj(14) = 0.5; % D quadr.
+            wn_traj(15) = 0.5; % P hyperb.
+            wn_traj(16) = 0.05; % D hyperb. -> höhere Terme werden instabil
+            wn_traj(17) = 0.1; % zusätzliche Dämpfung
+        end
+        if any(ii == [7 8]) && x_l(6) == 0
+          continue;% keine Bewegung, wenn bereits in der Mitte
         end
         % Roboter auf 3T2R einstellen
         RS.I_EE_Task = I_EE_red;
 
         % IK mit Einzelpunkt-Verfahren berechnen
-        s_ep_ii.wn = wn_traj(I_wn_traj);
+        s_ep_ii.wn(I_wn_ep) = wn_traj(I_wn_traj);
         % Zur Konsistenz zwischen Trajektorien- und Einzelpunkt-IK. Da
         % scale_lim gesetzt ist, wäre das eigentlich nicht notwendig.
         s_ep_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
@@ -330,6 +355,7 @@ for robnr = 1:2
         Traj_X = repmat(x_l', n, 1);
         Traj_XD = zeros(n,6); Traj_XDD = Traj_XD;
         s_traj_ii = struct('wn', wn_traj);
+        s_traj_ii.xlim = xlim_l;
         s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
         t1 = tic();
         [Q_ii, QD_ii, QDD_ii, Phi_ii,~,Stats_traj] = RS.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
@@ -383,13 +409,13 @@ for robnr = 1:2
         % Schließe geschwindigkeitsbezogene Merkmale aus Vergleich aus.
         % Dadurch ist der Vergleich von Positions- und Traj.-IK möglich.
         h_traj_ii = Stats_traj.h(I_finish,:);
-        h_traj_ii_sum = sum(Stats_traj.h(I_finish,1+I_wn_traj)*s_ep_ii.wn);
+        h_traj_ii_sum = sum(Stats_traj.h(I_finish,1+I_stats_traj)*s_ep_ii.wn(I_wn_ep));
         % Leistungsmerkmale der Positions-IK am Ende
-        h_ep_ii = Stats_ep.h(Stats_ep.iter,:);
+        h_ep_ii = Stats_ep.h(1+Stats_ep.iter,:);
         % Bilde Summe der Merkmale neu (eigentlich nur notwendig, wenn Ge-
         % wichtungen zwischen Trajektorie und Einzelpunkt unterschiedlich
         % sind aber hier trotzdem die Ergebnisse verglichen werden sollen.
-        h_ep_ii_sum = sum(Stats_ep.h(Stats_ep.iter,1+I_wn_ep)'.*wn_traj(I_wn_traj));
+        h_ep_ii_sum = sum(Stats_ep.h(1+Stats_ep.iter,1+I_wn_ep)'.*wn_traj(I_wn_traj));
         % Ergebnis prüfen
         reserr_q = q_traj_ii - q_ep_ii;
         reserr_h_sum = h_traj_ii_sum - h_ep_ii_sum;
@@ -524,11 +550,11 @@ for robnr = 1:2
           
           % Bild: Zielkriterien (Zeitverlauf)
           change_current_figure(2);clf;set(2,'Name','h','NumberTitle','off');
-          for i = 1:3
-            subplot(2,2,i); hold on;
-            plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+i));
-            plot(100*progr_traj, Stats_traj.h(:,1+I_wn_traj(i)));
-            ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(i))); grid on;
+          for i = 1:5
+            subplot(2,3,i); hold on;
+            plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
+            plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
+            ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i)))); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
@@ -540,12 +566,16 @@ for robnr = 1:2
           end
 
           % Bild: Redundante Koordinate
-          change_current_figure(25);clf; hold on;
+          change_current_figure(25);clf; hold on; grid on;
           plot(100*progr_ep, 180/pi*Stats_ep.X(1:Stats_ep.iter+1,6));
           plot(100*progr_traj, 180/pi*X_ii(:,6));
+          if any(wn_traj(13:16))
+            plot([0; 100], 180/pi*(repmat(xlim_abs(6,:)',1,2)'), 'r--');
+          end
           legend({'EP', 'Traj'}); grid on;
           xlabel('Fortschritt in %');
           ylabel('Redundante Koordinate x6 in deg');
+          sgtitle('Redundante Koordinate x6');
           set(25,'Name','x6','NumberTitle','off');
           if usr_save_figures
             saveas(25, fullfile(respath, [filename_pre,'RedKoordX.fig']));
@@ -573,21 +603,22 @@ for robnr = 1:2
         % In Zielfunktions-Bild eintragen
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
           change_current_figure(20);clf;set(20,'Name','h_x6','NumberTitle','off');
-          for jj = 1:3
-            subplot(2,2,jj); hold on; grid on;
-            plot(x_test_ges(:,6)*180/pi, h_ges(:,jj));
+          for jj = 1:5
+            subplot(2,3,jj); hold on; grid on;
+            plot(x_test_ges(:,6)*180/pi, h_ges(:,I_wn_ep(jj)));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj})); grid on;
             xlabel('x6 in deg');
           end
-          for jj = find(s_ep_ii.wn(1:3)~=0)'
-            subplot(2,2,jj); hold on;
+          for jj = 1:length(I_wn_ep)
+            if s_ep_ii.wn(I_wn_ep(jj))==0, continue; end
+            subplot(2,3,jj); hold on;
             % Debug: Ortskurve der Zwischenzustände einzeichnen
-            hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_wn_traj(jj)), 'r+-');
-            hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+jj), 'gx-');
+            hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_stats_traj(jj)), 'r+-');
+            hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+I_wn_ep(jj)), 'gx-');
             
-            hdl0=plot(180/pi*xs(6), hs(jj), 'cs', 'MarkerSize', 16);
-            hdl1=plot(x_traj_ii(6)*180/pi, h_traj_ii(end,1+I_wn_traj(jj)), 'r^', 'MarkerSize', 16);
-            hdl2=plot(x_ep_ii(6)*180/pi, h_ep_ii(1+jj), 'gv', 'MarkerSize', 16);
+            hdl0=plot(180/pi*xs(6), hs(I_wn_ep(jj)), 'cs', 'MarkerSize', 16);
+            hdl1=plot(x_traj_ii(6)*180/pi, h_traj_ii(end,1+I_stats_traj(jj)), 'r^', 'MarkerSize', 16);
+            hdl2=plot(x_ep_ii(6)*180/pi, h_ep_ii(1+I_wn_ep(jj)), 'gv', 'MarkerSize', 16);
 %             plot([xs(6);x_traj_ii(6)]*180/pi, [hs(jj);h_traj_ii(end,1+I_wn_traj(jj))], 'r-');
 %             plot([xs(6);x_ep_ii(6)]*180/pi, [hs(jj);h_ep_ii(1+jj)], 'g-');
           end
