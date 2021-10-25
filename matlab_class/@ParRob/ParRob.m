@@ -457,7 +457,7 @@ classdef ParRob < RobBase
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
     end
-    function [Jinv_qD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE, platform_frame)
+    function [Jinv_qaD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE, platform_frame)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Endeffektorkoord.
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -466,8 +466,10 @@ classdef ParRob < RobBase
       % Übergabe von x in Plattform-Koordinaten
       %
       % Ausgabe:
-      % Jinv: Inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
+      % Jinv_qaD_xD: Inverse Jacobi-Matrix (Verhältnis Antriebs-Geschw. -
       % Endeffektor-Geschw. mit Euler-Zeitableitung)
+      % Jinv_num_voll: Vollständige Jacobi-Matrix bezogen auf alle Gelenke
+      
       if nargin == 3, platform_frame = false; end
       
       if R.extfcn_available(1) && nargout ~= 2
@@ -488,12 +490,22 @@ classdef ParRob < RobBase
         T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
         Jinv_qD_xDvoll = Jinv_qD_sD*T;
         % Reduziere die FG wiede rauf 2T1R o.ä.
-        Jinv_qD_xD = Jinv_qD_xDvoll(:,R.I_EE);
+        Jinv_qaD_xD = Jinv_qD_xDvoll(:,R.I_EE);
       else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
-        G_q  = R.constr1grad_q(q, xE, platform_frame);
-        G_x = R.constr1grad_x(q, xE, platform_frame);
-        Jinv_num_voll = -G_q \ G_x;
-        Jinv_qD_xD = Jinv_num_voll(R.I_qa,:);
+        if R.I_EE(6) && ~ R.I_EE_Task(6)
+          % Aufgabenredundanz: Reduzierte FG entsprechen dem Aufgaben-FG.
+          % Nehme vollständige Zwangsbedingungen (6 pro Beinkette)
+          [~, Phi_q_voll] = R.constr4grad_q(q);
+          [~, Phi_x_voll] = R.constr4grad_x(xE);
+          Jinv_num_voll = -Phi_q_voll \ Phi_x_voll(:,R.I_EE);
+        else
+          % Normalfall: Reduzierte ZB (z.B. bei 2T1R).
+          G_q = R.constr4grad_q(q);
+          G_x = R.constr4grad_x(xE);
+          Jinv_num_voll = -G_q \ G_x;
+        end
+        % Reduziere auf aktive Gelenke
+        Jinv_qaD_xD = Jinv_num_voll(R.I_qa,:);
       end
     end
     function [JinvD_qD_xD,JinvD_num_voll] = jacobiD_qa_x(R, q, qD, xE, xED)
