@@ -248,7 +248,8 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h10 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 if ~any(wn ~= 0)
   nsoptim = false; % Keine zusätzlichen Optimierungskriterien
 end
@@ -917,16 +918,16 @@ for k = 1:nt
         h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
         h9drz = (h9_test-h(9))/1e-6; % 1e-6 ist xD_test(6)
         h9dqa = h9drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
-        v_qaD  = v_qaD  - wn(15)*h9dqa(:);
-        v_qaDD = v_qaDD - wn(16)*h9dqa(:);
+        v_qaD  = v_qaD  - wn(16)*h9dqa(:);
+        v_qaDD = v_qaDD - wn(15)*h9dqa(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
         h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
         h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
-        if h(10) == Inf
-          if Phi_r(1) <= s.xlim(6,1)
+        if isinf(h(10)) || isinf(h10_test)
+          if Phi_r(1) <= s.xlim(6,1) + 1e-6
             h10drz = -1e10;
-          elseif Phi_r(1) >= s.xlim(6,2)
+          elseif Phi_r(1) >= s.xlim(6,2) - 1e-6
             h10drz = +1e10;
           else
             error('Fall sollte eigentlich nicht vorkommen');
@@ -935,16 +936,18 @@ for k = 1:nt
           h10drz = (h10_test-h(10))/1e-6;
         end
         h10dqa = h10drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
-        v_qaD  = v_qaD  - wn(17)*h10dqa(:);
-        v_qaDD = v_qaDD - wn(18)*h10dqa(:);
+        v_qaD  = v_qaD  - wn(18)*h10dqa(:);
+        v_qaDD = v_qaDD - wn(17)*h10dqa(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
-        J_x_inv_test = -Phi_q_voll \ Phi_x_voll;
-        XD_k = J_x_inv_test \ qD_k;
+        XD_k = J_x_inv \ qD_k;
         XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
-        h11_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
-        h11drz = (h11_test-h(11))/1e-6;
+        % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
+        % für Nulldurchgang)
+        h11_test1 = invkin_optimcrit_limits1(XD6_k_diff-1e-6, s.xDlim(6,1:2));
+        h11_test2 = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
+        h11drz = (h11_test2-h11_test1)/2e-6;
         h11dqa = h11drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaDD = v_qaDD - wn(19)*h11dqa(:);
       end
@@ -1119,16 +1122,16 @@ for k = 1:nt
         h(9) = invkin_optimcrit_limits1(Phi_r(1), s.xlim(6,1:2));
         h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
         h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
-        v_qD  = v_qD  - wn(15)*h9dq(:);
-        v_qDD = v_qDD - wn(16)*h9dq(:);
+        v_qD  = v_qD  - wn(16)*h9dq(:);
+        v_qDD = v_qDD - wn(15)*h9dq(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
         h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
         h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
-        if h(10) == Inf % Hier noch inf verwenden und daher kein hdrz = 1e10? Oder neues Phi+-altes? 
-          if Phi_r(1) <= s.xlim(6,1)
+        if isinf(h(10)) || isinf(h10_test)
+          if Phi_r(1) <= s.xlim(6,1) + 1e-6
             h10dq = -1e6*qD_test';
-          elseif Phi_r(1) >= s.xlim(6,2)
+          elseif Phi_r(1) >= s.xlim(6,2) - 1e-6
             h10dq = +1e6*qD_test';
           else
             error('Fall sollte eigentlich nicht vorkommen');
@@ -1136,16 +1139,18 @@ for k = 1:nt
         else
           h10dq = (h10_test-h(10))./qD_test';
         end
-        v_qD  = v_qD  - wn(17)*h10dq(:);
-        v_qDD = v_qDD - wn(18)*h10dq(:);
+        v_qD  = v_qD  - wn(18)*h10dq(:);
+        v_qDD = v_qDD - wn(17)*h10dq(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
-        J_x_inv_test = -Phi_q_voll \ Phi_x_voll;
-        XD_k = J_x_inv_test(s.I_qa,:) \ qD_k(s.I_qa);
+        XD_k = J_x_inv(s.I_qa,:) \ qD_k(s.I_qa);
         XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
-        h11_test = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2)); % nehme hier v2 und vorher altes XD_k_diff
-        h11dq = (h11_test-h(11))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
+        % für Nulldurchgang)
+        h11_test1 = invkin_optimcrit_limits1(XD6_k_diff-1e-6, s.xDlim(6,1:2));
+        h11_test2 = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
+        h11dq = (h11_test2-h11_test1)./(2*qD_test'); % Siehe [SchapplerOrt2021], Gl. 28
         v_qDD = v_qDD - wn(19)*h11dq(:);
       end
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen

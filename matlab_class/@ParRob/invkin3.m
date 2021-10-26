@@ -62,7 +62,7 @@ s = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
-  'xlim', zeros(6,2), ... % Begrenzung der Endeffektor-Koordinaten
+  'xlim', Rob.xlim, ... % Begrenzung der Endeffektor-Koordinaten
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)

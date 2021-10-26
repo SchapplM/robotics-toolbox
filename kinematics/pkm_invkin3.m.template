@@ -17,12 +17,15 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 %   Auswahl der Einstellungen:	
-%   .wn [5x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [8x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Matrix der Inv. Kin.
 %     (4) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
 %     (5) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%     (6) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%     (7) Abstand von phiz zu xlim (quadratisch gewertet)
+%     (8) Abstand von phiz zu xlim (hyperbolisch gewertet)
 % 
 % Ausgabe:
 % q [%NJ% x 1]
@@ -263,7 +266,8 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+xlim_thr_h8 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 I_constr_t_red = s.I_constr_t_red;
 I_constr_r_red = s.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
@@ -683,10 +687,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if wn(8) ~= 0 && all(abs(Phi)<1e-6) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
         h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
         h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
-        if isinf(h(8))
-          if Phi_voll(4) <= s.xlim(6,1)
+        if isinf(h(8)) || isinf(h8_test)
+          if Phi_voll(4) <= s.xlim(6,1) + 1e-6
             h8dq = -1e6*qD_test';
-          elseif Phi_voll(4) >= s.xlim(6,2)
+          elseif Phi_voll(4) >= s.xlim(6,2) - 1e-6
             h8dq = +1e6*qD_test';
           else
             error('Fall sollte eigentlich nicht vorkommen');

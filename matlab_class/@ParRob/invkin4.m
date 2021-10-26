@@ -43,7 +43,7 @@ s_user = struct(...
               'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
              'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
              'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
-           'xlim', zeros(6,2), ... % Begrenzung der Endeffektor-Koordinaten
+           'xlim', R.xlim, ... % Begrenzung der Endeffektor-Koordinaten
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
       'normalize', false, ... % Normalisieren auf +/- 180°
      'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -80,7 +80,7 @@ if nargin == 4 && ~isempty(s_in)
     end
   end
 end
-if length(s_user.wn) < 6, s_user.wn=[s_user.wn;zeros(6-length(s_user.wn),1)]; end
+if length(s_user.wn) < 8, s_user.wn=[s_user.wn;zeros(8-length(s_user.wn),1)]; end
 if sum(R.I_EE) <= sum(R.I_EE_Task)
   % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
   % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
