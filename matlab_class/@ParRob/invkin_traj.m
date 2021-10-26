@@ -298,6 +298,7 @@ qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
 qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
+xD_k_ist = NaN(6,1);
 Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
 h = zeros(11,1);
 
@@ -462,7 +463,19 @@ for k = 1:nt
     % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
     % (wird aber aktuell nur für Debug-Modus benutzt).
     [~, Phi_r] = Rob.constr3_rot(q_k, x_k);
-    x_k_ist = x_k + [zeros(5,1);Phi_r(1)]; % Rob.fkineEE_traj(q_k')'
+    % Bestimme die Orientierung absolut (ohne +/-pi-Begrenzung). Dadurch
+    % ist die Begrenzung der Koordinate phi_z besser möglich
+    xD_k_ist = zeros(6,1);
+    xD_k_ist(Rob.I_EE) = Jinv_ax \ qD_k(Rob.I_qa);
+    x_k_ist = x_k;
+    if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
+      x_k_ist(6) = Phi_r(1); % Rob.fkineEE_traj(q_k')'
+    else % folgende Zeitschritte: Euler-Einschritt-Integration von phi_z
+      % Siehe denormalize_angle_traj Exakte Berechnung in Phi_r(1) wird um
+      % 2pi verschoben basierend auf Integration mit Geschwindigkeit
+      x_k_ist(6) = normalizeAngle(Phi_r(1), X(k-1,6)+xD_k_ist(6)*dt);
+    end
+    X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
     % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
@@ -694,20 +707,20 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(13)*h8dqa(:);
       end
       if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
-        h(9) = invkin_optimcrit_limits1(Phi_r(1), s.xlim(6,1:2)); % Phi_r(1) sollte Z-Komponente sein
-        h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
+        h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
+        h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9drz = (h9_test-h(9))/1e-6; % 1e-6 ist xD_test(6)
         h9dqa = h9drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaD  = v_qaD  - wn(16)*h9dqa(:);
         v_qaDD = v_qaDD - wn(15)*h9dqa(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
-        h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
-        h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h(10) = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h10_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
         if isinf(h(10)) || isinf(h10_test)
-          if Phi_r(1) <= s.xlim(6,1) + 1e-6
+          if x_k_ist(6) <= s.xlim(6,1) + 1e-6
             h10drz = -1e10;
-          elseif Phi_r(1) >= s.xlim(6,2) - 1e-6
+          elseif x_k_ist(6) >= s.xlim(6,2) - 1e-6
             h10drz = +1e10;
           else
             error('Fall sollte eigentlich nicht vorkommen');
@@ -720,15 +733,13 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(17)*h10dqa(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
-        XD_k = J_x_inv \ qD_k;
-        XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+        XD6_k_diff = xD_k_ist(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
         % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
         % für Nulldurchgang)
         h11_test1 = invkin_optimcrit_limits1(XD6_k_diff-1e-6, s.xDlim(6,1:2));
         h11_test2 = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
         h11drz = (h11_test2-h11_test1)/2e-6;
-        h11drz = (h11_test-h(11))/1e-6;
         h11dqa = h11drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaDD = v_qaDD - wn(19)*h11dqa(:);
       end
@@ -900,19 +911,19 @@ for k = 1:nt
         v_qDD = v_qDD - wn(13)*h8dq(:);
       end
       if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
-        h(9) = invkin_optimcrit_limits1(Phi_r(1), s.xlim(6,1:2));
-        h9_test = invkin_optimcrit_limits1(Phi_r(1)+1e-6, s.xlim(6,1:2));
+        h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
+        h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
         v_qD  = v_qD  - wn(16)*h9dq(:);
         v_qDD = v_qDD - wn(15)*h9dq(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
-        h(10) = invkin_optimcrit_limits2(Phi_r(1), s.xlim(6,1:2), xlim_thr_h10(6,:));
-        h10_test = invkin_optimcrit_limits2(Phi_r(1)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h(10) = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
+        h10_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
         if isinf(h(10)) || isinf(h10_test)
-          if Phi_r(1) <= s.xlim(6,1) + 1e-6
+          if x_k_ist(6) <= s.xlim(6,1) + 1e-6
             h10dq = -1e6*qD_test';
-          elseif Phi_r(1) >= s.xlim(6,2) - 1e-6
+          elseif x_k_ist(6) >= s.xlim(6,2) - 1e-6
             h10dq = +1e6*qD_test';
           else
             error('Fall sollte eigentlich nicht vorkommen');
@@ -924,8 +935,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(17)*h10dq(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
-        XD_k = J_x_inv(Rob.I_qa,:) \ qD_k(Rob.I_qa);
-        XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+        XD6_k_diff = xD_k_ist(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
         % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
         % für Nulldurchgang)
@@ -1196,7 +1206,7 @@ for k = 1:nt
   end
   % TODO: Konsistente Reihenfolge in wn und h.
   Stats.h(k,:) = [sum(wn([1:6,11,13,15,17]).*h(1:10)),h'];
-  Stats.phi_zD(k,:) = xD_k(6);  
+  Stats.phi_zD(k,:) = xD_k_ist(6);  
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

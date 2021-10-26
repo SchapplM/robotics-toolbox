@@ -299,12 +299,15 @@ qD_k = zeros(NQJ,1);
 qD_N_pre_alt = zeros(NQJ,1);
 qDD_N_pre1 = zeros(NQJ,1);
 N = zeros(NQJ,NQJ);
+x_k_ist = NaN(6,1);
+xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
 h = zeros(10,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
+  x_k = X(k,:)';
   Tr0E_k = [eul2r(X(k,4:6)', s.phiconv_W_E), X(k,1:3)'];
   if k < nt % Schrittweite für letzten Zeitschritt angenommen wie vorletzter
     dt = T(k+1)-T(k); % Zeit bis zum nächsten Abtastpunkt
@@ -620,9 +623,22 @@ for k = 1:nt
     else
       h(7) = 0;
     end
+    if any(wn(13:17))
+      % Bestimme Ist-Geschwindigkeit und Ist-Lage des Endeffektors.
+      xD_k_ist = J_x * qD_k;
+      x_k_ist = x_k;
+      if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
+        x_k_ist(6) = Phi_k_voll(4); % z-Komponente der ZB
+      else % folgende Zeitschritte: Euler-Einschritt-Integration von phi_z
+        % Siehe denormalize_angle_traj Exakte Berechnung in Phi_k_voll(4) wird um
+        % 2pi verschoben basierend auf Integration mit Geschwindigkeit
+        x_k_ist(6) = normalizeAngle(Phi_k_voll(4), X(k-1,6)+xD_k_ist(6)*dt);
+      end
+      X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
+    end
     if wn(13) ~= 0 || wn(14) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
-      h(8) = invkin_optimcrit_limits1(Phi_k_voll(4), s.xlim(6,1:2));
-      h8_test = invkin_optimcrit_limits1(Phi_k_voll(4)+1e-6, s.xlim(6,1:2));
+      h(8) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
+      h8_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
       h8drz = (h8_test-h(8))/1e-6;
       h8dq = h8drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
       v_qD  = v_qD  - wn(14)*h8dq'; % D-Anteil (auf qDD)
@@ -630,15 +646,15 @@ for k = 1:nt
     end
     if wn(15) ~= 0 || wn(16) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
       % Kriterium für aktuellen Schritt
-      h(9) = invkin_optimcrit_limits2(Phi_k_voll(4), ...
+      h(9) = invkin_optimcrit_limits2(x_k_ist(6), ...
         s.xlim(6,1:2), xlim_thr_h9(6,:));
       % Kriterium für Inkrement berechnen
-      h9_test = invkin_optimcrit_limits2(Phi_k_voll(4)+1e-9, ...
+      h9_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-9, ...
         s.xlim(6,1:2), xlim_thr_h9(6,:));
       if isinf(h(9)) || isinf(h9_test)
-        if Phi_k_voll(4) <= s.xlim(6,1) + 1e-9
+        if x_k_ist(6) <= s.xlim(6,1) + 1e-9
           h9drz = -1e10;
-        elseif Phi_k_voll(4) >= s.xlim(6,2) - 1e-9
+        elseif x_k_ist(6) >= s.xlim(6,2) - 1e-9
           h9drz = +1e10;
         else
           error('Fall sollte eigentlich nicht vorkommen');
@@ -652,8 +668,7 @@ for k = 1:nt
     end
     if wn(17) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
       % Kriterium für aktuellen Schritt
-      XD_k = J_x * qD_k;
-      XD6_k_diff = XD_k(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
+      XD6_k_diff = xD_k_ist(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
       h(10) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
       % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
       % für Nulldurchgang)
