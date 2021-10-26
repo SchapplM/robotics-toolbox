@@ -885,6 +885,7 @@ if nargout >= 3 || nargout >= 4 && wn(5) ~= 0
   Tc_stack_PKM = Rob.fkine_coll(q1);
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  h(:)=0; % Damit kein NaN bleibt, was die Gesamtsumme NaN werden lässt.
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=Rob.constr3grad_q(q1, xE_soll);

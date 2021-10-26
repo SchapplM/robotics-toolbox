@@ -780,6 +780,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   end
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  h(:)=0; % Damit kein NaN bleibt, was die Gesamtsumme NaN werden lässt.
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2); end
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
