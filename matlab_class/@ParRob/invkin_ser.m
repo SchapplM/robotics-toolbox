@@ -132,8 +132,9 @@ for i = 1:Rob.NLEG
   else
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
-    % Zusätzlich danach alle gegebenen Anfangswerte prüfen.
-    Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:)];
+    % Zusätzlich danach alle gegebenen Anfangswerte prüfen (sofern nicht NaN).
+    I_nan = any( isnan(Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:)) );
+    Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),~I_nan)];
   end
   
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
