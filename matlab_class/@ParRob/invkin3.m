@@ -39,6 +39,8 @@
 % [NakamuraHan1986] Y. Nakamura, H. Hanafusa: Inverse Kinematic Solutions 
 % With Singularity Robustness for Robot Manipulator Control, 1986
 % [CorkeIK] Peter Corke, Robotics Toolbox, ikine.m
+% [SchapplerOrt2021] Schappler, M. et al.: Singularity Avoidance of Task-
+% Redundant Robots in Pointing Tasks (...); ICINCO 2021
 % 
 % Siehe auch: SerRob/invkin2 (bzw. robot_invkin_eulangresidual.m.template)
 
@@ -59,7 +61,8 @@ sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
 s = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
   'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
-  'wn', zeros(6,1), ... % Gewichtung der Nebenbedingung
+  'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
+  'xlim', Rob.xlim, ... % Begrenzung der Endeffektor-Koordinaten
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -101,7 +104,7 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-s.wn = [s.wn;zeros(6-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+s.wn = [s.wn;zeros(8-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
@@ -166,6 +169,9 @@ delta_qlim = qmax - qmin;
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
+% Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
+% hyperbolisch gewichteten Abstand von den Grenzen.
+xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
@@ -175,7 +181,7 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
 h3dq = zeros(1,Rob.NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq;
-h = zeros(6,1); h_alt = inf(6,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 % Definitionen für die Kollisionsprüfung
@@ -217,8 +223,9 @@ condJpkm = NaN;
 if nargout == 4
   Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+6), 'coll', false, ...
-    'instspc_mindst', NaN(1+n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
+    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
+    'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
+    'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -285,12 +292,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2);
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
+      Jinv = NaN(Rob.NJ, 6);
       % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
       % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
       % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
-      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) % Bestimme PKM-Jacobi für Iterationsschritt
+      % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
+      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) || ...
+                  any(wn(7:8)) && taskred_rotsym && all(abs(Phi)<1e-6)
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -547,6 +557,32 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
         v = v - wn(6)*h6dq';
       end
+      if wn(7) ~= 0 || wn(8) ~= 0 % Jacobi-Matrizen für wn(7) und/oder wn(8)
+        xD_test_limred = [zeros(5,1);1e-6];
+        qD_test = Jinv * xD_test_limred;
+      end
+      if wn(7) ~= 0 && all(abs(Phi)<1e-6) % quadratische Limitierung der redundanten Koordinate (3T2R)
+        h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+        h7_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
+        h7dq = (h7_test-h(7))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        v = v - wn(7)*h7dq';
+      end
+      if wn(8) ~= 0 && all(abs(Phi)<1e-6) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
+        h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
+        h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
+        if isinf(h(8))
+          if Phi_voll(4) <= s.xlim(6,1)
+            h8dq = -1e6*qD_test';
+          elseif Phi_voll(4) >= s.xlim(6,2)
+            h8dq = +1e6*qD_test';
+          else
+            error('Fall sollte eigentlich nicht vorkommen');
+          end
+        else
+          h8dq = (h8_test-h(8))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        end
+        v = v - wn(8)*h8dq';
+      end
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
       % [SchapplerTapOrt2019], Gl. (43)
       N = (eye(Rob.NJ) - pinv(Jik)* Jik);
@@ -794,7 +830,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;wn(5);wn(6)]; % Nutze nur die hyperbolische Funktion des Abstands
+        wn = [0;1;0;0;0;0;wn(7);wn(8)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -849,6 +885,7 @@ if nargout >= 3 || nargout >= 4 && wn(5) ~= 0
   Tc_stack_PKM = Rob.fkine_coll(q1);
 end
 if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+  h(:)=0; % Damit kein NaN bleibt, was die Gesamtsumme NaN werden lässt.
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=Rob.constr3grad_q(q1, xE_soll);
@@ -897,6 +934,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
   end
+  if wn(7) ~= 0
+    h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
+  end
+  if wn(8) ~= 0
+    h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
+  end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
 end
@@ -904,4 +947,3 @@ q = q1;
 if s.normalize
   q(sigma_PKM==0) = normalize_angle(q(sigma_PKM==0)); % nur Winkel normalisieren
 end
-

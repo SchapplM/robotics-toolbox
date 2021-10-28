@@ -120,6 +120,7 @@ classdef ParRob < RobBase
         'base_par', 0, ... % Parameter dafür (Radius,...)
         'platform_method', uint8(0), ... % Modellierungsart Plattform siehe align_platform_coupling.m
         'platform_par', zeros(1,2)); % Parameter dafür (Radius, ..., Stärke)
+    
       % Liste der Funktionshandle-Variablen mit zugehörigen
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
