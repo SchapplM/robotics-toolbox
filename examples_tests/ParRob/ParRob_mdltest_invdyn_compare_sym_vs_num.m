@@ -196,6 +196,7 @@ for DynParMode = 2:4
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
       Set.optimization.objective = 'condition';
+      Set.optimization.condition_limit_sing = inf; % Singularität ist kein Abbruchkriterium
       % TODO: Folgendes sollte aktiviert werden, funktioniert aber noch nicht.
       Set.optimization.ee_rotation = false; % darf beliebige Werte einnehmen ....
       Set.optimization.ee_translation = false; % ... muss für Dynamik egal sein

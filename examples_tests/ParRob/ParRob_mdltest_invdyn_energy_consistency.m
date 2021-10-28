@@ -158,6 +158,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     if ~params_success
       % Führe Maßsynthese neu aus. Parameter nicht erfolgreich geladen
       Set.optimization.objective = 'condition';
+      Set.optimization.condition_limit_sing = inf; % Singularität ist kein Abbruchkriterium
       % Führe Maßsynthese ohne EE-Transformation durch. Hat für dieses
       % Skript aber keine Auswirkungen.
       Set.optimization.ee_rotation = false; % darf beliebige Werte einnehmen ....
