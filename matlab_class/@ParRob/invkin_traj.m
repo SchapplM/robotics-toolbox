@@ -102,6 +102,7 @@ s_std = struct( ...
   'xlim', Rob.xlim, ... % Grenzen für EE-Koordinaten
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
+  'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
   'debug', false); % Zusätzliche Test-Berechnungen
@@ -217,6 +218,7 @@ else
   qDDmax =  inf(Rob.NJ,1);
 end
 enforce_qlim = s.enforce_qlim;
+enforce_qDlim = s.enforce_qDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -1045,7 +1047,7 @@ for k = 1:nt
     end
   end
   
-  if redundant && limits_qD_set && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  if redundant && limits_qD_set && enforce_qDlim && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
@@ -1102,7 +1104,7 @@ for k = 1:nt
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
-  if redundant && limits_q_set && s.enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
+  if redundant && limits_q_set && enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt

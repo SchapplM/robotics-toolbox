@@ -95,6 +95,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs           'qDlim', zeros(%NQJ%,2),
 %$cgargs          'qDDlim', zeros(%NQJ%,2),
 %$cgargs    'enforce_qlim', false,
+%$cgargs   'enforce_qDlim', false,
 %$cgargs            'xlim', zeros(6,2),
 %$cgargs           'xDlim', zeros(6,2),
 %$cgargs            'I_EE', true(1,6),
@@ -155,6 +156,7 @@ else
   limits_q_set = false;
 end
 enforce_qlim = s.enforce_qlim;
+enforce_qDlim = s.enforce_qDlim;
 % Prüfe, ob Grenzen für die Geschwindigkeit gesetzt wurden
 qDlim = s.qDlim;
 qDmin = qDlim(:,1);
@@ -722,7 +724,7 @@ for k = 1:nt
   end
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Geschwindigkeitsgrenzen. Reduziere, falls notwendig
-  if redundant && limits_qD_set % Nullraum-Bewegung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  if redundant && limits_qD_set && enforce_qDlim  % Nullraum-Bewegung erlaubt Begrenzung der Gelenk-Geschwindigkeit
     % Beschleunigung basierend auf Nullraum-Bewegung, [RMG16]/(20)
     qDD_pre = qDD_k_T + qDD_N_pre; % [3]/(1)
     % Daraus berechnete Geschwindigkeit im nächsten Zeitschritt

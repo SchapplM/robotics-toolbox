@@ -143,6 +143,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs        'Leg_qDlim', zeros(6,2*%NLEG%),
 %$cgargs        'Leg_qDDlim', zeros(6,2*%NLEG%),
 %$cgargs    'enforce_qlim', false,
+%$cgargs   'enforce_qDlim', false,
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
@@ -242,6 +243,7 @@ else
   qDDmax =  inf(NJ,1);
 end
 enforce_qlim = s.enforce_qlim;
+enforce_qDlim = s.enforce_qDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -1265,7 +1267,7 @@ for k = 1:nt
     end
   end
   
-  if redundant && limits_qD_set && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  if redundant && limits_qD_set && enforce_qDlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
