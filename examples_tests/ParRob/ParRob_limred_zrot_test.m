@@ -50,7 +50,6 @@ if ~use_parrob
   if ~isempty(which('parroblib_path_init.m'))
     parroblib_addtopath({'P6RRPRRR14V3G1P4A1'});
   end
-  RP.fill_fcn_handles();
 end
 
 %% Alternativ: Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
@@ -60,8 +59,8 @@ if use_parrob
     return
   end
   RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
-  RP.fill_fcn_handles(true, true);
 end
+RP.fill_fcn_handles(true, true);
 % parroblib_create_template_functions({RP.mdlname}, false, false);
 % matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
 % matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
@@ -674,10 +673,11 @@ wn_limred_save = NaN(5,length(Namen_Methoden)); % erstes Element bezieht sich au
 for k = 6:length(Namen_Methoden)
   s_traj_wn = zeros(19,1); % wn(:)=0 -> keine Opt.Krit
   s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-    'reci', true, 'I_EE', RP.I_EE_Task, 'wn', s_traj_wn, 'enforce_qlim', false);
+    'reci', true, 'wn', s_traj_wn, 'enforce_qlim', false);
   s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
   s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
   s_qhyp = 0; % Schalter/Wert für Abstand von Gelenkwinkelgrenzen (Hyp.)
+  s_traj.wn(3) = 0.5;
   switch k
     % Zum Debuggen kann vollständiges Kriterium an Anfang gestellt und Rest
     % auskommentiert werden -> Schleifen auf 1:1 und Namen_Methoden = cell(1,1);
@@ -704,12 +704,12 @@ for k = 6:length(Namen_Methoden)
       s_traj.wn(19) = 1;        % quadr. für qDD
     case 6 % vollständiges Optimierungskriterium immer ans Ende stellen
       name_method = sprintf('3T2R-IK mit wn(15:19)=1');
-      s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+%       s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
       s_traj.wn(15) = 1; % P-Regler quadratisch
-      s_traj.wn(16) = 0.2; % D-Regler quadratisch
-      s_traj.wn(17) = 1; % P-Regler hyperbolisch
-      s_traj.wn(18) = 0.2; % D-Regler hyperbolisch
-      s_traj.wn(19) = 0.5; % Dämpfung xlim quadratisch
+      s_traj.wn(16) = 0.5; % D-Regler quadratisch
+      s_traj.wn(17) = 0.5; % P-Regler hyperbolisch
+      s_traj.wn(18) = 0.05; % D-Regler hyperbolisch
+      s_traj.wn(19) = 0.1; % Dämpfung xlim quadratisch
   end
   wn_limred_save(:,k) = s_traj.wn(15:19);
     
@@ -729,7 +729,7 @@ for k = 6:length(Namen_Methoden)
   [Q_k2, QD_k2, QDD_k2, Phi_k2, ~, ~, ~, Stats_Traj_k2] = RP.invkin2_traj( ...
     X_t,XD_t,XDD_t,t,q0_traj,s_traj);
 %   test_q_traj = Q_k2-Q_k;
-%   assert(all(abs(normalizeAngle(test_q_traj(:),0)) < 1e-6), ['Ergebnis von ', ...
+%   assert(all(abs(normalizeAngle(test_q_traj(:),0)) < 1e-2), ['Ergebnis von ', ...
 %     'invkin_traj und invkin2_traj stimmt nicht überein']);
 
 

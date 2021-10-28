@@ -547,6 +547,9 @@ for robnr = 1:4
           ResStat.Error(ii_restab) = 5;
           raise_error_h = true;
         end
+        if isnan(reserr_h_sum) || isnan(step_h_traj)
+          error('Ein Wert wird NaN. Darf nicht passieren.');
+        end
         if any(abs(reserr_h_sum) > 1e-3)
           warning('Zielfunktion weicht absolut bei beiden Methoden ab. Aber kein Fehler, da eventuell auch Verzweigung der Lösung.');
         end

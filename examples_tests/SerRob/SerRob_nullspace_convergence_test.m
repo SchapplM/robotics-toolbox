@@ -83,7 +83,7 @@ for robnr = 1:2
   if usr_recreate_mex
     serroblib_create_template_functions({RS.mdlname}, false, false);
     mexerr = matlabfcn2mex({[RS.mdlname, '_invkin_eulangresidual']});
-    mexerr = mexerr & matlabfcn2mex({[RS.mdlname, '_invkin_traj']});
+    mexerr = mexerr | matlabfcn2mex({[RS.mdlname, '_invkin_traj']});
     if mexerr
       error('Fehler beim Kompilieren');
     end
