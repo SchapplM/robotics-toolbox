@@ -871,14 +871,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     bestPhi = min([bestPhi;Phi_neu_norm]);
     if any(delta_q_N) && (Delta_Phi > 0 || Phi_neu_norm > bestPhi) && ...  % zusätzlich prüfen gegen langsamere Oszillationen
         (~any(isinf(h)) && sum(wn.*h)>=sum(wn.*h_alt) || ... % Verschlechterung (bzw. keine Verbesserung) der Opt.-Kriterien
-         isinf(h(5)) && currcolldepth >= bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
-         isinf(h(6)) && currinstspcdist >= bestinstspcdist) % das gleiche für Bauraumverletzung
+         isinf(h(5)) && currcolldepth > bestcolldepth || ... % gegen langsame Oszillation für Kollisionsvermeidung aus Eindringtiefe
+         isinf(h(6)) && currinstspcdist > bestinstspcdist) % das gleiche für Bauraumverletzung
       % Zusätzliches Optimierungskriterium hat sich verschlechtert und
       % gleichzeitig auch die IK-Konvergenz. Das deutet auf eine
       % Konvergenz mit Oszillationen hin. Reduziere den Betrag der
       % Nullraumbewegung. Annahme: Bewegung so groß, dass keine
-      % Linearisierungsfehler (außerhalb des Nullraums) zu groß.
-      % Nicht bei Kriterium unendlich (separate Gradientenberechnung)
+      % Linearisierungsfehler (außerhalb des Nullraums).
+      % Nicht bei Kriterium unendlich (separate Gradientenberechnung).
+      % Dort ist das Kriterium "keine Verschlechterung" mit > statt >=.
+      % Der Wert bestcolldepth/bestinstspcdist ist kein Altwert wie h_alt.
       Kn = Kn*0.8;
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
