@@ -824,11 +824,17 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
       [-100.0, 0], [-90, -s.installspace_thresh]);
   end
-  if wn(6) ~= 0
-    h(6) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
-  end
-  if wn(7) ~= 0
-    h(7) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h7(6,:));
+  if wn(6) ~= 0 || wn(7) ~= 0
+    T_0_N = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q1, I_EElink, pkin);
+    T_0_E = T_0_N * T_N_E;
+    xr_0_E_ist = r2eul(T_0_E(1:3,1:3), phiconv_W_E);
+    delta_phi_z = xr_0_E_soll - xr_0_E_ist;
+    if wn(6) ~= 0
+      h(6) = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
+    end
+    if wn(7) ~= 0
+      h(7) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h7(6,:));
+    end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
   Stats.condJ(Stats.iter+1) = h(3);
