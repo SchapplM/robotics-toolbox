@@ -159,10 +159,10 @@ s_ep.scale_lim = 0;
 % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
 s_ep_dummy = s_ep;
 s_ep_dummy.retry_limit = 0;
-if R.Type == 0
-  s_ep_dummy.wn = ones(5,1); % hierdurch werden die Kriterien berechnet
+if R.Type == 0 % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn = ones(7,1); % Konsistent mit SerRob/invkin2
 else
-  s_ep_dummy.wn = ones(6,1);
+  s_ep_dummy.wn = ones(8,1); % Konsistent mit ParRob/invkin4
 end
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch

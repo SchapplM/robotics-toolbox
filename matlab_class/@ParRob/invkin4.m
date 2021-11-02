@@ -42,7 +42,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = invkin4(R, xE_soll, q0, s_in)
 s_user = struct(...
               'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
              'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
-             'wn', zeros(4,1), ... % Gewichtung der Nebenbedingung
+             'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
            'xlim', R.xlim, ... % Begrenzung der Endeffektor-Koordinaten
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
       'normalize', false, ... % Normalisieren auf +/- 180°
