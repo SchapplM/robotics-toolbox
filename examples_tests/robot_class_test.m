@@ -30,6 +30,7 @@ SerRob_benchmark_3T3R_task_redundancy; close all;
 SerRob_nullspace_convergence_test; close all;
 SerRob_nullspace_collision_avoidance; close all;
 SerRob_installspace_test; close all;
+SerRob_limred_zrot_test; close all;
 %% Parallele Roboter
 ParRob_class_example_3RPR; close all;
 ParRob_class_example_3RRR; close all;
@@ -53,6 +54,7 @@ ParRob_constraintsD_test; close all;
 ParRob_nullspace_convergence_test; close all;
 ParRob_nullspace_collision_avoidance; close all;
 ParRob_installspace_test; close all;
+ParRob_limred_zrot_test; close all;
 ParRob_mdltest_invdyn_energy_consistency; close all;
 ParRob_mdltest_invdyn_compare_sym_vs_num; close all;
 %% Parallele Roboter mit seriell-hybriden Beinketten

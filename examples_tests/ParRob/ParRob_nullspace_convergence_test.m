@@ -198,9 +198,10 @@ for robnr = 1:4
     XL(:, ~RP.I_EE) = 0; XL = uniquetol(XL, 1e-10,'ByRows',true);
   end
   % Ergebnis-Tabellen vorbereiten (siehe Schleifen unten)
-  ResStat = array2table(NaN(size(XL,1)*9*4,8));
+  ResStat = array2table(NaN(size(XL,1)*9*6,8));
   ResStat.Properties.VariableNames = {'PktNr', 'OriNr', 'IK_Fall', ...
     'h_err_abs', 'h_err_rel', 'h_step_traj', 'h_step_ep', 'Error'};
+  ResStat_emptyrow = ResStat(1,:);
   ResStat_Start  = array2table(NaN(size(XL,1)*9,4));
   ResStat_Start.Properties.VariableNames = {'PktNr', 'OriNr', 'Erfolg', 'Grenzen'};
   fprintf('Starte Untersuchung für Rob. %d (%s)\n', robnr, RP.mdlname);
@@ -457,11 +458,21 @@ for robnr = 1:4
         Traj_X = repmat(x_l', n, 1);
         Traj_XD = zeros(n,6); Traj_XDD = Traj_XD;
         s_traj_ii = struct('wn', wn_traj);
+        s_traj_ii.enforce_qlim = false; % Keine strikte Einhaltung der Gelenkgrenzen
+        s_traj_ii.enforce_qDlim = false;
         s_traj_ii.xlim = xlim_l;
         s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
+        % Nullraumprojektion erst in Antriebskoordinaten, dann in Gesamt- 
+        % koordinaten (nur Trajektorien-IK)
+        s_traj_ii.thresh_ns_qa = 1; % full joint projector
         t1 = tic();
         [Q_ii, QD_ii, QDD_ii, Phi_ii,~,~,~,Stats_traj] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
         t_traj = toc(t1);
+        % Berechne Trajektorie nochmal mit anderer Methode. Dient dazu,
+        % diese Implementierung gleich mit zu validieren.
+        s_traj_ii2 = s_traj_ii;
+        s_traj_ii2.thresh_ns_qa = inf; % actuated joint projector
+        [Q_ii2, QD_ii2, QDD_ii2, Phi_ii2,~,~,~,Stats_traj2] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii2);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
         if all(I_noacc)
@@ -477,7 +488,13 @@ for robnr = 1:4
         Phi_ii = Phi_ii(1:I_finishacc,:);
         Traj_t = Traj_t(1:I_finishacc);
         Stats_traj.h = Stats_traj.h(1:I_finishacc,:);
+        Q_ii2 = Q_ii2(1:I_finishacc,:);
+        QD_ii2 = QD_ii2(1:I_finishacc,:);
+        QDD_ii2 = QDD_ii2(1:I_finishacc,:);
+        Phi_ii2 = Phi_ii2(1:I_finishacc,:);
+        Stats_traj2.h = Stats_traj2.h(1:I_finishacc,:);
         q_traj_ii = Q_ii(end,:)'; % Ergebnis der Trajektorien-IK
+        q_traj_ii2 = Q_ii2(end,:)'; % Ergebnis der Trajektorien-IK
         % Traj-Ergebnis kürzen (wenn Ende mit Toleranz erreicht ist)
         I_finalvalue = all(abs(repmat(q_traj_ii',I_finishacc,1)-Q_ii) < 1e-10,2) & ...
                        abs(repmat(Stats_traj.h(end,1),I_finishacc,1)-Stats_traj.h(:,1)) < 1e-10;
@@ -488,11 +505,16 @@ for robnr = 1:4
         QDD_ii = QDD_ii(1:I_finish,:);
         Phi_ii = Phi_ii(1:I_finish,:);
         Stats_traj.h = Stats_traj.h(1:I_finish,:);
-        
+        Q_ii2 = Q_ii2(1:I_finish,:);
+        QD_ii2 = QD_ii2(1:I_finish,:);
+        QDD_ii2 = QDD_ii2(1:I_finish,:);
+        Phi_ii2 = Phi_ii2(1:I_finish,:);
+        Stats_traj2.h = Stats_traj2.h(1:I_finish,:);
         % Speichere EE-Pose resultierend aus Gelenkwinkeln aus dem
         % Konvergenzverlauf. Benutze bei Einzelpunkt-IK nur i.O.-Posen
         % (keine Posen, bei denen die Ketten nicht geschlossen sind).
         X_ii = RP.fkineEE2_traj(Q_ii);
+        X_ii2 = RP.fkineEE2_traj(Q_ii2);
         Stats_ep.X = RP.fkineEE2_traj(Stats_ep.Q);
         I_invalid = any(abs(Stats_ep.PHI(:,RP.I_constr_red))>1e-3,2);
         Stats_ep.X(I_invalid,:) = NaN;
@@ -500,6 +522,7 @@ for robnr = 1:4
         % TODO: Um 2pi verschoben, so dass am nächsten an Startwert
         % (aktuell springt das Ergebnis im Bild, falls es über +/- pi geht.
         x_traj_ii = RP.fkineEE_traj(q_traj_ii')';
+        x_traj_ii2 = RP.fkineEE_traj(q_traj_ii2')';
         x_ep_ii = RP.fkineEE_traj(q_ep_ii')';
         
         % Summe der positionsbezogenen Leistungsmerkmale der Traj. am Ende.
@@ -530,6 +553,7 @@ for robnr = 1:4
           h_traj_ii_sum, Stats_ep.h(Stats_ep.iter,1), -step_h_traj, -step_h_ep);
         % Speichere Ergebnis in Tabelle
         ii_restab = ii_restab + 1;
+        ResStat(ii_restab,:) = ResStat_emptyrow;
         ResStat.PktNr(ii_restab) = k;
         ResStat.OriNr(ii_restab) = l;
         ResStat.IK_Fall(ii_restab) = ii;
@@ -547,9 +571,13 @@ for robnr = 1:4
           ResStat.Error(ii_restab) = 5;
           raise_error_h = true;
         end
-        if isnan(reserr_h_sum) || isnan(step_h_traj)
-          error('Ein Wert wird NaN. Darf nicht passieren.');
-        end
+        % Prüfung auf NaN: Deaktivieren. Trajektorie kann auch instabil
+        % werden.
+%         if ~all(isinf([h_ep_ii_sum;h_traj_ii_sum])) && ... % inf-inf=nan. Wäre kein Fehler
+%            ~all(isinf([hs_ii;h_traj_ii_sum])) && ...
+%             (isnan(reserr_h_sum) || isnan(step_h_traj)) % NaN deutet auf Fehler hin
+%           error('Ein Wert wird NaN. Darf nicht passieren.');
+%         end
         if any(abs(reserr_h_sum) > 1e-3)
           warning('Zielfunktion weicht absolut bei beiden Methoden ab. Aber kein Fehler, da eventuell auch Verzweigung der Lösung.');
         end
@@ -573,6 +601,12 @@ for robnr = 1:4
                     repmat(qDlim(:,2)'-qDlim(:,1)',size(QD_ii,1),1);
         QDD_ii_norm = (QDD_ii - repmat(qDDlim(:,1)',size(QDD_ii,1),1)) ./ ...
                     repmat(qDDlim(:,2)'-qDDlim(:,1)',size(QDD_ii,1),1);
+        Q_ii2_norm = (Q_ii2 - repmat(qlim(:,1)',size(Q_ii2,1),1)) ./ ...
+                    repmat(qlim(:,2)'-qlim(:,1)',size(Q_ii2,1),1);
+        QD_ii2_norm = (QD_ii2 - repmat(qDlim(:,1)',size(QD_ii2,1),1)) ./ ...
+                    repmat(qDlim(:,2)'-qDlim(:,1)',size(QD_ii2,1),1);
+        QDD_ii2_norm = (QDD_ii2 - repmat(qDDlim(:,1)',size(QDD_ii2,1),1)) ./ ...
+                    repmat(qDDlim(:,2)'-qDDlim(:,1)',size(QDD_ii2,1),1);
         Stats_ep.Q_norm = (Stats_ep.Q - repmat(qlim(:,1)',size(Stats_ep.Q,1),1)) ./ ...
                     repmat(qlim(:,2)'-qlim(:,1)',size(Stats_ep.Q,1),1);
         % Prüfe, ob Grenzen eingehalten werden. Ist teilweise nicht anders
@@ -607,11 +641,12 @@ for robnr = 1:4
             subplot(ceil(sqrt(RP.NJ)),ceil(sqrt(RP.NJ)),i); hold on;
             plot(100*progr_ep, Stats_ep.Q_norm(1:Stats_ep.iter+1,i));
             plot(100*progr_traj, Q_ii_norm(:,i));
+            plot(100*progr_traj, Q_ii2_norm(:,i));
             ylabel(sprintf('q %d (norm)', i)); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
-          legend({'EP', 'Traj'});
+          legend({'EP', 'Traj (FullProj)', 'Traj (ActProj)'});
           sgtitle('Gelenkwinkel');
           if usr_save_figures
             saveas(1, fullfile(respath, [filename_pre,'Gelenke.fig']));
@@ -623,10 +658,12 @@ for robnr = 1:4
           for i = 1:RP.NJ
             subplot(ceil(sqrt(RP.NJ)),ceil(sqrt(RP.NJ)),i); hold on;
             plot(100*progr_traj, QD_ii_norm(:,i));
+            plot(100*progr_traj, QD_ii2_norm(:,i));
             ylabel(sprintf('qD %d (norm)', i)); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
+          legend({'Traj (FullProj)', 'Traj (ActProj)'});
           sgtitle('Gelenkgeschwindigkeiten (Traj.-IK)');
           if usr_save_figures
             saveas(11, fullfile(respath, [filename_pre,'Gelenkgeschwindigkeit.fig']));
@@ -638,10 +675,12 @@ for robnr = 1:4
           for i = 1:RP.NJ
             subplot(ceil(sqrt(RP.NJ)),ceil(sqrt(RP.NJ)),i); hold on;
             plot(100*progr_traj, QDD_ii_norm(:,i));
+            plot(100*progr_traj, QDD_ii2_norm(:,i));
             ylabel(sprintf('qDD %d (norm)', i)); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
+          legend({'Traj (FullProj)', 'Traj (ActProj)'});
           sgtitle('Gelenkbeschleunigungen (Traj.-IK)');
           if usr_save_figures
             saveas(12, fullfile(respath, [filename_pre,'Gelenkbeschleunigung.fig']));
@@ -654,11 +693,12 @@ for robnr = 1:4
             subplot(2,3,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
+            plot(100*progr_traj, Stats_traj2.h(:,1+I_stats_traj(i)));
             ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i)))); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
-          legend({'EP', 'Traj'});
+          legend({'EP', 'Traj (FullProj)', 'Traj (ActProj)'});
           sgtitle('Zielfunktionen der IK');
           if usr_save_figures
             saveas(2, fullfile(respath, [filename_pre,'Zielfunktion.fig']));
@@ -669,10 +709,11 @@ for robnr = 1:4
           change_current_figure(25);clf; hold on; grid on;
           plot(100*progr_ep, 180/pi*Stats_ep.X(1:Stats_ep.iter+1,6));
           plot(100*progr_traj, 180/pi*X_ii(:,6));
+          plot(100*progr_traj, 180/pi*X_ii2(:,6));
           if any(wn_traj(15:19))
             plot([0; 100], 180/pi*(repmat(xlim_abs(6,:)',1,2)'), 'r--');
           end
-          legend({'EP', 'Traj'}); grid on;
+          legend({'EP', 'Traj (FullProj)', 'Traj (ActProj)'}); grid on;
           xlabel('Fortschritt in %');
           ylabel('Redundante Koordinate x6 in deg');
           sgtitle('Redundante Koordinate x6');
