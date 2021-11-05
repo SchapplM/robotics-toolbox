@@ -871,6 +871,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
       break;
+    else
+      % Neuversuch, da Endergebnis nicht in den Grenzen.
+      success = false; % Bereits gesetzten Wert wieder zurücknehmen
     end
   end
   % Beim vorherigen Durchlauf kein Erfolg. Generiere neue Anfangswerte
