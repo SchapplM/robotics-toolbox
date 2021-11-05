@@ -133,11 +133,10 @@ end
 if Rob.I_EE(6) && ~ Rob.I_EE_Task(6)
   taskred_rot = true;
 end
-if all(Rob.I_EE == [1 1 1 1 1 0])
-  dof_3T2R = true;
-else
-  dof_3T2R = false;
-end
+if all(Rob.I_EE == [1 1 1 1 1 0]), dof_3T2R = true;
+else,                              dof_3T2R = false; end
+if all(Rob.I_EE == [1 1 1 0 0 1]), dof_3T1R = true;
+else,                              dof_3T1R = false; end
 
 if nargout == 6
   % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
@@ -338,7 +337,7 @@ for k = 1:nt
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
-  if ~taskred_rot && ~dof_3T2R
+  if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen constr1...)
     Phi_q = Rob.constr4grad_q(q_k);
@@ -347,7 +346,11 @@ for k = 1:nt
   else % aufgabenredundante 2T1R/3T1R/3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
     [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
-    Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    if ~dof_3T1R
+      Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    else % Bezieht sich in Funktion auf die PKM-FG, nicht Aufgaben-FG
+      Phi_x=Phi_x_tmp(:,[true(1,3), ~taskred_rot]); % Auswahl des Aufg.-FG hier
+    end
     if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
@@ -400,13 +403,17 @@ for k = 1:nt
       Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
-    if ~taskred_rot && ~dof_3T2R
+    if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
       [Phi_qD,     Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
       [Phi_xD_tmp, Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
-      Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+      if ~dof_3T1R
+        Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+      else
+        Phi_xD=Phi_xD_tmp(:,[true(1,3), ~taskred_rot]);
+      end
     end
   end
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-

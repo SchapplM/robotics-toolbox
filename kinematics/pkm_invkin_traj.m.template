@@ -185,11 +185,10 @@ if Rob_I_EE(6) && ~s.I_EE_Task(6)
 end
 % Vermerke, ob die PKM strukturen 3T2R-FG hat. Dann wird auch die
 % Modellierung für 3T2R-Aufgaben gewählt.
-if all(Rob_I_EE == logical([1 1 1 1 1 0]))
-  dof_3T2R = true;
-else
-  dof_3T2R = false;
-end
+if all(Rob_I_EE == [1 1 1 1 1 0]), dof_3T2R = true;
+else,                              dof_3T2R = false; end
+if all(Rob_I_EE == [1 1 1 0 0 1]), dof_3T1R = true;
+else,                              dof_3T1R = false; end
 
 if nargout == 6
   % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
@@ -559,7 +558,7 @@ for k = 1:nt
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
-  if ~taskred_rot && ~dof_3T2R
+  if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen)
     Phi_q = %PN%_constr4grad_q(q_k,s_q);
@@ -571,7 +570,11 @@ for k = 1:nt
     % Systeme mit Beinketten mit fünf Gelenken.
     [Phi_q, Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
     [Phi_x_tmp, Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
-    Phi_x=Phi_x_tmp(:,I_EE);
+    if ~dof_3T1R
+      Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    else % Bezieht sich in Funktion auf die PKM-FG, nicht Aufgaben-FG
+      Phi_x=Phi_x_tmp(:,[true(1,3), ~taskred_rot]); % Auswahl des Aufg.-FG hier
+    end
     if taskred_rot % Aufgabenredundanz
       J_x_inv(:,:) = -Phi_q_voll \ Phi_x_voll(:,Rob_I_EE); % Zuweisung mit ":" für mex
     else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
@@ -620,13 +623,18 @@ for k = 1:nt
       Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
-    if ~taskred_rot && ~dof_3T2R
+    if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
       Phi_qD = %PN%_constr4gradD_q(q_k, qD_k, s_q);
       Phi_xD = %PN%_constr4gradD_x(x_k, xD_k, s_x);
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
       [Phi_qD,     Phi_qD_voll] = %PN%_constr3gradD_q(q_k, qD_k, x_k, xD_k, s_3qd);
       [Phi_xD_tmp, Phi_xD_voll] = %PN%_constr3gradD_x(q_k, qD_k, x_k, xD_k, s_3xd);
-      Phi_xD=Phi_xD_tmp(:,I_EE);
+      if ~dof_3T1R
+        Phi_xD=Phi_xD_tmp(:,I_EE);
+      else
+        Phi_xD=Phi_xD_tmp(:,[true(1,3), ~taskred_rot]);
+      end
+      
     end
   end
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
