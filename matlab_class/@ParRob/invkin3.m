@@ -221,11 +221,12 @@ rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [Cork
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJpkm = NaN;
 if nargout == 4
-  Stats = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
+  Stats_default = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
     'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
     NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
     'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
     'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
+  Stats = Stats_default;
 end
 
 %% Iterative Berechnung der inversen Kinematik
@@ -234,6 +235,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
   [Phi, Phi_voll] = Rob.constr3(q1, xE_soll);
   if nargout == 4 % Anfangswerte eintragen
+    % Zurücksetzen der Statistik (falls mehrere Wiederholungen gemacht werden
+    Stats = Stats_default;
     Stats.PHI(1,:) = Phi_voll;
     Stats.Q(1,:) = q1;
   end
