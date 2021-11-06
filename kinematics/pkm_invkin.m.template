@@ -176,13 +176,13 @@ for i = 1:NLEG
   s.I_EElink = Leg_I_EElink(i);
 
   % Initialisierung: Startwerte der IK
-  if i == 1 || all(~isnan(Q0(I1J_LEG(i):I2J_LEG(i),1)))
+  I_nan = any( isnan(Q0(I1J_LEG(i):I2J_LEG(i),:)) );
+  if i == 1 || all(~I_nan)
     Q0_i = Q0(I1J_LEG(i):I2J_LEG(i),:);
   else
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
     % Zusätzlich danach alle gegebenen Anfangswerte prüfen (sofern nicht NaN).
-    I_nan = any( isnan(Q0(I1J_LEG(i):I2J_LEG(i),:)) );
     Q0_i = [q(I1J_LEG(1):I2J_LEG(1)),Q0(I1J_LEG(i):I2J_LEG(i),~I_nan)];
   end
   
@@ -242,7 +242,7 @@ for i = 1:NLEG
     Tc_stack_PKM(out3_ind1+(1:3*(Leg_NQJ(i)+1)),:) = Tc_stack_0;
     out3_ind1 = out3_ind1 + 3*(Leg_NQJ(i)+1);
   end
-  if s_par.abort_firstlegerror && any(any(isnan(Phi_i)) || ...
+  if s_par.abort_firstlegerror && (any(any(isnan(Phi_i))) || ...
       any(Phi_i > max([s_ser.Phit_tol; s_ser.Phir_tol]))) % TODO: Unterscheidung transl./rot. ZB.
     break; % Erste Beinkette funktioniert nicht. Restliche sind egal. Abbruch
   end
