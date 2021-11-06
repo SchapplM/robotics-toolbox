@@ -3,7 +3,7 @@
 % Es werden fünf verschiedene Roboter generiert
 % 
 % Quelle:
-% [Gogu2008] Gogu, Grigore:Structural Synthesis of Parallel Robots, Part 1:
+% [Gogu2008] Gogu, Grigore: Structural Synthesis of Parallel Robots, Part 1:
 % Methodology (2008), Springer
 
 % Li, Junnan (MA bei Moritz Schappler), 2019-08
@@ -51,7 +51,7 @@ for testcase = 1:5
                 1.2,1.2
                 1.2,1.2]';
     for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));% rufen update_EE_FG
+      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
     end
         
     % EE-KS mit Null-Rotation vorbelegen
@@ -98,7 +98,7 @@ for testcase = 1:5
       0.5,0.75,0.75,0.15,0.15,0.25,0;
       0.5,0.75,0.75,0.15,0.15,0.25,0]';%14x4
     for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));% rufen update_EE_FG
+      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
     end
     
     % EE-KS mit Null-Rotation vorbelegen
@@ -141,7 +141,7 @@ for testcase = 1:5
       0.5,0.75,0.75,0.15,0.15,0.25;
       0.5,0.75,0.75,0.15,0.15,0.25]';%14x4
     for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));% rufen update_EE_FG
+      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
     end
     
     % EE-KS mit Null-Rotation vorbelegen
@@ -187,7 +187,7 @@ for testcase = 1:5
       0.5,0.75,0.75,0,0,0,0,0,0,0,0,0,0,0;
       0.5,0.75,0.75,0.15,0.25,0,0,0,0,0,0,0,0,0]';%14x4
     for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));% rufen update_EE_FG
+      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
     end
     
     % EE-KS mit Null-Rotation vorbelegen
@@ -230,7 +230,7 @@ for testcase = 1:5
       0.5,0.75,0.75,0,0,0,0,0,0,0,0,0,0,0;
       0.5,0.75,0.75,0,0,0,0,0,0,0,0,0,0,0]';%14x4
     for i = 1:RP.NLEG
-      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));% rufen update_EE_FG
+      RP.Leg(i).update_mdh(pkin_all(1:size(RP.Leg(i).pkin),i));
     end
     
     % EE-KS mit Null-Rotation vorbelegen
@@ -247,6 +247,10 @@ for testcase = 1:5
     RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = repmat([-1, 1]*3, sum(RP.Leg(i).MDH.sigma==1), 1);
   end
   fprintf('Untersuche %dT%dR-PKM %s.\n', sum(I_EE(1:3)), sum(I_EE(4:6)), RobTitles{testcase});
+%   for i = 1:2
+%     if i == 2 && strcmp(RP.Leg(i).mdlname, RP.Leg(1).mdlname), continue; end
+%     serroblib_create_template_functions({RP.Leg(i).mdlname}, false);
+%   end
   %% Teste FG der Beinketten
   % LJN: beurteilen ob eingegebene I_EE möglich
   I_EE_Max = ones(1,6);
@@ -259,15 +263,13 @@ for testcase = 1:5
   RP.update_EE_FG(I_EE, I_EE, repmat(logical(I_EE_Leg),RP.NLEG,1));
 
   %% PKM testen
-  % Definition der Test-Pose
+  % Definition der Test-Pose (z-Drehung muss für 3T0R-PKM 0 sein)
   X_E = [ [0;0;1]; [0;0;0]*pi/180 ];
   q0 = (1-2*rand(RP.NJ,1))*pi/2; % -90° bis 90°
   q0(RP.MDH.sigma==1) = 0.2; % möglichst positive Schubgelenke
 
-  %RP.constr1(q0,X_E);
-  %Gq = RP.constr1grad_q(q0,X_E);% ZB noch weiter verstehen. EE_FG x Anzahl_q?
   % IK für Roboter berechnen
-  [q,phi] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
+  [q,phi,~,Stats] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
   
   q(isnan(q)) = q0(isnan(q)); % nicht lösbare Beinkette belegen, für Plot
   
@@ -283,7 +285,12 @@ for testcase = 1:5
   if any(isnan(phi)) || any(abs(phi)>1e-6)
     error('Keine Lösung der IK gefunden. Es muss aber eine Lösung geben. Weitere Tests nicht sinnvoll');
   end
-  
+  % Zwangsbedingungen neu mit anderer Methode nachrechnen
+  [~, Phi] = RP.constr1(q, X_E);
+  [~, Phi3] = RP.constr3(q, X_E);
+  assert(all(abs(Phi)<1e-8), 'Zwangsbedingungen müssen Null sein');
+  assert(all(abs(Phi3)<1e-8), 'Zwangsbedingungen müssen Null sein');
+
   %% FG mit Jacobi-Matrix testen
   [G_q_red,G_q] = RP.constr1grad_q(q, X_E);
   [G_x_red,G_x] = RP.constr1grad_x(q, X_E);
@@ -306,9 +313,57 @@ for testcase = 1:5
     RP.mdlname, size(G_a,1), size(G_a,2), rank(G_a), sum(RP.I_EE));
   
   qaD = 100*rand(sum(RP.I_qa),1);
-  qdDxD = G_dx \ G_a * qaD;
+  qdDxD = -G_dx \ G_a * qaD;
   xD_test = qdDxD(sum(RP.I_qd)+1:end);
   if any(abs(xD_test(~RP.I_EE)) > 1e-10) % Genauigkeit hier ist abhängig von Zwangsbed.
     error('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt')
+  end
+  J_invges = -G_q\G_x;
+  J_inv = J_invges(RP.I_qa,RP.I_EE);
+  qaD_test = J_inv * xD_test(RP.I_EE);
+  assert(all(abs(qaD_test-qaD)<1e-6), 'Hin- und Rückrechnung von qaD falsch');
+  %% Teste ZB-Modellierung mit Aufgabenredundanz
+  if all(I_EE == [1 1 1 0 0 1])
+    RP.update_EE_FG(I_EE, I_EE);
+    [G3_q,G3_q_voll] = RP.constr3grad_q(q, X_E);
+    [G3_x,G3_x_voll] = RP.constr3grad_x(q, X_E);
+    [q_test, Phi, ~, Stats_ser] = RP.invkin_ser(X_E, q0);
+    warning('off', 'MATLAB:nearlySingularMatrix');
+    [q3, Phi3, ~, Stats_3] = RP.invkin3(X_E, q0);
+    fprintf('Reduzierte Jacobi-Matrix der inv. Kin. (Methode 3): %dx%d, cond. %1.4g\n', ...
+      size(G3_q,1), size(G3_q,2), cond(G3_q));
+    assert(all(abs(Phi)<1e-6), 'Erneute Rechnung der Seriell-IK funktioniert nicht');
+    assert(all(abs(Phi3)<1e-6), 'Erneute Rechnung der Gesamt-IK funktioniert nicht');
+
+    % Jacobi-Matrix erneut testen
+    J_invges2 = -G3_q\G3_x;
+    J_inv2 = J_invges2(RP.I_qa,:);
+    qaD_test2 = J_inv2 * xD_test(RP.I_EE);
+    assert(all(abs(qaD_test2-qaD)<1e-6), 'Hin- und Rückrechnung von qaD falsch');
+  
+    % Umschalten auf Aufgabenredundanz und berechnen der Matrizen
+    RP.update_EE_FG(I_EE, I_EE&[1 1 1 0 0 0]);
+    [G3tr_q,G3tr_q_voll] = RP.constr3grad_q(q, X_E);
+    G3tr_q_voll(abs(G3tr_q_voll(:))<1e-8) = 0;
+    [G3tr_x,G3tr_x_voll] = RP.constr3grad_x(q, X_E);
+    G3tr_x_voll(abs(G3tr_x_voll(:))<1e-8) = 0;
+    fprintf(['Reduzierte Jacobi-Matrix der inv. Kin. bei Aufgabenredundanz ', ...
+      '(Methode 3): %dx%d, cond. %1.4g\n'], size(G3tr_q,1), size(G3tr_q,2), cond(G3tr_q));
+    
+    % Berechne die EE-Rotation mit der besten Konditionszahl
+    % Hat keinen Effekt, da die PKM ja isotrop ist. Daher muss die
+    % Kondition eigentlich sogar gleich bleiben.
+    s = struct('wn', zeros(8,1));
+    s.wn(4) = 1;
+    [q_tr3, Phi_tr3, ~, Stats_tr3] = RP.invkin3(X_E, q, s);
+    x_tr3 = RP.fkineEE_traj(q_tr3')';
+    assert(all(abs(Phi_tr3)<1e-6), 'Erneute Rechnung der Gesamt-IK (mit Aufg.Red.) funktioniert nicht');
+    RP.update_EE_FG(I_EE, I_EE);
+    [G3_q_tr3,G3_q_voll_tr3] = RP.constr3grad_q(q_tr3, X_E);
+    [G3_x_tr3,G3_x_voll_tr3] = RP.constr3grad_x(q_tr3, X_E);
+    J_invges3 = -G3_q_tr3\G3_x_tr3;
+    J_inv3 = J_invges3(RP.I_qa,:);
+    fprintf('IK neu mit Aufg. Red. berechnet. phiz %1.2f° -> %1.2f°. PKM-Jacobi-Cond.: %1.2f -> %1.2f\n', ...
+      180/pi*X_E(6), 180/pi*x_tr3(6), cond(J_inv2), cond(J_inv3));
   end
 end

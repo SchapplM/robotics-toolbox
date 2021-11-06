@@ -20,8 +20,8 @@ clear
 clc
 
 % Beispielsysteme
-% Entsprechen 6UPS, 4xSCARA, 3RRR, 3RPR
-RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P3RRR1', 'P3RPR1'};
+% Entsprechen 6UPS, 4xSCARA, 3T1R-PKM, 3RRR, 3RPR
+RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P4RRRRR5V1G1P1A1', 'P3RRR1', 'P3RPR1'};
 
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
@@ -46,8 +46,8 @@ for NNN = RobotNames
     continue % gesetzte Annahmen funktionieren nur bei 3T3R
   end
   
-  N_LEG = str2double(PName(2));
-  SName = sprintf('S%d%s',N_LEG,PName(3:end));
+  [N_LEG, LEG_Names] = parroblib_load_robot(PName);
+  SName = LEG_Names{1};
   fprintf('Starte Untersuchung für %s\n', PName);
   
   RS = serroblib_create_robot_class(SName);
@@ -161,8 +161,8 @@ for NNN = RobotNames
       [~,Phi1dx_0] = RP.constr1grad_x(q0, x0, platform_frame);
       [~,Phi2dq_0] = RP.constr2grad_q(q0, x0, platform_frame);
       [~,Phi2dx_0] = RP.constr2grad_x(q0, x0, platform_frame);
-      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
-      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);
+      [Phi3dq_0_red,Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
+      [Phi3dx_0_red,Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);
       [~,Phi4dq_0] = RP.constr4grad_q(q0);
       [~,Phi4dx_0] = RP.constr4grad_x(x0, platform_frame);
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
@@ -234,8 +234,8 @@ for NNN = RobotNames
           [~,Phi1Ddx_0] = RP.constr1gradD_x(q0, qD0, x0, xD0, platform_frame);
           [~,Phi2Ddq_0] = RP.constr2gradD_q(q0, qD0, x0, xD0, platform_frame);
           [~,Phi2Ddx_0] = RP.constr2gradD_x(q0, qD0, x0, xD0, platform_frame);
-          [~,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0, platform_frame);
-          [~,Phi3Ddx_0] = RP.constr3gradD_x(q0, qD0, x0, xD0, platform_frame);
+          [Phi3Ddq_0_red,Phi3Ddq_0] = RP.constr3gradD_q(q0, qD0, x0, xD0, platform_frame);
+          [Phi3Ddx_0_red,Phi3Ddx_0] = RP.constr3gradD_x(q0, qD0, x0, xD0, platform_frame);
           [~,Phi4Ddq_0] = RP.constr4gradD_q(q0, qD0);
           [~,Phi4Ddx_0] = RP.constr4gradD_x(x0, xD0, platform_frame);
           % Zwangsbedingungen und -Matrizen für verschobene Koordinaten q1 berechnen
@@ -244,8 +244,8 @@ for NNN = RobotNames
           [~,Phi1dx_1] = RP.constr1grad_x(q1, x1, platform_frame);
           [~,Phi2dq_1] = RP.constr2grad_q(q1, x1, platform_frame);
           [~,Phi2dx_1] = RP.constr2grad_x(q1, x1, platform_frame);
-          [~,Phi3dq_1] = RP.constr3grad_q(q1, x1, platform_frame);
-          [~,Phi3dx_1] = RP.constr3grad_x(q1, x1, platform_frame);
+          [Phi3dq_1_red,Phi3dq_1] = RP.constr3grad_q(q1, x1, platform_frame);
+          [Phi3dx_1_red,Phi3dx_1] = RP.constr3grad_x(q1, x1, platform_frame);
           [~,Phi4dq_1] = RP.constr4grad_q(q1);
           [~,Phi4dx_1] = RP.constr4grad_x(x1, platform_frame);
           % Ganzzahlige 2pi bei Winkelfehler entfernen: Wenn Phi1 +pi und
@@ -262,6 +262,8 @@ for NNN = RobotNames
           Phi2difdx =  (Phi2dx_1 - Phi2dx_0)/dt;
           Phi3difdq =  (Phi3dq_1 - Phi3dq_0)/dt;
           Phi3difdx =  (Phi3dx_1 - Phi3dx_0)/dt;
+          Phi3difdq_red =  (Phi3dq_1_red - Phi3dq_0_red)/dt;
+          Phi3difdx_red =  (Phi3dx_1_red - Phi3dx_0_red)/dt;
           % Zweite Berechnung der Zeitableitung der ZB
           Phi4D_diff = Phi4dq_0 * qD0 + Phi4dx_0 * xD0;
           
@@ -273,6 +275,8 @@ for NNN = RobotNames
           Phi2Ddx_0(abs(Phi2Ddx_0(:))<1e-12) = 0;
           Phi3Ddq_0(abs(Phi3Ddq_0(:))<1e-12) = 0;
           Phi3Ddx_0(abs(Phi3Ddx_0(:))<1e-12) = 0;
+          Phi3Ddq_0_red(abs(Phi3Ddq_0_red(:))<1e-12) = 0;
+          Phi3Ddx_0_red(abs(Phi3Ddx_0_red(:))<1e-12) = 0;
           %% Teste constr1D gegen constr1
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient)
@@ -339,6 +343,32 @@ for NNN = RobotNames
           if any( I_rq_relerr_3(:) & I_rq_abserr_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             disp(AbsErr_3q(II,JJ));
             error('%s: constr3gradD_rq stimmt nicht gegen constr3grad_rq', PName);
+          end
+          
+          %% Teste constr3gradD_q_red gegen constr3grad_q_red
+          AbsErr_3q_red = Phi3difdq_red - Phi3Ddq_0_red; %for constr3gradD_q vs constr3grad_q
+          RelErr_3q_red  = AbsErr_3q_red./Phi3Ddq_0_red;
+          % Bei sehr hohen Zahlenwerten in einzelnen Komponenten gibt es
+          % in anderen Komponenten durch Kopplung einen großen Fehler.
+          % Daher Bezug auf Maximalwert der Matrix für Fehlermaß
+          RelErrMax_3q_red  = AbsErr_3q_red / max(abs(Phi3Ddq_0_red(:)));
+          RelErr_3q_red(isnan(RelErr_3q_red)) = 0; % 0=0 -> relativer Fehler 0
+          % Teste constr3gradD_tq gegen constr2grad_tq
+          % Fehler für Translatorisch und Rotatorisch getrennt berechnen
+          I_tq_relerr_3_red = abs(RelErr_3q_red(RP.I_constr_t_red,:)) > 5e-2 & ... % Indizes mit Komponenten-Fehler größer 5%
+                          abs(RelErrMax_3q_red(RP.I_constr_t_red,:)) > 1e-3; % und Gesamt-Fehler größer 0.1%
+          I_tq_abserr_3_red = abs(AbsErr_3q_red(RP.I_constr_t_red,:)) > 1e12*eps(1+max(abs(Phi3dq_1_red(:)))); % Absoluter Fehler über Toleranz
+          if any( I_tq_relerr_3_red(:) & I_tq_abserr_3_red(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            disp(AbsErr_3q_red(II,JJ));
+            error('%s: constr2gradD_tq_red (=constr3gradD_tq_red) stimmt nicht gegen constr2grad_tq_red', PName);
+          end
+          % Teste constr3gradD_rq_red gegen constr3grad_rq_red
+          I_rq_relerr_3_red = abs(RelErr_3q_red(RP.I_constr_r_red,:)) > 10e-2 & ... % Indizes mit Komponenten-Fehler größer 10%
+                          abs(RelErrMax_3q_red(RP.I_constr_r_red,:)) > 1e-3; % und Gesamt-Fehler größer 0.1%
+          I_rq_abserr_3_red = abs(AbsErr_3q_red(RP.I_constr_r_red,:)) > 1e12*eps(1+max(abs(Phi3dq_1_red(:)))); % Absoluter Fehler über Toleranz
+          if any( I_rq_relerr_3_red(:) & I_rq_abserr_3_red(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            disp(AbsErr_3q_red(II,JJ));
+            error('%s: constr3gradD_rq_red stimmt nicht gegen constr3grad_rq_red', PName);
           end
           %% Teste constr2gradD_q gegen constr2grad_q
           AbsErr_2q = Phi2difdq - Phi2Ddq_0; %for constr2gradD_q vs constr2grad_q
@@ -416,6 +446,18 @@ for NNN = RobotNames
           I_rr_err_3 = I_rr_relerr_3 & I_rr_abserr_3;
           if any( I_rr_err_3(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr3gradD_rr stimmt nicht gegen constr3grad_rr', PName);
+          end
+          % Teste constr3gradD_rr_red gegen constr3grad_rr_red
+          AbsErr_3x_red = Phi3difdx_red - Phi3Ddx_0_red;
+          RelErr_3x_red = Phi3difdx_red./Phi3Ddx_0_red - 1; % Relative Error = ( Absolute Error / True Value )
+          RelErr_3x_red(isnan(RelErr_3x_red)) = 0; % 0=0 -> relativer Fehler 0
+          RelErr_3x_red(isinf(RelErr_3x_red)) = 0; % Bezugsgröße Null geht nicht
+          I_x = sum(RP.I_EE)-1+(1:sum(RP.I_EE(4:6)));
+          I_rr_relerr_3_red = abs(RelErr_3x_red(RP.I_constr_r_red,I_x)) > 10;
+          I_rr_abserr_3_red = abs(AbsErr_3x_red(RP.I_constr_r_red,I_x)) > 1e11*eps(1+max(abs(Phi3dx_1_red(:))));
+          I_rr_err_3_red = I_rr_relerr_3_red & I_rr_abserr_3_red;
+          if any( I_rr_err_3_red(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+            error('%s: constr3gradD_rr stimmt nicht gegen constr3grad_rr_red', PName);
           end
         end % Schleife für Variation der Elemente von qD oder xD
       end % Schleife über Testfälle (entweder qD oder xD variieren)

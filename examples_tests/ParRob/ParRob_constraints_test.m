@@ -19,8 +19,8 @@ clear
 clc
 
 % Beispielsysteme
-% Entsprechen 6UPS, 4xSCARA, 3RRR, 3RPR
-RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P3RRR1', 'P3RPR1'};
+% Entsprechen 6UPS, 4xSCARA, 3T1R-PKM, 3RRR, 3RPR
+RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P4RRRRR5V1G1P1A1', 'P3RRR1', 'P3RPR1'};
 
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
@@ -38,8 +38,8 @@ for platform_frame = [true, false]%[false, true] % Zum Testen der Auswahl der Pl
 for NNN = RobotNames
   %% PKM initialisieren
   PName = NNN{1};
-  N_LEG = str2double(PName(2));
-  SName = sprintf('S%d%s',N_LEG,PName(3:end));
+  [N_LEG, LEG_Names] = parroblib_load_robot(PName);
+  SName = LEG_Names{1};
   fprintf('Starte Untersuchung für %s\n', PName);
   
   RS = serroblib_create_robot_class(SName);
@@ -112,13 +112,11 @@ for NNN = RobotNames
   [testNaN{21},testNaN{22}]=RP.constr2_rot(q0, xE);
   [testNaN{23},testNaN{24}]=RP.constr2grad_q(q0, xE);
   [testNaN{25},testNaN{26}]=RP.constr2grad_x(q0, xE);
-  if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
-    [testNaN{27},testNaN{28}]=RP.constr3(q0, xE);
-    [testNaN{31},testNaN{32}]=RP.constr3_rot(q0, xE);
-    [testNaN{33},testNaN{34}]=RP.constr3grad_q(q0, xE);
-    [testNaN{37},testNaN{38}]=RP.constr3grad_rq(q0, xE);
-    [testNaN{39},testNaN{40}]=RP.constr3grad_x(q0, xE);
-  end
+  
+  [testNaN{27},testNaN{28}]=RP.constr3(q0, xE);
+  [testNaN{31},testNaN{32}]=RP.constr3_rot(q0, xE);
+  [testNaN{33},testNaN{34}]=RP.constr3grad_q(q0, xE);
+  [testNaN{37},testNaN{38}]=RP.constr3grad_rq(q0, xE);
   for i = 1:40
     test = testNaN{i};
     if any(isnan(test(:)))
@@ -147,13 +145,9 @@ for NNN = RobotNames
       [~,Phi2dq_0] = RP.constr2grad_q(q0, x0, platform_frame);
       [~,Phi2dx_0] = RP.constr2grad_x(q0, x0, platform_frame);
       
-      if all(RP.I_EE == [1 1 1 1 1 1])
-      [~,Phi3_0] = RP.constr3(q0, x0, platform_frame);
-      [~,Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
-      [~,Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);   
-      else
-      Phi3_0=NaN*Phi2_0; Phi3dq_0=NaN*Phi2dq_0;Phi3dx_0=NaN*Phi2dx_0;
-      end
+      [Phi3_0_red, Phi3_0] = RP.constr3(q0, x0, platform_frame);
+      [Phi3dq_0_red, Phi3dq_0] = RP.constr3grad_q(q0, x0, platform_frame);
+      [Phi3dx_0_red, Phi3dx_0] = RP.constr3grad_x(q0, x0, platform_frame);   
       
       % Alle Komponenten der Gelenkkoordinaten einmal verschieben und
       % ZB-Gradienten testen (Geometrische Matrix der inversen Kinematik)
@@ -167,7 +161,7 @@ for NNN = RobotNames
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
         [~,Phi1_1] = RP.constr1(q1, x0, platform_frame);
         [~,Phi2_1] = RP.constr2(q1, x0, platform_frame);
-        [~,Phi3_1] = RP.constr3(q1, x0, platform_frame);
+        [Phi3_1_red, Phi3_1] = RP.constr3(q1, x0, platform_frame);
         
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
@@ -178,12 +172,14 @@ for NNN = RobotNames
         test2 = Phi2_1 - Phi2_1_g;  
         Phi3_1_g = Phi3_0 + Phi3dq_0*dq;
         test3 = Phi3_1 - Phi3_1_g;
+        Phi3_1_g_red = Phi3_0_red + Phi3dq_0_red*dq;
+        test3_red = Phi3_1_red - Phi3_1_g_red;
         
         % Vielfache von 2*Pi entfernen
         test1(abs(abs(test1)-2*pi) < 1e-3 ) = 0;
         test2(abs(abs(test2)-2*pi) < 1e-3 ) = 0;
         test3(abs(abs(test3)-2*pi) < 1e-3 ) = 0;
-        
+        test3_red(abs(abs(test3_red)-2*pi) < 1e-3 ) = 0;
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.
         dPhi_grad1 = Phi1dq_0*dq;
@@ -210,7 +206,6 @@ for NNN = RobotNames
           raiseerr = true;
         end  
         
-        if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
         dPhi_grad3 = Phi3dq_0*dq;
         dPhi_diff3 = Phi3_1 - Phi3_0;
         RelErr = dPhi_grad3./dPhi_diff3-1;
@@ -223,7 +218,20 @@ for NNN = RobotNames
             'Zwangsbedingungen überein (Var. 3; Delta q%d)'], PName, id);
           raiseerr = true;
         end
+        
+        dPhi_grad3_red = Phi3dq_0_red*dq;
+        dPhi_diff3_red = Phi3_1_red - Phi3_0_red;
+        RelErr = dPhi_grad3_red./dPhi_diff3_red-1;
+        RelErr(isnan(RelErr)) = 0; % 0=0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test3_red) > 8e10*eps(max(1+abs(Phi3_1_red))); % Absoluter Fehler über Toleranz
+        I_nan = isnan(Phi3_0_red);
+        if any( I_nan | I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          warning(['%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 3; Reduzierte Einträge; Delta q%d)'], PName, id);
+          raiseerr = true;
         end
+
         if raiseerr
           if cond(Phi3dq_0) > 1e3
             warning(['Fehler aufgetreten, aber aufgrund der schlechten ', ...
@@ -234,8 +242,9 @@ for NNN = RobotNames
         end
       end
       % Alle Komponenten der EE-Koordinaten einmal verschieben und
-      % ZB-Gradienten testen (Geometrische Matrix der direkten Kinematik)
-      for id = 1:6 
+      % ZB-Gradienten testen (Geometrische Matrix der direkten Kinematik).
+      % (Nur die von der PKM beweglichen FG)
+      for id = find(RP.I_EE)
         % Neue Koordinaten x1 durch Verschiebung in einer Komponente
         dx = zeros(6,1);
         dx(id) = 1e-4;
@@ -244,7 +253,7 @@ for NNN = RobotNames
         % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
         [~,Phi1_1] = RP.constr1(q0, x1, platform_frame);
         [~,Phi2_1] = RP.constr2(q0, x1, platform_frame);
-        [~,Phi3_1] = RP.constr3(q0, x1, platform_frame);
+        [Phi3_1_red,Phi3_1] = RP.constr3(q0, x1, platform_frame);
         
         % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
         % Differenzenquotient)
@@ -257,11 +266,15 @@ for NNN = RobotNames
         Phi3_1_g = Phi3_0 + Phi3dx_0*dx;
         test3 = Phi3_1 - Phi3_1_g;
         
+        Phi3_1_g_red = Phi3_0_red + Phi3dx_0_red*dx(RP.I_EE);
+        test3_red = Phi3_1_red - Phi3_1_g_red;
+        
         % Vielfache von 2*Pi entfernen (Rotationsfehler von 2*Pi ist kein
         % "Fehler" sondern nur in der Darstellung begründet)
         test1(abs(abs(test1)-2*pi) < 1e-3 ) = 0;
         test2(abs(abs(test2)-2*pi) < 1e-3 ) = 0;
         test3(abs(abs(test3)-2*pi) < 1e-3 ) = 0;
+        test3_red(abs(abs(test3_red)-2*pi) < 1e-3 ) = 0;
 
         % Prüfe das Inkrement der ZB-Änderung. Ist dieses Qualitativ
         % gleich, kann man davon ausgehen, dass die Lösung richtig ist.
@@ -286,7 +299,7 @@ for NNN = RobotNames
           error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
             'Zwangsbedingungen überein (Var. 2; Delta x%d)'], PName, id);
         end
-        if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
+
         dPhi_grad3 = Phi3dx_0*dx;
         dPhi_diff3 = Phi3_1 - Phi3_0;
         RelErr = dPhi_grad3./dPhi_diff3-1;
@@ -297,6 +310,16 @@ for NNN = RobotNames
           error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
             'Zwangsbedingungen überein (Var. 3; Delta x%d)'], PName, id);
         end
+        
+        dPhi_grad3_red = Phi3dx_0_red*dx(RP.I_EE);
+        dPhi_diff3_red = Phi3_1_red - Phi3_0_red;
+        RelErr = dPhi_grad3_red./dPhi_diff3_red-1;
+        RelErr(isnan(RelErr)) = 0; % 0/0 -> relativer Fehler 0
+        I_relerr = abs(RelErr) > 5e-2; % Indizes mit Fehler größer 5%
+        I_abserr = abs(test3_red) > 8e10*eps(max(1+abs(Phi3_1_red))); % Absoluter Fehler über Toleranz
+        if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
+          error(['%s: Zwangsbedingungs-Ableitung nach x stimmt nicht mit ', ...
+            'Zwangsbedingungen überein (Var. 3; Reduzierte Einträge; Delta x%d)'], PName, id);
         end
       end
     end
@@ -378,14 +401,9 @@ for NNN = RobotNames
       Phi2dq_0 = RP.constr2grad_q(q0, x0, platform_frame);
       Phi2dx_0 = RP.constr2grad_x(q0, x0, platform_frame);
       Jinv2_voll = -Phi2dq_0 \ Phi2dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
-      if all(RP.I_EE == [1 1 1 1 1 1]) % Benutze ZB Definition 3 nur für räumliche Systeme
       Phi3dq_0 = RP.constr3grad_q(q0, x0, platform_frame);
       Phi3dx_0 = RP.constr3grad_x(q0, x0, platform_frame);
       Jinv3_voll = -Phi3dq_0 \ Phi3dx_0; % TODO: Hier noch falsche Zeilen-Auswahl bei <6FG
-      else
-      Phi3dq_0=Phi2dq_0*NaN; Phi3dx_0=Phi2dx_0*NaN;
-      Jinv3_voll=NaN*Jinv2_voll;
-      end
       % Änderung der Gelenkwinkel bei gegebener Plattformänderung
       % Führe auch wieder eine Anpassung der Schrittweite mit Faktor k2 und
       % k3 ein. Wenn andere ZB-Definitionen schlechter konditioniert sind,

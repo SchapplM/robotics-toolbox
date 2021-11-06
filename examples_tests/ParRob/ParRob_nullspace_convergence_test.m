@@ -100,6 +100,13 @@ for robnr = 1:4
     for i = 1:RP.NLEG
       RP.Leg(i).update_mdh(pkin);
     end
+  elseif robnr == 5 % 3T1R-PKM mit Drehgelenken
+    % Parameter aus Maßsynthese
+    RP = parroblib_create_robot_class('P4RRRRR5V1G1P1A1', 0.6399, 0.2316);
+    pkin_gen = [-0.4235   -0.4619   -0.5137         0   -0.4207    0.1396         0]';
+    for i = 1:RP.NLEG
+      RP.Leg(i).update_mdh(pkin_gen);
+    end
   end
   % Entwurfsparameter eintragen (für Plot)
   for i = 1:RP.NLEG
@@ -129,6 +136,8 @@ for robnr = 1:4
   I_EE_full = RP.I_EE;
   if all(RP.I_EE == [1 1 1 1 1 1])
     I_EE_red = logical([1 1 1 1 1 0]);
+  elseif  all(RP.I_EE == [1 1 1 0 0 1])
+    I_EE_red = logical([1 1 1 0 0 0]);
   elseif  all(RP.I_EE == [1 1 0 0 0 1])
     I_EE_red = logical([1 1 0 0 0 0]);
   else
@@ -289,7 +298,7 @@ for robnr = 1:4
         if any(abs(q_jj - q_dummy) > 1e-8)
           error('IK-Ergebnis hat sich bei Test verändert');
         end
-        h_ges(jj,:) = Stats_dummy.h(Stats_dummy.iter,2:end);
+        h_ges(jj,:) = Stats_dummy.h(1+Stats_dummy.iter,2:end);
       end
       fprintf(['Berechnung von %d Raster-Konfigurationen in %1.1fs ', ...
         'abgeschlossen. %d/%d erfolgreich\n'], nn, toc(t0), sum(~isnan(h_ges(:,1))), nn);
@@ -476,7 +485,12 @@ for robnr = 1:4
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
         if all(I_noacc)
-          error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+          else
+            warning('3T1R-PKM funktionieren aktuell noch nicht');
+            return
+          end
         end
         I_finishacc = find(I_noacc==0,1,'last');
         fprintf(['Pkt. %d/ Ori. %d/ Fall %d. IK berechnet: %d Schritte Ein', ...
