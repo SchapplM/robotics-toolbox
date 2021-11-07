@@ -170,6 +170,13 @@ else
   I_IK2 = [1 2 3 4 5 6];
 end
 I_IK = I_IK2(s.I_EE);
+use_constr4 = false;
+% Benutze eine modifizier Version der kinematischen Zwangsbedingungen für
+% Beinketten von 3T1R-PKM. Damit Vermeidung von überbestimmten LGS mit
+% Gradientenmatrix der Dimension 6x5.
+if NQJ == 5 && all(s.I_EE(1:5) == [1 1 1 0 1])
+  use_constr4 = true;
+end
 
 % Damit der Roboter einen Nullraum für Nebenoptimierungen hat, muss er min.
 % 7FG für 6FG-Aufgaben und 6FG für 5FG-Aufgaben haben.
@@ -255,7 +262,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   % Fehlermaß für Startwerte
   [Phi_voll, Tc_stack] = %RN%_constr2(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-  Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  if ~use_constr4
+    Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+  else
+    Phi = %RN%_constr4(Phi_voll, s.I_EE, reci);
+  end
   if nargout == 4 % Anfangswerte eintragen
     % Zurücksetzen der Statistik (falls mehrere Wiederholungen gemacht werden
     Stats = Stats_default;
@@ -281,7 +292,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   for jj = 1:n_max % Schleife über iteratives Annähern mit Newton-Verfahren
     % Gradienten-Matrix, siehe [SchapplerTapOrt2019]/(23)
     [Jdk_voll, Jgk] = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-    Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
+    if ~use_constr4
+      Jdk = Jdk_voll(I_IK,:); % Reduktion auf betrachtete FG
+    else
+      Jdk = %RN%_constr4grad(Jdk_voll, Phi_voll, s.I_EE, reci);
+    end
     %% Nullstellensuche für Positions- und Orientierungsfehler
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
@@ -331,7 +346,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           Jdk_voll_kkk = %RN%_constr2grad(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-          Jdk_kkk = Jdk_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          if ~use_constr4
+            Jdk_kkk = Jdk_voll_kkk(I_IK,:); % Berechnung identisch mit oben
+          else
+            Phi_voll_kkk = %RN%_constr2(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+            Jdk_kkk = %RN%_constr4grad(Jdk_voll_kkk, Phi_voll_kkk, s.I_EE, reci);
+          end
           condJ_kkk = cond(Jdk_kkk);
           % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
           % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
@@ -629,7 +649,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
 
     % Fehlermaß für aktuelle Iteration (wird auch in nächster Iteration benutzt)
     [Phi_voll, Tc_stack] = %RN%_constr2(q2, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-    Phi_neu = Phi_voll(I_IK);
+    if ~use_constr4
+      Phi_neu = Phi_voll(I_IK);
+    else
+      Phi_neu = %RN%_constr4(Phi_voll, s.I_EE, reci);
+    end
     % Prüfe, ob Wert klein genug ist. Bei kleinen Zahlenwerten, ist
     % numerisch teilweise keine Verbesserung möglich.
     Phi_iO = all(abs(Phi_neu(1:n_Phi_t)) < Phit_tol) && ...
@@ -685,7 +709,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       h_alt = h;
       % Behalte Wert für Phi nur in diesem Fall. Dadurch wird auch die Verbesserung
       % gegenüber der Iteration messbar, bei der zuletzt eine Verschlechterung eintrat.
-      Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      if ~use_constr4
+        Phi = Phi_voll(I_IK); % Reduktion auf betrachtete FG
+      else
+        Phi = %RN%_constr4(Phi_voll, s.I_EE, reci);
+      end
       rejcount = 0;
     else
       % Kein Erfolg. Erhöhe die Dämpfung. Mache den Schritt nicht.
@@ -792,7 +820,11 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2); end
   Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
-  Jdk = Jdk_voll(I_IK,:);
+  if ~use_constr4
+    Jdk = Jdk_voll(I_IK,:);
+  else
+    Jdk = %RN%_constr4grad(Jdk_voll, Phi_voll, s.I_EE, reci);
+  end
   h(3) = cond(Jdk);
   if wn(4) ~= 0 % Berechnung muss genauso sein wie oben
     colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...

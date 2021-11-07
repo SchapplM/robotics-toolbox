@@ -1,0 +1,73 @@
+% Ableitung der kinematischen Zwangsbedingungen nach den Gelenkwinkeln
+% Die Zwangsbedingungen geben die Abweichung zwischen einer Soll-Pose in
+% EE-Koordinaten und der Ist-Pose aus gegebenen Gelenk-Koordinaten an.
+% Variante 4:
+% * Position: Vektor vom Basis- zum EE-KS (kein Unterschied zu SKM-Variante 1/2)
+% * Rotationsfehler aufbauend auf Variante 2: Reziproke Euler-Winkel.
+%   (XYZ Absolut-Orientierung und Fehler als Euler-Winkel). Z-Komponente
+%   wird direkt übernommen, aus X- und Y-Komponente wird die Norm gebildet.
+% * Geeignet für Überbestimmten Zwangsbedingungen, z.B. 5 Gelenke bei 6
+%   Zwangsgebedingungen (Beinkette von 3T1R-PKM)
+%
+% Eingabe:
+% Jdk_voll [6xN]
+%   Gradient der Zwangsbedingungen nach Methode 2 aus %RN%_constr2grad
+% Phi_voll [6x1]
+%   Kinematische Zwangsbedingungen nach Methode 2 aus %RN%_constr2
+% I_IK [1x6]
+%   Indizes der belegten EE-FG (Binär)
+% reci
+%   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
+%   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
+%   false: Gleiche Euler-Winkel für Fehler und Absolut
+%
+% Ausgabe:
+% Phi_dq [6xN]
+%   Matrix mit Ableitungen der 6 Zwangsbedingungskomponenten (in den Zeilen)
+%   nach den N Gelenkwinkeln (in den Spalten)
+
+% Quelle:
+% Aufzeichnungen Schappler vom 06.11.2021
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021-11
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+
+function Phi_dq = %RN%_constr4grad(Jdk_voll, Phi_voll, I_IK, reci)
+
+%% Coder Information
+%#codegen
+%$cgargs {zeros(6,%NJ%), zeros(6,1), true(1,6), true}
+
+% Bestimme den Gradient zur Norm des Rotationsteil der X- und Y-Zwangsbedingungen.
+% Unterschiedliche Auswahl der Indizes bei Führungskette und Folgekette
+if reci % Reihenfolge Z-Y-X
+  I_rotxy = [6 5];
+else % Reihenfolge X-Y-Z
+  I_rotxy = [4 5];
+end
+alphaxy = Phi_voll(I_rotxy);
+if ~all(abs(alphaxy) < 1e-12)
+  % innere Ableitung des Wurzel-Ausdrucks
+  indev = 2*alphaxy(1)*Jdk_voll(I_rotxy(1),:)+...
+          2*alphaxy(2)*Jdk_voll(I_rotxy(2),:);
+  % äußere Ableitung des Wurzel-Ausdrucks
+  prefix = 1/(2*sqrt(alphaxy(1)^2+alphaxy(2)^2));
+else % L'Hospital Grenzwertsatz. Sonst numerische Probleme
+  indev = Jdk_voll(I_rotxy(1),:) + Jdk_voll(I_rotxy(2),:);
+  prefix = 1; % Wurzel-Quotient kürzt sich raus
+end
+if all(I_IK == [1 1 1 0 1 1]) % Beinkette für 3T1R-PKM
+  % (mit vorgegebener Z-Rotation; Folgekette oder Führungskette ohne Aufgabenredundanz)
+  % Translatorischer Teil, z-Rot.-Zwangsbedingung, xy-Rot.-ZB
+  if reci 
+    Phi_dq = [Jdk_voll(1:3,:);Jdk_voll(4,:);prefix*indev];
+  else
+    Phi_dq = [Jdk_voll(1:3,:);prefix*indev;Jdk_voll(6,:)];
+  end
+elseif all(I_IK == [1 1 1 0 1 0]) && reci % Beinkette für 3T1R-PKM (ohne vorgegebene Z-Rotation; Führungskette bei Aufgabenredundanz)
+  % Translatorischer Teil und xy-Rot.-Zwangsbedingungen
+  Phi_dq = [Jdk_voll(1:3,:);prefix*indev];
+else % Dieser Fall sollte nicht vorkommen
+  Phi_dq = NaN(sum(I_IK),%NJ%);
+end

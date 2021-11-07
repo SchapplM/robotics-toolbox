@@ -1,0 +1,54 @@
+% Kinematische Zwangsbedingungen zwischen Ist- und Soll-Konfiguration
+% Die Zwangsbedingungen geben die Abweichung zwischen einer Soll-Pose in
+% EE-Koordinaten und der Ist-Pose aus gegebenen Gelenk-Koordinaten an.
+% Vollständige Rotations- und Translationskomponenten
+% Variante 4:
+% * Position: Vektor vom Basis- zum EE-KS (kein Unterschied zu SKM-Variante 1/2)
+% * Rotationsfehler aufbauend auf Variante 2: Reziproke Euler-Winkel.
+%   (XYZ Absolut-Orientierung und Fehler als Euler-Winkel). Z-Komponente
+%   wird direkt übernommen, aus X- und Y-Komponente wird die Norm gebildet.
+% * Geeignet für Überbestimmten Zwangsbedingungen, z.B. 5 Gelenke bei 6
+%   Zwangsgebedingungen (Beinkette von 3T1R-PKM)
+%
+% Eingabe:
+% Phi_voll [6x1]
+%   Kinematische Zwangsbedingungen nach Methode 2 aus %RN%_constr2
+% I_IK [1x6]
+%   Indizes der belegten EE-FG (Binär)
+% reci
+%   true: Nehme reziproke Euler-Winkel für Orientierungsfehler (z.B.
+%   ZYX-Orientierungsfehler für XYZ-Absolutorientierung)
+%   false: Gleiche Euler-Winkel für Fehler und Absolut
+%
+% Ausgabe:
+% Phi
+%   Kinematische Zwangsbedingungen des Roboters: Maß für den Positions- und
+%   Orientierungsfehler zwischen Ist-Pose aus gegebenen Gelenkwinkeln q und
+%   Soll-Pose aus gegebenen EE-Koordinaten x
+
+% Quelle:
+% Aufzeichnungen Schappler vom 06.11.2021
+
+% %VERSIONINFO%
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021-11
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+
+function Phi = %RN%_constr4(Phi_voll, I_IK, reci)
+
+%% Init
+%#codegen
+%$cgargs {zeros(6,1),true(1,6),true}
+
+% Bestimme die Norm des Rotationsteil der X- und Y-Zwangsbedingungen.
+% Unterschiedliche Auswahl der Indizes bei Führungskette und Folgekette
+if all(I_IK == [1 1 1 0 1 1]) % Beinkette für 3T1R-PKM (mit vorgegebener Z-Rotation)
+  if reci 
+    Phi = [Phi_voll(1:3);Phi_voll(4);sqrt(Phi_voll(5)^2+Phi_voll(6)^2)];
+  else
+    Phi = [Phi_voll(1:3);sqrt(Phi_voll(4)^2+Phi_voll(5)^2);Phi_voll(6)];
+  end
+elseif all(I_IK == [1 1 1 0 1 0]) && reci % Beinkette für 3T1R-PKM (ohne vorgegebene Z-Rotation)
+  Phi = [Phi_voll(1:3);sqrt(Phi_voll(5)^2+Phi_voll(6)^2)];
+else % Dieser Fall sollte nicht vorkommen
+  Phi = NaN(sum(I_IK),1);
+end
