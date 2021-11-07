@@ -6,7 +6,7 @@
 % * Position: Vektor vom Basis- zum EE-KS (kein Unterschied zu SKM-Variante 1/2)
 % * Rotationsfehler aufbauend auf Variante 2: Reziproke Euler-Winkel.
 %   (XYZ Absolut-Orientierung und Fehler als Euler-Winkel). Z-Komponente
-%   wird direkt übernommen, aus X- und Y-Komponente wird die Norm gebildet.
+%   wird direkt übernommen, aus X- und Y-Komponente wird die Betragssumme gebildet.
 % * Geeignet für Überbestimmten Zwangsbedingungen, z.B. 5 Gelenke bei 6
 %   Zwangsgebedingungen (Beinkette von 3T1R-PKM)
 %
@@ -39,16 +39,16 @@ function Phi = %RN%_constr4(Phi_voll, I_IK, reci)
 %#codegen
 %$cgargs {zeros(6,1),true(1,6),true}
 
-% Bestimme die Norm des Rotationsteil der X- und Y-Zwangsbedingungen.
+% Bestimme die Betragssumme des Rotationsteil der X- und Y-Zwangsbedingungen.
 % Unterschiedliche Auswahl der Indizes bei Führungskette und Folgekette
 if all(I_IK == [1 1 1 0 1 1]) % Beinkette für 3T1R-PKM (mit vorgegebener Z-Rotation)
-  if reci 
-    Phi = [Phi_voll(1:3);Phi_voll(4);sqrt(Phi_voll(5)^2+Phi_voll(6)^2)];
+  if reci
+    Phi = [Phi_voll(1:3);Phi_voll(4);abs(Phi_voll(5))+abs(Phi_voll(6))];
   else
-    Phi = [Phi_voll(1:3);sqrt(Phi_voll(4)^2+Phi_voll(5)^2);Phi_voll(6)];
+    Phi = [Phi_voll(1:3);abs(Phi_voll(4))+abs(Phi_voll(5));Phi_voll(6)];
   end
 elseif all(I_IK == [1 1 1 0 1 0]) && reci % Beinkette für 3T1R-PKM (ohne vorgegebene Z-Rotation)
-  Phi = [Phi_voll(1:3);sqrt(Phi_voll(5)^2+Phi_voll(6)^2)];
+  Phi = [Phi_voll(1:3);abs(Phi_voll(5))+abs(Phi_voll(6))];
 else % Dieser Fall sollte nicht vorkommen
   Phi = NaN(sum(I_IK),1);
 end

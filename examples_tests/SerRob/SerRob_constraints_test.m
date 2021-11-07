@@ -156,13 +156,14 @@ for Robot_Data = Robots
           % Differenzenquotient)
           Phi_1_g = Phi_0 + Phidq_0*dq;
           test = Phi_1-Phi_1_g;
-          dPhi_grad = Phi_1-Phi_0;
-          dPhi_grad(abs(abs(dPhi_grad)-2*pi) < 1e-2) = 0; % 2pi-Fehler entfernen
-          dPhi_diff = Phidq_0*dq;
-          test_dPhi_abs = dPhi_diff-dPhi_grad;
-          test_dPhi_rel = test_dPhi_abs./dPhi_diff;
+          dPhi_diff = Phi_1-Phi_0;
+          I_2pierr = abs(abs(dPhi_diff)-2*pi) < 1e-2;
+          dPhi_diff(I_2pierr) = angleDiff(Phi_0(I_2pierr),Phi_1(I_2pierr)); % 2pi-Fehler entfernen
+          dPhi_grad = Phidq_0*dq;
+          test_dPhi_abs = dPhi_grad-dPhi_diff;
+          test_dPhi_rel = test_dPhi_abs./dPhi_grad;
           if any( abs(test_dPhi_abs)>1e-6 & abs(test_dPhi_rel)>5e-2 )
-            error('%s: Zwangsbedingungs-Ableitung stimmt nicht mit Zwangsbedingungen überein', SName);
+            error('%s: Zwangsbedingungs-Ableitung stimmt nicht mit Zwangsbedingungen überein (Methode %d)', SName, m);
           end
         end
       end
