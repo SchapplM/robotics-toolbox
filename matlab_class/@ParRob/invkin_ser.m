@@ -111,7 +111,7 @@ end
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
 Phi_ser = NaN(Rob.I2constr_red(end),1);
 Phi = Phi_ser;
-q = Q0;
+q = Q0(:,1);
 r_P_P_B_ges = Rob.r_P_B_all;
 if ~s_par.platform_frame
   T_P_E = Rob.T_P_E;
