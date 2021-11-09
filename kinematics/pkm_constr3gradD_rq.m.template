@@ -10,8 +10,12 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
 % Phi_q_red_l
@@ -183,22 +187,34 @@ for iLeg = 1:NLEG
     Phipq(I1:I2,J1:J2) = PhiD_phi_i_Gradq;
 
     % Ausgabe mit reduzierter Dimension
-    % TODO: Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
-    % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum
+    % Die Auswahl der ZB muss an die jeweilige Aufgabe angepasst
+    % werden (3T1R, 3T3R); wegen der Reziprozität EE-FG / Residuum.
     K1 = 1; % Wiederholung für mex-Coder (genau wie Zuweisungen unten)
     if all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 0])
       K2 = 2;
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(X)
-    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 1]) % 3T3R
-      K2 = 3;
-      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq;
-    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM ohne Aufg.-Red.
+      K2 = 2;
+      % Neu-Berechnung des Rotationsteils der Zwangsbedingungen
+      alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+      Phipq_red(K1:K2,J1:J2) = [PhiD_phi_i_Gradq(1,:); ... % Z
+              sign(alpha(2))*PhiD_phi_i_Gradq(2,:) + ... % |Y|
+              sign(alpha(3))*PhiD_phi_i_Gradq(3,:)]; %     |X|
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R-PKM mit Aufg.-Red.
+      K2 = 1;
+      alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+      Phipq_red(K1:K2,J1:J2) = sign(alpha(2))*PhiD_phi_i_Gradq(2,:) + ... % |Y|
+                               sign(alpha(3))*PhiD_phi_i_Gradq(3,:);%       |X|
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0]) % 2T1R mit Aufg.-Red
       % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
       K2 = 0;
-    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1]) % 2T1R ohne Aufg.-Red
       % ebene Rotation (nicht-redundanter Fall).
       K2 = 1;
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(1,:); % nur 1. Eintrag (Z)
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 1]) % allgemeiner Fall (3T3R-PKM, aber auch 3T0R-PKM mit 3T3R-ZB der Beine)
+      K2 = 3;
+      Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq; % alle drei Einträge
     else
       % Nicht vorgesehener Fall
       K2 = K1+sum(s.Leg_I_EE_Task(iLeg,4:6))-1; % für Kompilierbarkeit
@@ -287,7 +303,18 @@ for iLeg = 1:NLEG
       K2 = K1 + 2;
       Phipq_red(K1:K2,G1:G2) = PhiD_phi_i_Gradq_L; % alle 3 Einträge
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq_f;
-    elseif all(s.Leg_I_EE_Task(iLeg,4:5) == [0 0])
+    elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM
+      K2 = K1 + 1;
+      % Neu-Berechnung des Rotationsteils der Zwangsbedingungen
+      alpha = r2eul(R_Lq_Eq_f, phiconv_W_E_reci);
+      % Residuum ist nun der Betrag von X- und Y-Komponente. Siehe constr3_rot.
+      Phipq_red(K1:K2,G1:G2) = [PhiD_phi_i_Gradq_L(1,:); ... % Z-Rotation
+               sign(alpha(2))*PhiD_phi_i_Gradq_L(2,:)+... % |Y|
+               sign(alpha(3))*PhiD_phi_i_Gradq_L(3,:)]; % |X|
+      Phipq_red(K1:K2,J1:J2) = [PhiD_phi_i_Gradq_f(1,:); ...
+               sign(alpha(2))*PhiD_phi_i_Gradq_f(2,:)+...
+               sign(alpha(3))*PhiD_phi_i_Gradq_f(3,:);];
+    elseif all(s.Leg_I_EE_Task(iLeg,4:5) == [0 0]) % ebene Rotation
       % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
       K2 = K1;
       Phipq_red(K2,G1:G2) = PhiD_phi_i_Gradq_L(1,:); % nur 1. Eintrag (Z)

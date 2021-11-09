@@ -128,15 +128,30 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   
   % Ausgabe mit reduzierter Dimension
   K2 = K1+sum(Leg_I_EE_Task(iLeg,4:6))-1;
-  if all(Leg_I_EE_Task(iLeg,4:6) == logical([1 1 0]))
+  if all(Leg_I_EE_Task(iLeg,4:6) == [1 1 0]) % 3T2R mit Aufg.-Red
     Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx([2 3],Rob.I_EE(4:6)); % Nur 2 Komponenten: 2(Y) und 3(X)
-  elseif all(Leg_I_EE_Task(iLeg,4:6) == logical([0 0 0]))
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM ohne Aufg.-Red.
+    % Nehme an, dass bei 3T1R-PKM die ZB erfüllbar sind und dass das
+    % System überbestimmt ist (Beinkette mit 5 FG). Nehme daher Y- und X-
+    % Zwangsbedingungen gemeinsam.
+    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    Phipphi_red( K1:K2,1:sum(Rob.I_EE(4:6)) ) = [Phi_phi_i_Gradx(1,Rob.I_EE(4:6)); ... % Z
+                              sign(alpha(2))*Phi_phi_i_Gradx(2,Rob.I_EE(4:6)) + ... % |Y|
+                              sign(alpha(3))*Phi_phi_i_Gradx(3,Rob.I_EE(4:6))]; % |X|
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R-PKM mit Aufg.-Red.
+    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    Phipphi_red( K1:K2,1:sum(Rob.I_EE(4:6)) ) = ...
+                              sign(alpha(2))*Phi_phi_i_Gradx(2,Rob.I_EE(4:6)) + ... % |Y|
+                              sign(alpha(3))*Phi_phi_i_Gradx(3,Rob.I_EE(4:6)); % |X|
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 0])% 2T1R mit Aufg.-Red
     % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
-  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1]) % 2T1R ohne Aufg.-Red
     % ebene Rotation (nicht-redundanter Fall).
     Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(1,Rob.I_EE(4:6)); % nur 1. Eintrag (Z)
-  else
+  elseif all(Leg_I_EE_Task(iLeg,4:6) == [1 1 1]) % allgemeiner Fall (3T3R-PKM, aber auch 3T0R-PKM mit 3T3R-ZB der Beine)
     Phipphi_red( K1:K2, 1:sum(Rob.I_EE(4:6)) ) = Phi_phi_i_Gradx(:,Rob.I_EE(4:6)); % alle drei Einträge
+  else
+    error('Fall nicht vorgesehen');
   end
   K1 = K2+1;
 end

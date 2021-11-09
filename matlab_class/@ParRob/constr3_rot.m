@@ -97,12 +97,20 @@ for iLeg = 1:NLEG
   % Auswahl der wirklich benötigten Einträge
   Phi_i = Phi(J1:J2,:);
   if all(Rob.Leg(iLeg).I_EE_Task(4:6) == [1 1 1])
-    Phi_red(K1:K2,:) = Phi_i; % alle 3 Einträge
-  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [1 1 0])
+    Phi_red(K1:K2,:) = Phi_i; % alle drei Einträge
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [1 1 0]) % für 3T2R und 3T1R+AR (alte Modellierung)
     Phi_red(K1:K2,:) = Phi_i([2 3]); % Einträge für Y und X
   elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 0 1])
     % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
     Phi_red(K1:K2,:) = Phi_i(1); % nur 1. Eintrag (Z)
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 1 0]) % 3T1R+AR (neue Modellierung)
+    % 3T1R: Nehme nur die xy-Komponente (reziprokes Residuum)
+    % Nehme die Betragssumme, in der Annahme, dass es nur eine unabhängige Information gibt.
+    Phi_red(K1:K2,:) = abs(Phi_i(2))+abs(Phi_i(3)); % nur 2. und 3. Eintrag (YX)
+  elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 1 1])
+    % 3T1R: Nehme die zx- und yx-Komponente (z ist das reziprokes Residuum)
+    % (Ansatz für Folge-Beinkette)
+    Phi_red(K1:K2,:) = [Phi_i(1); abs(Phi_i(2))+abs(Phi_i(3))];
   elseif all(Rob.Leg(iLeg).I_EE_Task(4:6) == [0 0 0])
     % Aufgabenredundante Führungskette. Nichts eintragen
   else

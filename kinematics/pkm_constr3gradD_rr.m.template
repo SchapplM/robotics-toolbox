@@ -9,8 +9,12 @@
 % Eingabe:
 % q [Nx1]
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
+% qD [Nx1]
+%   Geschwindigkeit aller Gelenkwinkel aller serieller Beinketten der PKM
 % xE [6x1]
 %   Endeffektorpose des Roboters bezüglich des Basis-KS
+% xDE [6x1]
+%   Zeitableitung der Endeffektorpose des Roboters bezüglich des Basis-KS
 % 
 % Ausgabe:
 % Phipphi_red
@@ -151,19 +155,35 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
   
   % Ausgabe mit reduzierter Dimension
   K1 = 1; % nur eine Beinkette betrachtet.
-  if all(s.Leg_I_EE_Task(iLeg,4:6) == logical([1 1 1]))
-    K2 = 3;
-    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(:,I_EE(4:6));
-  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == logical([1 1 0]))
+  if all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 0])
     K2 = 2;
-    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],I_EE(4:6)); % 2 Einträge (Y und X)
+    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD([2 3],I_EE(4:6)); % Nur 2 Komponenten: 2(Y) und 3(X)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM ohne Aufg.-Red.
+    K2 = 2;
+    % Nehme an, dass bei 3T1R-PKM die ZB erfüllbar sind und dass das
+    % System überbestimmt ist (Beinkette mit 5 FG). Nehme daher Y- und X-
+    % Zwangsbedingungen gemeinsam.
+    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    PhiDpphi_red( K1:K2,1:sum(I_EE(4:6)) ) = [Phi_phi_i_GradxD(1,I_EE(4:6)); ... % Z
+                              sign(alpha(2))*Phi_phi_i_GradxD(2,I_EE(4:6)) + ... % |Y|
+                              sign(alpha(3))*Phi_phi_i_GradxD(3,I_EE(4:6))]; % |X|
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R-PKM mit Aufg.-Red.
+    K2 = 1;
+    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    PhiDpphi_red( K1:K2,1:sum(I_EE(4:6)) ) = ...
+                              sign(alpha(2))*Phi_phi_i_GradxD(2,I_EE(4:6)) + ... % |Y|
+                              sign(alpha(3))*Phi_phi_i_GradxD(3,I_EE(4:6)); % |X|
   elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
     % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
     % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
-  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1]) % 2T1R ohne Aufg.-Red
     % ebene Rotation (nicht-redundanter Fall).
     K2 = K1;
     PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(1,I_EE(4:6)); % nur 1. Eintrag (Z)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 1]) % allgemeiner Fall (3T3R-PKM, aber auch 3T0R-PKM mit 3T3R-ZB der Beine)
+    K2 = 3;
+    PhiDpphi_red( K1:K2, 1:sum(I_EE(4:6)) ) = Phi_phi_i_GradxD(:,I_EE(4:6));
+
   else
     % Fall nicht vorgesehen.
   end
