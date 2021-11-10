@@ -68,7 +68,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
                   'r', '+', ':', 6};
 %% Klasse für PKM erstellen (basierend auf serieller Beinkette)
 % Robotermodell aus PKM-Bibliothek laden.
-for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
+for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
   if robnr == 1
     RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
@@ -124,6 +124,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
+  matlabfcn2mex({[RP.Leg(1).mdlname, '_invkin_eulangresidual']});
   RP.fill_fcn_handles(true,true);
 
   I_EE_full = RP.I_EE;
@@ -214,9 +215,9 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   [G_q_red, G_q_voll] = RP.constr3grad_q(qs, X0);
   G_q_red(abs(G_q_red(:))<1e-10)=0;
   if all(I_EE_full == [1 1 1 0 0 1])
-    % Für jede Beinkette werden sechs ZB aufgestellt. Annahme: 5 Gelenke in
-    % Kette. Dadurch überbestimmt.
-    n_legconstr_used = 6;
+    % Für jede Beinkette werden fünf ZB aufgestellt. Annahme: 5 Gelenke in
+    % Kette. Dadurch mit 6FG überbestimmt. Benutze kinematische Modellierung
+    n_legconstr_used = 5;
   else
     % Für 2T1R- oder 3T3R-PKM: Entweder 3 oder 6 ZB für Beinketten
     n_legconstr_used = sum(I_EE_full);
@@ -233,7 +234,9 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Testen der Komponentenaufteilung
   G_q = G_q_voll(RP.I_constr_red,:);
   G_x = G_x_voll(RP.I_constr_red,:);
-  if any(abs(G_q_red(:)-G_q(:))>1e-10)
+  if ~all(I_EE_full == [1 1 1 0 0 1]) && any(abs(G_q_red(:)-G_q(:))>1e-10)
+    % Für 3T1R werden die reduzierten ZB nicht durch Auswahl von Zeilen
+    % gebildet, sondern teilweise durch Betragssumme (X- und Y-Rotation)
     test_Gq = G_q - G_q_red;
     test_Gq(abs(test_Gq)<1e-8)=0;
     error('Aufteilung der ZB-Komponenten stimmt nicht zwischen constr3grad_q/constr3grad_x/ParRob');
@@ -247,10 +250,10 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Jacobi-Matrix zur Berechnung der abhängigen Gelenke und EE-Koordinaten
   G_dx = [G_d, G_x];
   
-  fprintf('%s: Rang der vollständigen %dx%d-Jacobi der inversen Kinematik: %d/%d\n', ...
-    RP.mdlname, size(G_q,1), size(G_q,2), rank(G_q), min(size(G_q)));
-  fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d\n', ...
-    RP.mdlname, rank(G_dx), sum(RP.I_EE_Task)+sum(RP.I_qd));
+  fprintf('%s: Rang der vollständigen %dx%d-Jacobi der inversen Kinematik: %d/%d (Cond. %1.2g)\n', ...
+    RP.mdlname, size(G_q,1), size(G_q,2), rank(G_q), min(size(G_q)), cond(G_q));
+  fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik: %d/%d (Cond. %1.2g)\n', ...
+    RP.mdlname, rank(G_dx), sum(RP.I_EE_Task)+sum(RP.I_qd), cond(G_dx));
   fprintf('%s: Rang der Jacobi der aktiven Gelenke: %d/%d\n', ...
     RP.mdlname, rank(G_a), sum(RP.I_EE_Task));
   
