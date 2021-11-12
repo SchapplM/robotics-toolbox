@@ -134,7 +134,7 @@ for Robot_Data = Robots
         for id = 1:size(TSS.Q,2) % Alle Komponenten der Gelenkkoordinaten einmal verschieben
           % Neue Koordinaten q1 durch Verschiebung in einer Komponente
           dq = zeros(size(TSS.Q,2),1);
-          dq(id) = 1e-4;
+          dq(id) = 1e-6; % eher kleinen Schritt nehmen, damit geringe Abweichung von Linearisierung
           q1 = q0+dq;
 
           % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
