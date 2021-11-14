@@ -497,12 +497,12 @@ classdef ParRob < RobBase
           % Aufgabenredundanz: Reduzierte FG entsprechen dem Aufgaben-FG.
           % Nehme vollständige Zwangsbedingungen (6 pro Beinkette)
           [~, Phi_q_voll] = R.constr4grad_q(q);
-          [~, Phi_x_voll] = R.constr4grad_x(xE);
+          [~, Phi_x_voll] = R.constr4grad_x(xE, platform_frame);
           Jinv_num_voll = -Phi_q_voll \ Phi_x_voll(:,R.I_EE);
         else
           % Normalfall: Reduzierte ZB (z.B. bei 2T1R).
           G_q = R.constr4grad_q(q);
-          G_x = R.constr4grad_x(xE);
+          G_x = R.constr4grad_x(xE, platform_frame);
           Jinv_num_voll = -G_q \ G_x;
         end
         % Reduziere auf aktive Gelenke
