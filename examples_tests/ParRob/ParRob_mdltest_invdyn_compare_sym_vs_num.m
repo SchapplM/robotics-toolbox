@@ -37,10 +37,10 @@ respath = fullfile(rob_path, 'examples_tests', 'results');
 mkdirs(respath);
 % Einstellungen für inverse Kinematik
 s = struct( ...
-       'n_min', 25, ... % Minimale Anzahl Iterationen
-       'n_max', 1000, ... % Maximale Anzahl Iterationen
-       'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-       'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
+   'n_min', 25, ... % Minimale Anzahl Iterationen
+   'n_max', 1000, ... % Maximale Anzahl Iterationen
+   'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
+   'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
 for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 EE_FG = EEFG_Ges(i_FG,:);
@@ -227,7 +227,7 @@ for DynParMode = 2:4
         tmp1 = load(resfile1, 'RobotOptDetails');
         resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
         tmp2 = load(resfile1, 'RobotOptRes');
-        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
+        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval <= 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
           RobotOptRes = tmp2.RobotOptRes;
@@ -290,7 +290,9 @@ for DynParMode = 2:4
     end
     
     % Definiere die gleiche PKM, deren Basis gedreht ist (Boden- vs
-    % Deckenmontage)
+    % Deckenmontage). TODO: Bei Basis-Drehung (z-Achse) tritt eine Drehung
+    % in allen drei Euler-Winkeln auf. Das ist nicht sehr anschaulich,
+    % reicht aber für den Test.
     RP2 = copy(RP);
     RP2.update_base([],r2eulxyz(RP.T_W_0(1:3,1:3)*rotx(pi)));
     RP2.update_EE([],  r2eulxyz(RP.T_P_E(1:3,1:3)*rotx(pi)));
@@ -300,10 +302,6 @@ for DynParMode = 2:4
     % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
     % Drehung (180°, x-Achse) bezogen auf Basis-KS der ersten PKM.
     g_world2 = RP.T_W_0(1:3,1:3)*rotx(pi)*RP.gravity;
-    % Gravitation zeigt also in die andere Richtung (bezogen auf die
-    % z-Achse). Das gilt aber nicht für die x-/y-Richtung.
-    assert(abs(g_world2(3)--g_world(3)) < 1e-12, ['Gedrehte Gravitation ', ...
-      'zeigt nicht in die entgegengesetzte z-Richtung']);
     RP2.update_gravity(g_world2);
     % Prüfe, ob die Zuweisung richtig gemacht wurde.
     assert(all(abs(RP.gravity - RP2.gravity)<1e-12), ['Gravitationsvektor ', ...
@@ -358,10 +356,14 @@ for DynParMode = 2:4
     JinvP_ges = NaN(n,sum(RP.I_EE)*RP.NJ);
     for i = 1:n
       %% IK für Testkonfiguration berechnen
-      [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s);
+      [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s, ...
+        struct('debug', true)); % Zwangsbedingungen in IK-Funktion zweimal prüfen
       if any(abs(Phi) > 1e-8) || any(isnan(Phi))
         continue; % IK für diese Pose nicht erfolgreich
       end
+      Phi_test = RP.constr3(q, XE_test(i,:)');
+      assert(all(abs(Phi_test)<1e-6), 'Zwangsbedingungen unerwartet falsch');
+      
       Q_test(i,:) = q;
       [~, JinvE] = RP.jacobi_qa_x(q, XE_test(i,:)');
       QD_test(i,:) = JinvE*XDE_test(i,RP.I_EE)';
@@ -389,14 +391,24 @@ for DynParMode = 2:4
       JinvP_fullx = JinvP_fulls * H_xP; % [A]/(12)
       JinvP = JinvP_fullx(:,RP.I_EE);
       % Teste gegen berechnete Jacobi-Matrix
-      G_q_Ptest = RP.constr1grad_q(q, XP_test(i,:)', true);
-      G_x_Ptest = RP.constr1grad_x(q, XP_test(i,:)', true);
-      Jinv_Ptest = - G_q_Ptest \ G_x_Ptest;
+      [G_q_Ptest,Gv_q_Ptest] = RP.constr1grad_q(q, XP_test(i,:)', true);
+      [G_x_Ptest,Gv_x_Ptest] = RP.constr1grad_x(q, XP_test(i,:)', true);
+      if all(RP.I_EE == [1 1 1 0 0 1])
+        % Für 3T1R-PKM sind die reduzierten ZB nicht für Methode 1
+        % definiert, sondern nur für Methode 3. In einigen Fällen geht
+        % beides.
+        Jinv_Ptest = - Gv_q_Ptest \ Gv_x_Ptest(:,RP.I_EE);
+        testtol = 1e-6; % numerische Probleme -> grobe Toleranz)
+      else
+        Jinv_Ptest = - G_q_Ptest \ G_x_Ptest;
+        testtol = 1e-8;
+      end
       Jinv_Ptest_full = zeros(size(JinvP_fulls));
       Jinv_Ptest_full(:,RP.I_EE) = Jinv_Ptest;
       test_JinvP = JinvP - Jinv_Ptest;
-      if any(abs(test_JinvP(:)) > 1e-10)
-        error('Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt nicht gegen constr1-Funktion');
+      if any(abs(test_JinvP(:)) > testtol)
+        error(['Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt ', ...
+          'nicht gegen constr1-Funktion. Fehler: %1.2e'], max(abs(test_JinvP(:))));
       end
       JinvP_ges(i,:) = JinvP(:); % Für Trajektorien-Funktionen weiter unten
       
@@ -422,9 +434,13 @@ for DynParMode = 2:4
       JinvDP_fullx = (JinvDP_fulls + JinvP_fullx*(H_xP\HD_xP/H_xP))*H_xP; % [A]/(28)
       JinvDP = JinvDP_fullx(:,RP.I_EE);
       % Teste gegen berechnete Jacobi-Matrix-Zeitableitung
-      G_qD_Ptest = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
-      G_xD_Ptest = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
-      JinvD_Ptest = (G_q_Ptest\G_qD_Ptest)*(G_q_Ptest\G_x_Ptest) - G_q_Ptest\G_xD_Ptest;
+      [G_qD_Ptest,Gv_qD_Ptest] = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      [G_xD_Ptest,Gv_xD_Ptest] = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      if all(RP.I_EE == [1 1 1 0 0 1])
+        JinvD_Ptest = (Gv_q_Ptest\Gv_qD_Ptest)*(Gv_q_Ptest\Gv_x_Ptest(:,RP.I_EE)) - Gv_q_Ptest\Gv_xD_Ptest(:,RP.I_EE);
+      else
+        JinvD_Ptest = (G_q_Ptest\G_qD_Ptest)*(G_q_Ptest\G_x_Ptest) - G_q_Ptest\G_xD_Ptest;
+      end
       % Rechne zu geometrischer Form um
       JinvD_Ptest_full = zeros(size(JinvDP_fulls));
       JinvD_Ptest_full(:,RP.I_EE) = JinvD_Ptest;
@@ -432,7 +448,8 @@ for DynParMode = 2:4
       test_JinvDPs = JinvDP_fulls(:,RP.I_EE) - JinvD_Pstest_full(:,RP.I_EE);
       if any(abs(test_JinvDPs(:)) > 1e-8)
         disp(test_JinvDPs);
-        error('Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion');
+        error(['Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf ', ...
+          'xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion']);
       end
       test_JinvDP = JinvDP - JinvD_Ptest;
       if any(abs(test_JinvDP(:)) > 1e-8)

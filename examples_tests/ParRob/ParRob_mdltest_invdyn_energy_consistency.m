@@ -87,6 +87,9 @@ for i_FG = 1:size(EEFG_Ges,1)
       III = III(randperm(length(III)));
     end
   end
+  if isempty(III)
+    warning('Suchfilter hat keine Ergebnisse gebracht. Überspringe FG');
+  end
   for ii = III
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
     fprintf('Untersuche PKM %d/%d: %s\n', ii, length(PNames_Kin), PName);
@@ -197,7 +200,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         tmp1 = load(resfile1, 'RobotOptDetails');
         resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
         tmp2 = load(resfile1, 'RobotOptRes');
-        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
+        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval <= 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
           RobotOptRes = tmp2.RobotOptRes;
@@ -355,12 +358,21 @@ for i_FG = 1:size(EEFG_Ges,1)
           'Jacobi-Matrix für nicht konsistent mit zwei Methoden (Fcn vs 3)');
         [G1P_q, G1P_q_voll] = RP.constr1grad_q(q, XP_test(i,:)', true);
         [G1P_x, G1P_x_voll] = RP.constr1grad_x(q, XP_test(i,:)', true);
-        Jinv1P_voll = -G1P_q\G1P_x;
+        if ~all(RP.I_EE == [1 1 1 0 0 1])
+          Jinv1P_voll = -G1P_q\G1P_x;
+        else
+          Jinv1P_voll = -G1P_q_voll\G1P_x_voll(:,RP.I_EE);
+        end
         assert(all(abs(Jinv3P_voll(:)-Jinv1P_voll(:))<1e-6), ...
           'Jacobi-Matrix für nicht konsistent mit zwei Methoden (1 vs 3)');
         [G4P_q, G4P_q_voll] = RP.constr4grad_q(q);
         [G4P_x, G4P_x_voll] = RP.constr4grad_x(XP_test(i,:)', true);
-        Jinv4P_voll = -G4P_q\G4P_x;
+        if ~all(RP.I_EE == [1 1 1 0 0 1])
+          Jinv4P_voll = -G4P_q\G4P_x;
+        else
+          % Sonderfall 3T1R-PKM: Reduzierte ZB-Indizes passen nicht hierzu
+          Jinv4P_voll = -G4P_q_voll\G4P_x_voll(:,RP.I_EE);
+        end
         assert(all(abs(Jinv4P_voll(:)-Jinv_voll(:))<1e-6), ...
           'Jacobi-Matrix für nicht konsistent mit zwei Methoden (Fcn vs direkt)');
       else % 3T2R: Eigene Modellierung
@@ -627,9 +639,17 @@ for i_FG = 1:size(EEFG_Ges,1)
         [G4_q, G4_q_voll] = RP.constr4grad_q(q);
         [G4_x, G4_x_voll] = RP.constr4grad_x(xP, true);
         if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
-          Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+          else
+            Jinv_voll = -G1_q_voll\G1_x_voll(:,RP.I_EE);
+          end
         elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
-          Jinv_voll = -G4_q\G4_x;
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll = -G4_q\G4_x;
+          else
+            Jinv_voll = -G4_q_voll\G4_x_voll(:,RP.I_EE);
+          end
         else % Modellierung für 3T2R-PKM
           % Kann nicht erkennen, wenn die PKM ungültig ist. Dafür wird
           % constr3 benötigt. Annahme: Alle PKM die hier aus der PKM-Daten-
@@ -659,14 +679,22 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
         if jm == 1
-          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
-          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD, true);
-          JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+          [GD1_q, GD1_q_voll] = RP.constr1gradD_q(q, qD, xP, xPD, true);
+          [GD1_x, GD1_x_voll] = RP.constr1gradD_x(q, qD, xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+          else
+            JinvD_voll = G1_q_voll\(GD1_q_voll*(G1_q_voll\G1_x_voll(:,RP.I_EE))) - G1_q_voll\GD1_x_voll(:,RP.I_EE);
+          end
         elseif jm == 2
           % Nehme Modellierung 4 der Jacobi für die Dynamik
-          GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(xP, xPD, true);
-          JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          [GD4_q, GD4_q_voll] = RP.constr4gradD_q(q, qD);
+          [GD4_x, GD4_x_voll] = RP.constr4gradD_x(xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          else
+            JinvD_voll = G4_q_voll\(GD4_q_voll*(G4_q_voll\G4_x_voll(:,RP.I_EE))) - G4_q_voll\GD4_x_voll(:,RP.I_EE);
+          end
         else
           GD2_q = RP.constr2gradD_q(q, qD, xP, xPD, true);
           GD2_x = RP.constr2gradD_x(q, qD, xP, xPD, true);
@@ -750,12 +778,21 @@ for i_FG = 1:size(EEFG_Ges,1)
           % Dafür müssen die korrigierten IK-Gelenkwinkel genommen werden
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
           % Methoden:
-          G4_q = RP.constr4grad_q(q);
-          G4_x = RP.constr4grad_x(xP, true);
-          Jinv_voll4 = -G4_q\G4_x;
-          G1_q = RP.constr1grad_q(q,xP, true);
-          G1_x = RP.constr1grad_x(q,xP, true);
-          Jinv_voll1 = -G1_q\G1_x;
+          [G4_q, G4v_q] = RP.constr4grad_q(q);
+          [G4_x, G4v_x] = RP.constr4grad_x(xP, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll4 = -G4_q\G4_x;
+          else
+            Jinv_voll4 = -G4v_q\G4v_x(:,RP.I_EE);
+          end
+          [G1_q,G1v_q] = RP.constr1grad_q(q,xP, true);
+          [G1_x,G1v_x] = RP.constr1grad_x(q,xP, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll1 = -G1_q\G1_x;
+          else
+            Jinv_voll1 = -G1v_q\G1v_x(:,RP.I_EE);
+          end
+          
           if ~all(EE_FG==[1 1 1 1 1 0])
           % Vergleiche gegen symbolische Herleitung der Jacobi-Matrix
           % (existiert nicht für 3T2R)
@@ -779,12 +816,19 @@ for i_FG = 1:size(EEFG_Ges,1)
             error('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
           end
           % Alle Zeitableitungen der ZB-Gradienten mit Methode 1 und 4
-          GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(xP, xPD, true);
-          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
-          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD, true);
-          JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
-          JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          [GD4_q,GD4v_q] = RP.constr4gradD_q(q, qD);
+          [GD4_x,GD4v_x] = RP.constr4gradD_x(xP, xPD, true);
+          [GD1_q,GD1v_q] = RP.constr1gradD_q(q, qD, xP, xPD, true);
+          [GD1_x,GD1v_x] = RP.constr1gradD_x(q, qD, xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
+            JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          else
+            JinvD_voll1 = G1v_q\(GD1v_q*(G1v_q\G1v_x(:,RP.I_EE))) - G1v_q\GD1v_x(:,RP.I_EE);
+            JinvD_voll4 = G4v_q\(GD4v_q*(G4v_q\G4v_x(:,RP.I_EE))) - G4v_q\GD4v_x(:,RP.I_EE);
+          end
+          
+          
           % Vergleiche Jacobi-Zeitableitung nach beiden Methoden
           JinvD_voll1(abs(JinvD_voll1(:))<1e-10) = 0;
           JinvD_voll4(abs(JinvD_voll4(:))<1e-10) = 0;

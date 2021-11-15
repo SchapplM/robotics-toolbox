@@ -33,7 +33,8 @@ function fdynoutput = fdyn(RP, fdynstruct)
   
   % Numerische Integration konfigurieren und durchführen
   options = odeset( ...
-    'MaxStep',fdynstruct.dtmax); % mit automatischer Schrittweite ist der Fehler zu groß
+    'InitialStep', fdynstruct.dtmax, ... % Fange mit der "normalen" Schrittweite an
+    'MaxStep', fdynstruct.dtmax); % mit automatischer Schrittweite ist der Fehler zu groß
   SolverOutput = ode45(odefun, [0 t_End], y0, options);
   
   % Ausgabe zusammenstellen
@@ -91,13 +92,21 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
   % Gelenkgeschwindigkeit ist komplett abhängig von Plattform- 
   % Geschwindigkeit und braucht nicht integriert werden.
   if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
-    [G1_q, ~] = RP.constr1grad_q(q, xP, true);
-    [G1_x, ~] = RP.constr1grad_x(q, xP, true);
-    Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+    [G1_q, G1v_q] = RP.constr1grad_q(q, xP, true);
+    [G1_x, G1v_x] = RP.constr1grad_x(q, xP, true);
+    if ~all(RP.I_EE == [1 1 1 0 0 1])
+      Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+    else % Sonderfall 3T1R
+      Jinv_voll = -G1v_q\G1v_x(:,RP.I_EE);
+    end
   elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
-    [G4_q, ~] = RP.constr4grad_q(q);
-    [G4_x, ~] = RP.constr4grad_x(xP, true);
-    Jinv_voll = -G4_q\G4_x;
+    [G4_q, G4v_q] = RP.constr4grad_q(q);
+    [G4_x, G4v_x] = RP.constr4grad_x(xP, true);
+    if ~all(RP.I_EE == [1 1 1 0 0 1])
+      Jinv_voll = -G4_q\G4_x;
+    else % Sonderfall 3T1R
+      Jinv_voll = -G4v_q\G4v_x(:,RP.I_EE);
+    end
   else % Modellierung für 3T2R-PKM
     G2_q = RP.constr2grad_q(q, xP, true);
     G2_x = RP.constr2grad_x(q, xP, true);
@@ -106,14 +115,22 @@ function f = odefun2(t,y,RP,jm) %#ok<INUSL>
   qD = Jinv_voll*xDP_red;
   % Berechne Jacobi-Zeitableitung
   if jm == 1
-    GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
-    GD1_x = RP.constr1gradD_x(q, qD, xP, xPD, true);
-    JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+    [GD1_q,GD1v_q] = RP.constr1gradD_q(q, qD, xP, xPD, true);
+    [GD1_x,GD1v_x] = RP.constr1gradD_x(q, qD, xP, xPD, true);
+    if ~all(RP.I_EE == [1 1 1 0 0 1])
+      JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+    else % Sonderfall 3T1R
+      JinvD_voll = G1v_q\(GD1v_q*(G1v_q\G1v_x(:,RP.I_EE))) - G1v_q\GD1v_x(:,RP.I_EE);
+    end
   elseif jm == 2
     % Nehme Modellierung 4 der Jacobi für die Dynamik
-    GD4_q = RP.constr4gradD_q(q, qD);
-    GD4_x = RP.constr4gradD_x(xP, xPD, true);
-    JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+    [GD4_q,GD4v_q] = RP.constr4gradD_q(q, qD);
+    [GD4_x,GD4v_x] = RP.constr4gradD_x(xP, xPD, true);
+    if ~all(RP.I_EE == [1 1 1 0 0 1])
+      JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+    else % Sonderfall 3T1R
+      JinvD_voll = G4v_q\(GD4v_q*(G4v_q\G4v_x(:,RP.I_EE))) - G4v_q\GD4v_x(:,RP.I_EE);
+    end
   else
     GD2_q = RP.constr2gradD_q(q, qD, xP, xPD, true);
     GD2_x = RP.constr2gradD_x(q, qD, xP, xPD, true);

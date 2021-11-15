@@ -499,6 +499,12 @@ classdef ParRob < RobBase
           [~, Phi_q_voll] = R.constr4grad_q(q);
           [~, Phi_x_voll] = R.constr4grad_x(xE, platform_frame);
           Jinv_num_voll = -Phi_q_voll \ Phi_x_voll(:,R.I_EE);
+        elseif all(R.I_EE == [1 1 1 0 0 1])
+          % Benutze Modellierung 3, da nur dort aktuell die Zusammenfassung
+          % von Rotations-ZB für 3T1R implementiert ist
+          G_q = R.constr3grad_q(q, xE, platform_frame);
+          G_x = R.constr3grad_x(q, xE, platform_frame);
+          Jinv_num_voll = -G_q \ G_x;
         else
           % Normalfall: Reduzierte ZB (z.B. bei 2T1R).
           G_q = R.constr4grad_q(q);
@@ -520,10 +526,19 @@ classdef ParRob < RobBase
       % Ausgabe:
       % JinvD: Zeitableitung der inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
-      G_q = R.constr1grad_q(q, xE);
-      G_x = R.constr1grad_x(q, xE);
-      GD_q = R.constr1gradD_q(q, qD, xE, xED);
-      GD_x = R.constr1gradD_x(q, qD, xE, xED);
+      
+      % Fallunterscheidung 3T1R (TODO: Einheitlicher machen)
+      if ~all(R.I_EE == [1 1 1 0 0 1])
+        G_q = R.constr1grad_q(q, xE);
+        G_x = R.constr1grad_x(q, xE);
+        GD_q = R.constr1gradD_q(q, qD, xE, xED);
+        GD_x = R.constr1gradD_x(q, qD, xE, xED);
+      else
+        G_q = R.constr3grad_q(q, xE);
+        G_x = R.constr3grad_x(q, xE);
+        GD_q = R.constr3gradD_q(q, qD, xE, xED);
+        GD_x = R.constr3gradD_x(q, qD, xE, xED);
+      end
       JinvD_num_voll = G_q\(GD_q*(G_q\G_x)) - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
