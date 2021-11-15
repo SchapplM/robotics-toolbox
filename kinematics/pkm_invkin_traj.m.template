@@ -521,7 +521,8 @@ Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
-Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
+Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, ...
+  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 1);
 h = zeros(11,1);
 
 for k = 1:nt

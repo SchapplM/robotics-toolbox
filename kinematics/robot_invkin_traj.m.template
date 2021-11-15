@@ -305,7 +305,8 @@ x_k_ist = NaN(6,1);
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
+Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, ...
+  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 1);
 h = zeros(10,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
