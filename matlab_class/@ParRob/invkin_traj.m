@@ -186,6 +186,8 @@ for f = fields(s_ser)'
     s_ser.(f{1}) = s.(f{1});
   end
 end
+% Eingabe s_par vorbereiten
+s_par = struct('debug', s.debug);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
@@ -317,7 +319,7 @@ for k = 1:nt
   % Annahme: Startwert und Vorwärts-Integration sind schon fast die Lösung.
   if any(mode_IK == [1 3])
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
-    [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);
+    [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser, s_par);
   end
   % Falls obige IK nicht erfolgreich (aufgrund ungeklärter Ursachen),
   % versuche alternativen Algorithmus.
@@ -335,6 +337,13 @@ for k = 1:nt
   if any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
      any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol)
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
+  elseif debug
+    % Erneute Berechnung der Zwangsbedingungen, falls falsch berechnet.
+    Phi_test = Rob.constr3(q_k, x_k);
+    if ~all(abs(Phi_test(Rob.I_constr_t_red)) < 100*s_ser.Phit_tol) && ...
+       ~all(abs(Phi_test(Rob.I_constr_r_red)) < 100*s_ser.Phir_tol)
+      error('Zwangsbedingungen aus IK-Berechnung stimmen nicht');
+    end
   end
   %% Gelenk-Geschwindigkeit berechnen
   if ~taskred_rot && ~dof_3T2R && ~dof_3T1R

@@ -57,6 +57,7 @@ s_ser_std = struct( ...
 s_par = struct( ...
   'Leg_I_EE_Task', cat(1,Rob.Leg.I_EE_Task), ...
   'I_EE_Task', Rob.I_EE_Task, ...
+  'debug', false, ...
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
@@ -198,21 +199,23 @@ for i = 1:Rob.NLEG
   end
 end
 Phi = Phi_ser;
-return
+if ~s_par.debug
+  return
+end
 %% Kinematische Zwangsbedingungen nochmal neu für die PKM bestimmen
 % Diese Rechnung ist zu zeitaufwändig und muss im Bedarfsfall manuell
 % durchgeführt werden.
 % Falls aktiviert: Anpassung der IK-Toleranzen eventuell erforderlich.
 if all(s_par.I_EE_Task == logical([1 1 1 1 1 0]))
-    if(length(q) == 25) % sym
-        Phi = Rob.constr2(q, xE_soll, s_par.platform_frame);
-    else  % asym mit genau einer Führungskette
-        Phi = Rob.constr3(q, xE_soll, s_par.platform_frame);
-    end
+  if(length(q) == 25) % sym
+    Phi_test = Rob.constr2(q, xE_soll, s_par.platform_frame);
+  else  % asym mit genau einer Führungskette
+    Phi_test = Rob.constr3(q, xE_soll, s_par.platform_frame);
+  end
 else
-  Phi = Rob.constr1(q, xE_soll, s_par.platform_frame);
+  [~,Phi_test] = Rob.constr1(q, xE_soll, s_par.platform_frame);
 end
 % Probe: Stimmen die Zwangsbedingungen?
-if all(abs(Phi_ser) < 1e-7) && any(abs(Phi)>1e-6)
+if all(abs(Phi_ser) < 1e-7) && any(abs(Phi_test)>1e-6)
   warning('Fehler: ZB stimmen nicht überein. Wahrscheinlichste Ursache: EE-KS der Beinkette ist falsch gedreht.');
 end
