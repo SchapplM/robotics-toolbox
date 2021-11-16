@@ -184,14 +184,16 @@ for iLeg = 1:NLEG
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq(2:3,:); % Nur 2 Komponenten: 2(Y) und 3(X)
     elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM ohne Aufg.-Red.
       % Neu-Berechnung des Rotationsteils der Zwangsbedingungen
-      alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+      sign_alpha = sign(r2eul(R_Ex_Eq, phiconv_W_E_reci));
+      sign_alpha(sign_alpha==0)=1;
       Phipq_red(K1:K2,J1:J2) = [PhiD_phi_i_Gradq(1,:); ... % Z
-              sign(alpha(2))*PhiD_phi_i_Gradq(2,:) + ... % |Y|
-              sign(alpha(3))*PhiD_phi_i_Gradq(3,:)]; %     |X|
+              sign_alpha(2)*PhiD_phi_i_Gradq(2,:) + ... % |Y|
+              sign_alpha(3)*PhiD_phi_i_Gradq(3,:)]; %     |X|
     elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R-PKM mit Aufg.-Red.
-      alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
-      Phipq_red(K1:K2,J1:J2) = sign(alpha(2))*PhiD_phi_i_Gradq(2,:) + ... % |Y|
-                               sign(alpha(3))*PhiD_phi_i_Gradq(3,:);%       |X|
+      sign_alpha = sign(r2eul(R_Ex_Eq, phiconv_W_E_reci));
+      sign_alpha(sign_alpha==0)=1;
+      Phipq_red(K1:K2,J1:J2) = sign_alpha(2)*PhiD_phi_i_Gradq(2,:) + ... % |Y|
+                               sign_alpha(3)*PhiD_phi_i_Gradq(3,:);%       |X|
     elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 0]) % 2T1R mit Aufg.-Red
       % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette
     elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 0 1]) % 2T1R ohne Aufg.-Red
@@ -288,14 +290,15 @@ for iLeg = 1:NLEG
       Phipq_red(K1:K2,J1:J2) = PhiD_phi_i_Gradq_f;
     elseif all(Leg_I_EE_Task(iLeg,4:6) == [0 1 1]) % 3T1R-PKM
       % Neu-Berechnung des Rotationsteils der Zwangsbedingungen
-      alpha = r2eul(R_Lq_Eq_f, phiconv_W_E_reci);
+      sign_alpha = sign(r2eul(R_Lq_Eq_f, phiconv_W_E_reci));
+      sign_alpha(sign_alpha==0)=1;
       % Residuum ist nun der Betrag von X- und Y-Komponente. Siehe constr3_rot.
       Phipq_red(K1:K2,G1:G2) = [PhiD_phi_i_Gradq_L(1,:); ... % Z-Rotation
-               sign(alpha(2))*PhiD_phi_i_Gradq_L(2,:)+... % |Y|
-               sign(alpha(3))*PhiD_phi_i_Gradq_L(3,:)]; % |X|
+               sign_alpha(2)*PhiD_phi_i_Gradq_L(2,:)+... % |Y|
+               sign_alpha(3)*PhiD_phi_i_Gradq_L(3,:)]; % |X|
       Phipq_red(K1:K2,J1:J2) = [PhiD_phi_i_Gradq_f(1,:); ...
-               sign(alpha(2))*PhiD_phi_i_Gradq_f(2,:)+...
-               sign(alpha(3))*PhiD_phi_i_Gradq_f(3,:);];
+               sign_alpha(2)*PhiD_phi_i_Gradq_f(2,:)+...
+               sign_alpha(3)*PhiD_phi_i_Gradq_f(3,:);];
     elseif all(Leg_I_EE_Task(iLeg,4:5) == [0 0]) % ebene Rotation
       % 2T1R oder 3T1R: Nehme nur die z-Komponente (reziprokes Residuum)
       Phipq_red(K1:K2,G1:G2) = PhiD_phi_i_Gradq_L(1,:); % nur 1. Eintrag (Z)

@@ -144,16 +144,18 @@ for iLeg = 1 % nur Führungskette hat Einfluss (siehe Gl. D.47), [2_SchapplerTap
     % Nehme an, dass bei 3T1R-PKM die ZB erfüllbar sind und dass das
     % System überbestimmt ist (Beinkette mit 5 FG). Nehme daher Y- und X-
     % Zwangsbedingungen gemeinsam.
-    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    sign_alpha = sign(r2eul(R_Ex_Eq, phiconv_W_E_reci));
+    sign_alpha(sign_alpha==0)=1;
     Phipphi_red( K1:K2,1:sum(I_EE(4:6)) ) = [Phi_phi_i_Gradx(1,I_EE(4:6)); ... % Z
-                              sign(alpha(2))*Phi_phi_i_Gradx(2,I_EE(4:6)) + ... % |Y|
-                              sign(alpha(3))*Phi_phi_i_Gradx(3,I_EE(4:6))]; % |X|
+                              sign_alpha(2)*Phi_phi_i_Gradx(2,I_EE(4:6)) + ... % |Y|
+                              sign_alpha(3)*Phi_phi_i_Gradx(3,I_EE(4:6))]; % |X|
   elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R-PKM mit Aufg.-Red.
     K2 = 1;
-    alpha = r2eul(R_Ex_Eq, phiconv_W_E_reci);
+    sign_alpha = sign(r2eul(R_Ex_Eq, phiconv_W_E_reci));
+    sign_alpha(sign_alpha==0)=1;
     Phipphi_red( K1:K2,1:sum(I_EE(4:6)) ) = ...
-                              sign(alpha(2))*Phi_phi_i_Gradx(2,I_EE(4:6)) + ... % |Y|
-                              sign(alpha(3))*Phi_phi_i_Gradx(3,I_EE(4:6)); % |X|
+                              sign_alpha(2)*Phi_phi_i_Gradx(2,I_EE(4:6)) + ... % |Y|
+                              sign_alpha(3)*Phi_phi_i_Gradx(3,I_EE(4:6)); % |X|
 
   elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0])% 2T1R mit Aufg.-Red
     % ebene Rotation (redundanter Fall). Keinen Eintrag für Führungskette

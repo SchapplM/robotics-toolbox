@@ -46,10 +46,16 @@ if reci % Reihenfolge Z-Y-X
 else % Reihenfolge X-Y-Z
   I_rotxy = [4 5];
 end
-alphaxy = Phi_voll(I_rotxy);
+sign_alphaxy = sign(Phi_voll(I_rotxy));
+% Für alpha=0 ist der Gradient der Betragsfunktion nicht definiert.
+% Nehme an, dass nun die Summe gebildet wird (für gültige
+% Jacobi-Matrix). Die Ableitung hat damit weiterhin einen Sprung bei 0, 
+% hat aber immerhin einen Wert ungleich Null, womit die Jacobi-Matrix
+% bestimmbar ist.
+sign_alphaxy(sign_alphaxy==0) = 1;
 % Ableitung der Betragsfunktion aus constr4 bilden
-dphixydq = sign(alphaxy(1))*Jdk_voll(I_rotxy(1),:) + ...
-           sign(alphaxy(2))*Jdk_voll(I_rotxy(2),:);
+dphixydq = sign_alphaxy(1)*Jdk_voll(I_rotxy(1),:) + ...
+           sign_alphaxy(2)*Jdk_voll(I_rotxy(2),:);
 if all(I_IK == [1 1 1 0 1 1]) % Beinkette für 3T1R-PKM
   % (mit vorgegebener Z-Rotation; Folgekette oder Führungskette ohne Aufgabenredundanz)
   % Translatorischer Teil, z-Rot.-Zwangsbedingung, xy-Rot.-ZB
