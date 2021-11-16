@@ -213,9 +213,15 @@ if all(s_par.I_EE_Task == logical([1 1 1 1 1 0]))
     Phi_test = Rob.constr3(q, xE_soll, s_par.platform_frame);
   end
 else
-  [~,Phi_test] = Rob.constr1(q, xE_soll, s_par.platform_frame);
+  if Rob.I_EE_Task(6) == Rob.I_EE(6) % normaler Fall mit vollen FG
+    [~,Phi_test] = Rob.constr1(q, xE_soll, s_par.platform_frame);
+  else % Aufgabenredundanz. Nehme um redundanten FG reduzierte ZB
+    Phi_test = Rob.constr3(q, xE_soll, s_par.platform_frame);
+  end
 end
 % Probe: Stimmen die Zwangsbedingungen?
 if all(abs(Phi_ser) < 1e-7) && any(abs(Phi_test)>1e-6)
-  warning('Fehler: ZB stimmen nicht überein. Wahrscheinlichste Ursache: EE-KS der Beinkette ist falsch gedreht.');
+  warning(['Fehler: ZB stimmen nicht überein. invkin_ser: %1.2e. ', ...
+    'constr: %1.2e. Wahrscheinlichste Ursache: EE-KS der Beinkette ', ...
+    'ist falsch gedreht.'], max(abs(Phi_ser)), max(abs(Phi_test)));
 end
