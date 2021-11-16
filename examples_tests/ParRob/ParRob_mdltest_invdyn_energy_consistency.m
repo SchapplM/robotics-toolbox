@@ -145,8 +145,10 @@ for i_FG = 1:size(EEFG_Ges,1)
       Traj_0 = cds_transform_traj(RP, Traj_W);
       % Prüfe die Lösbarkeit der IK (Startpunkt und Trajektorie)
       [q_test, Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
-      [Q_test, ~, ~, PHI] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
-      if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) && ~any(isnan(PHI(:)))
+      [Q_test, ~, ~, PHI, Jinv_ges] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
+      Jinv1 = reshape(Jinv_ges(1,:), RP.NJ, sum(RP.I_EE));
+      if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) ...
+          && ~any(isnan(PHI(:))) && cond(Jinv1) < 1e6
         fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
       else
@@ -350,6 +352,9 @@ for i_FG = 1:size(EEFG_Ges,1)
       % Matrix dafür auf das Plattform-KS (und nicht das EE-KS)
       if ~all(RP.I_EE == [1 1 1 1 1 0])
         [~, Jinv_voll] = RP.jacobi_qa_x(q, XP_test(i,:)', true);
+        if any(isnan(Jinv_voll(:))) || cond(Jinv_voll) > 1e10
+          error('Jacobi-Matrix ist singulär. Sollte nicht sein. Überspringe Konfig %d.', i);
+        end
         % Teste andere Jacobi-Modellierung
         [G3P_q, G3P_q_voll] = RP.constr3grad_q(q, XP_test(i,:)', true);
         [G3P_x, G3P_x_voll] = RP.constr3grad_x(q, XP_test(i,:)', true);
@@ -491,14 +496,17 @@ for i_FG = 1:size(EEFG_Ges,1)
     % Prüfe mit anderer Methode, ob Geschwindigkeit korrekt berechnet wurde
     PHID_testP = RP.constr4D2_traj(Q_test, QD_test, XP_test, XPD_test, true);
     PHID_testE = RP.constr4D2_traj(Q_test, QD_test, XE_test, XED_test);
-    for i = 1:size(Q_test,1)
-      [~,PHID_test2P_i] = RP.constr4D(Q_test(i,:)', QD_test(i,:)', ...
-        XP_test(i,:)', XPD_test(i,:)', true);
-      [~,PHID_test2E_i] = RP.constr4D(Q_test(i,:)', QD_test(i,:)', ...
-        XE_test(i,:)', XED_test(i,:)');
-      assert(all(abs(PHID_test2P_i-PHID_testP(i,:)')<1e-10), ...
+    for iit = 1:size(Q_test,1)
+      if any(isnan(QD_test(iit,:)))
+        continue % Konfiguration wurde nicht bestimmt (Anfangswert singulär)
+      end
+      [~,PHID_test2P_iit] = RP.constr4D(Q_test(iit,:)', QD_test(iit,:)', ...
+        XP_test(iit,:)', XPD_test(iit,:)', true);
+      [~,PHID_test2E_iit] = RP.constr4D(Q_test(iit,:)', QD_test(iit,:)', ...
+        XE_test(iit,:)', XED_test(iit,:)');
+      assert(all(abs(PHID_test2P_iit-PHID_testP(iit,:)')<1e-10), ...
         'Nachrechnung von constr4D stimmt nicht (KS P)');
-      assert(all(abs(PHID_test2E_i-PHID_testE(i,:)')<1e-10), ...
+      assert(all(abs(PHID_test2E_iit-PHID_testE(iit,:)')<1e-10), ...
         'Nachrechnung von constr4D stimmt nicht (KS E)');
     end
     if any(abs(PHID_testP(:)) > 1e-6) || any(abs(PHID_testE(:)) > 1e-6)
@@ -507,11 +515,14 @@ for i_FG = 1:size(EEFG_Ges,1)
         max(abs(PHID_testP(:))), max(abs(PHID_testE(:))));
     end
     % Prüfe mit weiterer Methode, ob Geschwindigkeit korrekt ist
+    I_iO = all(~isnan(QD_test),2);
     for j = 1:RP.NLEG
       [X_fromlegs_j,XD_fromlegs_j] = RP.fkineEE_traj(Q_test, QD_test, j);
-      assert(all(abs(X_fromlegs_j(:) - XE_test(:))<1e-8), sprintf(...
+      test_X = X_fromlegs_j(I_iO,:) - XE_test(I_iO,:);
+      assert(all(abs(test_X(:))<1e-8), sprintf(...
         'EE-Position wurde falsch berechnet (Beinkette %d vs Plattform)', j));
-      assert(all(abs(XD_fromlegs_j(:) - XED_test(:))<1e-8), sprintf(...
+      test_XD = XD_fromlegs_j(I_iO,:) - XED_test(I_iO,:);
+      assert(all(abs(test_XD(:))<1e-8), sprintf(...
         'EE-Geschwindigkeit wurde falsch berechnet (Beinkette %d vs Plattform)', j));
     end
     if usr_debug
@@ -539,7 +550,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     n_fail = 0;
     for i_tk = 1:n % Testkonfigurationen ("tk")
       if any(isnan(XE_test(i_tk,:))), continue; end % IK für diese Pose nicht erfolgreich
-      
+      if any(isnan(QD_test(i_tk,:))), continue; end % Diff. Kin. für diese Pose nicht erfolgreich
       if i_tk > 1
         RP.update_base([0;0;1], rand(3,1));
       end
@@ -703,10 +714,17 @@ for i_FG = 1:size(EEFG_Ges,1)
 
         % Kennzahlen für Singularitäten
         if ~all(EE_FG == [1 1 1 1 1 0])
-          SingDet(i,1) = cond(G1_q);
-          SingDet(i,2) = cond(G1_x);
-          SingDet(i,3) = cond(G4_q);
-          SingDet(i,4) = cond(G4_x);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            SingDet(i,1) = cond(G1_q);
+            SingDet(i,2) = cond(G1_x);
+            SingDet(i,3) = cond(G4_q);
+            SingDet(i,4) = cond(G4_x);
+          else
+            SingDet(i,1) = cond(G1_q_voll);
+            SingDet(i,2) = cond(G1_x_voll(:,RP.I_EE));
+            SingDet(i,3) = cond(G4_q_voll);
+            SingDet(i,4) = cond(G4_x_voll(:,RP.I_EE));
+          end
         else
           % Für 3T2R-PKM sind die reduzierten ZB der Var. 1 und 4 nicht
           % definiert.
