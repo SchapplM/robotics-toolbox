@@ -764,6 +764,8 @@ for k = 1:nt
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
+      v_qaD(isinf(v_qaD)) = sign(v_qaD(isinf(v_qaD)))*1e8;
+      v_qaDD(isinf(v_qaDD)) = sign(v_qaDD(isinf(v_qaDD)))*1e8;
       if any(abs(v_qaD)>1e8),  v_qaD  = v_qaD* 1e8/max(abs(v_qaD));  end
       if any(abs(v_qaDD)>1e8), v_qaDD = v_qaDD*1e8/max(abs(v_qaDD)); end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
@@ -811,6 +813,7 @@ for k = 1:nt
           h5dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h5dq = (h5_test-h(5))./(qD_test');
+          h5dq(isnan(h5dq)) = 0;
         end
         v_qD = v_qD - wn(9)*h5dq(:);
         v_qDD = v_qDD - wn(5)*h5dq(:);
@@ -850,6 +853,7 @@ for k = 1:nt
           h6dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h6dq = (h6_test_v1-h(6))./(qD_test');
+          h6dq(isnan(h6dq)) = 0; % falls ein qD_test Null ist, nicht sofort abbrechen
         end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
@@ -883,6 +887,7 @@ for k = 1:nt
               h7dq = h7dq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
             end
           end
+          h7dq(isnan(h7dq)) = 0;
           v_qD = v_qD - wn(12)*h7dq(:);
           v_qDD = v_qDD - wn(11)*h7dq(:);
         else
@@ -925,6 +930,7 @@ for k = 1:nt
             h8dq = h8dq/max(abs(h8dq)) * 1e3; % wird weiter unten reduziert
           end
         end
+        h8dq(isnan(h8dq)) = 0;
         v_qD = v_qD - wn(14)*h8dq(:);
         v_qDD = v_qDD - wn(13)*h8dq(:);
       end
@@ -932,6 +938,7 @@ for k = 1:nt
         h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
         h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
+        h9dq(isnan(h9dq)) = 0;
         v_qD  = v_qD  - wn(16)*h9dq(:);
         v_qDD = v_qDD - wn(15)*h9dq(:);
       end
@@ -948,6 +955,7 @@ for k = 1:nt
           end
         else
           h10dq = (h10_test-h(10))./qD_test';
+          h10dq(isnan(h10dq)) = 0;
         end
         v_qD  = v_qD  - wn(18)*h10dq(:);
         v_qDD = v_qDD - wn(17)*h10dq(:);
@@ -965,6 +973,8 @@ for k = 1:nt
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
+      v_qD(isinf(v_qD)) = sign(v_qD(isinf(v_qD)))*1e8;
+      v_qDD(isinf(v_qDD)) = sign(v_qDD(isinf(v_qDD)))*1e8;
       if any(abs(v_qD)>1e3),  v_qD  = v_qD* 1e3/max(abs(v_qD));  end
       if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten

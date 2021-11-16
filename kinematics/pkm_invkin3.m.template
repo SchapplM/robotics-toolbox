@@ -337,7 +337,7 @@ if nargout == 4
     'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
     NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
     'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
-    'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 1);
+    'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 2);
   Stats = Stats_default;
 end
 %% Iterative Berechnung der inversen Kinematik
@@ -439,6 +439,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Phi_q_test = %PN%_constr3grad_q(q1+qD_test, xE_soll, s_cst3_q);
             condJ_test = cond(Phi_q_test);
             h3dq = (condJ_test-condJ)./qD_test';
+            % Zur Fehlertoleranz (falls bei überbestimmten PKM ein Gelenk keinen Einfluss hat)
+            h3dq(isnan(h3dq)) = 0;
           end
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             [~,Phi4_x_voll_test] = %PN%_constr4grad_x(xE_1+xD_test,s_x);
@@ -446,6 +448,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
             h4_test = cond(Jinv_test(s.I_qa,Rob_I_EE));
             h4dq = (h4_test-h(4))./qD_test';
+            h4dq(isnan(h4dq)) = 0;
             if s.debug
               % Benutze Formel für Differential des Matrix-Produkts mit 
               % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
@@ -538,6 +541,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 bestcolldepth = min(bestcolldepth,currcolldepth);
               end
             end
+            h5dq(isnan(h5dq)) = 0;
           else
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
             % Gelenkkoordinate.
@@ -632,6 +636,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               bestinstspcdist = min(bestinstspcdist,currinstspcdist);
             end
           end
+          h6dq(isnan(h6dq)) = 0; % Falls ein qD_test exakt Null ist
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
@@ -685,6 +690,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
         h7_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
         h7dq = (h7_test-h(7))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
+        h7dq(isnan(h7dq)) = 0;
         v = v - wn(7)*h7dq';
       end
       if wn(8) ~= 0 && all(abs(Phi)<1e-6) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
@@ -701,8 +707,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         else
           h8dq = (h8_test-h(8))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
         end
+        h8dq(isnan(h8dq)) = 0;
         v = v - wn(8)*h8dq';
       end
+      % Begrenze die Werte zur Vermeidung numerischer Probleme
+       % unendlich kann nicht normiert werden. Begrenze auf Maximalwert
+       % (ohne Rücksicht auf Relation)
+      v(isinf(v)) = sign(v(isinf(v)))*1e8;
       if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
       % [SchapplerTapOrt2019], Gl. (43)
       N = (eye(NJ) - pinv(Jik)* Jik);
