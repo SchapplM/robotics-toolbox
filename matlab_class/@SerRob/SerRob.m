@@ -424,11 +424,11 @@ classdef SerRob < RobBase
       % Homogene Transformationsmatrix von Basis-KS bzw. Welt-KS zum EE-KS
       if nargout == 2
         [Tc_0, Tc_W] = R.fkine(q);
-        T_W_E = Tc_W(:,:,R.I_EElink+1)*R.T_N_E;
+        T_W_E = trprod(Tc_W(:,:,R.I_EElink+1),R.T_N_E);
       else
         Tc_0 = R.fkine(q);
       end
-      T_0_E = Tc_0(:,:,R.I_EElink+1)*R.T_N_E;
+      T_0_E = trprod(Tc_0(:,:,R.I_EElink+1),R.T_N_E);
     end
     function [T_0_E, T_W_E] = fkineEE_vp(R, q, pkin2)
       % Direkte Kinematik zum End-Effektor

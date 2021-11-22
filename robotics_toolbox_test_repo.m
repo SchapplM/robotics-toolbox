@@ -20,7 +20,7 @@ angvec_test; close all;
 quaternion_test; close all;
 euler_test; close all;
 rotvec_test; close all;
-
+tr_test; close all;
 %% Impedanzregler
 lbr4p_joint_impctrl_test_start; close all;
 
