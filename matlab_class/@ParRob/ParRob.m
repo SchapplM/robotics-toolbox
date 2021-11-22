@@ -108,6 +108,7 @@ classdef ParRob < RobBase
       % Standardwerte vorbelegen
       R.mdlname = mdlname;
       R.Type = 2; % Parallel
+      R.I_EE = true(1,6); % Platzhalter. Wird in initialize überschrieben
       R.Leg = [];
       R.MDH = struct('sigma', []);
       R.phiconv_P_E = uint8(2); % Euler-XYZ

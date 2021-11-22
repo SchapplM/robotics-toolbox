@@ -73,7 +73,7 @@ end
 R.update_actuation(mu_PKM)
 
 % Marker für gewählte EE-FG
-R.update_EE_FG(true(1,6)); % Initialisierung mit allen Freiheitsgraden (räumliche PKM). Muss logical sein, damit Binär-Indizes.
+R.update_EE_FG(R.I_EE);
 
 % Robotereigenschaften auslesen und in Klasse abspeichern
 structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
@@ -85,9 +85,16 @@ if ~isempty( which(sprintf('%s_structural_kinematic_parameters.m', R.mdlname)) )
 else
   % Die PKM-Funktion ...structural_kinematic_parameters existiert nicht.
   % Daher wird die Variable sowieso nicht benötigt.
-  % Setze auf beliebigen Wert (die meisten PKM haben 3 Gelenke, die die
+  % Setze auf plausiblen Wert (die meisten PKM haben 3 Gelenke, die die
   % Position der Koppelpunkte beeinflussen)
-  R.NQJ_LEG_bc = 3;
+  if all(R.I_EE == [1 1 0 0 0 1])
+    % Im planaren Fall nur 2 Gelenke zur Beeinflussung der 2D-Koppelpunkt-
+    % position sinnvoll.
+    R.NQJ_LEG_bc = 2;
+  else
+    % Im räumlichen Fall 3 Gelenkkoordinaten sinnvoll.
+    R.NQJ_LEG_bc = 3;
+  end
 end
 
 % Dynamik-Parameter initialisieren: Die Anzahl entspricht der Anzahl der
