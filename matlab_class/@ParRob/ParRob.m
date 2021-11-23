@@ -497,12 +497,18 @@ classdef ParRob < RobBase
           % Aufgabenredundanz: Reduzierte FG entsprechen dem Aufgaben-FG.
           % Nehme vollständige Zwangsbedingungen (6 pro Beinkette)
           [~, Phi_q_voll] = R.constr4grad_q(q);
-          [~, Phi_x_voll] = R.constr4grad_x(xE);
+          [~, Phi_x_voll] = R.constr4grad_x(xE, platform_frame);
           Jinv_num_voll = -Phi_q_voll \ Phi_x_voll(:,R.I_EE);
+        elseif all(R.I_EE == [1 1 1 0 0 1])
+          % Benutze Modellierung 3, da nur dort aktuell die Zusammenfassung
+          % von Rotations-ZB für 3T1R implementiert ist
+          G_q = R.constr3grad_q(q, xE, platform_frame);
+          G_x = R.constr3grad_x(q, xE, platform_frame);
+          Jinv_num_voll = -G_q \ G_x;
         else
           % Normalfall: Reduzierte ZB (z.B. bei 2T1R).
           G_q = R.constr4grad_q(q);
-          G_x = R.constr4grad_x(xE);
+          G_x = R.constr4grad_x(xE, platform_frame);
           Jinv_num_voll = -G_q \ G_x;
         end
         % Reduziere auf aktive Gelenke
@@ -520,10 +526,19 @@ classdef ParRob < RobBase
       % Ausgabe:
       % JinvD: Zeitableitung der inverse Jacobi-Matrix (Verhältnis Gelenk-Geschw. -
       % Plattform-Geschw. mit Euler-Zeitableitung)
-      G_q = R.constr1grad_q(q, xE);
-      G_x = R.constr1grad_x(q, xE);
-      GD_q = R.constr1gradD_q(q, qD, xE, xED);
-      GD_x = R.constr1gradD_x(q, qD, xE, xED);
+      
+      % Fallunterscheidung 3T1R (TODO: Einheitlicher machen)
+      if ~all(R.I_EE == [1 1 1 0 0 1])
+        G_q = R.constr1grad_q(q, xE);
+        G_x = R.constr1grad_x(q, xE);
+        GD_q = R.constr1gradD_q(q, qD, xE, xED);
+        GD_x = R.constr1gradD_x(q, qD, xE, xED);
+      else
+        G_q = R.constr3grad_q(q, xE);
+        G_x = R.constr3grad_x(q, xE);
+        GD_q = R.constr3gradD_q(q, qD, xE, xED);
+        GD_x = R.constr3gradD_x(q, qD, xE, xED);
+      end
       JinvD_num_voll = G_q\(GD_q*(G_q\G_x)) - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
@@ -1167,10 +1182,10 @@ classdef ParRob < RobBase
         I_EE_Task = I_EE;
       end
       if nargin < 4
-        % Lasse die FG der Beinkette so wie sie sind. Annahme: Bei
-        % Initialisierung des Roboters wurden diese Indizes korrekt
-        % gesetzt. Wird für IK der einzelnen Beinketten benutzt.
+        % Bestimme die Beinketten-Freiheitsgrade (und damit Zwangsbedingungen)
+        %  anhand des Falls der Plattform-FG und der Gelenkzahl der Beinkette.
         I_EE_Legs = false(R.NLEG,6); % Initialisierung
+        Leg_NQJ = cat(1,R.Leg.NQJ);
         if all(I_EE == [1 1 0 0 0 1]) && all(I_EE_Task == [1 1 0 0 0 0])
           % 2T1R (planar) mit Aufgabenredundanz (Rotation egal)
           % Annahme: Alle Beinketten sind auch 2T1R (planar) und haben
@@ -1192,11 +1207,33 @@ classdef ParRob < RobBase
           % Überbestimmte ZB (s.u.)
           I_EE_Legs(1,:) = [1 1 1 1 1 0]; % Führungskette 3T2R; bezogen auf EE-z-Achse
           I_EE_Legs(2:end,:) = repmat([1 1 1 1 1 1],size(I_EE_Legs,1)-1,1); % Folgeketten 3T3R
-        elseif all(I_EE == [1 1 1 0 0 0]) || all(I_EE == [1 1 1 0 0 1])
-          % Bei 3T0R, 3T1R wird bei Beinketten immer volle 3T3R-Sollvorgabe
+          % Entferne die Komponente für die X-Rotation. Annahme: Die
+          % Beinketten müssen 5 Gelenke haben, sonst überbestimmtes LGS.
+          % In der Implementierung wird nicht X weggelassen, sondern die
+          % Betragssumme aus X und Y gebildet.
+          I_EE_Legs(Leg_NQJ<6,4) = false;
+          % Falls die Beinkette nur 4FG hat, werden nur 4 ZB gesetzt. Wird
+          % einer der ZB für die erste Beinkette verletzt, wird das evtl
+          % nicht direkt erkannt. Dann geht aber sowieso die IK nicht für
+          % die folgenden Beinketten. Annahme ist, dass die PKM-FG stimmen
+          I_EE_Legs(Leg_NQJ==4,5) = false; % Y-FG entfernen
+        elseif all(I_EE == [1 1 1 0 0 1]) % 3T1R-PKM ohne Aufgabenredundanz
+          % Bei 3T1R wird die Annahme getroffen, dass die Beinkette für die
+          % Rotations-FG überbestimmt ist und eine ZB weggelassen werden
+          % kann (bzw. die Betragssumme beider ZB gebildet werden kann.)
+          I_EE_Legs(:) = true;
+          % Überbestimmtheit nur, wenn weniger als 6 Gelenk-FG in Beinkette
+          I_EE_Legs(Leg_NQJ<6,4) = false;
+          % 3T1R-Beinkette für 3T1R-PKM. FG müssen übereinstimmen. Sonst
+          % geht es sowieso nicht.
+          I_EE_Legs(Leg_NQJ==4,5) = false; % Y-FG entfernen
+        elseif all(I_EE == [1 1 1 0 0 0])
+          % Bei 3T0R wird bei Beinketten immer volle 3T3R-Sollvorgabe
           % gegeben. Dadurch entstehen überbestimmte Zwangsbedingungen
           % (mehr Zwangsbedingungen als Gelenke für die Beinketten). Ist in
-          % InvKin mit Pseudo-Inverse lösbar.
+          % InvKin mit Pseudo-Inverse lösbar. Im Gegenzug zu 3T1R ist hier
+          % nicht genau klar, welche der Rotations-ZB zusammengefasst werden sollten.
+          % Außerdem gibt es keine Aufgabenredundanz, bei der ein unterbestimmtes Gleichungssystem benötigt wird.
           I_EE_Legs(:) = true;
         elseif all(I_EE == [1 1 1 1 1 0])
           % 3T2R-PKM (strukturell) benutze constr3-Methode.
@@ -1274,9 +1311,18 @@ classdef ParRob < RobBase
             % Ignoriere Rotation der ersten Beinkettekomplett
             R.I_constr_red(i_red:i_red+nPhi-1) = [1 2];
           elseif all(R.I_EE_Task == logical([1 1 1 0 0 0]))
-            % Wähle bei Rotation nur die Y- und Z-Komponente;
-            % (Vorgabe von 0 als Zwangsbedingung für 3T1R/3T0R)
-            R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5 6];
+            if Leg_NQJ(i) ~= 4
+              % Wähle bei Rotation nur die Y- und Z-Komponente;
+              % (Vorgabe von 0 als Zwangsbedingung für 3T1R/3T0R)
+              % In Implementierung wird dann die Betragssumme aus X und Y gebildet
+              R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3 5];
+            else % Leg_NQJ(i) == 4
+              % Wähle keine Rotations-Komponenten. Annahme: Die Y- und X-
+              % Rotation sind kinematisch fixiert und können sich sowieso
+              % nicht bewegen. Ansonsten würde diese Beinkette mit 4
+              % Gelenken sowieso nicht für 3T1R-PKM funktionieren
+              R.I_constr_red(i_red:i_red+nPhi-1) = [1 2 3];
+            end
           else
             error('Nicht behandelter Fall');
           end
@@ -1287,6 +1333,17 @@ classdef ParRob < RobBase
             % Euler-Winkel und die constr3-Modellierung benutzt wird
             % (Ansatz mit Führungskette und Folgekette)
             Phi_r_ind = fliplr(R.Leg(i).I_EE_Task(4:6));
+          elseif all(R.I_EE == logical([1 1 1 0 0 1])) && ...
+              all(R.I_EE_Task == logical([1 1 1 0 0 0]))
+            % Aufgabenredundanz bei 3T1R. Nehme nur die Y und Z Komponente
+            if Leg_NQJ(i) == 4
+              % Nur die Z-Komponente. Folge-Beinkette ist auch 3T1R
+              Phi_r_ind = logical([1 0 0]);
+            elseif Leg_NQJ(i) == 5
+              Phi_r_ind = logical([1 1 0]);
+            else % Bei 6FG-Beinketten müssen alle ZB-Komp. genommen werden
+              Phi_r_ind = logical([1 1 1]);
+            end
           else
             Phi_r_ind = R.Leg(i).I_EE_Task(4:6);
           end

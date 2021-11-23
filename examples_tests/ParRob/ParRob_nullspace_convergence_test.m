@@ -33,7 +33,7 @@ clc
 % Benutzereinstellungen. Standardmäßig als reines Testskript laufen lassen
 % und nur bei übermäßig vielen Fehlern abbrechen (am Ende).
 use_mex_functions = true; % Mex-Funktionen benutzen (wesentlich schneller)
-usr_recreate_mex = false; % Mex-Funktionen neu erzeugen (und kompilieren)
+usr_recreate_mex = true; % Mex-Funktionen neu erzeugen (und kompilieren)
 usr_plot_debug = false; % Debug-Plots über den Verlauf der Berechnungen
 usr_plot_objfun = false; % Verlauf der Zielfunktionen (über red. Koord.) zeichnen
 usr_plot_robot = false; % Skizze des Roboters zeichnen
@@ -64,7 +64,7 @@ I_wn_traj = [1 2 5 6 15 17]; % Siehe P3RRR1_invkin_traj (Eingabe wn)
 I_stats_traj = [1 2 5 6 9 10]; % Siehe P3RRR1_invkin_traj (Ausgabe Stats.h)
 I_wn_ep = [1 2 3 4 7 8]; % Siehe P3RRR1_invkin3 (Eingabe wn, Ausgabe h)
 %% Alle Robotermodelle durchgehen
-for robnr = 1:4
+for robnr = 1:5
   %% Initialisierung
   if robnr == 1 % 3RRR
     RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
@@ -207,9 +207,9 @@ for robnr = 1:4
     XL(:, ~RP.I_EE) = 0; XL = uniquetol(XL, 1e-10,'ByRows',true);
   end
   % Ergebnis-Tabellen vorbereiten (siehe Schleifen unten)
-  ResStat = array2table(NaN(size(XL,1)*9*6,8));
+  ResStat = array2table(NaN(size(XL,1)*9*6,9));
   ResStat.Properties.VariableNames = {'PktNr', 'OriNr', 'IK_Fall', ...
-    'h_err_abs', 'h_err_rel', 'h_step_traj', 'h_step_ep', 'Error'};
+    'h_start', 'h_err_abs', 'h_err_rel', 'h_step_traj', 'h_step_ep', 'Error'};
   ResStat_emptyrow = ResStat(1,:);
   ResStat_Start  = array2table(NaN(size(XL,1)*9,4));
   ResStat_Start.Properties.VariableNames = {'PktNr', 'OriNr', 'Erfolg', 'Grenzen'};
@@ -486,10 +486,10 @@ for robnr = 1:4
         I_noacc = all(abs(QDD_ii)<1e-8,2);
         if all(I_noacc)
           if ~all(RP.I_EE == [1 1 1 0 0 1])
-            error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null');
+            error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null.');
           else
-            warning('3T1R-PKM funktionieren aktuell noch nicht');
-            return
+            warning('3T1R-PKM funktionieren aktuell noch nicht gut. Alle Beschleunigungen Null.');
+            continue
           end
         end
         I_finishacc = find(I_noacc==0,1,'last');
@@ -525,10 +525,14 @@ for robnr = 1:4
         Phi_ii2 = Phi_ii2(1:I_finish,:);
         Stats_traj2.h = Stats_traj2.h(1:I_finish,:);
         % Speichere EE-Pose resultierend aus Gelenkwinkeln aus dem
-        % Konvergenzverlauf. Benutze bei Einzelpunkt-IK nur i.O.-Posen
-        % (keine Posen, bei denen die Ketten nicht geschlossen sind).
-        X_ii = RP.fkineEE2_traj(Q_ii);
-        X_ii2 = RP.fkineEE2_traj(Q_ii2);
+        % Konvergenzverlauf.
+        % Bei Traj.-IK keine Normalisierung der Euler-Winkel vornehmen
+        [X_ii, XD_ii] = RP.fkineEE2_traj(Q_ii, QD_ii);
+        X_ii(:,6) = denormalize_angle_traj(X_ii(:,6), XD_ii(:,6), Traj_t);
+        [X_ii2, XD_ii2] = RP.fkineEE2_traj(Q_ii2, QD_ii2);
+        X_ii2(:,6) = denormalize_angle_traj(X_ii2(:,6), XD_ii2(:,6), Traj_t);
+        % Benutze bei Einzelpunkt-IK nur i.O.-Posen (keine Posen, bei denen
+        % die Ketten nicht geschlossen sind).
         Stats_ep.X = RP.fkineEE2_traj(Stats_ep.Q);
         I_invalid = any(abs(Stats_ep.PHI(:,RP.I_constr_red))>1e-3,2);
         Stats_ep.X(I_invalid,:) = NaN;
@@ -555,6 +559,13 @@ for robnr = 1:4
         reserr_h_sum = h_traj_ii_sum - h_ep_ii_sum;
         I_wnact = s_ep_ii.wn ~= 0; % Indizes der aktiven Nebenbedingungen
         hs_ii = Stats_traj.h(1,1); % Startwert der Nebenbedingungen (bei Traj.)
+        % Die Gelenkwinkel sind bei beiden Methoden beim Start nicht
+        % identisch, da in Traj.-IK noch ein Korrekturschritt durchgeführt
+        % wird. Die Optimierungskriterien sind daher auch nicht identisch.
+%         if ~isinf(Stats_ep.h(1,1)) && ~isinf(hs_ii)
+%           assert(abs(hs_ii - Stats_ep.h(1,1)) < 1e-10, ['Startwert des ', ...
+%             'Kriteriums bei Einzelpunkt und Trajektorie ungleich.']);
+%         end
         step_h_traj = h_traj_ii_sum - hs_ii; % Verbesserung der Nebenbedingungen bei Traj.
         step_h_ep = h_ep_ii_sum - hs_ii; % Verbesserung der Nebenbedingungen bei Einzelpunkt
         % Bestimme relativen Fehler (bezogen auf die Methode mit dem
@@ -571,6 +582,7 @@ for robnr = 1:4
         ResStat.PktNr(ii_restab) = k;
         ResStat.OriNr(ii_restab) = l;
         ResStat.IK_Fall(ii_restab) = ii;
+        ResStat.h_start(ii_restab) = hs_ii;
         ResStat.h_err_abs(ii_restab) = reserr_h_sum;
         ResStat.h_err_rel(ii_restab) = reserr_h_rel(1);
         ResStat.h_step_traj(ii_restab) = step_h_traj;
@@ -582,7 +594,7 @@ for robnr = 1:4
         raise_error_h = abs(reserr_h_rel)>5e-2 && reserr_h_sum >1e-6;
         if isnan(raise_error_h)
           warning('Ungültiges Ergebnis');
-          ResStat.Error(ii_restab) = 5;
+          ResStat.Error(ii_restab) = 10;
           raise_error_h = true;
         end
         % Prüfung auf NaN: Deaktivieren. Trajektorie kann auch instabil
@@ -598,14 +610,17 @@ for robnr = 1:4
         if raise_error_h
           warning('Zielfunktion weicht bei beiden Methoden zu stark voneinander ab (relativer Fehler %1.1f%%)', reserr_h_rel*100);
         end
-        if ~any(ii == [1 3 5 7]) && step_h_traj >= 1e-8
+        if ~any(ii == [1 3 5 7]) && step_h_traj >= 1e-6
           % In Traj.-IK Schwingungen, wenn kein PD-Regler benutzt wird.
           warning('Nebenbedingungen haben sich bei Traj.-IK verschlechtert');
           if ResStat.Error(ii_restab)==0, ResStat.Error(ii_restab) = 1; end
           raise_error_h = true;
         end
-        if step_h_ep >= 1e-8
+        if step_h_ep >= 1e-6
           warning('Nebenbedingungen haben sich bei Einzelpunkt.-IK verschlechtert');
+          if ResStat.Error(ii_restab)<10
+            ResStat.Error(ii_restab) = ResStat.Error(ii_restab) + 2;
+          end
           raise_error_h = true;
         end
         % Normiere die Größen
@@ -630,19 +645,19 @@ for robnr = 1:4
           warning(['Gelenkbeschleunigungsgrenzen werden in Traj. massiv ', ...
             'verletzt (qDD norm: %1.1f bis %1.1f)'], min(QDD_ii_norm(:)), ...
             max(QDD_ii_norm(:)));
-          if ResStat.Error(ii_restab)==0, ResStat.Error(ii_restab) = 2; end
+          if ResStat.Error(ii_restab)<=3, ResStat.Error(ii_restab) = 4; end
         end
         if any(QD_ii_norm(:) < -0.2) || any(QD_ii_norm(:)>1.2)
           warning(['Gelenkgeschwindigkeitsgrenzen werden in Traj. massiv ', ...
             'verletzt (qD norm: %1.1f bis %1.1f)'], min(QD_ii_norm(:)), ...
             max(QD_ii_norm(:)));
-          if ResStat.Error(ii_restab)==0, ResStat.Error(ii_restab) = 3; end
+          if ResStat.Error(ii_restab)<=3, ResStat.Error(ii_restab) = 5; end
         end
         if any(Q_ii_norm(:) < -0.1) || any(Q_ii_norm(:)>1.1)
           warning(['Gelenkpositionsgrenzen werden in Traj. massiv ', ...
             'verletzt (q norm: %1.1f bis %1.1f)'], min(Q_ii_norm(:)), ...
             max(Q_ii_norm(:)));
-          if ResStat.Error(ii_restab)==0, ResStat.Error(ii_restab) = 4; end
+          if ResStat.Error(ii_restab)<=3, ResStat.Error(ii_restab) = 6; end
         end
 
         % Vergleich
@@ -860,6 +875,28 @@ for robnr = 1:4
     robnr, RP.mdlname)), 'Delimiter', ';');
   writetable(ResStat_Start, fullfile(respath, sprintf('Rob%d_%s_Stats_IK.csv', ...
     robnr, RP.mdlname)), 'Delimiter', ';');
+  % Legende eintragen
+  fid = fopen(fullfile(respath, sprintf('Rob%d_%s_Stats_Nullspace.csv.txt', ...
+    robnr, RP.mdlname)), 'w');
+  fprintf(fid, ['Informationen zu Tabellenspalten:\n', ...
+    'PktNr: Laufende Nummer des betrachteten Punkts\n', ...
+    'OriNr: Nummer verschiedener z-Orientierungen als Startwert\n', ...
+    'IK_Fall: Nummer bezüglich verwendeter Optimierungskriterien\n', ...
+    'h_start: Anfangswert der Optimierungskriterien\n', ...
+    'h_err_abs: Fehler zwischen Einzelpunkt- und Trajektorienmethode\n', ...
+    'h_err_rel: Relativer Fehler\n', ...
+    'h_step_traj: Änderung des Optimierungskriteriums bei Trajektorien-Methode (negativ ist gut)\n', ...
+    'h_step_ep: Änderung bei Einzepunkt-Methode\n', ...
+    'Error: Fehlercodes\n', ...
+    '\t0: Kein Fehler. Alles in Ordnung\n', ...
+    '\t1: Verschlechterung in Trajektorien-IK\n', ...
+    '\t2: Verschlechterung in Einzelpunkt-IK\n', ...
+    '\t3: Verschlechterung in beiden IK-Methoden\n', ...
+    '\t4: Verletzung der Beschleunigungsgrenzen in Traj.-IK\n', ...
+    '\t5: Verletzung der Geschwindigkeitsgrenzen in Traj.-IK\n', ...
+    '\t6: Verletzung der Gelenkwinkelgrenzen in Traj.-IK\n', ...
+    '\t10: Ungültiges Ergebnis in IK\n']);
+  fclose(fid);
   % Ergebnisse prüfen: Bei zu vielen Fehlern Abbruch.
   IK_success_ratio_start = sum(ResStat_Start.Erfolg==1)/size(ResStat_Start,1);
   fprintf('Die IK-Erfolgsquote liegt bei %1.1f%% (%d/%d Konfigurationen)\n', ...
@@ -875,12 +912,18 @@ for robnr = 1:4
   end
   fprintf('Die Nullraumbewegung war in %1.1f%% der Fälle optimal (%d/%d)\n', ...
     100*sum(ResStat.Error==0)/size(ResStat,1), sum(ResStat.Error==0), size(ResStat,1));
+  raiseerr = false;
   for ii = [2 4 6 8 9 10]
     ResStat_Filt = ResStat(ResStat.IK_Fall==ii,:);
     Nullspace_Error_ratio = sum(ResStat_Filt.Error~=0)/size(ResStat_Filt,1);
-    if Nullspace_Error_ratio > 0.25 % TODO: Kann kleiner gewählt werden, wenn Parameter getuned sind.
-      error(['Für Fall %d wird in %1.1f%% der Untersuchungen nicht die ', ...
+    if ~all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.25 || ...% TODO: Kann kleiner gewählt werden, wenn Parameter getuned sind.
+        all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.4 % 3T1R funktioniert noch nicht gut.
+      warning(['Für Fall %d wird in %1.1f%% der Untersuchungen nicht die ', ...
         '(lokal) optimale Lösung im Nullraum gefunden'], ii, 100*Nullspace_Error_ratio);
+      raiseerr = true;
     end
+  end
+  if any(raiseerr)
+    error('Konvergenz der Nullraumbewegung ist zu schlecht. Deutet auf Fehler hin.');
   end
 end

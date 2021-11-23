@@ -37,14 +37,15 @@ respath = fullfile(rob_path, 'examples_tests', 'results');
 mkdirs(respath);
 % Einstellungen für inverse Kinematik
 s = struct( ...
-       'n_min', 25, ... % Minimale Anzahl Iterationen
-       'n_max', 1000, ... % Maximale Anzahl Iterationen
-       'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
-       'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
+   'n_min', 25, ... % Minimale Anzahl Iterationen
+   'n_max', 1000, ... % Maximale Anzahl Iterationen
+   'Phit_tol', 1e-12, ... % Toleranz für translatorischen Fehler
+   'Phir_tol', 1e-12); % Toleranz für rotatorischen Fehler
 %% Alle Roboter durchgehen (mit allen Dynamik-Modi)
 for i_FG = 1:size(EEFG_Ges,1) % 2T1R, 3T0R, 3T1R, 3T3R
 EE_FG = EEFG_Ges(i_FG,:);
-fprintf('Untersuche PKM mit FG [%s]\n', char(48+EE_FG));
+EE_FGstr = sprintf('%dT%dR', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
+fprintf('Untersuche PKM mit FG %s\n', EE_FGstr);
 % Setze eine künstliche Transformation des Endeffektors zum Testen
 % (darf am Ergebnis nichts ändern)
 delta_r_P_E = [-2; 1; 4]*1e-3;
@@ -69,7 +70,7 @@ else
   [PNames_Kin, PNames_Akt] = parroblib_filter_robots(EE_FG, 6);
 end
 if isempty(PNames_Kin)
-  fprintf('Keine Roboter mit FG [%s] in Datenbank\n', disp_array(EE_FG, '%1.0f'));
+  fprintf('Keine Roboter mit FG %s in Datenbank\n', EE_FGstr);
   continue
 end
 % Stelle Liste von PKM zusammen, die sich in ihrer Kinematik ohne
@@ -105,7 +106,7 @@ for DynParMode = 2:4
         III = find(strcmp(PNames_Kin, 'P6PRRRRR6V2G8P1'));
     end
   end
-  if isempty(III), warning('Keine PKM mit FG [%s] gefunden', char(48+EE_FG)); break; end
+  if isempty(III), warning('Keine PKM mit FG %s gefunden', EE_FGstr); break; end
   for ii = III(:)' % 1:length(PNames_Kin)
     % Suche erste gültige Aktuierung in der Datenbank (ist für Dynamik
     % egal; es wird nur die Plattform-Dynamik betrachtet ohne Projektion in
@@ -214,6 +215,7 @@ for DynParMode = 2:4
       Set.general.noprogressfigure = true;
       Set.general.verbosity = 3;
       Set.general.nosummary = true;
+      Set.optimization.optname = sprintf('dimsynth_comparesymvsnum_DoF_%s', EE_FGstr);
       Traj = Traj_W;
       cds_start(Set, Traj);
       resmaindir = fullfile(Set.optimization.resdir, Set.optimization.optname);
@@ -225,7 +227,7 @@ for DynParMode = 2:4
         tmp1 = load(resfile1, 'RobotOptDetails');
         resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
         tmp2 = load(resfile1, 'RobotOptRes');
-        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
+        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval <= 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
           RobotOptRes = tmp2.RobotOptRes;
@@ -249,9 +251,14 @@ for DynParMode = 2:4
       q0 = RobotOptRes.q0;
       qlim = cat(1, RP.Leg.qlim); % Wichtig für Mehrfach-Versuche der IK
       save(paramfile_robot, 'pkin', 'DesPar_ParRob', 'q0', 'r_W_0', 'phi_W_0', 'qlim', 'r_P_E', 'phi_P_E');
+      params = load(paramfile_robot);
       fprintf('Maßsynthese beendet\n');
       Traj_0 = cds_transform_traj(RP, Traj_W);
     end
+    % Basis-Transformation ändern. Darf keinen Einfluss auf die Ergebnisse
+    % ab hier haben. Die Plattform-Pose ist im Basis-KS angegeben und
+    % hiervon nicht mehr beeinflusst.
+    RP.update_base(-0.5+rand(3,1), -0.5+rand(3,1));
     % EE-Transformation aktualisieren (damit unabhängig von Maßsynthese
     % gerade durchgeführt oder vorab gespeicherte Parameter, in denen diese
     % Zusätzliche Transformation nicht enthalten ist)
@@ -283,15 +290,26 @@ for DynParMode = 2:4
     end
     
     % Definiere die gleiche PKM, deren Basis gedreht ist (Boden- vs
-    % Deckenmontage)
+    % Deckenmontage). TODO: Bei Basis-Drehung (z-Achse) tritt eine Drehung
+    % in allen drei Euler-Winkeln auf. Das ist nicht sehr anschaulich,
+    % reicht aber für den Test.
     RP2 = copy(RP);
     RP2.update_base([],r2eulxyz(RP.T_W_0(1:3,1:3)*rotx(pi)));
     RP2.update_EE([],  r2eulxyz(RP.T_P_E(1:3,1:3)*rotx(pi)));
-    
     % Gravitationsvektor zufällig setzen
-    RP.update_gravity(rand(3,1));
+    g_world = rand(3,1);
+    RP.update_gravity(g_world);
     % G-Vektor für zweites Modell ist auch gedreht, damit Dynamik identisch ist.
-    RP2.update_gravity(rotx(pi)*RP.T_W_0(1:3,1:3)*RP.gravity);
+    % Drehung (180°, x-Achse) bezogen auf Basis-KS der ersten PKM.
+    g_world2 = RP.T_W_0(1:3,1:3)*rotx(pi)*RP.gravity;
+    RP2.update_gravity(g_world2);
+    % Prüfe, ob die Zuweisung richtig gemacht wurde.
+    assert(all(abs(RP.gravity - RP2.gravity)<1e-12), ['Gravitationsvektor ', ...
+      'wurde falsch in gedrehte PKM zugewiesen']);
+    assert(all(abs(RP.T_W_0(1:3,1:3)*RP.gravity - g_world)<1e-12), ...
+      'Gravitationsvektor wurde falsch zugewiesen oder rotiert');
+    assert(all(abs(RP2.T_W_0(1:3,1:3)*RP2.gravity - g_world2)<1e-12), ...
+      'Gravitationsvektor wurde falsch zugewiesen oder rotiert');
     %% Dynamik-Test Symbolisch gegen numerisch
     n = 10; % Anzahl der Test-Konfigurationen
     % Nehme Eckpunkte der Trajektorie aus der Maßsynthese und füge
@@ -338,8 +356,14 @@ for DynParMode = 2:4
     JinvP_ges = NaN(n,sum(RP.I_EE)*RP.NJ);
     for i = 1:n
       %% IK für Testkonfiguration berechnen
-      [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s);
-      if any(abs(Phi) > 1e-8) || any(isnan(Phi)), continue; end % IK für diese Pose nicht erfolgreich
+      [q,Phi] = RP.invkin_ser(XE_test(i,:)', q0, s, ...
+        struct('debug', true)); % Zwangsbedingungen in IK-Funktion zweimal prüfen
+      if any(abs(Phi) > 1e-8) || any(isnan(Phi))
+        continue; % IK für diese Pose nicht erfolgreich
+      end
+      Phi_test = RP.constr3(q, XE_test(i,:)');
+      assert(all(abs(Phi_test)<1e-6), 'Zwangsbedingungen unerwartet falsch');
+      
       Q_test(i,:) = q;
       [~, JinvE] = RP.jacobi_qa_x(q, XE_test(i,:)');
       QD_test(i,:) = JinvE*XDE_test(i,RP.I_EE)';
@@ -367,14 +391,24 @@ for DynParMode = 2:4
       JinvP_fullx = JinvP_fulls * H_xP; % [A]/(12)
       JinvP = JinvP_fullx(:,RP.I_EE);
       % Teste gegen berechnete Jacobi-Matrix
-      G_q_Ptest = RP.constr1grad_q(q, XP_test(i,:)', true);
-      G_x_Ptest = RP.constr1grad_x(q, XP_test(i,:)', true);
-      Jinv_Ptest = - G_q_Ptest \ G_x_Ptest;
+      [G_q_Ptest,Gv_q_Ptest] = RP.constr1grad_q(q, XP_test(i,:)', true);
+      [G_x_Ptest,Gv_x_Ptest] = RP.constr1grad_x(q, XP_test(i,:)', true);
+      if all(RP.I_EE == [1 1 1 0 0 1])
+        % Für 3T1R-PKM sind die reduzierten ZB nicht für Methode 1
+        % definiert, sondern nur für Methode 3. In einigen Fällen geht
+        % beides.
+        Jinv_Ptest = - Gv_q_Ptest \ Gv_x_Ptest(:,RP.I_EE);
+        testtol = 1e-6; % numerische Probleme -> grobe Toleranz)
+      else
+        Jinv_Ptest = - G_q_Ptest \ G_x_Ptest;
+        testtol = 1e-8;
+      end
       Jinv_Ptest_full = zeros(size(JinvP_fulls));
       Jinv_Ptest_full(:,RP.I_EE) = Jinv_Ptest;
       test_JinvP = JinvP - Jinv_Ptest;
-      if any(abs(test_JinvP(:)) > 1e-10)
-        error('Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt nicht gegen constr1-Funktion');
+      if any(abs(test_JinvP(:)) > testtol)
+        error(['Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt ', ...
+          'nicht gegen constr1-Funktion. Fehler: %1.2e'], max(abs(test_JinvP(:))));
       end
       JinvP_ges(i,:) = JinvP(:); % Für Trajektorien-Funktionen weiter unten
       
@@ -400,9 +434,13 @@ for DynParMode = 2:4
       JinvDP_fullx = (JinvDP_fulls + JinvP_fullx*(H_xP\HD_xP/H_xP))*H_xP; % [A]/(28)
       JinvDP = JinvDP_fullx(:,RP.I_EE);
       % Teste gegen berechnete Jacobi-Matrix-Zeitableitung
-      G_qD_Ptest = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
-      G_xD_Ptest = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
-      JinvD_Ptest = (G_q_Ptest\G_qD_Ptest)*(G_q_Ptest\G_x_Ptest) - G_q_Ptest\G_xD_Ptest;
+      [G_qD_Ptest,Gv_qD_Ptest] = RP.constr1gradD_q(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      [G_xD_Ptest,Gv_xD_Ptest] = RP.constr1gradD_x(q, QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)', true);
+      if all(RP.I_EE == [1 1 1 0 0 1])
+        JinvD_Ptest = (Gv_q_Ptest\Gv_qD_Ptest)*(Gv_q_Ptest\Gv_x_Ptest(:,RP.I_EE)) - Gv_q_Ptest\Gv_xD_Ptest(:,RP.I_EE);
+      else
+        JinvD_Ptest = (G_q_Ptest\G_qD_Ptest)*(G_q_Ptest\G_x_Ptest) - G_q_Ptest\G_xD_Ptest;
+      end
       % Rechne zu geometrischer Form um
       JinvD_Ptest_full = zeros(size(JinvDP_fulls));
       JinvD_Ptest_full(:,RP.I_EE) = JinvD_Ptest;
@@ -410,7 +448,8 @@ for DynParMode = 2:4
       test_JinvDPs = JinvDP_fulls(:,RP.I_EE) - JinvD_Pstest_full(:,RP.I_EE);
       if any(abs(test_JinvDPs(:)) > 1e-8)
         disp(test_JinvDPs);
-        error('Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion');
+        error(['Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf ', ...
+          'xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion']);
       end
       test_JinvDP = JinvDP - JinvD_Ptest;
       if any(abs(test_JinvDP(:)) > 1e-8)
@@ -518,6 +557,9 @@ for DynParMode = 2:4
       test_Cx1_mount = Cx1_mount - Cx1;
       test_Gx1_mount = Gx1_mount - Gx1;
       test_Fx1_mount = Fx1_mount - Fx1;
+      % Debuggen: Test für Verhältnis der Gravitationskräfte. Muss 1 sein
+      test_Gx1_mount_rel = Gx1_mount./Gx1;
+      test_Gx2_mount_rel = Gx2_mount./Gx2;
       if any(abs(test_Mx2_mount(:)) > 1e-6)
         warning('Massenmatrix (numerisch) stimmt nicht bei gedrehter PKM. Max Fehler %1.1e.', max(abs(test_Mx2_mount(:))));
         fail = true;
@@ -680,6 +722,9 @@ for DynParMode = 2:4
         n_succ = n_succ + 1;
       end
     end
+    if n_fail == 0 && n_succ == 0
+      error('Die IK hat für die PKM nie funktioniert. Darf nicht sein');
+    end
     % Teste Trajektorien-Funktionen
     if DynParMode == 2
       Fx_traj1 = RP.invdyn2_platform_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
@@ -693,7 +738,7 @@ for DynParMode = 2:4
     test_Fxtraj1_abs = Fx_traj1 - Fx_traj;
     test_Fxtraj1_rel = test_Fxtraj1_abs./Fx_traj; % bei großen Werten rel.-Fehler auch notwendig zur Beurteilung
     if any(abs(test_Fxtraj1_abs(:)) > 1e-6 & test_Fxtraj1_rel(:) > 1e-6)
-      disp(test_Fxtraj1)
+      disp(test_Fxtraj1_abs)
       error('Trajektorien-Funktion invdyn2_platform_traj stimmt nicht gegen vorherige Berechnung');
     end
     if DynParMode == 3 || DynParMode == 4
@@ -740,8 +785,8 @@ for DynParMode = 2:4
       break; % Testen aller Roboter dauert sehr lange. Ergebnis für wenige reicht aus.
     end
   end
-  fprintf('Dynamik in symbolischer und numerischer Form für %d/%d PKM mit FG [%s] getestet. %d komplett und %d teilweise erfolgreich\n', ...
-    num_robots_tested, length(PNames_Kin), disp_array(EE_FG, '%1.0f'), length(robot_list_succ), length(robot_list_part));
+  fprintf('Dynamik in symbolischer und numerischer Form für %d/%d PKM mit FG %s getestet. %d komplett und %d teilweise erfolgreich\n', ...
+    num_robots_tested, length(PNames_Kin), EE_FGstr, length(robot_list_succ), length(robot_list_part));
   if ~isempty(robot_list_fail)
     disp('Keine Übereinstimmung bei folgenden Robotern:');
     disp(robot_list_fail(:));
@@ -756,7 +801,7 @@ for DynParMode = 2:4
   end
   if isempty(ResStat), continue; end
   ResStat.Properties.VariableNames = {'Name', 'AnzahlErfolg', 'AnzahlFehlschlag', 'AnzahlTests'};
-  restabfile = fullfile(respath, sprintf('ParRob_invdyn_test_DoF_%s_DynParMode%d.csv', char(48+EE_FG), DynParMode));
+  restabfile = fullfile(respath, sprintf('ParRob_invdyn_test_DoF_%s_DynParMode%d.csv', EE_FGstr, DynParMode));
   writetable(ResStat, restabfile, 'Delimiter', ';');
   %% Prüfe Erfolg. Fehler bei Nicht-Erfolg
   if sum(ResStat.AnzahlFehlschlag) > 0

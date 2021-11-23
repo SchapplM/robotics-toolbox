@@ -133,11 +133,10 @@ end
 if Rob.I_EE(6) && ~ Rob.I_EE_Task(6)
   taskred_rot = true;
 end
-if all(Rob.I_EE == [1 1 1 1 1 0])
-  dof_3T2R = true;
-else
-  dof_3T2R = false;
-end
+if all(Rob.I_EE == [1 1 1 1 1 0]), dof_3T2R = true;
+else,                              dof_3T2R = false; end
+if all(Rob.I_EE == [1 1 1 0 0 1]), dof_3T1R = true;
+else,                              dof_3T1R = false; end
 
 if nargout == 6
   % Wenn Jacobi-Zeitableitung als Ausgabe gefordert ist, kann die
@@ -187,6 +186,8 @@ for f = fields(s_ser)'
     s_ser.(f{1}) = s.(f{1});
   end
 end
+% Eingabe s_par vorbereiten
+s_par = struct('debug', s.debug);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
@@ -318,7 +319,7 @@ for k = 1:nt
   % Annahme: Startwert und Vorwärts-Integration sind schon fast die Lösung.
   if any(mode_IK == [1 3])
     % Aufruf der Einzel-Beinketten-Funktion (etwas schneller, falls mit mex)
-    [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser);
+    [q_k, Phi_k, Tc_stack_k] = Rob.invkin_ser(x_k, qk0, s_ser, s_par);
   end
   % Falls obige IK nicht erfolgreich (aufgrund ungeklärter Ursachen),
   % versuche alternativen Algorithmus.
@@ -336,9 +337,16 @@ for k = 1:nt
   if any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
      any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol)
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
+  elseif debug
+    % Erneute Berechnung der Zwangsbedingungen, falls falsch berechnet.
+    Phi_test = Rob.constr3(q_k, x_k);
+    if ~all(abs(Phi_test(Rob.I_constr_t_red)) < 100*s_ser.Phit_tol) && ...
+       ~all(abs(Phi_test(Rob.I_constr_r_red)) < 100*s_ser.Phir_tol)
+      error('Zwangsbedingungen aus IK-Berechnung stimmen nicht');
+    end
   end
   %% Gelenk-Geschwindigkeit berechnen
-  if ~taskred_rot && ~dof_3T2R
+  if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
     % Benutze die Ableitung der Geschwindigkeits-Zwangsbedingungen
     % (effizienter als Euler-Winkel-Zwangsbedingungen constr1...)
     Phi_q = Rob.constr4grad_q(q_k);
@@ -347,7 +355,11 @@ for k = 1:nt
   else % aufgabenredundante 2T1R/3T1R/3T3R-PKM und symmetrische und asymmetrische 3T2R-PKM
     [Phi_q,    Phi_q_voll] = Rob.constr3grad_q(q_k, x_k);
     [Phi_x_tmp,Phi_x_voll] = Rob.constr3grad_x(q_k, x_k);
-    Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    if ~dof_3T1R
+      Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+    else % Bezieht sich in Funktion auf die PKM-FG, nicht Aufgaben-FG
+      Phi_x=Phi_x_tmp(:,[true(1,3), ~taskred_rot]); % Auswahl des Aufg.-FG hier
+    end
     if taskred_rot % Aufgabenredundanz
       % Berechne die Jacobi-Matrix basierend auf den vollständigen Zwangsbe-
       % dingungen (wird für Dynamik benutzt).
@@ -400,13 +412,17 @@ for k = 1:nt
       Phi_xD_voll = Phi_x_voll_alt;
     end
   else % Vollständige Berechnung
-    if ~taskred_rot && ~dof_3T2R
+    if ~taskred_rot && ~dof_3T2R && ~dof_3T1R
       Phi_qD = Rob.constr4gradD_q(q_k, qD_k);
       Phi_xD = Rob.constr4gradD_x(x_k, xD_k);
     else % alle 3T2R-PKM und aufgabenredundante 3T3R-PKM
       [Phi_qD,     Phi_qD_voll] = Rob.constr3gradD_q(q_k, qD_k, x_k, xD_k);
       [Phi_xD_tmp, Phi_xD_voll] = Rob.constr3gradD_x(q_k, qD_k, x_k, xD_k);
-      Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+      if ~dof_3T1R
+        Phi_xD=Phi_xD_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
+      else
+        Phi_xD=Phi_xD_tmp(:,[true(1,3), ~taskred_rot]);
+      end
     end
   end
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
@@ -748,6 +764,8 @@ for k = 1:nt
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
+      v_qaD(isinf(v_qaD)) = sign(v_qaD(isinf(v_qaD)))*1e8;
+      v_qaDD(isinf(v_qaDD)) = sign(v_qaDD(isinf(v_qaDD)))*1e8;
       if any(abs(v_qaD)>1e8),  v_qaD  = v_qaD* 1e8/max(abs(v_qaD));  end
       if any(abs(v_qaDD)>1e8), v_qaDD = v_qaDD*1e8/max(abs(v_qaDD)); end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
@@ -795,6 +813,7 @@ for k = 1:nt
           h5dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h5dq = (h5_test-h(5))./(qD_test');
+          h5dq(isnan(h5dq)) = 0;
         end
         v_qD = v_qD - wn(9)*h5dq(:);
         v_qDD = v_qDD - wn(5)*h5dq(:);
@@ -834,6 +853,7 @@ for k = 1:nt
           h6dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h6dq = (h6_test_v1-h(6))./(qD_test');
+          h6dq(isnan(h6dq)) = 0; % falls ein qD_test Null ist, nicht sofort abbrechen
         end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
@@ -867,6 +887,7 @@ for k = 1:nt
               h7dq = h7dq/max(abs(h7dq)) * 1e3; % wird weiter unten reduziert (für delta_q)
             end
           end
+          h7dq(isnan(h7dq)) = 0;
           v_qD = v_qD - wn(12)*h7dq(:);
           v_qDD = v_qDD - wn(11)*h7dq(:);
         else
@@ -909,6 +930,7 @@ for k = 1:nt
             h8dq = h8dq/max(abs(h8dq)) * 1e3; % wird weiter unten reduziert
           end
         end
+        h8dq(isnan(h8dq)) = 0;
         v_qD = v_qD - wn(14)*h8dq(:);
         v_qDD = v_qDD - wn(13)*h8dq(:);
       end
@@ -916,6 +938,7 @@ for k = 1:nt
         h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
         h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
+        h9dq(isnan(h9dq)) = 0;
         v_qD  = v_qD  - wn(16)*h9dq(:);
         v_qDD = v_qDD - wn(15)*h9dq(:);
       end
@@ -932,6 +955,7 @@ for k = 1:nt
           end
         else
           h10dq = (h10_test-h(10))./qD_test';
+          h10dq(isnan(h10dq)) = 0;
         end
         v_qD  = v_qD  - wn(18)*h10dq(:);
         v_qDD = v_qDD - wn(17)*h10dq(:);
@@ -949,6 +973,8 @@ for k = 1:nt
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
+      v_qD(isinf(v_qD)) = sign(v_qD(isinf(v_qD)))*1e8;
+      v_qDD(isinf(v_qDD)) = sign(v_qDD(isinf(v_qDD)))*1e8;
       if any(abs(v_qD)>1e3),  v_qD  = v_qD* 1e3/max(abs(v_qD));  end
       if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten

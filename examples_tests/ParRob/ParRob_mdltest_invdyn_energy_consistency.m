@@ -87,12 +87,23 @@ for i_FG = 1:size(EEFG_Ges,1)
       III = III(randperm(length(III)));
     end
   end
+  if isempty(III)
+    warning('Suchfilter hat keine Ergebnisse gebracht. Überspringe FG');
+  end
   for ii = III
     PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
     fprintf('Untersuche PKM %d/%d: %s\n', ii, length(PNames_Kin), PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
 
     %% Roboter Initialisieren
+    % Vorlagen-Funktionen aktualisieren
+%     parroblib_create_template_functions({PName},false);
+%     [~,LEG_Names,~,~,~,~,~,~,PName_Legs] = parroblib_load_robot(PName);
+%     serroblib_create_template_functions(LEG_Names(1),false);
+%     matlabfcn2mex({[LEG_Names{1},'_invkin_eulangresidual']});
+%     matlabfcn2mex({[PName_Legs,'_invkin']});
+%     matlabfcn2mex({[PName_Legs,'_invkin_traj']});
+    
     RP = parroblib_create_robot_class(PName, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
     files_missing = RP.fill_fcn_handles(true, true);
@@ -133,9 +144,11 @@ for i_FG = 1:size(EEFG_Ges,1)
       RP.align_platform_coupling(params.DesPar_ParRob.platform_method, params.DesPar_ParRob.platform_par(1:end-1));
       Traj_0 = cds_transform_traj(RP, Traj_W);
       % Prüfe die Lösbarkeit der IK (Startpunkt und Trajektorie)
-      [q_test,Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
-      [Q_test, PHI] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
-      if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) && ~any(isnan(PHI(:)))
+      [q_test, Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
+      [Q_test, ~, ~, PHI, Jinv_ges] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
+      Jinv1 = reshape(Jinv_ges(1,:), RP.NJ, sum(RP.I_EE));
+      if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) ...
+          && ~any(isnan(PHI(:))) && cond(Jinv1) < 1e6
         fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
       else
@@ -189,7 +202,7 @@ for i_FG = 1:size(EEFG_Ges,1)
         tmp1 = load(resfile1, 'RobotOptDetails');
         resfile1 = fullfile(resmaindir, sprintf('Rob%d_%s_Endergebnis.mat', Structures{i}.Number, PName));
         tmp2 = load(resfile1, 'RobotOptRes');
-        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval < 1000
+        if isfield(tmp1, 'RobotOptDetails') && tmp2.RobotOptRes.fval <= 1000
           i_select = i;
           RobotOptDetails = tmp1.RobotOptDetails;
           RobotOptRes = tmp2.RobotOptRes;
@@ -260,6 +273,9 @@ for i_FG = 1:size(EEFG_Ges,1)
     % Definiere eine beliebige Geschwindigkeit, aber im Plattform-KS
     XPD_test = rand(n, 6);
     XPD_test(:,~RP.I_EE) = 0; % nicht belegte FG haben keine Geschw.
+    % Berechne auch die EE-Geschwindigkeit neu (aus Plattform-Geschw.)
+    [~,XED_test] = RP.xP2xE_traj(XP_test, XPD_test);
+    
     % IK für Testkonfiguration berechnen
     for i = 1:n
       % IK mit EE-Pose berechnen
@@ -336,6 +352,34 @@ for i_FG = 1:size(EEFG_Ges,1)
       % Matrix dafür auf das Plattform-KS (und nicht das EE-KS)
       if ~all(RP.I_EE == [1 1 1 1 1 0])
         [~, Jinv_voll] = RP.jacobi_qa_x(q, XP_test(i,:)', true);
+        if any(isnan(Jinv_voll(:))) || cond(Jinv_voll) > 1e10
+          error('Jacobi-Matrix ist singulär. Sollte nicht sein. Überspringe Konfig %d.', i);
+        end
+        % Teste andere Jacobi-Modellierung
+        [G3P_q, G3P_q_voll] = RP.constr3grad_q(q, XP_test(i,:)', true);
+        [G3P_x, G3P_x_voll] = RP.constr3grad_x(q, XP_test(i,:)', true);
+        Jinv3P_voll = -G3P_q\G3P_x;
+        assert(all(abs(Jinv3P_voll(:)-Jinv_voll(:))<1e-6), ...
+          'Jacobi-Matrix für nicht konsistent mit zwei Methoden (Fcn vs 3)');
+        [G1P_q, G1P_q_voll] = RP.constr1grad_q(q, XP_test(i,:)', true);
+        [G1P_x, G1P_x_voll] = RP.constr1grad_x(q, XP_test(i,:)', true);
+        if ~all(RP.I_EE == [1 1 1 0 0 1])
+          Jinv1P_voll = -G1P_q\G1P_x;
+        else
+          Jinv1P_voll = -G1P_q_voll\G1P_x_voll(:,RP.I_EE);
+        end
+        assert(all(abs(Jinv3P_voll(:)-Jinv1P_voll(:))<1e-6), ...
+          'Jacobi-Matrix für nicht konsistent mit zwei Methoden (1 vs 3)');
+        [G4P_q, G4P_q_voll] = RP.constr4grad_q(q);
+        [G4P_x, G4P_x_voll] = RP.constr4grad_x(XP_test(i,:)', true);
+        if ~all(RP.I_EE == [1 1 1 0 0 1])
+          Jinv4P_voll = -G4P_q\G4P_x;
+        else
+          % Sonderfall 3T1R-PKM: Reduzierte ZB-Indizes passen nicht hierzu
+          Jinv4P_voll = -G4P_q_voll\G4P_x_voll(:,RP.I_EE);
+        end
+        assert(all(abs(Jinv4P_voll(:)-Jinv_voll(:))<1e-6), ...
+          'Jacobi-Matrix für nicht konsistent mit zwei Methoden (Fcn vs direkt)');
       else % 3T2R: Eigene Modellierung
         G2_q = RP.constr2grad_q(q, XP_test(i,:)', true);
         G2_x = RP.constr2grad_x(q, XP_test(i,:)', true);
@@ -425,39 +469,61 @@ for i_FG = 1:size(EEFG_Ges,1)
       QD_test(:) = 0;
     end
     % Teste, ob die Start-Konfiguration überhaupt richtig ist. Der dritte
-    % Euler-Winkel wurde oben schon korrigiert.
-    if all(RP.I_EE_Task == [1 1 1 1 1 0])
-      for j = 1:RP.NLEG
-        [XP_korr, XPD_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, true);
-        [XE_korr, XED_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, false);
-        % Vergleiche diese Beinkette gegen die Plattform (bzw. den EE)
-        test_XP = XP_korr(:,1:6) - XP_test(:,1:6);
-        test_XPD = XPD_korr(:,1:6) - XPD_test(:,1:6);
-        test_XE = XE_korr(:,1:6) - XE_test(:,1:6);
-        test_XED = XED_korr(:,1:6) - XED_test(:,1:6);
-        test_XP([false(size(test_XP,1),3),abs(abs(test_XP(:,4:end))-2*pi)<1e-3]) = 0; % 2pi-Fehler entfernen
-        test_XE([false(size(test_XE,1),3),abs(abs(test_XE(:,4:end))-2*pi)<1e-3]) = 0;
-        if max(abs(test_XP(:))) > 1e-6
-          error('Plattform-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
-        end
-        if max(abs(test_XPD(:))) > 1e-6
-          error('Plattform-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
-        end
-        if max(abs(test_XE(:))) > 1e-6
-          error('Endeffektor-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
-        end
-        if max(abs(test_XED(:))) > 1e-6
-          error('Endeffektor-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
-        end
+    % Euler-Winkel wurde oben schon korrigiert (für 3T2R-PKM).
+    for j = 1:RP.NLEG
+      [XP_korr, XPD_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, true);
+      [XE_korr, XED_korr] = RP.fkineEE2_traj(Q_test, QD_test, 0*QD_test, j, false);
+      % Vergleiche diese Beinkette gegen die Plattform (bzw. den EE)
+      test_XP = XP_korr(:,1:6) - XP_test(:,1:6);
+      test_XPD = XPD_korr(:,1:6) - XPD_test(:,1:6);
+      test_XE = XE_korr(:,1:6) - XE_test(:,1:6);
+      test_XED = XED_korr(:,1:6) - XED_test(:,1:6);
+      test_XP([false(size(test_XP,1),3),abs(abs(test_XP(:,4:end))-2*pi)<1e-3]) = 0; % 2pi-Fehler entfernen
+      test_XE([false(size(test_XE,1),3),abs(abs(test_XE(:,4:end))-2*pi)<1e-3]) = 0;
+      if max(abs(test_XP(:))) > 1e-6
+        error('Plattform-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+      end
+      if max(abs(test_XPD(:))) > 1e-6
+        error('Plattform-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+      end
+      if max(abs(test_XE(:))) > 1e-6
+        error('Endeffektor-Trajektorie (X) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
+      end
+      if max(abs(test_XED(:))) > 1e-6
+        error('Endeffektor-Trajektorie (XD) stimmt nicht zwischen Beinkette %d und Referenz überein', j);
       end
     end
     % Prüfe mit anderer Methode, ob Geschwindigkeit korrekt berechnet wurde
     PHID_testP = RP.constr4D2_traj(Q_test, QD_test, XP_test, XPD_test, true);
     PHID_testE = RP.constr4D2_traj(Q_test, QD_test, XE_test, XED_test);
+    for iit = 1:size(Q_test,1)
+      if any(isnan(QD_test(iit,:)))
+        continue % Konfiguration wurde nicht bestimmt (Anfangswert singulär)
+      end
+      [~,PHID_test2P_iit] = RP.constr4D(Q_test(iit,:)', QD_test(iit,:)', ...
+        XP_test(iit,:)', XPD_test(iit,:)', true);
+      [~,PHID_test2E_iit] = RP.constr4D(Q_test(iit,:)', QD_test(iit,:)', ...
+        XE_test(iit,:)', XED_test(iit,:)');
+      assert(all(abs(PHID_test2P_iit-PHID_testP(iit,:)')<1e-10), ...
+        'Nachrechnung von constr4D stimmt nicht (KS P)');
+      assert(all(abs(PHID_test2E_iit-PHID_testE(iit,:)')<1e-10), ...
+        'Nachrechnung von constr4D stimmt nicht (KS E)');
+    end
     if any(abs(PHID_testP(:)) > 1e-6) || any(abs(PHID_testE(:)) > 1e-6)
       error(['Anfangswerte der Vorwärtsdynamik sind nicht konsistent. ', ...
         'Fehler in constr4D max. %1.1e (KS P) bzw. %1.1e (KS E)'], ...
         max(abs(PHID_testP(:))), max(abs(PHID_testE(:))));
+    end
+    % Prüfe mit weiterer Methode, ob Geschwindigkeit korrekt ist
+    I_iO = all(~isnan(QD_test),2);
+    for j = 1:RP.NLEG
+      [X_fromlegs_j,XD_fromlegs_j] = RP.fkineEE_traj(Q_test, QD_test, j);
+      test_X = X_fromlegs_j(I_iO,:) - XE_test(I_iO,:);
+      assert(all(abs(test_X(:))<1e-8), sprintf(...
+        'EE-Position wurde falsch berechnet (Beinkette %d vs Plattform)', j));
+      test_XD = XD_fromlegs_j(I_iO,:) - XED_test(I_iO,:);
+      assert(all(abs(test_XD(:))<1e-8), sprintf(...
+        'EE-Geschwindigkeit wurde falsch berechnet (Beinkette %d vs Plattform)', j));
     end
     if usr_debug
       change_current_figure(2);clf;hold all;
@@ -484,7 +550,7 @@ for i_FG = 1:size(EEFG_Ges,1)
     n_fail = 0;
     for i_tk = 1:n % Testkonfigurationen ("tk")
       if any(isnan(XE_test(i_tk,:))), continue; end % IK für diese Pose nicht erfolgreich
-      
+      if any(isnan(QD_test(i_tk,:))), continue; end % Diff. Kin. für diese Pose nicht erfolgreich
       if i_tk > 1
         RP.update_base([0;0;1], rand(3,1));
       end
@@ -584,9 +650,17 @@ for i_FG = 1:size(EEFG_Ges,1)
         [G4_q, G4_q_voll] = RP.constr4grad_q(q);
         [G4_x, G4_x_voll] = RP.constr4grad_x(xP, true);
         if jm == 1 % Nehme Euler-Winkel-Jacobi für Dynamik
-          Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll = -G1_q\G1_x; % Jacobi-Matrix als Hilfe für Dynamik-Fkt speichern
+          else
+            Jinv_voll = -G1_q_voll\G1_x_voll(:,RP.I_EE);
+          end
         elseif jm == 2  % Nehme neue Modellierung der Jacobi für die Dynamik
-          Jinv_voll = -G4_q\G4_x;
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll = -G4_q\G4_x;
+          else
+            Jinv_voll = -G4_q_voll\G4_x_voll(:,RP.I_EE);
+          end
         else % Modellierung für 3T2R-PKM
           % Kann nicht erkennen, wenn die PKM ungültig ist. Dafür wird
           % constr3 benötigt. Annahme: Alle PKM die hier aus der PKM-Daten-
@@ -616,14 +690,22 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         % Berechne Jacobi-Zeitableitung (für Dynamik-Berechnung des nächsten Zeitschritts)
         if jm == 1
-          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD, true);
-          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD, true);
-          JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+          [GD1_q, GD1_q_voll] = RP.constr1gradD_q(q, qD, xP, xPD, true);
+          [GD1_x, GD1_x_voll] = RP.constr1gradD_x(q, qD, xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x; % effizienter hier zu berechnen als in Dynamik
+          else
+            JinvD_voll = G1_q_voll\(GD1_q_voll*(G1_q_voll\G1_x_voll(:,RP.I_EE))) - G1_q_voll\GD1_x_voll(:,RP.I_EE);
+          end
         elseif jm == 2
           % Nehme Modellierung 4 der Jacobi für die Dynamik
-          GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(xP, xPD, true);
-          JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          [GD4_q, GD4_q_voll] = RP.constr4gradD_q(q, qD);
+          [GD4_x, GD4_x_voll] = RP.constr4gradD_x(xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          else
+            JinvD_voll = G4_q_voll\(GD4_q_voll*(G4_q_voll\G4_x_voll(:,RP.I_EE))) - G4_q_voll\GD4_x_voll(:,RP.I_EE);
+          end
         else
           GD2_q = RP.constr2gradD_q(q, qD, xP, xPD, true);
           GD2_x = RP.constr2gradD_x(q, qD, xP, xPD, true);
@@ -632,10 +714,17 @@ for i_FG = 1:size(EEFG_Ges,1)
 
         % Kennzahlen für Singularitäten
         if ~all(EE_FG == [1 1 1 1 1 0])
-          SingDet(i,1) = cond(G1_q);
-          SingDet(i,2) = cond(G1_x);
-          SingDet(i,3) = cond(G4_q);
-          SingDet(i,4) = cond(G4_x);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            SingDet(i,1) = cond(G1_q);
+            SingDet(i,2) = cond(G1_x);
+            SingDet(i,3) = cond(G4_q);
+            SingDet(i,4) = cond(G4_x);
+          else
+            SingDet(i,1) = cond(G1_q_voll);
+            SingDet(i,2) = cond(G1_x_voll(:,RP.I_EE));
+            SingDet(i,3) = cond(G4_q_voll);
+            SingDet(i,4) = cond(G4_x_voll(:,RP.I_EE));
+          end
         else
           % Für 3T2R-PKM sind die reduzierten ZB der Var. 1 und 4 nicht
           % definiert.
@@ -707,16 +796,25 @@ for i_FG = 1:size(EEFG_Ges,1)
           % Dafür müssen die korrigierten IK-Gelenkwinkel genommen werden
           % Berechne Einfache Gradienten und Jacobi-Matrizen mit beiden
           % Methoden:
-          G4_q = RP.constr4grad_q(q);
-          G4_x = RP.constr4grad_x(xP);
-          Jinv_voll4 = -G4_q\G4_x;
-          G1_q = RP.constr1grad_q(q,xP);
-          G1_x = RP.constr1grad_x(q,xP);
-          Jinv_voll1 = -G1_q\G1_x;
+          [G4_q, G4v_q] = RP.constr4grad_q(q);
+          [G4_x, G4v_x] = RP.constr4grad_x(xP, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll4 = -G4_q\G4_x;
+          else
+            Jinv_voll4 = -G4v_q\G4v_x(:,RP.I_EE);
+          end
+          [G1_q,G1v_q] = RP.constr1grad_q(q,xP, true);
+          [G1_x,G1v_x] = RP.constr1grad_x(q,xP, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            Jinv_voll1 = -G1_q\G1_x;
+          else
+            Jinv_voll1 = -G1v_q\G1v_x(:,RP.I_EE);
+          end
+          
           if ~all(EE_FG==[1 1 1 1 1 0])
           % Vergleiche gegen symbolische Herleitung der Jacobi-Matrix
           % (existiert nicht für 3T2R)
-          Jinv_sym_qa_x = RP.jacobi_qa_x(q, xP);
+          Jinv_sym_qa_x = RP.jacobi_qa_x(q, xP, true);
           Jinv4_num_qa_x = Jinv_voll4(RP.I_qa,:);
           Jinv1_num_qa_x = Jinv_voll1(RP.I_qa,:);
           if any(abs(Jinv_sym_qa_x(:)-Jinv1_num_qa_x(:))>1e-2) % TODO: Noch hohe Toleranz
@@ -736,12 +834,19 @@ for i_FG = 1:size(EEFG_Ges,1)
             error('Modell 4 für die Jacobi-Matrix stimmt nicht gegen Modell 1');
           end
           % Alle Zeitableitungen der ZB-Gradienten mit Methode 1 und 4
-          GD4_q = RP.constr4gradD_q(q, qD);
-          GD4_x = RP.constr4gradD_x(xP, xPD);
-          GD1_q = RP.constr1gradD_q(q, qD, xP, xPD);
-          GD1_x = RP.constr1gradD_x(q, qD, xP, xPD);
-          JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
-          JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          [GD4_q,GD4v_q] = RP.constr4gradD_q(q, qD);
+          [GD4_x,GD4v_x] = RP.constr4gradD_x(xP, xPD, true);
+          [GD1_q,GD1v_q] = RP.constr1gradD_q(q, qD, xP, xPD, true);
+          [GD1_x,GD1v_x] = RP.constr1gradD_x(q, qD, xP, xPD, true);
+          if ~all(RP.I_EE == [1 1 1 0 0 1])
+            JinvD_voll1 = G1_q\(GD1_q*(G1_q\G1_x)) - G1_q\GD1_x;
+            JinvD_voll4 = G4_q\(GD4_q*(G4_q\G4_x)) - G4_q\GD4_x;
+          else
+            JinvD_voll1 = G1v_q\(GD1v_q*(G1v_q\G1v_x(:,RP.I_EE))) - G1v_q\GD1v_x(:,RP.I_EE);
+            JinvD_voll4 = G4v_q\(GD4v_q*(G4v_q\G4v_x(:,RP.I_EE))) - G4v_q\GD4v_x(:,RP.I_EE);
+          end
+          
+          
           % Vergleiche Jacobi-Zeitableitung nach beiden Methoden
           JinvD_voll1(abs(JinvD_voll1(:))<1e-10) = 0;
           JinvD_voll4(abs(JinvD_voll4(:))<1e-10) = 0;

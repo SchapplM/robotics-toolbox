@@ -37,6 +37,10 @@ for Robot_Data = Robots
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
   % RS.mex_dep();
+  serroblib_create_template_functions({SName},false);
+%   matlabfcn2mex({[SName,'_constr4']}, true);
+%   matlabfcn2mex({[SName,'_constr4grad']});
+%   matlabfcn2mex({[SName,'_invkin_eulangresidual']}, true);
   RS.fill_fcn_handles(use_mex_functions, true);
   
   % Grenzen festlegen (für Zusatz-Optimierung)
@@ -76,14 +80,26 @@ for Robot_Data = Robots
   fprintf('%s: Alle Funktionen einmal ausgeführt\n', SName);
 
   %% Gradienten der kinematischen Zwangsbedingungen testen
-  M_Namen = {'ZB Variante 1', 'ZB Variante 2', 'ZB Variante 2 reziprok'};
-  for m = 1:3
+  M_Namen = {'ZB Variante 1', 'ZB Variante 2', 'ZB Variante 2 reziprok', ...
+    'ZB Variante 4 reziprok', 'ZB Variante 4 nicht reziprok'};
+  for m = 1:5
+    if m == 4 || m == 5
+      % Methode ist nur sinnvoll für kinematische Ketten mit 5 Gelenken zur
+      % Nutzung als Beinkette in 3T1R-PKM. Wird aber hier für alle getestet
+      % EE-FG werden nicht direkt in der Funktion so benutzt, sondern
+      % stattdessen x- und y-Komponente der Rotation kombiniert.
+      RS.I_EE = [1 1 1 0 1 1];
+    end
     for i_phiconv = uint8([2 4 6 7 9 11]) % Test für alle Euler-Winkel-Konventionen
       eulstr = euler_angle_properties(i_phiconv);
       RS.phiconv_W_E = i_phiconv;
       for i = 1:size(TSS.Q,1)
         q0 = TSS.Q(i,:)';
-        T_E = RS.fkineEE(q0);
+        if i > size(TSS.Q,1)/2 % die zweite Hälfte mit Phi=0
+          T_E = RS.fkineEE(q0);
+        else % die erste Hälfte mit Phi~=0
+          T_E = RS.fkineEE(-0.5+rand(RS.NJ,1));
+        end
         xE = [T_E(1:3,4); r2eul(T_E(1:3,1:3), RS.phiconv_W_E)];
 
         % Zwangsbedingungen und -gradienten für q0 berechnen
@@ -96,11 +112,29 @@ for Robot_Data = Robots
         elseif m == 3
           Phi_0 = RS.constr2(q0, RS.x2tr(xE), true);
           Phidq_0 = RS.constr2grad(q0, RS.x2tr(xE), true);
+        elseif m == 4
+          Phi_0_voll = RS.constr2(q0, RS.x2tr(xE), true);
+          if all(abs(Phi_0_voll) < 1e-10)
+            % Die Modellierung funktioniert nicht, wenn die ZB Null sind.
+            continue
+          end
+          Phidq_0_voll = RS.constr2grad(q0, RS.x2tr(xE), true);
+          Phi_0=eval(sprintf('%s_constr4(Phi_0_voll, RS.I_EE, true)', RS.mdlname));
+          Phidq_0=eval(sprintf('%s_constr4grad(Phidq_0_voll, Phi_0_voll, RS.I_EE, true)', RS.mdlname));
+        elseif m == 5
+          Phi_0_voll = RS.constr2(q0, RS.x2tr(xE), false);
+          if all(abs(Phi_0_voll) < 1e-10)
+            % Die Modellierung funktioniert nicht, wenn die ZB Null sind.
+            continue
+          end
+          Phidq_0_voll = RS.constr2grad(q0, RS.x2tr(xE), false);
+          Phi_0=eval(sprintf('%s_constr4(Phi_0_voll, RS.I_EE, false)', RS.mdlname));
+          Phidq_0=eval(sprintf('%s_constr4grad(Phidq_0_voll, Phi_0_voll, RS.I_EE, false)', RS.mdlname));
         end
         for id = 1:size(TSS.Q,2) % Alle Komponenten der Gelenkkoordinaten einmal verschieben
           % Neue Koordinaten q1 durch Verschiebung in einer Komponente
           dq = zeros(size(TSS.Q,2),1);
-          dq(id) = 1e-4;
+          dq(id) = 1e-6; % eher kleinen Schritt nehmen, damit geringe Abweichung von Linearisierung
           q1 = q0+dq;
 
           % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
@@ -110,14 +144,26 @@ for Robot_Data = Robots
             Phi_1 = RS.constr2(q1, RS.x2tr(xE), false);
           elseif m == 3
             Phi_1 = RS.constr2(q1, RS.x2tr(xE), true);
+          elseif m == 4
+            Phi_1_voll = RS.constr2(q1, RS.x2tr(xE), true);
+            Phi_1=eval(sprintf('%s_constr4(Phi_1_voll, RS.I_EE, true)', RS.mdlname));
+          elseif m == 5
+            Phi_1_voll = RS.constr2(q1, RS.x2tr(xE), false);
+            Phi_1=eval(sprintf('%s_constr4(Phi_1_voll, RS.I_EE, false)', RS.mdlname));
           end
 
           % Prüfe neue ZB aus Ableitung gegen direkt berechnete (linksseitiger
           % Differenzenquotient)
           Phi_1_g = Phi_0 + Phidq_0*dq;
           test = Phi_1-Phi_1_g;
-          if any( abs(test) > 1e9*eps(max(abs(1+Phi_1))) )
-            error('%s: Zwangsbedingungs-Ableitung stimmt nicht mit Zwangsbedingungen überein', SName);
+          dPhi_diff = Phi_1-Phi_0;
+          I_2pierr = abs(abs(dPhi_diff)-2*pi) < 1e-2;
+          dPhi_diff(I_2pierr) = angleDiff(Phi_0(I_2pierr),Phi_1(I_2pierr)); % 2pi-Fehler entfernen
+          dPhi_grad = Phidq_0*dq;
+          test_dPhi_abs = dPhi_grad-dPhi_diff;
+          test_dPhi_rel = test_dPhi_abs./dPhi_grad;
+          if any( abs(test_dPhi_abs)>1e-6 & abs(test_dPhi_rel)>5e-2 )
+            error('%s: Zwangsbedingungs-Ableitung stimmt nicht mit Zwangsbedingungen überein (Methode %d)', SName, m);
           end
         end
       end

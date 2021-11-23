@@ -39,6 +39,8 @@ phi_W_0 = [20; 40; 50]*pi/180;
 
 %% Alle Robotermodelle durchgehen
 for platform_frame = [false, true] % Zum Testen der Auswahl der Plattform-Koordinaten
+if platform_frame, fprintf('Führe Tests bezogen auf Plattform-KS durch\n'); else
+                   fprintf('Führe Tests bezogen auf Endefektor-KS durch\n'); end
 for NNN = RobotNames
   %% PKM initialisieren
   PName = NNN{1};
@@ -452,9 +454,8 @@ for NNN = RobotNames
           RelErr_3x_red = Phi3difdx_red./Phi3Ddx_0_red - 1; % Relative Error = ( Absolute Error / True Value )
           RelErr_3x_red(isnan(RelErr_3x_red)) = 0; % 0=0 -> relativer Fehler 0
           RelErr_3x_red(isinf(RelErr_3x_red)) = 0; % Bezugsgröße Null geht nicht
-          I_x = sum(RP.I_EE)-1+(1:sum(RP.I_EE(4:6)));
-          I_rr_relerr_3_red = abs(RelErr_3x_red(RP.I_constr_r_red,I_x)) > 10;
-          I_rr_abserr_3_red = abs(AbsErr_3x_red(RP.I_constr_r_red,I_x)) > 1e11*eps(1+max(abs(Phi3dx_1_red(:))));
+          I_rr_relerr_3_red = abs(RelErr_3x_red(RP.I_constr_r_red,:)) > 10;
+          I_rr_abserr_3_red = abs(AbsErr_3x_red(RP.I_constr_r_red,:)) > 1e11*eps(1+max(abs(Phi3dx_1_red(:))));
           I_rr_err_3_red = I_rr_relerr_3_red & I_rr_abserr_3_red;
           if any( I_rr_err_3_red(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr3gradD_rr stimmt nicht gegen constr3grad_rr_red', PName);

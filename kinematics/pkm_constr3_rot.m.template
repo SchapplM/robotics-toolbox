@@ -114,10 +114,17 @@ for iLeg = 1:NLEG
   Phi_i = Phi(J1:J2,:);
   if all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 1])
     Phi_red(K1:K2,:) = Phi_i(1:3); % alle drei Einträge
-  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 0])
-    Phi_red(K1:K2,:) = Phi_i([2 3]); % Y- und X-Komponente
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [1 1 0]) % für 3T2R und 3T1R+AR (alte Modellierung)
+    Phi_red(K1:K2,:) = Phi_i([2 3]); % Einträge für Y und X
   elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 1])
-    Phi_red(K1:K2,:) = Phi_i(1); % Z- Komponente
+    Phi_red(K1:K2,:) = Phi_i(1); % nur 1. Eintrag (Z)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 0]) % 3T1R+AR (neue Modellierung)
+    % 3T1R: Nehme nur die xy-Komponente (reziprokes Residuum)
+    Phi_red(K1:K2,:) = abs(Phi_i(2))+abs(Phi_i(3)); % nur 2. und 3. Eintrag (YX)
+  elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 1 1])
+    % 3T1R: Nehme die zx- und yx-Komponente (z ist das reziprokes Residuum)
+    % (Ansatz für Folge-Beinkette)
+    Phi_red(K1:K2,:) = [Phi_i(1); abs(Phi_i(2))+abs(Phi_i(3))];
   elseif all(s.Leg_I_EE_Task(iLeg,4:6) == [0 0 0])
     % Kein Eintrag
   else

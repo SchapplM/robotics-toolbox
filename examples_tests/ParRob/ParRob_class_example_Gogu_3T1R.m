@@ -260,7 +260,7 @@ for testcase = 1:5
   if (I_EE & I_EE_Max) ~= I_EE
     error('Gezählte FG der Beinketten passen nicht zur gewünschten Plattformmobilität')
   end
-  RP.update_EE_FG(I_EE, I_EE, repmat(logical(I_EE_Leg),RP.NLEG,1));
+  RP.update_EE_FG(I_EE, I_EE);
 
   %% PKM testen
   % Definition der Test-Pose (z-Drehung muss für 3T0R-PKM 0 sein)
@@ -268,9 +268,56 @@ for testcase = 1:5
   q0 = (1-2*rand(RP.NJ,1))*pi/2; % -90° bis 90°
   q0(RP.MDH.sigma==1) = 0.2; % möglichst positive Schubgelenke
 
-  % IK für Roboter berechnen
-  [q,phi,~,Stats] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
-  
+  % IK für Roboter berechnen. Toleranz sollte nicht auf kleiner als 1e-12
+  % gesetzt werden, da die IK-Modellierung bei Phi=0 nicht differenzierbar
+  % ist.
+  [q,phi,~,Stats] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-11, ...
+    'Phir_tol', 1e-11, 'retry_limit', 5));
+  % Debuggen der IK (besondere IK-Modellierung für 3T1R-PKM)
+  if all(cat(1,RP.Leg(:).NJ) == 5)
+    for i = 1:RP.NLEG
+      % Indizes zum Ansprechen der Ergebnisse
+      I_constr = ((i-1)*6+1):1*6*i;
+      I_constr_red = ((i-1)*5+1):1*5*i;
+      I_joint = RP.I1J_LEG(i):RP.I2J_LEG(i);
+      % Kinematische Zwangsbedingungen nachrechnen (Einstellungen, siehe
+      % invkin_ser)
+      Phi_i_ges = NaN(Stats.iter(i),5);
+      for j = 1:Stats.iter(i)
+        Phi_i_ges(j,:) = eval(sprintf('%s_constr4(Stats.PHI(j,I_constr)'', RP.Leg(i).I_EE_Task, false)', RP.Leg(i).mdlname));
+      end
+      test_phi = phi(I_constr_red) - Phi_i_ges(Stats.iter(i),:)';
+      assert(all(abs(test_phi) < 1e-6), 'Neuberechnung von constr4 ist falsch');
+      change_current_figure(2345+i);clf;
+      set(2345+i, 'NumberTitle', 'off', 'Name', sprintf('IK_Debug_Leg%d', i));
+      subplot(2,3,1);
+      plot(Stats.condJ(1:Stats.iter(i)));
+      xlabel('Iterationen'); grid on;
+      ylabel('cond(J)');
+      subplot(2,3,2);
+      plot([diff(Stats.Q(1:Stats.iter(i),I_joint));NaN(1,RP.Leg(i).NJ)]);
+      xlabel('Iterationen'); grid on;
+      ylabel('diff q');
+      subplot(2,3,3);
+      plot([Stats.Q(1:Stats.iter(i),I_joint);NaN(1,RP.Leg(i).NJ)]);
+      xlabel('Iterationen'); grid on;
+      ylabel('q');
+      subplot(2,3,4);
+      plot([diff(Stats.PHI(1:Stats.iter(i),I_constr));NaN(1,length(I_constr))]);
+      xlabel('Iterationen'); grid on;
+      ylabel('diff Phi');
+      subplot(2,3,5);
+      plot(Stats.PHI(1:Stats.iter(i),I_constr));
+      xlabel('Iterationen'); grid on;
+      ylabel('Phi (voll)');
+      subplot(2,3,6);
+      plot(Phi_i_ges(1:Stats.iter(i),:));
+      xlabel('Iterationen'); grid on;
+      ylabel('Phi (red)');
+      linkxaxes
+      sgtitle(sprintf('Serielle IK Beinkette %d', i));
+    end
+  end
   q(isnan(q)) = q0(isnan(q)); % nicht lösbare Beinkette belegen, für Plot
   
   % PKM zeichnen
@@ -305,12 +352,12 @@ for testcase = 1:5
   G_dx = [G_d, G_x];
   
   % Gebe Rang der Einzel-Matrizen aus
-  fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik (%dx%d): %d/%d\n', ...
-    RP.mdlname, size(G_q,1), size(G_q,2), rank(G_q), RP.NJ);
+  fprintf('%s: Rang der vollständigen Jacobi der inversen Kinematik (%dx%d): %d/%d (Kondition %1.2g)\n', ...
+    RP.mdlname, size(G_q,1), size(G_q,2), rank(G_q), RP.NJ, cond(G_q));
   fprintf('%s: Rang der vollständigen Jacobi der direkten Kinematik (%dx%d): %d/%d\n', ...
     RP.mdlname, size(G_dx,1), size(G_dx,2), rank(G_dx), 6+sum(RP.I_qd));
-  fprintf('%s: Rang der Jacobi der aktiven Gelenke (%dx%d): %d/%d\n', ...
-    RP.mdlname, size(G_a,1), size(G_a,2), rank(G_a), sum(RP.I_EE));
+  fprintf('%s: Rang der Jacobi der aktiven Gelenke (%dx%d): %d/%d (Kondition %1.2g)\n', ...
+    RP.mdlname, size(G_a,1), size(G_a,2), rank(G_a), sum(RP.I_EE), cond(G_a));
   
   qaD = 100*rand(sum(RP.I_qa),1);
   qdDxD = -G_dx \ G_a * qaD;
@@ -318,29 +365,35 @@ for testcase = 1:5
   if any(abs(xD_test(~RP.I_EE)) > 1e-10) % Genauigkeit hier ist abhängig von Zwangsbed.
     error('Falsche Koordinaten werden laut Jacobi-Matrix  durch die Antriebe bewegt')
   end
-  J_invges = -G_q\G_x;
-  J_inv = J_invges(RP.I_qa,RP.I_EE);
+  J_invges = -G_q\G_x(:,RP.I_EE);
+  J_inv = J_invges(RP.I_qa,:);
   qaD_test = J_inv * xD_test(RP.I_EE);
   assert(all(abs(qaD_test-qaD)<1e-6), 'Hin- und Rückrechnung von qaD falsch');
   %% Teste ZB-Modellierung mit Aufgabenredundanz
   if all(I_EE == [1 1 1 0 0 1])
     RP.update_EE_FG(I_EE, I_EE);
-    [G3_q,G3_q_voll] = RP.constr3grad_q(q, X_E);
-    [G3_x,G3_x_voll] = RP.constr3grad_x(q, X_E);
     [q_test, Phi, ~, Stats_ser] = RP.invkin_ser(X_E, q0);
     warning('off', 'MATLAB:nearlySingularMatrix');
     [q3, Phi3, ~, Stats_3] = RP.invkin3(X_E, q0);
-    fprintf('Reduzierte Jacobi-Matrix der inv. Kin. (Methode 3): %dx%d, cond. %1.4g\n', ...
-      size(G3_q,1), size(G3_q,2), cond(G3_q));
     assert(all(abs(Phi)<1e-6), 'Erneute Rechnung der Seriell-IK funktioniert nicht');
     assert(all(abs(Phi3)<1e-6), 'Erneute Rechnung der Gesamt-IK funktioniert nicht');
 
     % Jacobi-Matrix erneut testen
+    [G3_q,G3_q_voll] = RP.constr3grad_q(q, X_E);
+    [G3_x,G3_x_voll] = RP.constr3grad_x(q, X_E);
     J_invges2 = -G3_q\G3_x;
     J_inv2 = J_invges2(RP.I_qa,:);
     qaD_test2 = J_inv2 * xD_test(RP.I_EE);
-    assert(all(abs(qaD_test2-qaD)<1e-6), 'Hin- und Rückrechnung von qaD falsch');
-  
+    fprintf('Reduzierte Jacobi-Matrix der inv. Kin. (Methode 3): %dx%d, cond. %1.4g\n', ...
+      size(G3_q,1), size(G3_q,2), cond(G3_q));
+    assert(size(G3_q,1)==size(G3_q,2), 'Matrix G3_q muss quadratisch sein');
+    assert(cond(G3_q) < 1e3, 'IK-Jacobi darf nicht singulär sein');
+    assert(all(abs(qaD_test2-qaD)<1e-6), ['Hin- und Rückrechnung ', ...
+      'von qaD falsch mit constr3']);
+    assert(all(abs(J_inv2(:)-J_inv(:))<1e-10), ['Gesamt-Jacobi-Matrix nach ', ...
+      'constr3 stimmt nicht gegen constr4']);
+    assert(all(abs(J_invges2(:)-J_invges(:))<1e-10), ['Gesamt-Jacobi-Matrix ', ...
+      'nach constr3 stimmt nicht gegen constr4']);
     % Umschalten auf Aufgabenredundanz und berechnen der Matrizen
     RP.update_EE_FG(I_EE, I_EE&[1 1 1 0 0 0]);
     [G3tr_q,G3tr_q_voll] = RP.constr3grad_q(q, X_E);
@@ -349,7 +402,10 @@ for testcase = 1:5
     G3tr_x_voll(abs(G3tr_x_voll(:))<1e-8) = 0;
     fprintf(['Reduzierte Jacobi-Matrix der inv. Kin. bei Aufgabenredundanz ', ...
       '(Methode 3): %dx%d, cond. %1.4g\n'], size(G3tr_q,1), size(G3tr_q,2), cond(G3tr_q));
-    
+    assert(size(G3tr_q,1)==size(G3_q,2)-1, ['Matrix G3_q muss bei ', ...
+      'Aufgabenredundanz eine Spalte mehr als Zeilen haben']);
+    assert(cond(G3tr_q) < 1e3, 'IK-Jacobi darf nicht singulär sein bei Aufgabenredundanz');
+
     % Berechne die EE-Rotation mit der besten Konditionszahl
     % Hat keinen Effekt, da die PKM ja isotrop ist. Daher muss die
     % Kondition eigentlich sogar gleich bleiben.
