@@ -109,7 +109,7 @@ end
 RP.collchecks_instspc = collchecks_instspc;
 
 % Roboter mit Objekten zeichnen
-s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 5], 'only_bodies', true);
+s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6], 'only_bodies', true);
 figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
@@ -319,7 +319,7 @@ for k = 1:3
   
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
-  s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 5]);
+  s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
   figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
@@ -562,7 +562,7 @@ for k = 1:length(Namen)
   
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
-  s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 5]);
+  s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
   figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...

@@ -68,7 +68,7 @@ RS.collchecks_instspc = collchecks;
 
 % Roboter mit Objekten zeichnen
 q0 = pi/180*[30;-60;30];
-s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 1, 'mode', [1 5]);
+s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
 figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
@@ -155,7 +155,7 @@ for k = 1:3
   
   anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
-  s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 5]);
+  s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
   figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
@@ -316,7 +316,7 @@ for k = 1:length(Namen)
 
   anim_filename = fullfile(resdir, sprintf('Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
-  s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 5]);
+  s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
   figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
@@ -415,7 +415,7 @@ t_Vid = (0:1/30*(T_dummy(end)/maxduration_animation):T_dummy(end))';
 I_anim = knnsearch( T_dummy , t_Vid );
 anim_filename = fullfile(resdir, sprintf('Nullspace_InstallSpace_Test_SelfMotion'));
 s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
-s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 5]);
+s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
 figure(9);clf;
 set(9, 'name', sprintf('Anim'), ...
   'color','w', 'NumberTitle', 'off', 'units','normalized',...

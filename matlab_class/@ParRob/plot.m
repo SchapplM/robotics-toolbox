@@ -116,7 +116,7 @@ end
 % Siehe dazu auch check_collisionset_simplegeom.m
 % Kollisionskörper der einzelnen Beinketten werden bereits in SerRob/plot
 % gezeichnet.
-if any(s.mode == 5)
+if any(s.mode == 5) || any(s.mode == 6)
   % Wandle das Datenformat von fkine_legs in das von invkin um. Das
   % virtuelle EE-KS der Beinketten wird weggelassen. Zusätzlich Basis-KS.
   Tc_PKM = NaN(4,4,Rob.NL-1+Rob.NLEG);
@@ -129,9 +129,17 @@ if any(s.mode == 5)
     if cbtype == 1
       collbodies_nonleg = Rob.collbodies_nonleg;
       color = 'b';
+      if ~any(s.mode == 5)
+        % Keine Kollisionskörper zeichnen, sondern nur Bauraumobjekt
+        continue
+      end
     else
       collbodies_nonleg = Rob.collbodies_instspc_nonleg;
       color = 'g';
+      if ~any(s.mode == 6)
+        % Keine Bauraumkörper zeichnen, sondern nur Kollisionskörper
+        continue
+      end
     end
     % Zeichne Kollisionskörper
     for j = 1:size(collbodies_nonleg.type,1)
@@ -158,6 +166,18 @@ if any(s.mode == 5)
         pt1_W = (eye(3,4)*T_body_i1*[pt1_i(1:3)';1])';
         pt2_W = (eye(3,4)*T_body_i1*[pt2_i(1:3)';1])';
         drawCylinder([pt1_W,pt2_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
+      elseif collbodies_nonleg.type(j) == 10 % Quader im Basis-KS
+        q_W = eye(3,4)*T_body_i1*[collbodies_nonleg.params(j,1:3)';1];
+        u1_W = T_body_i1(1:3,1:3)*collbodies_nonleg.params(j,4:6)';
+        u2_W = T_body_i1(1:3,1:3)*collbodies_nonleg.params(j,7:9)';
+        % letzte Kante per Definition senkrecht auf anderen beiden.
+        u3_W = cross(u1_W,u2_W); u3_W = u3_W/norm(u3_W)*collbodies_nonleg.params(j,10);
+        % Umrechnen in Format der plot-Funktion
+        cubpar_c = q_W(:)+(u1_W(:)+u2_W(:)+u3_W(:))/2; % Mittelpunkt des Quaders
+        cubpar_l = [norm(u1_W); norm(u2_W); norm(u3_W)]; % Dimension des Quaders
+        cubpar_a = 180/pi*tr2rpy([u1_W(:)/norm(u1_W), u2_W(:)/norm(u2_W), u3_W(:)/norm(u3_W)],'zyx')'; % Orientierung des Quaders
+        drawCuboid([cubpar_c', cubpar_l', cubpar_a'], ...
+          'FaceColor', color, 'FaceAlpha', 0.1);
       else
         error('Fall %d nicht definiert', collbodies_nonleg.type(j));
       end

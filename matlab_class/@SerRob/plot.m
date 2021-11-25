@@ -14,6 +14,7 @@
 %     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)
 %     4: Darstellung der Körper mit Entwurfsparametern (z.B. Zylinder)
 %     5: Darstellung mit Kollisionsobjekten (Kapseln etc.)
+%     6: Darstellung mit Bauraumbegrenzung (z.B. Quader erlaubten Bauraums)
 %   straight (nur aktiv, wenn `mode` auf 1 (Strichmodell)
 %     1: direkte Verbindung zwischen den Gelenken
 %     0: winklige Verbindung zwischen Gelenken entsprechend der
@@ -212,14 +213,22 @@ if any(s.mode == 3)
 end
 %% Kollisionskörper zeichnen
 % Siehe dazu auch check_collisionset_simplegeom.m
-if any(s.mode == 5)
+if any(s.mode == 5) || any(s.mode == 6)
   for cbtype = 1:2
     if cbtype == 1
       collbodies = Rob.collbodies;
       color = 'b';
+      if ~any(s.mode == 5)
+        % Keine Kollisionskörper zeichnen, sondern nur Bauraumobjekt
+        continue
+      end
     else
       collbodies = Rob.collbodies_instspc;
       color = 'g';
+      if ~any(s.mode == 6)
+        % Keine Bauraumkörper zeichnen, sondern nur Kollisionskörper
+        continue
+      end
     end
     for j = 1:size(collbodies.type,1)
       i = collbodies.link(j,1);
