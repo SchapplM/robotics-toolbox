@@ -167,6 +167,20 @@ for NNN = RobotNames
         % Differenzenquotient)
         Phi1_1_g = Phi1_0 + Phi1dq_0*dq;
         test1 = Phi1_1 - Phi1_1_g;
+        % Prüfe constr1 nur, falls die Darstellung nicht singulär ist.
+        % Tritt auf, wenn die Euler-Winkel im Residuum singulär sind, oder
+        % wenn eine Singularität der Beinkette vorliegt.
+        % Der Fall (Fehler=90° bzgl y-Euler-Winkel) tritt nur hier im Test auf.
+        I_nocheck1 = false(size(Phi1_0,1),1);
+        for kkk = 1:RP.NLEG
+          I_Phi_kkk = (kkk-1)*6+1:kkk*6;
+          I_Leg_kkk = RP.I1J_LEG(kkk):RP.I2J_LEG(kkk);
+          Phi1dq_Leg_kkk = Phi1dq_0(I_Phi_kkk, I_Leg_kkk);
+          if cond(Phi1dq_Leg_kkk) > 1e3
+            I_nocheck1(I_Phi_kkk) = true;
+          end
+        end
+        test1(I_nocheck1) = NaN; % Deaktiviere Test für diese Beinkette
         
         Phi2_1_g = Phi2_0 + Phi2dq_0*dq;
         test2 = Phi2_1 - Phi2_1_g;  
