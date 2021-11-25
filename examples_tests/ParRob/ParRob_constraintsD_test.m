@@ -426,7 +426,7 @@ for NNN = RobotNames
           end
           % Teste constr2gradD_rr gegen constr2grad_rr
           I_rr_relerr_2 = abs(RelErr_2x(RP.I_constr_r,4:6)) > 5e-2;
-          I_rr_abserr_2 = abs(AbsErr_2x(RP.I_constr_r,4:6)) > 1e11*eps(1+max(abs(Phi2dx_1(:))));
+          I_rr_abserr_2 = abs(AbsErr_2x(RP.I_constr_r,4:6)) > 1e12*eps(1+max(abs(Phi2dx_1(:))));
           I_rr_err_2 = I_rr_relerr_2 & I_rr_abserr_2;
           if any( I_rr_err_2(:) ) % Fehler bei Überschreitung von absolutem und relativem Fehler
             error('%s: constr2gradD_rr stimmt nicht gegen constr2grad_rr', PName);

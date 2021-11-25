@@ -445,14 +445,19 @@ for DynParMode = 2:4
       JinvD_Ptest_full = zeros(size(JinvDP_fulls));
       JinvD_Ptest_full(:,RP.I_EE) = JinvD_Ptest;
       JinvD_Pstest_full = JinvD_Ptest_full/H_xP + Jinv_Ptest_full*(-H_xP\HD_xP/H_xP); % [A]/(27)
+      % Prüfe absoluten und relativen Fehler
       test_JinvDPs = JinvDP_fulls(:,RP.I_EE) - JinvD_Pstest_full(:,RP.I_EE);
-      if any(abs(test_JinvDPs(:)) > 1e-8)
+      test_JinvDPs_rel = test_JinvDPs ./ JinvDP_fulls(:,RP.I_EE);
+      I_err = abs(test_JinvDPs_rel) > 5e-2 & abs(test_JinvDPs) > 1e-8;
+      if any(I_err(:))
         disp(test_JinvDPs);
         error(['Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf ', ...
           'xP/sP (geometrisch) stimmt nicht gegen constr1-Funktion']);
       end
       test_JinvDP = JinvDP - JinvD_Ptest;
-      if any(abs(test_JinvDP(:)) > 1e-8)
+      test_JinvDP_rel = test_JinvDP ./ JinvDP;
+      I_err = abs(test_JinvDP_rel) > 5e-2 & abs(test_JinvDP) > 1e-8;
+      if any(I_err(:))
         disp(test_JinvDP);
         error('Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf xP stimmt nicht gegen constr1-Funktion');
       end
@@ -755,11 +760,15 @@ for DynParMode = 2:4
         end
       end
       test_Fatraj_reg = Fa_traj2(~I_sing,:) - Fa_traj1(~I_sing,:);
-      if any(abs(test_Fatraj_reg(:)) > 1e-6) % Nur außerhalb singulärer Stellungen testbar
+      test_Fatraj_reg_rel = test_Fatraj_reg ./ Fa_traj1(~I_sing,:);
+      I_err = abs(test_Fatraj_reg_rel) > 5e-2 & abs(test_Fatraj_reg) > 1e-6;
+      if any(I_err(:)) % Nur außerhalb singulärer Stellungen testbar
         error('Trajektorien-Funktion invdyn3_actjoint_traj stimmt nicht in sich');
       end
       test_Fxtraj1 = Fx_traj2 - Fx_traj;
-      if any(abs(test_Fxtraj1(:)) > 1e-6)
+      test_Fxtraj1_rel = test_Fxtraj1 ./ Fx_traj;
+      I_err = abs(test_Fxtraj1_rel) > 5e-2 & abs(test_Fxtraj1) > 1e-6;
+      if any(I_err(:))
         error('Trajektorien-Funktion invdyn3_platform_traj stimmt nicht gegen vorherige Berechnung');
       end
     end
