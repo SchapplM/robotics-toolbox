@@ -73,6 +73,7 @@
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
 %      Kriterien, siehe Beschreibung von Eingabe wn)
+%   mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
@@ -302,7 +303,8 @@ qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
 xD_k_ist = NaN(6,1);
-Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1));
+Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, ...
+  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
 h = zeros(11,1);
 
 for k = 1:nt
@@ -328,6 +330,7 @@ for k = 1:nt
     % 3T2R-Funktion. Wird hier aber nicht als 3T2R benutzt, da keine
     % Nullraumbewegung ausgeführt wird. Ist nur andere Berechnung.
     [q_k, Phi_k, Tc_stack_k] = Rob.invkin3(x_k, qk0, s_inv3);
+    Stats.mode(k) = bitset(Stats.mode(k),1);
   end
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
@@ -464,18 +467,27 @@ for k = 1:nt
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss auch für
     % Grenzkorrekturen weiter unten berechnet werden
     N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
-    condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
   end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
   qDD_N_pre = zeros(Rob.NJ, 1);
+  
+  % Bestimme relevante Konditionszahlen in jedem Fall
+  condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
+  h(5) = condPhi;
+  Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
+  condJ = cond(Jinv_ax);
+  h(6) = condJ;
+  if condPhi > 1e6
+    Stats.mode(k) = bitset(Stats.mode(k),22);
+  end
+  if condJ > 1e6
+    Stats.mode(k) = bitset(Stats.mode(k),23);
+  end
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
-    h(5) = condPhi;
-    Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
-    condJ = cond(Jinv_ax);
-    h(6) = condJ;
+    Stats.mode(k) = bitset(Stats.mode(k),2);
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
     % Notwendig für die constr4-Methode für Jacobi-Matrix.
     % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
@@ -505,6 +517,7 @@ for k = 1:nt
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
     if condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE)
+      Stats.mode(k) = bitset(Stats.mode(k),3);
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
       % Jacobi-Matrix bezogen auf Antriebe und Plattform
       J_ax = inv(J_x_inv(Rob.I_qa,:));
@@ -520,6 +533,7 @@ for k = 1:nt
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
       if wn(1) ~= 0 || wn(7) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
+        Stats.mode(k) = bitset(Stats.mode(k),4);
         h(1) = invkin_optimcrit_limits1(q_k, qlim);
         h1_test = invkin_optimcrit_limits1(q_k+qD_test, qlim);
         h1drz = (h1_test-h(1))/xD_test(6);
@@ -528,6 +542,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),5);
         [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         % Projektion von Gesamt- in Antriebskoordinaten
         h2dqa = h2dq_diff * J_q_qa;
@@ -540,6 +555,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(2)*h2dqa(:);
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
+        Stats.mode(k) = bitset(Stats.mode(k),6);
         [h(3), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
         % Projektion von Gesamt- in Antriebskoordinaten
         h3dqa = h3dq_diff * J_q_qa;
@@ -550,6 +566,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(3)*h3dqa(:);
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),7);
         h(4) = invkin_optimcrit_limits2(qD_k, qDlim);
         h4_test = invkin_optimcrit_limits2(qD_k+qD_test, qDlim);
         h4drz = (h4_test-h(4))/xD_test(6);
@@ -557,6 +574,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+        Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
         h5drz = (h5_test-h(5))/xD_test(6);
@@ -565,6 +583,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(5)*h5dqa(:);
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+        Stats.mode(k) = bitset(Stats.mode(k),9);
         h(6) = condJ;
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
         % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
@@ -653,6 +672,7 @@ for k = 1:nt
         colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
           Tc_stack_k(:,4)', struct('collsearch', true));
         if any(colldet)
+          Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
           [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
@@ -690,6 +710,7 @@ for k = 1:nt
         end
       end
       if wn(13) ~= 0 || wn(14) ~= 0 % Bauraumprüfung
+        Stats.mode(k) = bitset(Stats.mode(k),11);
         JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
         [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
         % Bauraumprüfung für alle Gelenkpositionen auf einmal
@@ -731,6 +752,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(13)*h8dqa(:);
       end
       if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
+        Stats.mode(k) = bitset(Stats.mode(k),12);
         h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
         h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9drz = (h9_test-h(9))/1e-6; % 1e-6 ist xD_test(6)
@@ -739,6 +761,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(15)*h9dqa(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
+        Stats.mode(k) = bitset(Stats.mode(k),13);
         h(10) = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
         h10_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
         if isinf(h(10)) || isinf(h10_test)
@@ -757,6 +780,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(17)*h10dqa(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
+        Stats.mode(k) = bitset(Stats.mode(k),14);
         XD6_k_diff = xD_k_ist(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
         % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
@@ -772,8 +796,14 @@ for k = 1:nt
       % saubere Nullraumbewegung mehr möglich.
       v_qaD(isinf(v_qaD)) = sign(v_qaD(isinf(v_qaD)))*1e8;
       v_qaDD(isinf(v_qaDD)) = sign(v_qaDD(isinf(v_qaDD)))*1e8;
-      if any(abs(v_qaD)>1e8),  v_qaD  = v_qaD* 1e8/max(abs(v_qaD));  end
-      if any(abs(v_qaDD)>1e8), v_qaDD = v_qaDD*1e8/max(abs(v_qaDD)); end
+      if any(abs(v_qaD)>1e8)
+        Stats.mode(k) = bitset(Stats.mode(k),16);
+        v_qaD  = v_qaD* 1e8/max(abs(v_qaD));
+      end
+      if any(abs(v_qaDD)>1e8)
+        Stats.mode(k) = bitset(Stats.mode(k),15);
+        v_qaDD = v_qaDD*1e8/max(abs(v_qaDD));
+      end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
       qaD_N_pre = Na * v_qaD;
       qaDD_N_pre1 = Na*(qaD_N_pre-qaD_N_pre_alt)/dt;
@@ -795,24 +825,29 @@ for k = 1:nt
       v_qD = zeros(Rob.NJ, 1);
       v_qDD = zeros(Rob.NJ, 1);
       if wn(1) ~= 0 || wn(7) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
+        Stats.mode(k) = bitset(Stats.mode(k),4);
         [h(1), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
         v_qD = v_qD - wn(7)*h1dq(:);
         v_qDD = v_qDD - wn(1)*h1dq(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),5);
         [h(2), h2dq] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         v_qD = v_qD - wn(8)*h2dq(:);
         v_qDD = v_qDD - wn(2)*h2dq(:);
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         [h(3), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
+        Stats.mode(k) = bitset(Stats.mode(k),6);
         v_qDD = v_qDD - wn(3)*h3dq(:);
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),7);
         [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+        Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
         if abs(h5_test-h(5)) < 1e-12
@@ -825,6 +860,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(5)*h5dq(:);
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+        Stats.mode(k) = bitset(Stats.mode(k),9);
         h(6) = condJ;
         % Siehe gleiche Berechnung oben.
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test,x_k+xD_test);
@@ -869,6 +905,7 @@ for k = 1:nt
         colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
           Tc_stack_k(:,4)', struct('collsearch', true));
         if any(colldet)
+          Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
           [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
@@ -905,6 +942,7 @@ for k = 1:nt
         end
       end
       if wn(13) ~= 0 || wn(14) ~= 0 % Bauraumprüfung
+        Stats.mode(k) = bitset(Stats.mode(k),11);
         JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
         [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
         % Kollisionsprüfung für alle Gelenkpositionen auf einmal. Prüfe
@@ -947,6 +985,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(13)*h8dq(:);
       end
       if wn(15) ~= 0 || wn(16) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
+        Stats.mode(k) = bitset(Stats.mode(k),12);
         h(9) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
         h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
         h9dq = (h9_test-h(9))./qD_test'; % direkt hdq erhalten, da nicht nur aktive Gelenke qa betrachtet werden
@@ -955,6 +994,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(15)*h9dq(:);
       end
       if wn(17) ~= 0 || wn(18) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
+        Stats.mode(k) = bitset(Stats.mode(k),13);
         h(10) = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
         h10_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
         if isinf(h(10)) || isinf(h10_test)
@@ -973,6 +1013,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(17)*h10dq(:);
       end
       if wn(19) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
+        Stats.mode(k) = bitset(Stats.mode(k),14);
         XD6_k_diff = xD_k_ist(6) - XD(k,6); % Geschwindigkeit von phi_z für Iterationsschritt
         h(11) = invkin_optimcrit_limits1(XD6_k_diff, s.xDlim(6,1:2));
         % Kriterium für Inkrement berechnen (zweiseitiger Differenzenquotient
@@ -987,8 +1028,14 @@ for k = 1:nt
       % saubere Nullraumbewegung mehr möglich.
       v_qD(isinf(v_qD)) = sign(v_qD(isinf(v_qD)))*1e8;
       v_qDD(isinf(v_qDD)) = sign(v_qDD(isinf(v_qDD)))*1e8;
-      if any(abs(v_qD)>1e3),  v_qD  = v_qD* 1e3/max(abs(v_qD));  end
-      if any(abs(v_qDD)>1e6), v_qDD = v_qDD*1e6/max(abs(v_qDD)); end
+      if any(abs(v_qD)>1e3)
+        Stats.mode(k) = bitset(Stats.mode(k),16);
+        v_qD  = v_qD* 1e3/max(abs(v_qD));
+      end
+      if any(abs(v_qDD)>1e6)
+        Stats.mode(k) = bitset(Stats.mode(k),15);
+        v_qDD = v_qDD*1e6/max(abs(v_qDD));
+      end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
       if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
         qD_N_pre = N * v_qD;
@@ -1072,6 +1119,7 @@ for k = 1:nt
     delta_ul_rel = (qDD_N_max - qDD_N_pre)./(qDD_N_max); % Überschreitung der Maximalwerte: <0
     delta_ll_rel = (-qDD_N_min + qDD_N_pre)./(-qDD_N_min); % Unterschreitung Minimalwerte: <0
     if any([delta_ul_rel;delta_ll_rel] < 0)
+      Stats.mode(k) = bitset(Stats.mode(k),17);
       if min(delta_ul_rel)<min(delta_ll_rel)
         % Verletzung nach oben ist die größere
         [~,I_max] = min(delta_ul_rel);
@@ -1092,6 +1140,7 @@ for k = 1:nt
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
     deltaD_ll = (-qDmin + qD_pre); % Unterschreitung Minimalwerte: <0
     if any([deltaD_ul;deltaD_ll] < 0)
+      Stats.mode(k) = bitset(Stats.mode(k),20);
       if min(deltaD_ul)<min(deltaD_ll)
         % Verletzung nach oben ist die größere
         [~,I_worst] = min(deltaD_ul);
@@ -1152,6 +1201,7 @@ for k = 1:nt
     delta_ul = (qmax - q_pre2); % Überschreitung der Maximalwerte: <0
     delta_ll = (-qmin + q_pre2); % Unterschreitung Minimalwerte: <0
     if any([delta_ul;delta_ll] < 0)
+      Stats.mode(k) = bitset(Stats.mode(k),21);
       if min(delta_ul)<min(delta_ll)
         % Verletzung nach oben ist die größere
         [~,I_worst] = min(delta_ul);

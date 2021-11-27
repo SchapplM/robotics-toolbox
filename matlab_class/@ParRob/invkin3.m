@@ -16,6 +16,16 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
+%   Auswahl der Einstellungen:	
+%   .wn [8x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%     (3) Konditionszahl der geometrischen Matrix der Inv. Kin.
+%     (4) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
+%     (5) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%     (6) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%     (7) Abstand von phiz zu xlim (quadratisch gewertet)
+%     (8) Abstand von phiz zu xlim (hyperbolisch gewertet)
 % 
 % Ausgabe:
 % q [Nx1]
@@ -32,6 +42,7 @@
 %   * Kein Plattform-KS
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
 % 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Modeling Parallel Robot Kine-
@@ -220,14 +231,13 @@ Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leich
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJpkm = NaN;
-if nargout == 4
-  Stats_default = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
-    'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
-    'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
-    'h_instspc_thresh', NaN, 'h_coll_thresh', NaN);
-  Stats = Stats_default;
-end
+
+Stats_default = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
+  'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
+  NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
+  'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
+  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'mode', uint32(zeros(n_max,1)));
+Stats = Stats_default;
 
 %% Iterative Berechnung der inversen Kinematik
 for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
@@ -288,10 +298,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
+        Stats.mode(jj) = bitset(Stats.mode(jj),4);
         [h(1), h1dq] = invkin_optimcrit_limits1(q1, qlim);
         v = v - wn(1)*h1dq'; % [SchapplerTapOrt2019], Gl. (44)
       end
       if wn(2) ~= 0
+        Stats.mode(jj) = bitset(Stats.mode(jj),5);
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2);
         v = v - wn(2)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
@@ -317,6 +329,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         if all(abs(Phi)<1e-6) && taskred_rotsym
+          Stats.mode(jj) = bitset(Stats.mode(jj),16);
           % Bestimme Nullraumbewegung durch Differenzenquotient für die 
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
@@ -324,6 +337,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
           if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+            Stats.mode(jj) = bitset(Stats.mode(jj),8);
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
             Phi_q_test = Rob.constr3grad_q(q1+qD_test, xE_soll);
             condJ_test = cond(Phi_q_test);
@@ -332,6 +346,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq(isnan(h3dq)) = 0;
           end
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+            Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
             Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
@@ -356,6 +371,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
           if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+            Stats.mode(jj) = bitset(Stats.mode(jj),8);
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
@@ -368,6 +384,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
           end
           if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+            Stats.mode(jj) = bitset(Stats.mode(jj),9);
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
@@ -389,10 +406,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
           JP, struct('collsearch', true));
         if any(colldet)
+          Stats.mode(jj) = bitset(Stats.mode(jj),10);
           % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
           % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
           % Siehe Berechnung für vorheriges Kriterium
           if all(abs(Phi)<1e-6) && taskred_rotsym
+            Stats.mode(jj) = bitset(Stats.mode(jj),16);
             % Bestimme Nullraumbewegung durch Differenzenquotient für die 
             % redundante Koordinate. Dadurch nur eine neue Funktions- 
             % auswertung
@@ -476,12 +495,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
       end
       if wn(6) % Bauraumprüfung
+        Stats.mode(jj) = bitset(Stats.mode(jj),11);
         % Direkte Kinematik aller Beinketten (Datenformat für Kollision)
         [~, JP] = Rob.fkine_coll(q1);
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         % Siehe Berechnung für vorheriges Kriterium
         if all(abs(Phi)<1e-6) && taskred_rotsym
+          Stats.mode(jj) = bitset(Stats.mode(jj),16);
           % Bestimme Nullraumbewegung durch Differenzenquotient für die 
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
@@ -578,6 +599,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         qD_test = Jinv * xD_test_limred;
       end
       if wn(7) ~= 0 && all(abs(Phi)<1e-6) % quadratische Limitierung der redundanten Koordinate (3T2R)
+        Stats.mode(jj) = bitset(Stats.mode(jj),12);
+        Stats.mode(jj) = bitset(Stats.mode(jj),16);
         h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
         h7_test = invkin_optimcrit_limits1(Phi_voll(4)+1e-6, s.xlim(6,1:2));
         h7dq = (h7_test-h(7))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
@@ -585,6 +608,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(7)*h7dq';
       end
       if wn(8) ~= 0 && all(abs(Phi)<1e-6) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
+        Stats.mode(jj) = bitset(Stats.mode(jj),13);
+        Stats.mode(jj) = bitset(Stats.mode(jj),16);
         h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
         h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
         if isinf(h(8))
@@ -605,7 +630,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
        % unendlich kann nicht normiert werden. Begrenze auf Maximalwert
        % (ohne Rücksicht auf Relation)
       v(isinf(v)) = sign(v(isinf(v)))*1e8;
-      if any(abs(v)>1e8),  v = v* 1e8/max(abs(v)); end
+      if any(abs(v)>1e8)
+        Stats.mode(jj) = bitset(Stats.mode(jj),15);
+        v = v* 1e8/max(abs(v));
+      end
       % [SchapplerTapOrt2019], Gl. (43)
       N = (eye(Rob.NJ) - pinv(Jik)* Jik);
       delta_q_N = N * v;
@@ -621,12 +649,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     delta_q_N = Kn.*delta_q_N;
     abs_delta_qTrev = abs(delta_q_T(sigma_PKM==0)); % nur Drehgelenke
     if any(abs_delta_qTrev > 0.5) % 0.5rad=30°
+      Stats.mode(jj) = bitset(Stats.mode(jj),17);
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
       % Winkelinkrement danach 30° hat.
       delta_q_T = delta_q_T .* 0.5/max(abs_delta_qTrev);
     end
     abs_delta_qNrev = abs(delta_q_N(sigma_PKM==0)); % nur Drehgelenke
     if any(abs_delta_qNrev > 0.05*(1-jj/n_max)) % 0.05rad=3°
+      Stats.mode(jj) = bitset(Stats.mode(jj),18);
       % Reduziere das Gelenk-Inkrement so, dass das betragsgrößte
       % Winkelinkrement danach 3° hat.
       % Verkleinere die Schritte mit fortlaufenden Iterationen, um even-
@@ -640,12 +670,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     if limits_set && ~isnan(maxrelstep)
       abs_delta_q_T_rel = abs(delta_q_T ./ delta_qlim);
       if any(abs_delta_q_T_rel > maxrelstep)
+        Stats.mode(jj) = bitset(Stats.mode(jj),19);
         delta_q_T = delta_q_T .* maxrelstep / max(abs_delta_q_T_rel);
       end
     end
     if nsoptim && limits_set && ~isnan(maxrelstep_ns)
       abs_delta_q_N_rel = abs(delta_q_N ./ delta_qlim);
       if any(abs_delta_q_N_rel > maxrelstep_ns)
+        Stats.mode(jj) = bitset(Stats.mode(jj),20);
         delta_q_N = delta_q_N .* maxrelstep_ns / max(abs_delta_q_N_rel);
       end
     end
@@ -654,6 +686,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % der anderen Stabilisierungsmaßnahmen erfasst werden. Nur machen, wenn
     % auch Bewegung im Nullraum (nicht wenn q_N deaktiviert wurde)
     if nsoptim && damping_active && any(delta_q_N)
+      Stats.mode(jj) = bitset(Stats.mode(jj),21);
       % Korrigiere den Altwert, da bezogen auf andere Gelenkkonfig.
       delta_q_N_alt_N = N*delta_q_N_alt;
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
@@ -676,6 +709,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         mindist_pre = min(colldist_pp(1,:));
         mindist_post = min(colldist_pp(2,:));
         if mindist_pre ~= mindist_post % Nur sinnvoll, wenn Gelenkinkrement die Kollisions-Kennzahl ändert. Sonst entweder Inkrement Null oder Kollisionskörper passen nicht hierzu.
+          Stats.mode(jj) = bitset(Stats.mode(jj),22);
           % Mit `scale` wird genau die Grenze zur Kollision erreicht
           % (Wert 0; in linearer Näherung)
           scale = (0-mindist_pre)/(mindist_post-mindist_pre);
@@ -692,6 +726,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Reduziere Schrittweite (qT+qN gemeinsam) auf einen Maximalwert
     % bezogen auf Winkelgrenzen (bzw. auf die mögliche Spannweite)
     if limits_set && ~isnan(maxrelstep)
+      Stats.mode(jj) = bitset(Stats.mode(jj),23);
       % Bestimme Inkrement relativ zur Spannbreite der Grenzen
       abs_delta_q_rel = abs(delta_q ./ delta_qlim);
       if any(abs_delta_q_rel > maxrelstep)
@@ -703,6 +738,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
     if damping_active
+      Stats.mode(jj) = bitset(Stats.mode(jj),24);
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       % Zusätzlich zu obiger Filterung von delta_q_N.
       delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
@@ -721,6 +757,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       delta_ul_rel = (qmax - q2)./(qmax-q1); % Überschreitung der Maximalwerte: <0
       delta_ll_rel = (-qmin + q2)./(q1-qmin); % Unterschreitung Minimalwerte: <0
       if any([delta_ul_rel;delta_ll_rel] < 0)
+        Stats.mode(jj) = bitset(Stats.mode(jj),25);
         % Berechne die prozentual stärkste Überschreitung
         % und nutze diese als Skalierung für die Winkeländerung
         % Reduziere die Winkeländerung so, dass die gröte Überschreitung auf
