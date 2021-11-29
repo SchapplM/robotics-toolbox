@@ -406,10 +406,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollision angezeigt haben.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
+            % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
+            % beeinflusst werden
+            I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+            % Benutze nur die zur Bildung des Gradienten
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
             % Kollisionskörpern), dann Abstände negativ angeben.
-            mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+            mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
             h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
             if h(5) == 0 % nichts tun. Noch im Toleranzbereich
@@ -440,7 +444,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
-            mincolldist_test = min(colldist_test,[],2);
+            I_nochange = abs(minmax2(colldist_test')') < 1e-10;
+            mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
             h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
             if h(5) == 0 % nichts tun. Noch im Toleranzbereich
@@ -488,12 +493,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal
           [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
+          I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
           % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
           % Bauraumkörper enthalten sind (falls Prüfung gefordert)
           mindist_all = -inf(size(JP_test,1),1);
           for i = 1:size(Rob.collbodies_instspc.link,1)
             % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
-            I = Rob.collchecks_instspc(:,1) == i; % erste Spalte für Roboter-Obj.
+            I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
+              ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
             if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
             % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
             mindist_i = min(absdist(:,I),[],2);
@@ -532,9 +539,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal.
           [~, absdist] = check_collisionset_simplegeom(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
+          I_nochange = abs(diff(minmax2(absdist')')) < 1e-10;
           mindist_all = -inf(size(JP_test,1),1); % gleiche Rechnung wie oben
           for i = 1:size(Rob.collbodies_instspc.link,1)
-            I = Rob.collchecks_instspc(:,1) == i;
+            I = Rob.collchecks_instspc(:,1) == i & ~I_nochange';
             if ~any(I), continue; end
             mindist_i = min(absdist(:,I),[],2);
             mindist_all = max([mindist_i,mindist_all],[],2);
