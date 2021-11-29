@@ -69,11 +69,14 @@
 % dist_rel [NT x NC double]
 %   Durchdringungstiefe der Kollisionskörper im Fall eine Kollision.
 %   Relativer Wert (1 ist maximal mögliche Durchdringung der Körper)
+% p [NC x 6 x NT double]
+%   Koordinaten der kürzesten Verbindung zwischen den Objekten
+%   Erst Körper 1 aus `cc`, dann Körper 2
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-05
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
+function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, Set)
 %#codegen
 %$cgargs {struct('link', coder.newtype('uint8',[inf,2]),
 %$cgargs 'type', coder.newtype('uint8',[inf,1]),
@@ -89,6 +92,7 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
   collsearch = Set.collsearch;
 
   %% Kollisionen prüfen
+  p = NaN(size(cc,1), 6, size(JP, 1));
   coll = false(size(JP, 1), size(cc,1));
   dist = NaN(size(JP, 1), size(cc,1));
   dist_rel = NaN(size(JP, 1), size(cc,1));
@@ -96,12 +100,12 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
     %% Fall der Kollisionsprüfung festlegen (Vereinfachung in innerster Schleife)
     if any(cb.type(cc(i,1)) == [6 13]) && any(cb.type(cc(i,2)) == [6,13])
       collcase = uint8(1); % Kapsel+Kapsel (egal ob in Basis- oder Körper-KS)
-    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 10 % Punkt+Quader
-      collcase = uint8(2);
-    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 12 % Punkt+Zylinder
-      collcase = uint8(3);
-    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 13 % Punkt+Kapsel
-      collcase = uint8(4);
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 10
+      collcase = uint8(2); % Punkt+Quader
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 12
+      collcase = uint8(3); % Punkt+Zylinder
+    elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 13
+      collcase = uint8(4); % Punkt+Kapsel
     elseif any(cb.type(cc(i,1)) == [6,13]) && cb.type(cc(i,2)) == 15
       collcase = uint8(5); % Kapsel+Kugel (Basis-KS)
     elseif any(cb.type(cc(i,2)) == [6,13]) && cb.type(cc(i,1)) == 15
@@ -143,23 +147,27 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
       %% Feinprüfung der verbliebenen Kollisionskörper
       % Exakte geometrische Prüfung
       switch collcase
-        case 1
-          [di, coll_geom, ~, d_min] = collision_capsule_capsule(b1_cbparam, b2_cbparam);
-        case 2
-          [di, coll_geom, ~] = collision_box_point(b2_cbparam, b1_cbparam);
+        case 1 % Kapsel+Kapsel
+          [di, coll_geom, pkol, d_min] = collision_capsule_capsule(b1_cbparam, b2_cbparam);
+        case 2 % Punkt+Quader
+          [di, coll_geom, pkol_box] = collision_box_point(b2_cbparam, b1_cbparam);
           % maximale Eindringung des Punktes in Zylinder: Ganz in der Mitte
           % (nur Annäherung, da AABB größer als Quader sein kann, bei Rotation)
           d_min = -max(diff(b2_aabb))/2;
-        case 3
-          [di, coll_geom, ~, d_min] = collision_cylinder_point(b2_cbparam, b1_cbparam);
-        case 4
+          pkol = [b1_cbparam(1:3);pkol_box]; % In Funktion Koordinaten auf dem Quader
+        case 3 % Punkt+Zylinder
+          [di, coll_geom, pkol_cyl, d_min] = collision_cylinder_point(b2_cbparam, b1_cbparam);
+          pkol = [b1_cbparam(1:3); pkol_cyl]; % In Funktion Koordinaten auf dem Zylinder
+        case 4 % Punkt+Kapsel
           % Interpretiere den Punkt als Kugel mit Radius Null und nehme die
           % existierende Funktion für Kapsel+Kugel.
-          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, [b1_cbparam,0.0]);
-        case 5
-          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b1_cbparam, b2_cbparam);
-        case 6
-          [di, coll_geom, ~, d_min] = collision_capsule_sphere(b2_cbparam, b1_cbparam);
+          [di, coll_geom, pkol, d_min] = collision_capsule_sphere(b2_cbparam, [b1_cbparam,0.0]);
+          % Ausgabe pkol:
+        case 5 % Kapsel+Kugel
+          [di, coll_geom, pkol, d_min] = collision_capsule_sphere(b1_cbparam, b2_cbparam);
+          pkol = flipud(pkol); %  In Funktion erst Kugel, dann Kapsel
+        case 6 % Kugel+Kapsel
+          [di, coll_geom, pkol, d_min] = collision_capsule_sphere(b2_cbparam, b1_cbparam);
         otherwise
           error('Fall nicht definiert. Dieser Fehler darf gar nicht auftreten');
       end
@@ -168,6 +176,7 @@ function [coll, dist, dist_rel] = check_collisionset_simplegeom(cb, cc, JP, Set)
 %         error('i=%d. Kollisionspruefung zwischen AABB und Geometrie stimmt nicht', i);
 %       end
       coll(j,i) = coll_geom;
+      p(i, :, j) = pkol([1 3 5 2 4 6]);
       if coll_geom
         dist(j,i) = di;
         dist_rel(j,i) = di/d_min;
