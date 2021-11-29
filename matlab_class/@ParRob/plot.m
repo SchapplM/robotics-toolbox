@@ -21,6 +21,7 @@ function plot(Rob, q, x, s)
 s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ...
+             'nojoints', false, ...
              'ks_platform', Rob.NLEG+2, ... % EE-KS
              'ks_legs', Rob.I2L_LEG); % nur EE-KS jedes Beins
 if nargin < 4
@@ -36,7 +37,7 @@ end
 
 % Einstellungs-Struktur für serielle Beinketten
 s_ser = struct('ks', [], 'straight', s.straight, 'jointcolors', 'parallel', ...
-  'mode', s.mode);
+  'mode', s.mode, 'nojoints', s.nojoints);
 T_W_0 = Rob.T_W_0;
 %% Koppelpunkte berechnen
 r_A1_ges = NaN(Rob.NLEG, 3);
