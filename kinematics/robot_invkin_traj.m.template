@@ -96,8 +96,10 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs          'qDDlim', zeros(%NQJ%,2),
 %$cgargs    'enforce_qlim', false,
 %$cgargs   'enforce_qDlim', false,
+%$cgargs   'enforce_xDlim', false,
 %$cgargs            'xlim', zeros(6,2),
 %$cgargs           'xDlim', zeros(6,2),
+%$cgargs          'xDDlim', zeros(6,2),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs        'I_EElink', uint8(0),
@@ -181,6 +183,18 @@ else
   qDDmax(:) =  Inf;
   limits_qDD_set = false;
 end
+if ~all(isnan(s.xDDlim(:)))
+  limits_xDD_set = true;
+else
+  limits_xDD_set = false;
+end
+if ~all(isnan(s.xDlim(:)))
+  limits_xD_set = true;
+else
+  limits_xD_set = false;
+end
+enforce_xDlim = s.enforce_xDlim;
+
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -306,7 +320,7 @@ xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, ...
-  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 1);
+  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 3);
 h = zeros(10,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -729,6 +743,63 @@ for k = 1:nt
       qDD_N_pre = scale*qDD_N_pre;
     end
   end
+  
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Beschleunigung der redundanten Endeffektor-Koordinaten verletzt werden
+  if NQJ - sum(I_EE) == 1 && ~I_EE(end) && limits_xDD_set
+    % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung
+    xDD_JDqD = JD_x * qD_k; % Diesen Term weglassen, da er in beiden vorkommt?
+    xDD_k_T_ist = J_x * qDD_k_T + xDD_JDqD; % alle vorbestimmten Terme
+    xDD_k_N_ist = J_x * qDD_N_pre;
+    phizDD_k_N_ist = xDD_k_N_ist(end); % Dimension nicht 6x1, je nach 2T1R oder nicht
+    % Prüfe, ob Grenze überschritten wird. Erlaube asymmetrische Grenzen.
+    % Ziehe zusätzlich den bereits gesetzten Anteil aus der Aufgabe ab.
+    phizDDmax = s.xDDlim(6,2) - xDD_k_T_ist(end);
+    phizDDmin = s.xDDlim(6,1) - xDD_k_T_ist(end);
+    if phizDD_k_N_ist > phizDDmax || phizDD_k_N_ist < phizDDmin
+      % Alternative 1: Zusätzlicher Term
+      if phizDD_k_N_ist > phizDDmax
+        delta_phizDD = phizDDmax - phizDD_k_N_ist; % Wert zu groß. muss kleiner werden
+      else
+        delta_phizDD = phizDDmin - phizDD_k_N_ist; % Wert zu klein, muss größer werden
+      end
+      delta_qDD = J_x \ [zeros(5,1); delta_phizDD];
+      qDD_N_pre = qDD_N_pre + delta_qDD;
+      % Probe: 
+      % disp(J_x*qDD_N_pre)
+%       % Alternative 2: Runterskalieren (nur, wenn Wert größer Null)
+%       % Begrenze die Nullraumkomponente so, dass die Grenze genau erreicht
+%       % wird. Dadurch wird auch die Grenze aus s.xDDlim genau erreicht.
+%       if phizDD_k_N_ist > phizDDmax
+%         scale = phizDDmax / phizDD_k_N_ist;
+%       else
+%         scale = phizDDmin / phizDD_k_N_ist;
+%       end
+%       % Skaliere Gelenk-Beschleunigung herunter. Dadurch wird die
+%       % Komponente der Nullraumbewegung genauso runterskaliert.
+%       qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Geschwindigkeit der redundanten Endeffektor-Koordinaten verletzt werden
+  if NQJ - sum(I_EE) == 1 && ~I_EE(end) && limits_xD_set && enforce_xDlim
+    qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
+    xD_pre= J_x * qD_pre;
+    phizD_pre = xD_pre(end);
+    phizDmax = s.xDlim(6,2);
+    phizDmin = s.xDlim(6,1);
+    if phizD_pre > phizDmax || phizD_pre < phizDmin
+      if phizD_pre > phizDmax
+        phizDD_counterlim = (phizDmax-phizD_pre)/dt; % Geschw. zu groß -> negative Beschl.
+      else
+        phizDD_counterlim = (phizDmin-phizD_pre)/dt; % Geschw. zu klein -> positive Beschl.
+      end
+      % Erzeuge die Nullraumbeschleunigung im Gelenkraum
+      delta_qDD = J_x \ [zeros(5,1); phizDD_counterlim];
+      qDD_N_pre = qDD_N_pre + delta_qDD;
+    end
+  end
+  
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Geschwindigkeitsgrenzen. Reduziere, falls notwendig
   if redundant && limits_qD_set && enforce_qDlim  % Nullraum-Bewegung erlaubt Begrenzung der Gelenk-Geschwindigkeit

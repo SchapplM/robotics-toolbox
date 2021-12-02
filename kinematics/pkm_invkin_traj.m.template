@@ -107,6 +107,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs              'wn', zeros(19,1),
 %$cgargs            'xlim', zeros(6,2),
 %$cgargs           'xDlim', zeros(6,2),
+%$cgargs          'xDDlim', zeros(6,2),
 %$cgargs    'thresh_ns_qa', 1,
 %$cgargs  'optimcrit_limits_hyp_deact', 0.9, 
 %$cgargs      'collbodies', struct(
@@ -145,6 +146,7 @@ function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs        'Leg_qDDlim', zeros(6,2*%NLEG%),
 %$cgargs    'enforce_qlim', false,
 %$cgargs   'enforce_qDlim', false,
+%$cgargs   'enforce_xDlim', false,
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
@@ -242,8 +244,20 @@ else
   qDDmin = -inf(NJ,1);
   qDDmax =  inf(NJ,1);
 end
+if ~all(isnan(s.xDDlim(:)))
+  limits_xDD_set = true;
+else
+  limits_xDD_set = false;
+end
+if ~all(isnan(s.xDlim(:)))
+  limits_xD_set = true;
+else
+  limits_xD_set = false;
+end
+
 enforce_qlim = s.enforce_qlim;
 enforce_qDlim = s.enforce_qDlim;
+enforce_xDlim = s.enforce_xDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -523,7 +537,7 @@ Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
-  NaN, 'phi_zD', NaN(nt,1), 'version', 2, 'mode', uint32(zeros(nt,1)));
+  NaN, 'phi_zD', NaN(nt,1), 'version', 3, 'mode', uint32(zeros(nt,1)));
 h = zeros(11,1);
 
 for k = 1:nt
@@ -643,7 +657,7 @@ for k = 1:nt
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
   % quotienten genauer, wenn JD_x_inv über Phi_qD und Phi_xD gebildet wird
   % und nicht über einen eigenen Differenzenquotienten.
-  if nargout >= 6
+  if nargout >= 6 || redundant && taskred_rot && limits_xDD_set
     if taskred_rot % Aufgabenredundanz
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
@@ -679,18 +693,27 @@ for k = 1:nt
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss auch für
     % Grenzkorrekturen weiter unten berechnet werden
     N = (eye(NJ) - pinv(Phi_q)* Phi_q);
-    condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
   end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
   qDD_N_pre = zeros(NJ, 1);
+  
+  % Bestimme relevante Konditionszahlen in jedem Fall
+  condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
+  h(5) = condPhi;
+  Jinv_ax = J_x_inv(s.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
+  condJ = cond(Jinv_ax);
+  h(6) = condJ;
+  if condPhi > 1e6
+    Stats.mode(k) = bitset(Stats.mode(k),22);
+  end
+  if condJ > 1e6
+    Stats.mode(k) = bitset(Stats.mode(k),23);
+  end
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
-    h(5) = condPhi;
-    Jinv_ax = J_x_inv(s.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
-    condJ = cond(Jinv_ax);
-    h(6) = condJ;
+    Stats.mode(k) = bitset(Stats.mode(k),2);
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
     % Notwendig für die constr4-Methode für Jacobi-Matrix.
     % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
@@ -699,7 +722,11 @@ for k = 1:nt
     % Bestimme die Orientierung absolut (ohne +/-pi-Begrenzung). Dadurch
     % ist die Begrenzung der Koordinate phi_z besser möglich
     xD_k_ist = zeros(6,1);
-    xD_k_ist(s.I_EE) = Jinv_ax \ qD_k(s.I_qa);
+    if condJ < 1e6 % Benutze PKM-Jacobi
+      xD_k_ist(Rob_I_EE) = Jinv_ax \ qD_k(s.I_qa);
+    else % Benutze Jacobi der ersten Beinkette
+      xD_k_ist(Rob_I_EE) = J_x_inv(1:Leg_NQJ(1),:) \ qD_k(1:Leg_NQJ(1));
+    end
     x_k_ist = x_k;
     if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
       x_k_ist(6) = Phi_r(1); % Rob.fkineEE_traj(q_k')'
@@ -720,6 +747,7 @@ for k = 1:nt
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
     if condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE)
+      Stats.mode(k) = bitset(Stats.mode(k),3);
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
       % Jacobi-Matrix bezogen auf Antriebe und Plattform
       J_ax = inv(J_x_inv(s.I_qa,:));
@@ -735,6 +763,7 @@ for k = 1:nt
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
       if wn(1) ~= 0 || wn(7) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
+        Stats.mode(k) = bitset(Stats.mode(k),4);
         h(1) = invkin_optimcrit_limits1(q_k, qlim);
         h1_test = invkin_optimcrit_limits1(q_k+qD_test, qlim);
         h1drz = (h1_test-h(1))/xD_test(6);
@@ -743,6 +772,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(1)*h1dqa(:);
       end
       if wn(2) ~= 0 || wn(8) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),5);
         [h(2), h2dq_diff] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         % Projektion von Gesamt- in Antriebskoordinaten
         h2dqa = h2dq_diff * J_q_qa;
@@ -755,6 +785,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(2)*h2dqa(:);
       end
       if wn(3) ~= 0 % Quadratische Gelenkgeschwindigkeiten
+        Stats.mode(k) = bitset(Stats.mode(k),6);
         [h(3), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
         % Projektion von Gesamt- in Antriebskoordinaten
         h3dqa = h3dq_diff * J_q_qa;
@@ -765,6 +796,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(3)*h3dqa(:);
       end
       if wn(4) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
+        Stats.mode(k) = bitset(Stats.mode(k),7);
         h(4) = invkin_optimcrit_limits2(qD_k, qDlim);
         h4_test = invkin_optimcrit_limits2(qD_k+qD_test, qDlim);
         h4drz = (h4_test-h(4))/xD_test(6);
@@ -772,6 +804,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+        Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = %PN%_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
         h5_test = cond(Phi_q_test);
         h5drz = (h5_test-h(5))/xD_test(6);
@@ -780,6 +813,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(5)*h5dqa(:);
       end
       if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+        Stats.mode(k) = bitset(Stats.mode(k),9);
         h(6) = condJ;
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
         % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
@@ -1326,6 +1360,67 @@ for k = 1:nt
         scale = (qDD_N_min(I_min))/(qDD_N_pre(I_min));
       end
       qDD_N_pre = scale*qDD_N_pre;
+    end
+  end
+  
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Beschleunigung der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_xDD_set
+    % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
+    % Siehe Aufzeichnungen Schappler, 27.11.2021
+    if condJ < 1e6
+      % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
+      xDD_JDqD = - J_x_inv(s.I_qa,:) \ JD_x_inv(s.I_qa,:) / ...
+        J_x_inv(s.I_qa,:) * qD_k(s.I_qa);
+      xDD_k_T_ist = J_x_inv(s.I_qa,:) \ qDD_k_T(s.I_qa) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(s.I_qa,:) \ qDD_N_pre(s.I_qa);
+    else
+      % Benutze Jacobi-Matrix basierend auf erster Beinkette
+      xDD_JDqD = - J_x_inv(1:Leg_NQJ(1),:) \ JD_x_inv(1:Leg_NQJ(1),:) / ...
+        J_x_inv(1:Leg_NQJ(1),:) * qD_k(1:Leg_NQJ(1));
+      xDD_k_T_ist = J_x_inv(1:Leg_NQJ(1),:) \ qDD_k_T(1:Leg_NQJ(1)) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(1:Leg_NQJ(1),:) \ qDD_N_pre(1:Leg_NQJ(1));
+    end
+    phizDD_k_N_ist = xDD_k_N_ist(end); % Dimension nicht 6x1, je nach 2T1R oder nicht
+    % Prüfe, ob Grenze überschritten wird. Erlaube asymmetrische Grenzen.
+    % Ziehe zusätzlich den bereits gesetzten Anteil aus der Aufgabe ab.
+    phizDDmax = s.xDDlim(6,2) - xDD_k_T_ist(end);
+    phizDDmin = s.xDDlim(6,1) - xDD_k_T_ist(end);
+    if phizDD_k_N_ist > phizDDmax || phizDD_k_N_ist < phizDDmin
+      Stats.mode(k) = bitset(Stats.mode(k),18);
+      if phizDD_k_N_ist > phizDDmax
+        delta_phizDD = phizDDmax - phizDD_k_N_ist; % Wert zu groß. muss kleiner werden
+      else
+        delta_phizDD = phizDDmin - phizDD_k_N_ist; % Wert zu klein, muss größer werden
+      end
+      delta_xDD = [zeros(5,1); delta_phizDD];
+      delta_qDD = J_x_inv * delta_xDD(Rob_I_EE);
+      qDD_N_pre = qDD_N_pre + delta_qDD;
+    end
+  end
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Geschwindigkeit der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_xD_set && enforce_xDlim
+    qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
+    if condJ < 1e6 % Benutze PKM-Jacobi
+      xD_pre= J_x_inv(s.I_qa,:) \ qD_pre(s.I_qa);
+    else % Benutze erste Beinkette
+      xD_pre= J_x_inv(1:Leg_NQJ(1),:) \ qD_pre(1:Leg_NQJ(1));
+    end
+    phizD_pre = xD_pre(end);
+    phizDmax = s.xDlim(6,2);
+    phizDmin = s.xDlim(6,1);
+    if phizD_pre > phizDmax || phizD_pre < phizDmin
+      Stats.mode(k) = bitset(Stats.mode(k),19);
+      if phizD_pre > phizDmax
+        phizDD_counterlim = (phizDmax-phizD_pre)/dt; % Geschw. zu groß -> negative Beschl.
+      else
+        phizDD_counterlim = (phizDmin-phizD_pre)/dt; % Geschw. zu klein -> positive Beschl.
+      end
+      % Erzeuge die Nullraumbeschleunigung im Gelenkraum
+      xDD_counterlim = [zeros(5,1); phizDD_counterlim];
+      delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
+      qDD_N_pre = qDD_N_pre + delta_qDD;
     end
   end
   

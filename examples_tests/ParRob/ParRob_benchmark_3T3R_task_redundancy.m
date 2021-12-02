@@ -157,7 +157,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     RP.Leg(i).qDDlim(RP.Leg(i).MDH.sigma==1,:) = ...
       repmat([-50, 50], sum(RP.Leg(i).MDH.sigma==1), 1); % 50m/s² sind ca. 5g
   end
-  
+  RP.xDlim = [NaN(5,2); [-pi, pi]]; % 180°/s max. für EE-Drehung (sehr schnell)
+  RP.xDDlim = RP.xDlim / 0.200; % Max. Geschw. in 200ms aufbauen
   %% Startpose bestimmen
   % Mittelstellung im Arbeitsraum
   X0 = [ [0.00;0.00;0.6]; [0;0;0]*pi/180 ];
@@ -520,7 +521,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   H1D_all = H1_all; H2D_all = H1_all;
   Hcond_all = NaN(length(t), 2, length(Namen_Methoden));
   XE_all = NaN(length(t), 6, length(Namen_Methoden));
-  
+  XDE_all = XE_all; XDDE_all = XE_all;
   %% IK für Trajektorie berechnen (verschiedene Methoden)
   qDlim_backup = cat(1, RP.Leg.qDlim); % damit überschriebene Werte wieder ...
   qDDlim_backup = cat(1, RP.Leg.qDDlim); % ... hergestellt werden können
@@ -717,7 +718,10 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       R_E_Legs = R_0_P;
     end
     % Plattform-Pose aus direkter Kinematik abspeichern
-    XE_all(:,:,kk) = X_ist(:,1:6); % Nehme Plattform-Pose von erster Beinkette gesehen.
+    [XE_all(:,:,kk), XDE_all(:,:,kk), XDDE_all(:,:,kk)] = RP.fkineEE2_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
+    test2_XEall = X_ist(:,1:6) - XE_all(:,:,kk);
+    assert(all(abs(test2_XEall(:)) < 1e-10), 'Neuberechnung mit fkineEE2_traj falsch');
+    XE_all(:,6,kk) = denormalize_angle_traj(XE_all(:,6,kk), XDE_all(:,6,kk), t);
     
     % Zielfunktionen für Position
     h1 = NaN(size(H1_all(:,:,kk))); h2=h1;
@@ -988,6 +992,33 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   saveas(100*robnr+24, fullfile(respath,sprintf( ...
     'Rob%d_%s_TrajX.fig',robnr, RP.mdlname)));
 
+  % Bild für Drehung der redundanten Koordinate
+  change_current_figure(100*robnr+25); clf;
+  set(100*robnr+25, 'Name', sprintf('Rob%d_phiz', robnr), 'NumberTitle', 'off');
+  sgtitle(sprintf('Redundante Koordinate'));
+  hdl = NaN(length(Namen_Methoden),3); leghdl = hdl;
+  subplot(1,3,1); hold on;
+  hdl(:,1)=plot(t, reshape(XE_all(:,6,:),n,length(Namen_Methoden)));
+  grid on; ylabel('phi z');
+  
+  subplot(1,3,2); hold on;
+  hdl(:,2)=plot(t, reshape(XDE_all(:,6,:),n,length(Namen_Methoden)));
+  plot(t([1,end]), repmat(RP.xDlim(6,:),2,1), 'r-');
+  grid on; ylabel('phiD z');
+  ylim([-0.1, +0.1]+RP.xDlim(6,:));
+  
+  subplot(1,3,3); hold on;
+  hdl(:,3)=plot(t, reshape(XE_all(:,6,:),n,length(Namen_Methoden)));
+  grid on; ylabel('phiDD z');
+  plot(t([1,end]), repmat(RP.xDDlim(6,:),2,1), 'r-');
+  ylim([-0.1, +0.1]+RP.xDDlim(6,:));
+  for i = 1:3
+    leghdl(:,i)=line_format_publication(hdl(:,i), format_mlines);
+  end
+  legend(leghdl(:,3), Namen_Methoden);
+  linkxaxes
+  saveas(100*robnr+25, fullfile(respath,sprintf( ...
+    'Rob%d_%s_Traj_phiz.fig',robnr, RP.mdlname)));
   %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
   for Dtype = 1:3
     change_current_figure(100*robnr+70+Dtype); clf;

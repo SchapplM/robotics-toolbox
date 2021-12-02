@@ -28,6 +28,7 @@ classdef RobBase < matlab.mixin.Copyable
     I_EE_Task % Indizes der durch die Aufgabe genutzten EE-FG (EE-Position, Euler-Winkel aus phiconv_W_E)
     xlim % Minimal und maximal zulässige Endeffektorbewegung
     xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
+    xDDlim % Minimal und maximal zulässige EndeffektorBeschleunigung
   end
 
   methods
@@ -45,6 +46,7 @@ classdef RobBase < matlab.mixin.Copyable
       % Leere Initialisierung
       R.xlim = NaN(6,2);
       R.xDlim = NaN(6,2);
+      R.xDDlim = NaN(6,2);
     end
     function x_W_E = t2x(R, T_W_E)
       % Umwandlung der homogenen Transformationsmatrix der EE-Lage in Minimalkoordinaten

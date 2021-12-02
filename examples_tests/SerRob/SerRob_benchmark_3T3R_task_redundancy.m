@@ -110,6 +110,8 @@ for robnr = 2
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
   RS.qDlim = repmat([-4*pi, 4*pi], RS.NQJ, 1); % 2rpm
   RS.qDDlim = repmat([-100, 100], RS.NQJ, 1); % Entspricht 1.5 rpm in 100ms
+  RS.xDlim = [NaN(5,2); [-2*pi, 2*pi]]; % 360°/s max. für EE-Drehung (sehr schnell)
+  RS.xDDlim = RS.xDlim / 0.200; % Max. Geschw. in 200ms aufbauen
   RS.update_EE(r_W_E, phi_W_E, []);
 
   fprintf('Starte Untersuchung für %s (%s)\n', RS.mdlname, RS.descr);
@@ -713,16 +715,19 @@ for robnr = 2
       subplot(3,6,sprc2no(3,6, 1, i));
       hold on;
       hdl(1,i,kk)=plot(t, X(:,i));
+      plot(t([1,end]), repmat(RS.xlim(i,:),2,1), 'r-');
       if kk == 1, ylabel(sprintf('x %d', i)); grid on; end
       % Geschwindigkeit
       subplot(3,6,sprc2no(3,6, 2, i));
       hold on;
       hdl(2,i,kk)=plot(t, XD(:,i));
+      plot(t([1,end]), repmat(RS.xDlim(i,:),2,1), 'r-');
       if kk == 1, ylabel(sprintf('xD %d', i)); grid on; end
       % Beschleunigung
       subplot(3,6,sprc2no(3,6, 3, i));
       hold on;
       hdl(3,i,kk)=plot(t, XDD(:,i));
+      plot(t([1,end]), repmat(RS.xDDlim(i,:),2,1), 'r-');
       if kk == 1, ylabel(sprintf('xDD %d', i)); grid on; end
     end
   end

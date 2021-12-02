@@ -102,8 +102,10 @@ s_std = struct( ...
   'wn', zeros(19,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'xlim', Rob.xlim, ... % Grenzen für EE-Koordinaten
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
+  'xDDlim', Rob.xDDlim, ... % Grenzen für EE-Geschwindigkeiten
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
+  'enforce_xDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen für die Plattform (bei Nullraumbewegung)
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
   'debug', false); % Zusätzliche Test-Berechnungen
@@ -219,8 +221,19 @@ else
   qDDmin = -inf(Rob.NJ,1);
   qDDmax =  inf(Rob.NJ,1);
 end
+if ~all(isnan(s.xDDlim(:)))
+  limits_xDD_set = true;
+else
+  limits_xDD_set = false;
+end
+if ~all(isnan(s.xDlim(:)))
+  limits_xD_set = true;
+else
+  limits_xD_set = false;
+end
 enforce_qlim = s.enforce_qlim;
 enforce_qDlim = s.enforce_qDlim;
+enforce_xDlim = s.enforce_xDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -431,7 +444,7 @@ for k = 1:nt
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
   % quotienten genauer, wenn JD_x_inv über Phi_qD und Phi_xD gebildet wird
   % und nicht über einen eigenen Differenzenquotienten.
-  if nargout >= 6
+  if nargout >= 6 || redundant && taskred_rot && limits_xDD_set
     if taskred_rot % Aufgabenredundanz
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
@@ -496,7 +509,11 @@ for k = 1:nt
     % Bestimme die Orientierung absolut (ohne +/-pi-Begrenzung). Dadurch
     % ist die Begrenzung der Koordinate phi_z besser möglich
     xD_k_ist = zeros(6,1);
-    xD_k_ist(Rob.I_EE) = Jinv_ax \ qD_k(Rob.I_qa);
+    if condJ < 1e6 % Benutze PKM-Jacobi
+      xD_k_ist(Rob.I_EE) = Jinv_ax \ qD_k(Rob.I_qa);
+    else % Benutze Jacobi der ersten Beinkette
+      xD_k_ist(Rob.I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k(1:Rob.I2J_LEG(1));
+    end
     x_k_ist = x_k;
     if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
       x_k_ist(6) = Phi_r(1); % Rob.fkineEE_traj(q_k')'
@@ -1133,7 +1150,68 @@ for k = 1:nt
     end
   end
   
-  if redundant && limits_qD_set && enforce_qDlim && ...% Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Beschleunigung der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_xDD_set
+    % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
+    % Siehe Aufzeichnungen Schappler, 27.11.2021
+    if condJ < 1e6
+      % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
+      xDD_JDqD = - J_x_inv(Rob.I_qa,:) \ JD_x_inv(Rob.I_qa,:) / ...
+        J_x_inv(Rob.I_qa,:) * qD_k(Rob.I_qa);
+      xDD_k_T_ist = J_x_inv(Rob.I_qa,:) \ qDD_k_T(Rob.I_qa) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(Rob.I_qa,:) \ qDD_N_pre(Rob.I_qa);
+    else
+      % Benutze Jacobi-Matrix basierend auf erster Beinkette
+      xDD_JDqD = - J_x_inv(1:Rob.I2J_LEG(1),:) \ JD_x_inv(1:Rob.I2J_LEG(1),:) / ...
+        J_x_inv(1:Rob.I2J_LEG(1),:) * qD_k(1:Rob.I2J_LEG(1));
+      xDD_k_T_ist = J_x_inv(1:Rob.I2J_LEG(1),:) \ qDD_k_T(1:Rob.I2J_LEG(1)) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(1:Rob.I2J_LEG(1),:) \ qDD_N_pre(1:Rob.I2J_LEG(1));
+    end
+    phizDD_k_N_ist = xDD_k_N_ist(end); % Dimension nicht 6x1, je nach 2T1R oder nicht
+    % Prüfe, ob Grenze überschritten wird. Erlaube asymmetrische Grenzen.
+    % Ziehe zusätzlich den bereits gesetzten Anteil aus der Aufgabe ab.
+    phizDDmax = s.xDDlim(6,2) - xDD_k_T_ist(end);
+    phizDDmin = s.xDDlim(6,1) - xDD_k_T_ist(end);
+    if phizDD_k_N_ist > phizDDmax || phizDD_k_N_ist < phizDDmin
+      Stats.mode(k) = bitset(Stats.mode(k),18);
+      if phizDD_k_N_ist > phizDDmax
+        delta_phizDD = phizDDmax - phizDD_k_N_ist; % Wert zu groß. muss kleiner werden
+      else
+        delta_phizDD = phizDDmin - phizDD_k_N_ist; % Wert zu klein, muss größer werden
+      end
+      delta_xDD = [zeros(5,1); delta_phizDD];
+      delta_qDD = J_x_inv * delta_xDD(Rob.I_EE);
+      qDD_N_pre = qDD_N_pre + delta_qDD;
+    end
+  end
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Geschwindigkeit der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_xD_set && enforce_xDlim
+    qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
+    if condJ < 1e6 % Benutze PKM-Jacobi
+      xD_pre= J_x_inv(Rob.I_qa,:) \ qD_pre(Rob.I_qa);
+    else % Benutze erste Beinkette
+      xD_pre= J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_pre(1:Rob.I2J_LEG(1));
+    end
+    phizD_pre = xD_pre(end);
+    phizDmax = s.xDlim(6,2);
+    phizDmin = s.xDlim(6,1);
+    if phizD_pre > phizDmax || phizD_pre < phizDmin
+      Stats.mode(k) = bitset(Stats.mode(k),19);
+      if phizD_pre > phizDmax
+        phizDD_counterlim = (phizDmax-phizD_pre)/dt; % Geschw. zu groß -> negative Beschl.
+      else
+        phizDD_counterlim = (phizDmin-phizD_pre)/dt; % Geschw. zu klein -> positive Beschl.
+      end
+      % Erzeuge die Nullraumbeschleunigung im Gelenkraum
+      xDD_counterlim = [zeros(5,1); phizDD_counterlim];
+      delta_qDD = J_x_inv * xDD_counterlim(Rob.I_EE);
+      qDD_N_pre = qDD_N_pre + delta_qDD;
+    end
+  end
+  
+  if redundant && limits_qD_set && enforce_qDlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
       condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
