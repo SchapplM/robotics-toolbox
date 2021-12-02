@@ -686,7 +686,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 7, s.wn=[s.wn;zeros(7-length(s.wn),1)]; end
+      if length(s.wn) <= 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
         s.wn(4) = 0;
@@ -769,7 +769,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 17, s.wn=[s.wn;zeros(17-length(s.wn),1)]; end
+      if length(s.wn) < 19, s.wn=[s.wn;zeros(19-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

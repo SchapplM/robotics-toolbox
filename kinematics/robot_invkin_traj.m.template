@@ -43,6 +43,8 @@
 %    (15) Abstand von phiz zu xlim (hyperbolisch gewertet)
 %    (16) wie 15, aber auf Beschleunigungsebene
 %    (17) Abstand von phizD zu xDlim (quadratisch gewertet) als Dämpfung
+%    (18) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
+%    (19) Wie 19, aber D-Anteil
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -108,7 +110,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs 'optimcrit_limits_hyp_deact', 0.9,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(17,1),
+%$cgargs              'wn', zeros(19,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
@@ -227,12 +229,12 @@ collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  wn(9:10) = 0; % Deaktivierung der Kollisionsvermeidung
+  wn([9,10,18,19]) = 0; % Deaktivierung der Kollisionsvermeidung
 end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
   wn(11:12) = 0; % Deaktivierung der Bauraumprüfung
 end
-if any(wn(9:10))
+if any(wn([9,10]))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
@@ -271,7 +273,7 @@ s_pik = struct( ...
   'T_N_E', s.T_N_E, ...
   'K', s.K, ...
   'Kn', zeros(%NQJ%,1), ... % Keine Nullraumoptimierung sinnvoll. ...
-  'wn', zeros(7,1), ... % ... Wird in Traj. gemacht.
+  'wn', zeros(8,1), ... % ... Wird in Traj. gemacht.
   'maxstep_ns', 0, ... % keine Bedeutung, da keine Nullraumbewegung möglich
   'scale_lim', 0, ... % Herunterskalieren nicht sinnvoll ...
   'scale_coll', 0, ... % (da keine Nullraum-Bewegung)
@@ -289,12 +291,12 @@ s_pik = struct( ...
   'Phir_tol', s.Phir_tol, ...
   'retry_on_limitviol', false, ... % nicht sinnvoll
   'retry_limit', 0, ...
-  'collbodies', struct(... % Keine Kollisionskörper in Einzelpunkt-IK...
-    'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
-    'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
-    'params', zeros(0,10)), ...
+  'collbodies', struct(... % Dummy-Eintrag für Kompilierbarkeit
+    'link', uint8(zeros(1,2)), ...
+    'type', uint8(zeros(1,1)), ...
+    'params', zeros(1,10)), ...
   'collbodies_thresh', 1.5, ... % keine Wirkung
-  'collchecks', uint8(zeros(0,2)), ...
+  'collchecks', uint8(zeros(1,2)), ... % Dummy-Eintrag
   'installspace_thresh', 0.100, ... % keine Wirkung
   'collbodies_instspc', struct(... % Keine Bauraumprüfung in Einzelpunkt-IK...
     'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
@@ -304,8 +306,8 @@ s_pik = struct( ...
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(NQJ,1);
-% Gradient von Nebenbedingung 5, 6 und 7
-h5dq = NaN(1,NQJ); h6dq = NaN(1,NQJ); h7dq = NaN(1,NQJ);
+% Gradient von Nebenbedingung 5, 6, 7 und 11
+h5dq = NaN(1,NQJ); h6dq = h5dq; h7dq = h5dq; h11dq = h5dq;
 
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
@@ -321,7 +323,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, ...
   'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 3);
-h = zeros(10,1);
+h = zeros(11,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
   x_k = X(k,:)';
@@ -459,11 +461,20 @@ for k = 1:nt
       v_qD = v_qD - wn(8)*h5dq';
       v_qDD = v_qDD - wn(5)*h5dq';
     end
-    if wn(9) ~= 0 || wn(10) ~= 0 % Kollisionsvermeidung
+    if any(wn([9,10,18,19]) ~= 0) % Kollisionsvermeidung bzw. Kollisionsabstand
       % Prüfe ob eine Kollision vorliegt (bei den vergrößerten Koll.-Körpern)
-      colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
-        Tc_stack_k(:,4)', struct('collsearch', true));
-      if any(colldet)
+      colldet_warn = false;
+      if any(wn([9,10])~=0)
+        colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
+          Tc_stack_k(:,4)', struct('collsearch', true));
+        if any(colldet)
+          colldet_warn = true;
+        end
+      else
+        % Prüfe im Folgenden Schritt alle Kollisionen
+        colldet = true(1,size(s.collchecks,1));
+      end
+      if any(wn([9,10]) ~= 0) && colldet_warn || any(wn([18,19]) ~= 0)
         % Kollision im Warnbereich erkannt. Prüfe Abstände bzw.
         % Eindringtiefen und erzeuge Bewegung von Kollision weg.
         if NQJ - sum(I_EE) == 1 && ~I_EE(end)
@@ -490,22 +501,33 @@ for k = 1:nt
           % Übergang beginnend im Warnbereich.
           h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          if h(6) == 0 % nichts tun. Noch im Toleranzbereich
-            h6drz = 0;
-          elseif ~isinf(h(6))
-            h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-            % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
-            h6drz = (h6_test - h(6))/1e-6;
-          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
-            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
-            h6drz = (-mincolldist_test(2)-(-mincolldist_test(1)));
-            if abs(h6drz) > 100*eps % Normiere auf Wert 1e3
-              h6drz =  sign(h6drz)*1e3; % wird weiter unten reduziert (für qDD_max)
+          % Quadratische Zielfunktion
+          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
+            [-100*maxcolldepth, 0]);
+          if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
+            if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+              h6drz = 0;
+            elseif ~isinf(h(6))
+              h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
+                [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
+              h6drz = (h6_test - h(6))/1e-6;
+            else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+              % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+              h6drz = (-mincolldist_test(2)-(-mincolldist_test(1)));
+              if abs(h6drz) > 100*eps % Normiere auf Wert 1e3
+                h6drz =  sign(h6drz)*1e3; % wird weiter unten reduziert (für qDD_max)
+              end
             end
+            % Umrechnung auf Gelenke mit Jacobi-Matrix
+            h6dq = h6drz*J_x(end,:);
           end
-          % Umrechnung auf Gelenke mit Jacobi-Matrix
-          h6dq = h6drz*J_x(end,:);
+          if any(wn([18,19]) ~= 0) % quadratisches Kriterium
+            h11_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
+              [-100*maxcolldepth, 0]);
+            h11drz = (h11_test - h(11))/1e-6;
+            h11dq = h11drz*J_x(end,:);
+          end
         else
           % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
           % Bilde Differenzenquotient in allen Gelenkachsen (siehe oben)
@@ -523,28 +545,47 @@ for k = 1:nt
           mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
           h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          if h(6) == 0 % nichts tun. Noch im Toleranzbereich
-            h6dq(:) = 0;
-          elseif ~isinf(h(6))
+          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
+            [-100*maxcolldepth, 0]);
+          if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
+            if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+              h6dq(:) = 0;
+            elseif ~isinf(h(6))
+              for kkk = 1:NQJ
+                % Kriterium für Inkrement berechnen
+                h6_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
+                  [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                % Differenzenquotient
+                h6dq(kkk) = (h6_test'-h(6))/1e-6;
+              end
+            else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+              % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+              for kkk = 1:NQJ
+                h6dq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
+              end
+              if max(abs(h6dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+                h6dq = h6dq/max(abs(h6dq)) * 1e3; % wird weiter unten reduziert (für qDD_max)
+              end
+            end
+          end
+          if any(wn([18,19]) ~= 0) % quadratisches Kriterium
             for kkk = 1:NQJ
               % Kriterium für Inkrement berechnen
-              h6_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              h11_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ...
+                [-100*maxcolldepth, 0]);
               % Differenzenquotient
-              h6dq(kkk) = (h6_test'-h(6))/1e-6;
-            end
-          else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
-            % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
-            for kkk = 1:NQJ
-              h6dq(kkk) = (-mincolldist_test(1+kkk)-(-mincolldist_test(1)));
-            end
-            if max(abs(h6dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-              h6dq = h6dq/max(abs(h6dq)) * 1e3; % wird weiter unten reduziert (für qDD_max)
+              h11dq(kkk) = (h11_test'-h(11))/1e-6;
             end
           end
         end
-        v_qD = v_qD - wn(10)*h6dq';
-        v_qDD = v_qDD - wn(9)*h6dq';
+        if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
+          v_qD = v_qD - wn(10)*h6dq';
+          v_qDD = v_qDD - wn(9)*h6dq';
+        end
+        if any(wn([18,19]) ~= 0) % quadratisches Kriterium
+          v_qD = v_qD - wn(19)*h11dq';
+          v_qDD = v_qDD - wn(18)*h11dq';
+        end
       else
         h(6) = 0;
       end
