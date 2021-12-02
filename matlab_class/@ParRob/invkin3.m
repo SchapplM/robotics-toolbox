@@ -432,10 +432,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
             % Kollisionskörpern), dann Abstände negativ angeben.
-            mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
+            if all(I_nochange) % Keine Kollision nennenswert geändert
+              mincolldist_test = repmat(colldist_test(1), 2, 1);
+            else
+              mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
+            end
             h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-            if h(5) == 0 % nichts tun. Noch im Toleranzbereich
+            if h(5) == 0 || ... % nichts tun. Noch im Toleranzbereich
+              all(I_nochange) % Gradient nicht bestimmbar
               h5dq(:) = 0;
             elseif ~isinf(h(5))
               h5_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
@@ -463,11 +468,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
-            I_nochange = abs(minmax2(colldist_test')') < 1e-10;
-            mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+            I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-10;
+            if all(I_nochange) % Keine Kollision nennenswert geändert
+              % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+              mincolldist_test = repmat(colldist_test(1), size(JP_test,1),1);
+            else
+              mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+            end
             h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
               [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-            if h(5) == 0 % nichts tun. Noch im Toleranzbereich
+            if h(5) == 0 || ... % nichts tun. Noch im Toleranzbereich
+              all(I_nochange)
               h5dq(:) = 0;
             elseif ~isinf(h(5))
               for kkk = 1:Rob.NJ
@@ -515,18 +526,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
           I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
-          % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
-          % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-          mindist_all = -inf(size(JP_test,1),1);
-          for i = 1:size(Rob.collbodies_instspc.link,1)
-            % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
-            I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
-              ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
-            if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
-            % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
-            mindist_i = min(absdist(:,I),[],2);
-            % Nehme den schlechtesten Wert von allen Objekten
-            mindist_all = max([mindist_i,mindist_all],[],2);
+          if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+            % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+            mindist_all = repmat(absdist(1), 2, 1);
+          else
+            % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+            % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+            mindist_all = -inf(size(JP_test,1),1);
+            for i = 1:size(Rob.collbodies_instspc.link,1)
+              % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+              I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
+                ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
+              if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+              % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+              mindist_i = min(absdist(:,I),[],2);
+              % Nehme den schlechtesten Wert von allen Objekten
+              mindist_all = max([mindist_i,mindist_all],[],2);
+            end
           end
           % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
           % positiver ist außerhalb (schlecht). Größter positiver Wert
@@ -561,16 +577,22 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           [~, absdist] = check_collisionset_simplegeom(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
           I_nochange = abs(diff(minmax2(absdist')')) < 1e-10;
-          mindist_all = -inf(size(JP_test,1),1); % gleiche Rechnung wie oben
-          for i = 1:size(Rob.collbodies_instspc.link,1)
-            I = Rob.collchecks_instspc(:,1) == i & ~I_nochange';
-            if ~any(I), continue; end
-            mindist_i = min(absdist(:,I),[],2);
-            mindist_all = max([mindist_i,mindist_all],[],2);
+          if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+            % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+            mindist_all = repmat(absdist(1), size(JP_test,1),1);
+          else
+            mindist_all = -inf(size(JP_test,1),1); % gleiche Rechnung wie oben
+            for i = 1:size(Rob.collbodies_instspc.link,1)
+              I = Rob.collchecks_instspc(:,1) == i & ~I_nochange';
+              if ~any(I), continue; end
+              mindist_i = min(absdist(:,I),[],2);
+              mindist_all = max([mindist_i,mindist_all],[],2);
+            end
           end
           h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], [-90, -s.installspace_thresh]);
-          if h(6) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          if h(6) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+            all(I_nochange)
             h6dq(:) = 0;
           elseif ~isinf(h(6))
             for kkk = 1:Rob.NJ

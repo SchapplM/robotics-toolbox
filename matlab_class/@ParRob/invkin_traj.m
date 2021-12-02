@@ -701,11 +701,16 @@ for k = 1:nt
           % beeinflusst werden
           I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
           % Benutze nur die zur Bildung des Gradienten
-          mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+          if all(I_nochange) % Keine Kollision nennenswert geändert
+            mincolldist_test = repmat(colldist_test(1), 2, 1);
+          else
+            mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+          end
           % Kollisions-Kriterium berechnen
           h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          if h(7) == 0 % nichts tun. Noch im Toleranzbereich
+          if h(7) == 0 || ... % nichts tun. Noch im Toleranzbereich
+            all(I_nochange)
             h7drz = 0;
           elseif ~isinf(h(7))
             h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
@@ -736,22 +741,28 @@ for k = 1:nt
         I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-        mindist_all = -inf(size(JP_test,1),1);
-        for i = 1:size(Rob.collbodies_instspc.link,1)
-          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
-          I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
-              ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
-          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
-          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
-          mindist_i = min(absdist(:,I),[],2);
-          % Nehme den schlechtesten Wert von allen Objekten
-          mindist_all = max([mindist_i,mindist_all],[],2);
+        if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+          % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+          mindist_all = repmat(absdist(1), 2, 1);
+        else
+          mindist_all = -inf(size(JP_test,1),1);
+          for i = 1:size(Rob.collbodies_instspc.link,1)
+            % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+            I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
+                ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
+            if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+            % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+            mindist_i = min(absdist(:,I),[],2);
+            % Nehme den schlechtesten Wert von allen Objekten
+            mindist_all = max([mindist_i,mindist_all],[],2);
+          end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
             [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        if h(8) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+        if h(8) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          all(I_nochange)
           h8drz = 0;
         elseif ~isinf(h(8))
           h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
@@ -934,11 +945,17 @@ for k = 1:nt
           % beeinflusst werden
           I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
           % Benutze nur die zur Bildung des Gradienten
-          mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+          if all(I_nochange) % Keine Kollision nennenswert geändert
+            % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+            mincolldist_test = repmat(colldist_test(1), 2, 1);
+          else
+            mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+          end
           % Kollisions-Kriterium berechnen
           h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          if h(7) == 0 % nichts tun. Noch im Toleranzbereich
+          if h(7) == 0 || ... % nichts tun. Noch im Toleranzbereich
+            all(I_nochange)
             h7dq = zeros(1,Rob.NJ);
           elseif ~isinf(h(7))
             h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
@@ -970,21 +987,27 @@ for k = 1:nt
         I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-        mindist_all = -inf(size(JP_test,1),1);
-        for i = 1:size(Rob.collbodies_instspc.link,1)
-          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
-          I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
-              ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
-          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
-          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
-          mindist_i = min(absdist(:,I),[],2);
-          % Nehme den schlechtesten Wert von allen Objekten
-          mindist_all = max([mindist_i,mindist_all],[],2);
+        if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+          % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+          mindist_all = repmat(absdist(1), size(JP_test,1), 1);
+        else
+          mindist_all = -inf(size(JP_test,1),1);
+          for i = 1:size(Rob.collbodies_instspc.link,1)
+            % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
+            I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
+                ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
+            if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+            % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+            mindist_i = min(absdist(:,I),[],2);
+            % Nehme den schlechtesten Wert von allen Objekten
+            mindist_all = max([mindist_i,mindist_all],[],2);
+          end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], [-90, -s.installspace_thresh]);
-        if h(8) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+        if h(8) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          all(I_nochange)
           h8dq = zeros(1,Rob.NJ);
         elseif ~isinf(h(8))
           h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
