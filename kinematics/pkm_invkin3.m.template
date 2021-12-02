@@ -1033,14 +1033,18 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
-  h(3) = cond(Jik);
+  if ~any(isnan(Jik(:))) && ~any(isinf(Jik(:)))
+    h(3) = cond(Jik);
+  end
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
     xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
     [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
     [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
-    h(4) = cond(Jinv(s.I_qa,Rob_I_EE));
+    if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
+      h(4) = cond(Jinv(s.I_qa,Rob_I_EE));
+    end
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
     colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...

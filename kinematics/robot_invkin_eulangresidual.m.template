@@ -235,7 +235,7 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
 q0 = Q0(:,1);
 q1 = NaN(NQJ,1);
-Phi = NaN(6,1); % Dimension kann sich noch verkleinern
+Phi = NaN(length(I_IK),1); % Vorbelegung für Ausgabe ohne Iteration
 Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
@@ -825,7 +825,9 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   else
     Jdk = %RN%_constr4grad(Jdk_voll, Phi_voll, s.I_EE, reci);
   end
-  h(3) = cond(Jdk);
+  if ~any(isnan(Jdk(:))) && ~any(isinf(Jdk(:)))
+    h(3) = cond(Jdk);
+  end
   if wn(4) ~= 0 % Berechnung muss genauso sein wie oben
     colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
           Tc_stack(:,4)', struct('collsearch', true));
