@@ -298,11 +298,11 @@ s_pik = struct( ...
   'collbodies_thresh', 1.5, ... % keine Wirkung
   'collchecks', uint8(zeros(1,2)), ... % Dummy-Eintrag
   'installspace_thresh', 0.100, ... % keine Wirkung
-  'collbodies_instspc', struct(... % Keine Bauraumprüfung in Einzelpunkt-IK...
-    'link', uint8(zeros(0,2)), ... % ... Kann nicht benutzt werden
-    'type', uint8(zeros(0,1)), ... % ... (keine Nullraumbewegung)
-    'params', zeros(0,10)), ...
-  'collchecks_instspc', uint8(zeros(0,2)));
+  'collbodies_instspc', struct(... % Dummy-Eintrag für Kompilierbarkeit
+    'link', uint8(zeros(1,2)), ... %
+    'type', uint8(zeros(1,1)), ... %
+    'params', zeros(1,10)), ...
+  'collchecks_instspc', uint8(zeros(1,2))); % Dummy-Eintrag
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(NQJ,1);
@@ -495,8 +495,13 @@ for k = 1:nt
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
           I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
-          % Benutze nur die zur Bildung des Gradienten
-          mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          if all(I_nochange) % Keine Kollision nennenswert geändert
+            % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+            mincolldist_test = repmat(colldist_test(1), size(colldist_test,1),1);
+          else % Normale Bestimmung der Abstände möglich
+            % Benutze nur die zur Bildung des Gradienten
+            mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          end
           % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
           % Übergang beginnend im Warnbereich.
           h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
@@ -505,7 +510,8 @@ for k = 1:nt
           h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0]);
           if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
-            if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+            if h(6) == 0 || ... % nichts tun. Noch im Toleranzbereich
+              all(I_nochange) % Kein Gradient bestimmbar
               h6drz = 0;
             elseif ~isinf(h(6))
               h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
@@ -522,11 +528,13 @@ for k = 1:nt
             % Umrechnung auf Gelenke mit Jacobi-Matrix
             h6dq = h6drz*J_x(end,:);
           end
-          if any(wn([18,19]) ~= 0) % quadratisches Kriterium
+          if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             h11_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
               [-100*maxcolldepth, 0]);
             h11drz = (h11_test - h(11))/1e-6;
             h11dq = h11drz*J_x(end,:);
+          else
+            h11dq(:) = 0;
           end
         else
           % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
@@ -542,13 +550,20 @@ for k = 1:nt
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
-          mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-10;
+          if all(I_nochange) % Keine Kollision nennenswert geändert
+            % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+            mincolldist_test = repmat(colldist_test(1), size(colldist_test,1),1);
+          else % Normale Bestimmung der Abstände möglich
+            % Benutze nur die zur Bildung des Gradienten
+            mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
+          end
           h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
           h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
             [-100*maxcolldepth, 0]);
           if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
-            if h(6) == 0 % nichts tun. Noch im Toleranzbereich
+            if h(6) == 0 || all(I_nochange) % nichts tun. Noch im Toleranzbereich
               h6dq(:) = 0;
             elseif ~isinf(h(6))
               for kkk = 1:NQJ
@@ -568,7 +583,7 @@ for k = 1:nt
               end
             end
           end
-          if any(wn([18,19]) ~= 0) % quadratisches Kriterium
+          if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             for kkk = 1:NQJ
               % Kriterium für Inkrement berechnen
               h11_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ...
@@ -576,6 +591,8 @@ for k = 1:nt
               % Differenzenquotient
               h11dq(kkk) = (h11_test'-h(11))/1e-6;
             end
+          else
+            h11dq(:) = 0;
           end
         end
         if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
@@ -604,18 +621,23 @@ for k = 1:nt
         [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
           s.collchecks_instspc, JP_test, struct('collsearch', false));
         I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
-        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
-        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-        mindist_all = -inf(size(JP_test,1),1);
-        for i = 1:size(s.collbodies_instspc.link,1)
-          % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt j
-          I = s.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
-              ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
-          if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
-          % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
-          mindist_i = min(absdist(:,I),[],2);
-          % Nehme den schlechtesten Wert von allen Objekten
-          mindist_all = max([mindist_i,mindist_all],[],2);
+        if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+          % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
+          mindist_all = repmat(absdist(1), size(JP_test,1),1);
+        else
+          % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+          % Bauraumkörper enthalten sind (falls Prüfung gefordert)
+          mindist_all = -inf(size(JP_test,1),1);
+          for i = 1:size(s.collbodies_instspc.link,1)
+            % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt j
+            I = s.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
+                ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
+            if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
+            % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
+            mindist_i = min(absdist(:,I),[],2);
+            % Nehme den schlechtesten Wert von allen Objekten
+            mindist_all = max([mindist_i,mindist_all],[],2);
+          end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
         % positiver ist außerhalb (schlecht). Größter positiver Wert
@@ -623,7 +645,8 @@ for k = 1:nt
         h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, 0], ... % obere Grenze: Bei Überschreitung des Bauraums ist Wert inf
           [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        if h(7) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+        if h(7) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+          all(I_nochange) % Kein Gradient bestimmbar
           h7drz = 0;
         elseif ~isinf(h(7))
           h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
