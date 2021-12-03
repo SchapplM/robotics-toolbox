@@ -13,6 +13,7 @@ close all
 
 usr_create_anim = false; % zum Aktivieren der Video-Animationen (dauert etwas)
 usr_test_class = true;
+usr_create_plots = true;
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 resdir = fullfile(rob_path, 'examples_tests', 'results', 'CollAvoidance');
 mkdirs(resdir);
@@ -181,12 +182,14 @@ RP.collchecks = collchecks;
 
 % Roboter mit Objekten zeichnen
 s_plot = struct( 'ks_legs', [], 'straight', 0, 'mode', 5, 'only_bodies', true);
-figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
-view(3);
-RP.plot(q0, x0, s_plot);
-title('Startpose mit Kollisionsmodell des Roboters');
+if usr_create_plots
+  figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
+  view(3);
+  RP.plot(q0, x0, s_plot);
+  title('Startpose mit Kollisionsmodell des Roboters');
+end
 [colldet_start, colldist_start] = check_collisionset_simplegeom_mex(RP.collbodies, ...
   RP.collchecks, Tc_start(:,4)', struct('collsearch', true));
 assert(all(~colldet_start(:)), ['Es sollte keine Kollision in der Startpose ', ...
@@ -219,13 +222,14 @@ assert(any(colldet_3T3R(:)), ['Es sollte eine Kollision am Ende der ', ...
 %   Stats_3T3R.Q(Stats_3T3R.iter(i)+2:end,Ii) = repmat(...
 %     Stats_3T3R.Q(Stats_3T3R.iter(i)+1,Ii), size(Stats_3T3R.Q,1)-Stats_3T3R.iter(i)-1,1);
 % end
-figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
-trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
-RP.plot( q_3T3R, x1, s_plot );
-title('Zielpose des Roboters (3T3R)');
-
+if usr_create_plots
+  figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+  trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
+  RP.plot( q_3T3R, x1, s_plot );
+  title('Zielpose des Roboters (3T3R)');
+end
 % Verfahrbewegung mit Aufgabenredundanz, ohne Kollisionsbetrachtung
 t1 = tic();
 s_3T2R = s_basic;
@@ -254,15 +258,15 @@ assert(any(colldet_3T2R(:)), ['Es sollte eine Kollision am Ende der ', ...
   '3T2R-IK geben (manuell so eingestellt)']);
 fprintf(['Positions-IK für 3T2R berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_3T2R.iter);
-
-figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
-trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
-RP.plot( q_3T2R, x1, s_plot );
-title('Zielpose des Roboters (3T2R)');
-saveas(3, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_3T2R.fig'));
-
+if usr_create_plots
+  figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+  trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
+  RP.plot( q_3T2R, x1, s_plot );
+  title('Zielpose des Roboters (3T2R)');
+  saveas(3, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_3T2R.fig'));
+end
 % Verfahrbewegung mit Kollisionsvermeidung (aufgabenredundant). Kollisionen
 % in Zwischenphasen erlauben.
 t1 = tic();
@@ -278,14 +282,14 @@ if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich i
 end
 fprintf(['Positions-IK für finale Kollisionsvermeidung (hyperbolisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollAvoid.iter);
-
-figure(4);clf;set(4,'Name','Zielpose_KollVermFinal','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
-RP.plot( q1_cav, x1, s_plot );
-title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
-saveas(4, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinal.fig'));
-
+if usr_create_plots
+  figure(4);clf;set(4,'Name','Zielpose_KollVermFinal','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+  RP.plot( q1_cav, x1, s_plot );
+  title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
+  saveas(4, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinal.fig'));
+end
 % Zweite Implementierung mit quadratischer Abstandsfunktion, die den
 % Abstand global minimieren soll, statt nur die Kollision zu vermeiden
 s_collav2 = s_basic;
@@ -301,14 +305,14 @@ if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich i
 end
 fprintf(['Positions-IK für finale Kollisionsvermeidung (quadratisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollAvoid2.iter);
-
-figure(5);clf;set(5,'Name','Zielpose_KollVermFinalQuadr','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
-RP.plot( q1_cav, x1, s_plot );
-title('Zielpose des Roboters mit finaler Kollisionsvermeidung (quadr.)');
-saveas(5, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinalQuadr.fig'));
-
+if usr_create_plots
+  figure(5);clf;set(5,'Name','Zielpose_KollVermFinalQuadr','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+  RP.plot( q1_cav, x1, s_plot );
+  title('Zielpose des Roboters mit finaler Kollisionsvermeidung (quadr.)');
+  saveas(5, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinalQuadr.fig'));
+end
 % Verfahrbewegung mit Kollisionsvermeidung (aufgabenredundant). Kollisionen
 % in Zwischenphasen verbieten.
 t1 = tic();
@@ -326,16 +330,16 @@ end
 Stats_PosIK_CollStop = Stats_CollStop2; % Debug. TODO: Weg, wenn tpl aktualisiert.
 fprintf(['Positions-IK für strikte Kollisionsvermeidung berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollStop.iter);
-
-figure(6);clf;set(6,'Name','Zielpose_KollVermStreng','NumberTitle','off');
-hold on; grid on;
-xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
-trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
-trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.3);
-RP.plot( q1_cst, x1, s_plot );
-title('Zielpose des Roboters mit strikter Kollisionsvermeidung');
-saveas(6, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermStreng.fig'));
-
+if usr_create_plots
+  figure(6);clf;set(6,'Name','Zielpose_KollVermStreng','NumberTitle','off');
+  hold on; grid on;
+  xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+  trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
+  trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.3);
+  RP.plot( q1_cst, x1, s_plot );
+  title('Zielpose des Roboters mit strikter Kollisionsvermeidung');
+  saveas(6, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermStreng.fig'));
+end
 % Kollisionsprüfung für Endposen beider Verfahren
 [colldet,colldist] = check_collisionset_simplegeom_mex(RP.collbodies, RP.collchecks, ...
   [Tcstack1_cst(:,4)'; Tcstack1_cav(:,4)'], struct('collsearch', false));
@@ -531,9 +535,11 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T3R nicht erfolgreich berechnet'
 % Mit 3T2R (Aufgabenredundanz)
 t1 = tic();
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
-s_traj_3T2R = struct('wn', zeros(12,1));
-% s_traj_3T2R.wn(6) = 1; % P-Verstärkung Optimierung PKM-Konditionszahl
-% s_traj_3T2R.wn(10) = 0.1; % D-Verstärkung Optimierung PKM-Konditionszahl
+% Singularitätsvermeidung aktivieren (bzgl. IK-Jacobi-Matrix)
+s_traj_3T2R = struct('wn', zeros(21,1));
+s_traj_3T2R.cond_thresh_ikjac = 1e3;
+s_traj_3T2R.wn(5) = 1; % P-Verstärkung Optimierung IK-Jacobi-Konditionszahl
+s_traj_3T2R.wn(9) = 0.1; % D-Verstärkung Optimierung IK-Jacobi-Konditionszahl
 s_traj_3T2R.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_3T2R, QD_3T2R, QDD_3T2R, PHI, ~, ~, JP_3T2R, Stats_3T2R] = ...
@@ -552,8 +558,7 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet'
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler, Variante 1)
 t1 = tic();
 s_traj_Koll1 = struct('wn', zeros(12,1));
-s_traj_Koll1.wn(6) = 0*1; % P-Verstärkung Optimierung PKM-Konditionszahl
-s_traj_Koll1.wn(10) = 0*0.1; % D-Verstärkung Optimierung PKM-Konditionszahl
+s_traj_Koll1 = s_traj_3T2R;
 s_traj_Koll1.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 % Die Einstellung der Parameter ist abhängig von den Maximalwerten für qDD
 s_traj_Koll1.wn(11) = 0.1; % P-Verstärkung Kollisionsvermeidung
@@ -582,9 +587,7 @@ end
 % Benutze nur eine sehr schwache Auslegung des Reglers um zu zeigen, dass
 % die Vermeidung dann nicht funktioniert.
 t1 = tic();
-s_traj_Koll2 = s_traj_Koll1;
-% s_traj_Koll2.wn(6) = 1; % P-Verstärkung Optimierung PKM-Konditionszahl
-% s_traj_Koll2.wn(10) = 0.1; % D-Verstärkung Optimierung PKM-Konditionszahl
+s_traj_Koll2 = s_traj_3T2R;
 s_traj_Koll2.wn(11) = 1e-4; % P-Verstärkung Kollisionsvermeidung
 s_traj_Koll2.wn(12) = 1e-3; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
@@ -616,7 +619,7 @@ end
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler, größerer
 % Aktivitätsbereich der Kennzahl)
 t1 = tic();
-s_traj_Koll3 = s_traj_Koll1;
+s_traj_Koll3 = s_traj_3T2R;
 s_traj_Koll3.wn(11) = 0.8; % P-Verstärkung Kollisionsvermeidung
 s_traj_Koll3.wn(12) = 0.2; % D-Verstärkung Kollisionsvermeidung
 s_traj_Koll3.collbodies_thresh = 3; % 200% größere Kollisionskörper für Aktivierung
@@ -646,8 +649,7 @@ end
 
 % Mit 3T2R (Aufgabenredundanz, Quadratische Kollisionsvermeidung mit PD-Regler)
 t1 = tic();
-s_traj_Koll4 = s_traj_Koll1;
-s_traj_Koll4.wn([6 10]) = 0; % Keine Kondition optimieren
+s_traj_Koll4 = s_traj_3T2R;
 s_traj_Koll4.wn(20) = 0.8; % P-Verstärkung Kollisionsvermeidung
 s_traj_Koll4.wn(21) = 0.2; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
@@ -871,6 +873,28 @@ for kk = 1:length(Namen)
     saveas(44, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_X.fig'));
   end
   fprintf('Debug-Plots für Trajektorie %d/%d gezeichnet.\n', kk, length(Namen));
+
+  change_current_figure(45);
+  if kk == 1
+    set(45, 'Name', 'TrajIK_Cond', 'NumberTitle', 'off');
+    clf;
+  end
+  subplot(2,1,1); hold on;
+  plot(T_kk, h_kk(:,1+5));
+  if kk == length(Namen)
+    ylabel('Konditionszahl IK-Jacobi'); grid on;
+  end
+  subplot(2,1,2); hold on;
+  plot(T_kk, h_kk(:,1+6));
+  if kk == length(Namen)
+    ylabel('Konditionszahl PKM-Jacobi'); grid on;
+  end
+  if kk == length(Namen)
+    sgtitle('Konditionszahlen (Singularitätsvermeidung)');
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    saveas(45, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Cond.fig'));
+  end
 end
 fprintf(['Debug-Bilder für Trajektorien-IK generiert. Dauer: %1.1fs. ', ...
   'Gespeichert nach %s\n'], toc(t1), resdir);
@@ -895,9 +919,13 @@ for k = 1:length(Namen)
     filesuffix = 'with_collavoidance_weak';
     plottitle = 'Inverse Kinematics with Weak Collision Avoidance';
   elseif k == 5
-    Q_t_plot = Q_Koll1;
+    Q_t_plot = Q_Koll3;
     filesuffix = 'with_collavoidance_strong_early';
     plottitle = 'Inverse Kinematics with Strong and Early Collision Avoidance';
+  elseif k == 6
+    Q_t_plot = Q_Koll4;
+    filesuffix = 'with_collavoidance_strong_square';
+    plottitle = 'Inverse Kinematics with Strong and Quadratic Collision Avoidance';
   end
   X_t_plot = RP.fkineEE2_traj(Q_t_plot);
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden

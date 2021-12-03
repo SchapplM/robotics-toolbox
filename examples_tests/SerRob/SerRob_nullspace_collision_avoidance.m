@@ -274,7 +274,7 @@ for k = 1:5
     Q_t_plot = Stats_CollAvoid.Q(1:1+Stats_CollAvoid.iter,:);
     filesuffix = 'with_collavoidance_final';
     plottitle = 'Inverse Kinematics with Final Collision Avoidance (Hyperbolic)';
-  elseif kk == 4
+  elseif k == 4
     Q_t_plot = Stats_CollAvoid2.Q(1:1+Stats_CollAvoid2.iter,:);
     filesuffix = 'with_collavoidance_final_square';
     plottitle = 'Inverse Kinematics with Final Collision Avoidance (Square)';
@@ -289,7 +289,7 @@ for k = 1:5
   I_anim = knnsearch( t , t_Vid );
   I_anim = [I_anim; repmat(length(t),15,1)]; %#ok<AGROW> % 15 Standbilder (0.5s) mit letztem Wert
   
-  anim_filename = fullfile(resdir, sprintf('Nullspace_Collision_Test_PTP_%s', filesuffix));
+  anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_Collision_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 0, 'mode', 5, 'only_bodies', true);
   figure(9);clf;
@@ -463,7 +463,7 @@ for k = 1:length(Namen)
   t_Vid = (0:1/30*(t(end)/maxduration_animation):t(end))';
   I_anim = knnsearch( t , t_Vid );
 
-  anim_filename = fullfile(resdir, sprintf('Nullspace_Collision_Test_Traj_%s', filesuffix));
+  anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_Collision_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 0, 'mode', 5, 'only_bodies', true);
   figure(9);clf;
