@@ -233,6 +233,8 @@ end
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(NQJ,1); % Altwert für Tiefpassfilter
 delta_q_N_alt = zeros(NQJ,1); % Altwert für Nullraum-Tiefpassfilter
+Phi_alt = NaN(length(I_IK),1);
+delta_Phi_alt = Phi_alt;
 damping_active = false; % Standardmäßig noch nicht aktiviert
 
 % Zuweisung notwendig für mex (rr-Schleife nicht automatisch erkannt)
@@ -648,14 +650,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    delta_Phi = Phi - Phi_alt;
     if damping_active
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       % Zusätzlich zu obiger Filterung von delta_q_N.
       delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
-    elseif all(sign(delta_q) == -sign(delta_q_alt))
+    elseif all(sign(delta_q) == -sign(delta_q_alt)) || ...
+        all(sign(delta_Phi) == -sign(delta_Phi_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
     delta_q_alt = delta_q;
+    Phi_alt = Phi;
+    delta_Phi_alt = delta_Phi;
     
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;

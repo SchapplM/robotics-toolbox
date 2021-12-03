@@ -190,6 +190,8 @@ I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
 delta_q_alt = zeros(Rob.NJ,1); % Altwert für Tiefpassfilter
+Phi_alt = zeros(length(Rob.I_constr_red),1); % Altwert für Tiefpassfilter
+delta_Phi_alt = Phi_alt;
 delta_q_N_alt = zeros(Rob.NJ,1); % Altwert für Nullraum-Tiefpassfilter
 damping_active = false; % Standardmäßig noch nicht aktiviert
 N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
@@ -815,16 +817,20 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    delta_Phi = Phi - Phi_alt;
     if damping_active
       Stats.mode(jj) = bitset(Stats.mode(jj),24);
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       % Zusätzlich zu obiger Filterung von delta_q_N.
       delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
-    elseif all(sign(delta_q) == -sign(delta_q_alt))
+    elseif all(sign(delta_q) == -sign(delta_q_alt)) || ...
+        all(sign(delta_Phi) == -sign(delta_Phi_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
     delta_q_alt = delta_q;
-    
+    Phi_alt = Phi;
+    delta_Phi_alt = delta_Phi;
+
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
     

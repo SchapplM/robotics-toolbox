@@ -281,9 +281,10 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 q0 = Q0(:,1);
 q1 = NaN(NJ,1);
 qD_test = NaN(NJ,1);
-rownum_Phi_red = sum(s.Leg_I_EE_Task(1,4:6))+... % für Führungskette
-  sum(sum(s.Leg_I_EE_Task(2:end,4:6))); % für Folgeketten
+rownum_Phi_red = sum(s.Leg_I_EE_Task(:));
 Phi = NaN(rownum_Phi_red,1);
+Phi_alt = zeros(rownum_Phi_red,1); % Altwert für Tiefpassfilter
+delta_Phi_alt = Phi_alt;
 Phi_voll = NaN(NLEG*6,1);
 Phi4_q_voll = NaN(NLEG*6,NJ);
 Phi4_x_voll = NaN(NLEG*6,6);
@@ -926,16 +927,20 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     % Zusätzlicher Dämpfungsterm (gegen Oszillationen insbesondere mit der
     % Nullraumbewegung). Aktiviere, sobald Oszillationen erkannt werden
+    delta_Phi = Phi - Phi_alt;
     if damping_active
       Stats.mode(jj) = bitset(Stats.mode(jj),24);
       % Benutze diskretes PT1-Filter mit T=2 (Schritte der IK) und K=1
       % Zusätzlich zu obiger Filterung von delta_q_N.
       delta_q = delta_q_alt + 1/(1+2)*(1*delta_q-delta_q_alt);
-    elseif all(sign(delta_q) == -sign(delta_q_alt))
+    elseif all(sign(delta_q) == -sign(delta_q_alt)) || ...
+        all(sign(delta_Phi) == -sign(delta_Phi_alt))
       damping_active = true; % ab jetzt aktiviert lassen.
     end
     delta_q_alt = delta_q;
-    
+    Phi_alt = Phi;
+    delta_Phi_alt = delta_Phi;
+
     % Gelenkwinkel-Schritt anwenden
     q2 = q1 + delta_q;
     
