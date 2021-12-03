@@ -23,7 +23,12 @@ RS.update_EE([0;0;-0.05], [pi/2;0;-pi/2]); % z-Achse aus Zeichenebene, x-Achse a
 RS.qDDlim = repmat([-100, 100], RS.NJ, 1);
 % Debug: Funktionen neu generieren und kompilieren (bei Änderung)
 % serroblib_create_template_functions({SName}, false);
-% matlabfcn2mex({'S6RRRRRR10V2_invkin_eulangresidual', 'S6RRRRRR10V2_invkin_traj'});
+% mexerr = false;
+% mexerr = mexerr | matlabfcn2mex({'S6RRRRRR10V2_invkin_eulangresidual'}, true);
+% mexerr = mexerr | matlabfcn2mex({'S6RRRRRR10V2_invkin_traj'}, true);
+% if mexerr
+%   error('Fehler beim Kompilieren');
+% end
 RS.fill_fcn_handles(true); % kompilierte Funktionen nehmen (schneller)
 %% Definition der Kollisionskörper
 collbodies = struct( ...
@@ -120,10 +125,24 @@ s_collav.wn(4) = 1; % Kollisionsvermeidung aktiv
 [q1_cav, Phi_cav, Tcstack1_cav, Stats_CollAvoid] = RS.invkin2(RS.x2tr(x1), q0, s_collav);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung im Nullraum nicht lösbar');
 
-figure(4);clf;set(4,'Name','Zielpose_KollVermFinal','NumberTitle','off');
+figure(4);clf;set(4,'Name','Zielpose_KollVermFinalHyp','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_cav, s_plot );
+title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
+
+% Zweite Implementierung mit quadratischer Abstandsfunktion, die den
+% Abstand global minimieren soll, statt nur die Kollision zu vermeiden
+s_collav2 = s_basic;
+s_collav2.I_EE = logical([1 1 1 1 1 0]);
+s_collav2.wn(8) = 1; % Kollisionsvermeidung aktiv
+[q1_cav2, Phi_cav2, Tcstack1_cav2, Stats_CollAvoid2] = RS.invkin2(RS.x2tr(x1), q0, s_collav2);
+assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung 2 im Nullraum nicht lösbar');
+
+figure(5);clf;set(5,'Name','Zielpose_KollVermFinalQuad','NumberTitle','off');
+hold on; grid on;
+xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+RS.plot( q1_cav2, s_plot );
 title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
 
 % Prüfe Kollisionen in Zwischenschritten
@@ -149,7 +168,7 @@ s_collstop.wn(4) = 1; % Kollisionsvermeidung aktiv
 [q1_cst, Phi_cst, Tcstack1_cst, Stats_CollStop] = RS.invkin2(RS.x2tr(x1), q0, s_collstop);
 assert(all(abs(Phi_cst)<1e-8), 'IK mit absoluter Kollisionsvermeidung nicht lösbar');
 
-figure(5);clf;set(5,'Name','Zielpose_KollVermStreng','NumberTitle','off');
+figure(6);clf;set(6,'Name','Zielpose_KollVermStreng','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -171,7 +190,7 @@ assert(all(~colldet_cst(:)), ['Trotz absoluter Kollisionsvermeidung ', ...
   'gibt es Kollisionen in Zwischenschritten oder am Ende']);
 
 %% Debuggen der PTP-Bewegung
-Namen = {'3T3R', '3T2R', 'CollAV', 'CollStop'};
+Namen = {'3T3R', '3T2R', 'CollAV-Hyp', 'CollAV-Quad', 'CollStop'};
 for kk = 1:length(Namen)
   if kk == 1
     Stats = Stats_3T3R;
@@ -180,6 +199,8 @@ for kk = 1:length(Namen)
   elseif kk == 3
     Stats = Stats_CollAvoid;
   elseif kk == 4
+    Stats = Stats_CollAvoid2;
+  elseif kk == 5
     Stats = Stats_CollStop;
   end
   change_current_figure(20);
@@ -216,7 +237,7 @@ for kk = 1:length(Namen)
   
   change_current_figure(22);
   if kk == 1, clf; set(22, 'Name', 'PTP_Coll_All', 'NumberTitle', 'Off'); end
-  subplot(2,2,kk); hold on; grid on;
+  subplot(2,3,kk); hold on; grid on;
   plot(colldist);
   plot(min(colldist,[],2), 'r--', 'LineWidth', 3);
   title(Namen{kk});
@@ -240,7 +261,7 @@ for kk = 1:length(Namen)
 end
 %% Animation der PTP-Bewegungen mit und ohne Kollisionsvermeidung
 if usr_create_anim
-for k = 1:4
+for k = 1:5
   if k == 1
     Q_t_plot = Stats_3T3R.Q(1:1+Stats_3T3R.iter,:);
     filesuffix = 'no_collavoidance_3T3R';
@@ -252,8 +273,12 @@ for k = 1:4
   elseif k == 3
     Q_t_plot = Stats_CollAvoid.Q(1:1+Stats_CollAvoid.iter,:);
     filesuffix = 'with_collavoidance_final';
-    plottitle = 'Inverse Kinematics with Final Collision Avoidance';
-  elseif k == 4
+    plottitle = 'Inverse Kinematics with Final Collision Avoidance (Hyperbolic)';
+  elseif kk == 4
+    Q_t_plot = Stats_CollAvoid2.Q(1:1+Stats_CollAvoid2.iter,:);
+    filesuffix = 'with_collavoidance_final_square';
+    plottitle = 'Inverse Kinematics with Final Collision Avoidance (Square)';
+  elseif k == 5
     Q_t_plot = Stats_CollStop.Q(1:1+Stats_CollStop.iter,:);
     filesuffix = 'with_collavoidance_strict';
     plottitle = 'Inverse Kinematics with Strict Collision Avoidance';
@@ -299,7 +324,7 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet'
   RS.collchecks, J_3T2R, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit P-Regler)
-s_traj_KollP = struct('wn', zeros(10,1), 'I_EE', logical([1 1 1 1 1 0]));
+s_traj_KollP = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
 s_traj_KollP.wn(9) = 1; % P-Verstärkung Kollisionsvermeidung
 s_traj_KollP.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 [Q_CAP, QD_CAP, QDD_CAP, PHI, JP_CAP, Stats_CAP] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollP);
@@ -308,7 +333,7 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit P-Kollisionsvermeidung nicht erfo
   RS.collchecks, JP_CAP, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler)
-s_traj_KollPD = struct('wn', zeros(10,1), 'I_EE', logical([1 1 1 1 1 0]));
+s_traj_KollPD = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
 s_traj_KollPD.wn(9) = 1; % P-Verstärkung Kollisionsvermeidung
 s_traj_KollPD.wn(10) = 0.1; % D-Verstärkung Kollisionsvermeidung
 s_traj_KollPD.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
@@ -326,8 +351,21 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung (großer 
 [coll_CAPDw, dist_CAPDw] = check_collisionset_simplegeom(RS.collbodies, ...
   RS.collchecks, JP_CAPDw, struct('collsearch', false));
 
+% Mit 3T2R (Aufgabenredundanz, Quadratische Kollisionsvermeidung mit PD-Regler)
+s_traj_KollPDq = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
+s_traj_KollPDq.wn(18) = 1; % P-Verstärkung quadr. Kollisionsvermeidung
+s_traj_KollPDq.wn(19) = 0.1; % D-Verstärkung quadr. Kollisionsvermeidung
+s_traj_KollPDq.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_KollPDq.wn(9) = 1e-6; % sehr schwache hyperbolische Funktion
+s_traj_KollPDq.wn(10) = 0.1e-6; % D-Verstärkung hyperbolische
+
+[Q_CAPDq, QD_CAPDq, QDD_CAPDq, PHI, JP_CAPDq, Stats_CAPDq] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollPDq);
+assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung (quadratisch) nicht erfolgreich berechnet');
+[coll_CAPDq, dist_CAPDq] = check_collisionset_simplegeom(RS.collbodies, ...
+  RS.collchecks, JP_CAPDq, struct('collsearch', false));
+
 % Zeitverläufe plotten
-Namen = {'3T3R', '3T2R', 'CAP', 'CAPD', 'CAPDw'};
+Namen = {'3T3R', '3T2R', 'CAP', 'CAPD', 'CAPDw', 'CAPDq'};
 for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; CD_kk = dist_3T3R;
@@ -344,6 +382,9 @@ for kk = 1:length(Namen)
   elseif kk == 5
     Q_kk = Q_CAPDw; QD_kk = QD_CAPDw; QDD_kk = QDD_CAPDw; CD_kk = dist_CAPDw;
     h_kk = Stats_CAPDw.h;
+  elseif kk == 6
+    Q_kk = Q_CAPDq; QD_kk = QD_CAPDq; QDD_kk = QDD_CAPDq; CD_kk = dist_CAPDq;
+    h_kk = Stats_CAPDq.h;
   end
   change_current_figure(30);
   if kk == 1, clf; set(30, 'Name', 'Traj_Q', 'NumberTitle', 'off'); end
@@ -403,15 +444,19 @@ for k = 1:length(Namen)
   elseif k == 3
     Q_t_plot = Q_CAP;
     filesuffix = 'with_collavoidance_P';
-    plottitle = 'Trajectory Inverse Kinematics with P-Controller Collision Avoidance';
+    plottitle = 'Trajectory Inverse Kinematics with P-Controller Collision Avoidance (Hyperbolic)';
   elseif k == 4
     Q_t_plot = Q_CAPD;
     filesuffix = 'with_collavoidance_PD';
-    plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance';
+    plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance (Hyperbolic)';
   elseif k == 5
     Q_t_plot = Q_CAPDw;
     filesuffix = 'with_collavoidance_PD_wide';
     plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance (early activation)';
+  elseif k == 6
+    Q_t_plot = Q_CAPDq;
+    filesuffix = 'with_collavoidance_PD_square';
+    plottitle = 'Trajectory Inverse Kinematics with PD-Controller Collision Avoidance (Square+Hyp)';
   end
   t = (1:size(Q_t_plot,1))';
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden
