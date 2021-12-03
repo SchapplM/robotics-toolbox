@@ -658,6 +658,10 @@ classdef SerRob < RobBase
         ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
         ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
         'optimcrit_limits_hyp_deact', NaN, ... 
+        ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
+        ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
+        ... % permanente Optimierung der Jacobi
+        'cond_thresh_ikjac', 1, ... 
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
@@ -744,6 +748,10 @@ classdef SerRob < RobBase
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
+         ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
+         ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
+         ... % permanente Optimierung der Jacobi
+         'cond_thresh_jac', 1, ...
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(17,1), ... % Gewichtung der Nebenbedingung

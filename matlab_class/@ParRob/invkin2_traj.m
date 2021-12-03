@@ -98,6 +98,8 @@ s = struct('I_EE', R.I_EE,...
          'xDDlim', R.xDDlim, ...
    'thresh_ns_qa', 1, ... % ab dieser Konditionszahl NR-Bewegung in Gesamt-Koordinaten. Standardmäßig immer.
  'optimcrit_limits_hyp_deact', 0.9, ... % innerhalb der mittleren 90% der Gelenkspannweite hyperbolische Grenzfunktion ausschalten
+'cond_thresh_ikjac', 1, ... % Schwellwert zur Aktivierung der IK-Jacobi-Optimierung
+'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle

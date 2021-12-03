@@ -108,6 +108,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs            'reci', true,
 %$cgargs    'simplify_acc', false,
 %$cgargs 'optimcrit_limits_hyp_deact', 0.9,
+%$cgargs  'cond_thresh_jac', 1,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'wn', zeros(19,1),
@@ -281,6 +282,7 @@ s_pik = struct( ...
   'finish_in_limits', false, ... % Ohne Nullraumbewegung nicht möglich
   'avoid_collision_finish', false, ... % s.o.
   'optimcrit_limits_hyp_deact', NaN, ... % nicht relevant (da keine Nullraumbewegung)
+  'cond_thresh_ikjac', NaN, ... % nicht relevant
   'normalize', s.normalize, ... 
   'condlimDLS', 1, ... 
   'lambda_min', 2e-4, ... 
@@ -428,8 +430,8 @@ for k = 1:nt
       [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v_qDD = v_qDD - wn(4)*h4dq';
     end
-    if wn(5) ~= 0 || wn(8) ~= 0 % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
-      condJ = cond(J_x(I_EE,:));
+    condJ = cond(J_x(I_EE,:));
+    if (wn(5) ~= 0 || wn(8) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
       h(5) = condJ;
       if NQJ - sum(I_EE) == 1 && ~I_EE(end)
         % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
@@ -460,6 +462,8 @@ for k = 1:nt
       end
       v_qD = v_qD - wn(8)*h5dq';
       v_qDD = v_qDD - wn(5)*h5dq';
+    else
+      h(5) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
     end
     if any(wn([9,10,18,19]) ~= 0) % Kollisionsvermeidung bzw. Kollisionsabstand
       % Prüfe ob eine Kollision vorliegt (bei den vergrößerten Koll.-Körpern)

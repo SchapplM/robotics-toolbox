@@ -96,6 +96,8 @@ s = struct(...
   ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
   ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
   'optimcrit_limits_hyp_deact', NaN, ... 
+  'cond_thresh_ikjac', 1, ... % Schwellwert zur Aktivierung der IK-Jacobi-Optimierung
+  'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
   'retry_on_limitviol', false, ... % Bei Grenzverletzung neu versuchen mit true
   'retry_limit', 100, ...; % Anzahl der Neuversuche
   'debug', false); % Zusätzliche Test-Berechnungen
@@ -326,7 +328,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
         h(4) = condJpkm;
       end
-      if wn(3) ~= 0 || wn(4) ~= 0 % Singularitäts-Kennzahl aus Konditionszahl
+      if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac || wn(4) ~= 0 && condJpkm > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         if all(abs(Phi)<1e-6) && taskred_rotsym
@@ -337,7 +339,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           xD_test_3T3R = [zeros(5,1);1e-8];
           xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
-          if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+          if wn(3) && condJ > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
             Phi_q_test = Rob.constr3grad_q(q1+qD_test, xE_soll);
@@ -345,8 +347,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq = (condJ_test-condJ)./qD_test';
             % Zur Fehlertoleranz (falls bei überbestimmten PKM ein Gelenk keinen Einfluss hat)
             h3dq(isnan(h3dq)) = 0;
+          else
+            h3dq(:) = 0;
           end
-          if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
@@ -367,11 +371,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 error('Beide Ansätze für Delta Jinv stimmen nicht überein');
               end
             end
+          else
+            h4dq(:) = 0;
           end
         else
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
-          if wn(3) % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+          if wn(3) && condJ > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration
@@ -384,7 +390,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
             end
           end
-          if wn(4) && condJpkm < 1e10 % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             for kkk = 1:Rob.NJ
               q_test = q1; % ausgehend von aktueller Konfiguration

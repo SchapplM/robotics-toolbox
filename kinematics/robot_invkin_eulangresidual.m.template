@@ -76,6 +76,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs'finish_in_limits', false,
 %$cgargs'avoid_collision_finish', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
+%$cgargs  'cond_thresh_ikjac', 1,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
 %$cgargs      'lambda_min', 2e-4,
@@ -341,7 +342,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2);
         v = v - wn(2)*h2dq';
       end
-      if wn(3) ~= 0 % Singularitäts-Kennzahl mit Log-Konditionszahl
+      if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac % Singularitäts-Kennzahl mit Log-Konditionszahl
         hdq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
@@ -361,6 +362,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
         v = v - wn(3)*hdq';
         h(3) = condJ;
+      else
+        h(3) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
       end
       if wn(4) ~= 0 || wn(8) ~= 0 % Kollisionsvermeidung bzw. Kollisionsabstand
         hdq = zeros(1,NQJ);

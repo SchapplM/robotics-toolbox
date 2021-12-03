@@ -103,6 +103,8 @@ s_std = struct( ...
   ... % Abschaltung des Optimierungskriteriums der hyperbolischen Grenzen
   ... % Kriterium standardmäßig 5% vor oberer und unterer Grenze einschalten.
   'optimcrit_limits_hyp_deact', 0.9, ...
+  'cond_thresh_ikjac', 1, ... % Schwellwert zur Aktivierung der IK-Jacobi-Optimierung
+  'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1, ... % immer vollständigen Gelenkraum benutzen
   'wn', zeros(19,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
@@ -596,7 +598,7 @@ for k = 1:nt
         h4dqa =  h4drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
-      if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+      if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
@@ -605,7 +607,7 @@ for k = 1:nt
         v_qaD = v_qaD - wn(9)*h5dqa(:);
         v_qaDD = v_qaDD - wn(5)*h5dqa(:);
       end
-      if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+      if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(6) = condJ;
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
@@ -907,7 +909,7 @@ for k = 1:nt
         [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
-      if wn(5) ~= 0 || wn(9) ~= 0 % Konditionszahl der geom. Matrix der Inv. Kin.
+      if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = cond(Phi_q_test);
@@ -920,7 +922,7 @@ for k = 1:nt
         v_qD = v_qD - wn(9)*h5dq(:);
         v_qDD = v_qDD - wn(5)*h5dq(:);
       end
-      if wn(6) ~= 0 || wn(10) ~= 0 % Konditionszahl der PKM-Jacobi-Matrix
+      if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(6) = condJ;
         % Siehe gleiche Berechnung oben.
