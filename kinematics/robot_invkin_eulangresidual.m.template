@@ -368,6 +368,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % größere Kollisionskörper, damit auch eine Nullraumbewegung
         % stattfindet, wenn die Kollision noch nicht erreicht wird.
         colldet_warn = false;
+        colldet = true(1, size(s.collchecks,1)); % Für Kompilierbarkeit
         if wn(4) ~= 0
           % Prüfe danach nur die Fälle, bei denen die vergrößerten
           % Objekte bereits eine Kollision angezeigt haben.
@@ -376,10 +377,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if any(colldet)
             colldet_warn = true;
           end
-        else
-          % Prüfe im Folgenden Schritt alle Kollisionen
-          colldet = true(1,size(s.collchecks,1));
         end
+        if wn(8) ~= 0 && ~colldet_warn
+          % Prüfe im Folgenden Schritt alle Kollisionen
+          colldet(:) = true;
+        end
+        h([4 8]) = 0;
         if wn(4) ~= 0 && colldet_warn || wn(8)
           % Inkremente der Gelenkwinkel bilden. Dafür die Gelenkpositionen
           % bestimmen (für Kollisionsprüfung)
@@ -408,10 +411,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if nargout == 4
             Stats.maxcolldepth(jj) = -mincolldist_test(1);
           end
-          h(4) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h(8) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]);
+          if colldet_warn % (nur im Warnbereich aktiv)
+            h(4) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+          else
+            h(4) = 0;
+          end
           if wn(4) ~= 0 % hyperbolisches Kriterium
             if h(4) == 0 || ... % nichts tun. Noch im Toleranzbereich
               all(I_nochange) % Gradient nicht bestimmbar
@@ -438,6 +443,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Zu Nullraum-Vektor hinzufügen
             v = v - wn(4)*hdq';
           end
+          h(8) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
+            [-100*maxcolldepth, 0]); % immer aktiv
           if wn(8) ~= 0 && ~all(I_nochange) % quadratisches Kriterium
             for kkk = 1:NQJ
               % Kriterium für Inkrement berechnen

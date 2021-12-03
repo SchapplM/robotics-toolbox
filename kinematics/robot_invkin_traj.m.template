@@ -464,16 +464,19 @@ for k = 1:nt
     if any(wn([9,10,18,19]) ~= 0) % Kollisionsvermeidung bzw. Kollisionsabstand
       % Prüfe ob eine Kollision vorliegt (bei den vergrößerten Koll.-Körpern)
       colldet_warn = false;
+      colldet = true(1, size(s.collchecks,1)); % Für Kompilierbarkeit
       if any(wn([9,10])~=0)
         colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
           Tc_stack_k(:,4)', struct('collsearch', true));
         if any(colldet)
           colldet_warn = true;
         end
-      else
-        % Prüfe im Folgenden Schritt alle Kollisionen
-        colldet = true(1,size(s.collchecks,1));
       end
+      if any(wn([18,19])) && ~colldet_warn
+        % Prüfe im Folgenden Schritt alle Kollisionen
+        colldet(:) = true;
+      end
+      h([6 11]) = 0; h6dq(:) = 0; h11dq(:) = 0;
       if any(wn([9,10]) ~= 0) && colldet_warn || any(wn([18,19]) ~= 0)
         % Kollision im Warnbereich erkannt. Prüfe Abstände bzw.
         % Eindringtiefen und erzeuge Bewegung von Kollision weg.
@@ -502,13 +505,12 @@ for k = 1:nt
             % Benutze nur die zur Bildung des Gradienten
             mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
           end
-          % Zielkriterium berechnen: Hyperbolische Funktion mit Spline-
-          % Übergang beginnend im Warnbereich.
-          h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          % Quadratische Zielfunktion
-          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]);
+          if colldet_warn % nur im Warnbereich aktiv
+            h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+          else
+            h(6) = 0;
+          end
           if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
             if h(6) == 0 || ... % nichts tun. Noch im Toleranzbereich
               all(I_nochange) % Kein Gradient bestimmbar
@@ -528,6 +530,8 @@ for k = 1:nt
             % Umrechnung auf Gelenke mit Jacobi-Matrix
             h6dq = h6drz*J_x(end,:);
           end
+          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
+            [-100*maxcolldepth, 0]); % ist immer aktiv
           if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             h11_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
               [-100*maxcolldepth, 0]);
@@ -558,11 +562,13 @@ for k = 1:nt
             % Benutze nur die zur Bildung des Gradienten
             mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
           end
-          h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]);
-          if any(wn([9,10]) ~= 0) % hyperbolisches Kriterium
+          if colldet_warn % aktiv im Warnbereich
+            h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
+              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+          else
+            h(6) = 0;
+          end
+          if any(wn([9,10]) ~= 0) && colldet_warn % hyperbolisches Kriterium
             if h(6) == 0 || all(I_nochange) % nichts tun. Noch im Toleranzbereich
               h6dq(:) = 0;
             elseif ~isinf(h(6))
@@ -583,6 +589,8 @@ for k = 1:nt
               end
             end
           end
+          h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
+            [-100*maxcolldepth, 0]);
           if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             for kkk = 1:NQJ
               % Kriterium für Inkrement berechnen
