@@ -404,6 +404,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
         (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
+      h(:) = 0;
       v = zeros(NJ, 1);
       if wn(1) ~= 0
         Stats.mode(jj) = bitset(Stats.mode(jj),4);
@@ -430,7 +431,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
         Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
         condJpkm = cond(Jinv(s.I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
-        h(4) = condJpkm;
       end
       if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac || wn(4) ~= 0 && condJpkm > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
@@ -455,6 +455,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq(:) = 0;
           end
           if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+            h(4) = condJpkm;
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = %PN%_constr4grad_x(xE_1+xD_test,s_x);
             [~,Phi4_q_voll_test] = %PN%_constr4grad_q(q1+qD_test,s_q);
@@ -1142,7 +1143,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=%PN%_constr3grad_q(q1, xE_soll, s_cst3_q);
   if ~any(isnan(Jik(:))) && ~any(isinf(Jik(:)))
-    h(3) = cond(Jik);
+    condJ = cond(Jik);
+  else
+    condJ = NaN;
+  end
+  if wn(3) && condJ > s.cond_thresh_ikjac
+    h(3) = condJ;
   end
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
@@ -1151,7 +1157,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
-      h(4) = cond(Jinv(s.I_qa,Rob_I_EE));
+      condJpkm = cond(Jinv(s.I_qa,Rob_I_EE));
+    else
+      condJpkm = NaN;
+    end
+    if condJpkm > s.cond_thresh_jac
+      h(4) = condJpkm;
     end
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben

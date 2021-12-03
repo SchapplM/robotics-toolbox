@@ -246,6 +246,7 @@ N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
+condJ = NaN;
 
 % Ausgabe belegen
 success = false;
@@ -872,7 +873,10 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     Jdk = %RN%_constr4grad(Jdk_voll, Phi_voll, s.I_EE, reci);
   end
   if ~any(isnan(Jdk(:))) && ~any(isinf(Jdk(:)))
-    h(3) = cond(Jdk);
+    condJ = cond(Jdk);
+  end
+  if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac
+    h(3) = condJ;
   end
   if wn(4) ~= 0 % Berechnung muss genauso sein wie oben. TODO wn8
     colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
@@ -933,7 +937,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1) = h(3);
+  Stats.condJ(Stats.iter+1) = condJ;
 end
 
 q = q1;

@@ -299,6 +299,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
         (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
+      h(:) = 0;
       v = zeros(Rob.NJ, 1);
       if wn(1) ~= 0
         Stats.mode(jj) = bitset(Stats.mode(jj),4);
@@ -325,7 +326,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
         Jinv = -Phi4_q_voll\Phi4_x_voll;
         condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
-        h(4) = condJpkm;
       end
       if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac || wn(4) ~= 0 && condJpkm > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
@@ -350,6 +350,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h3dq(:) = 0;
           end
           if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+            h(4) = condJpkm;
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
@@ -1030,14 +1031,28 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=Rob.constr3grad_q(q1, xE_soll);
-  h(3) = cond(Jik);
+  if ~any(isnan(Jik(:))) && ~any(isinf(Jik(:)))
+    condJ = cond(Jik);
+  else
+    condJ = NaN;
+  end
+  if wn(3) && condJ > s.cond_thresh_ikjac
+    h(3) = condJ;
+  end
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
     xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
     [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
     [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
-    h(4) = cond(Jinv(Rob.I_qa,Rob.I_EE));
+    if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
+      condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE));
+    else
+      condJpkm = NaN;
+    end
+    if condJpkm > s.cond_thresh_jac
+      h(4) = condJpkm;
+    end
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
     colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
@@ -1082,7 +1097,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
   end
   if wn(9) ~= 0
-    [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks(colldet,:), ...
+    [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks, ...
       Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
     Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
     h(9) = invkin_optimcrit_limits1(Stats.maxcolldepth(Stats.iter+1), ...

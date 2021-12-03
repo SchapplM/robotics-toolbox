@@ -715,10 +715,8 @@ for k = 1:nt
   
   % Bestimme relevante Konditionszahlen in jedem Fall
   condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
-  h(5) = condPhi;
   Jinv_ax = J_x_inv(s.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
   condJ = cond(Jinv_ax);
-  h(6) = condJ;
   if condPhi > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),22);
   end
@@ -817,6 +815,7 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
+        h(5) = condPhi;
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = %PN%_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
         h5_test = cond(Phi_q_test);
@@ -824,6 +823,8 @@ for k = 1:nt
         h5dqa = h5drz * J_ax(end,:);
         v_qaD = v_qaD - wn(9)*h5dqa(:);
         v_qaDD = v_qaDD - wn(5)*h5dqa(:);
+      else
+        h(5) = 0;
       end
       if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
@@ -909,6 +910,8 @@ for k = 1:nt
         h6dqa = h6drz_v3 * J_ax(end,:);
         v_qaD = v_qaD - wn(10)*h6dqa(:);
         v_qaDD = v_qaDD - wn(6)*h6dqa(:);
+      else
+        h(6) = 0;
       end
       if any(wn([11 12 20 21]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
@@ -1128,6 +1131,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
       if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
+        h(5) = condPhi;
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = %PN%_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
         h5_test = cond(Phi_q_test);
@@ -1139,6 +1143,8 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(9)*h5dq(:);
         v_qDD = v_qDD - wn(5)*h5dq(:);
+      else
+        h(5) = 0;
       end
       if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
@@ -1180,6 +1186,8 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(10)*h6dq(:);
         v_qDD = v_qDD - wn(6)*h6dq(:);
+      else
+        h(6) = 0;
       end
       if any(wn([11 12 20 21]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
