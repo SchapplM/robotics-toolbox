@@ -42,7 +42,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = invkin4(R, xE_soll, q0, s_in)
 s_user = struct(...
               'K', ones(R.NJ,1), ... % Verstärkung Aufgabenbewegung
              'Kn', ones(R.NJ,1), ... % Verstärkung Nullraumbewegung
-             'wn', zeros(8,1), ... % Gewichtung der Nebenbedingung
+             'wn', zeros(9,1), ... % Gewichtung der Nebenbedingung
            'xlim', R.xlim, ... % Begrenzung der Endeffektor-Koordinaten
      'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
       'normalize', false, ... % Normalisieren auf +/- 180°
@@ -80,7 +80,7 @@ if nargin == 4 && ~isempty(s_in)
     end
   end
 end
-if length(s_user.wn) < 8, s_user.wn=[s_user.wn;zeros(8-length(s_user.wn),1)]; end
+if length(s_user.wn) < 9, s_user.wn=[s_user.wn;zeros(9-length(s_user.wn),1)]; end
 if sum(R.I_EE) <= sum(R.I_EE_Task)
   % Setze Gewichtung der Nullraum-Zielfunktionen auf Null. Es gibt keinen
   % Nullraum. Muss hier gemacht werden. Sonst Logik-Fehler in Funktion.
