@@ -234,7 +234,7 @@ end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
   wn(11:12) = 0; % Deaktivierung der Bauraumprüfung
 end
-if any(wn([9,10]))
+if any(wn([9,10,18,19]))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
