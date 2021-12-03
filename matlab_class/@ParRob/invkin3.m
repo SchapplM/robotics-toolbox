@@ -317,8 +317,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) || ...
-                  any(wn(7:8)) && taskred_rotsym && all(abs(Phi)<1e-6)
+      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6)
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.

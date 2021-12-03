@@ -9,7 +9,7 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %   Auswahl der Einstellungen:	
-%   .wn [6x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [8x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Jacobi-Matrix
@@ -108,7 +108,6 @@ K = s.K;
 Kn = s.Kn;
 n_min = s.n_min;
 n_max = s.n_max;
-wn = s.wn;
 Phit_tol = s.Phit_tol;
 Phir_tol = s.Phir_tol;
 retry_limit = s.retry_limit;
@@ -133,13 +132,14 @@ collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  wn([4,8]) = 0; % Deaktivierung der Kollisionsvermeidung
+  s.wn([4,8]) = 0; % Deaktivierung der Kollisionsvermeidung
   scale_coll = 0;
   avoid_collision_finish = false;
 end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
-  wn(5) = 0; % Deaktivierung der Bauraumprüfung
+  s.wn(5) = 0; % Deaktivierung der Bauraumprüfung
 end
+wn = s.wn;
 if scale_coll || any(wn([4 8])) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
@@ -164,6 +164,7 @@ if scale_coll || any(wn([4 8])) || avoid_collision_finish
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
 end
+
 % Indizes für kinematische Zwangsbedingungen festlegen
 if reci
   % Reihenfolge hergeleitet in [SchapplerTapOrt2019]; siehe z.B. Gl. (21)
@@ -285,9 +286,6 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     finish_in_limits = s.finish_in_limits;
     nsoptim = false;
     wn = s.wn;
-    if isempty(collbodies_ns.type) % Keine Kollisionskörper
-      wn([4,8]) = 0; % Deaktivierung der Kollisionsvermeidung
-    end
     if any(wn ~= 0), nsoptim = true; end
     break_when_in_limits = false;
   end

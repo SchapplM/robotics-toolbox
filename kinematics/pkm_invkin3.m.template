@@ -203,7 +203,6 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
 scale_lim = s.scale_lim;
@@ -223,7 +222,7 @@ nsoptim = false;
 if sum(Rob_I_EE) > sum(s.I_EE_Task)
   % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
   % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
-  if any(wn ~= 0)
+  if any(s.wn ~= 0)
     nsoptim = true;
   end
 else
@@ -300,10 +299,14 @@ collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  wn([5,9]) = 0; % Deaktivierung der Kollisionsvermeidung
+  s.wn([5,9]) = 0; % Deaktivierung der Kollisionsvermeidung
   scale_coll = 0;
   avoid_collision_finish = false;
 end
+if isempty(s.collbodies_instspc.type) % Keine Kollisionskörper
+  s.wn(6) = 0; % Deaktivierung der Bauraumprüfung
+end
+wn = s.wn;
 if scale_coll || wn(5) || wn(9) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
@@ -419,8 +422,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(4) || any(wn(3:6)) && taskred_rotsym && all(abs(Phi)<1e-6) || ...
-                  any(wn(7:8)) && taskred_rotsym && all(abs(Phi)<1e-6)
+      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6)
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.

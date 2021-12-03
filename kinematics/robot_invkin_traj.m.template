@@ -27,23 +27,34 @@
 %   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
 %   .wn [17x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
+%         (zu h(1))
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
+%         (zu h(2))
 %     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
+%         (zu h(3))
 %     (4) Hyperbolischer Abstand der Gelenkgeschwindigkeiten von ihren Grenzen
+%         (zu h(4))
 %     (5) Konditionszahl der geometrischen Jacobi-Matrix
+%         (zu h(5))
 %     (6) Wie Eintrag 1, aber auf Geschwindigkeitsebene
 %     (7) Wie Eintrag 2, aber auf Geschwindigkeitsebene
 %     (8) Wie Eintrag 5, aber auf Geschwindigkeitsebene
 %     (9) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%         (zu h(6))
 %    (10) wie 9, aber auf Geschwindigkeitsebene
 %    (11) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%         (zu h(7))
 %    (12) wie 11, aber auf Geschwindigkeitsebene
 %    (13) Abstand von phiz zu xlim (quadratisch gewertet)
+%         (zu h(8))
 %    (14) wie 13, aber auf Beschleunigungsebene
 %    (15) Abstand von phiz zu xlim (hyperbolisch gewertet)
+%         (zu h(9))
 %    (16) wie 15, aber auf Beschleunigungsebene
 %    (17) Abstand von phizD zu xDlim (quadratisch gewertet) als Dämpfung
+%         (zu h(10))
 %    (18) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
+%         (zu h(11))
 %    (19) Wie 19, aber D-Anteil
 %
 % Ausgabe:
@@ -259,6 +270,7 @@ if any(wn([9,10,18,19]))
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
 end
+
 simplify_acc = s.simplify_acc;
 % Einstellungsvariable für Positions-IK zusammenstellen. Fast alle sind
 % gleich. Es dürfen aber keine überzähligen Felder übergeben werden.
@@ -323,7 +335,7 @@ x_k_ist = NaN(6,1);
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+10), 'h_instspc_thresh', NaN, ...
+Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, ...
   'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 3);
 h = zeros(11,1);
 %% Iterative Berechnung der gesamten Trajektorie
@@ -1038,7 +1050,7 @@ for k = 1:nt
   
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  Stats.h(k,:) = [sum(wn([1:5,9,11,13,15]).*h(1:9)),h(1:10)'];
+  Stats.h(k,:) = [sum(wn([1:5,9,11,13,15 17 18]).*h([1:11])),h(1:11)'];
   XD_k_Stats = J_x * qD_k;
   Stats.phi_zD(k,1) = XD_k_Stats(6) - XD(k,6); % siehe wn(17)
   %% Anfangswerte für Positionsberechnung in nächster Iteration
