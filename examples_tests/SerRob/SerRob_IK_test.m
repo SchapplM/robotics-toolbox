@@ -618,3 +618,18 @@ for jj = 1:3
     end
   end
 end
+%% Teste Optimierungskriterium basierend auf der Konditionszahl
+k_test = [linspace(1, 1000, 10000), logspace(3, 7, 200)]';
+n = length(k_test);
+h_test = NaN(n,1);
+k_thr = 500;
+for i = 1:n
+  h_test(i) = invkin_optimcrit_condsplineact(k_test(i), k_thr);
+end
+figure(55);clf;
+plot(k_test, h_test);
+xlabel('Konditionszahl k');
+ylabel('Optimierungskriterium h');
+grid on;
+title('Validiierung Kriterium Kondition mit Aktivierungsschwelle');
+xlim([1, k_thr*1.1]);

@@ -331,6 +331,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
       if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac || wn(4) ~= 0 && condJpkm > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
+        h(3) = invkin_optimcrit_condsplineact(condJ, ... %  Spline-Übergang
+          1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); %  zwischen Null
+        h(4) = invkin_optimcrit_condsplineact(condJpkm, ... und der
+          1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         if all(abs(Phi)<1e-6) && taskred_rotsym
@@ -344,21 +348,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if wn(3) && condJ > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
+            % Zusätzlich Spline-Übergang für Aktivierungsschwelle
             Phi_q_test = Rob.constr3grad_q(q1+qD_test, xE_soll);
-            condJ_test = cond(Phi_q_test);
-            h3dq = (condJ_test-condJ)./qD_test';
+            h3_test = invkin_optimcrit_condsplineact(cond(Phi_q_test), ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
+            h3dq = (h3_test-h(3))./qD_test';
             % Zur Fehlertoleranz (falls bei überbestimmten PKM ein Gelenk keinen Einfluss hat)
             h3dq(isnan(h3dq)) = 0;
           else
             h3dq(:) = 0;
           end
           if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
-            h(4) = condJpkm;
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
             Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
-            h4_test = cond(Jinv_test(Rob.I_qa,Rob.I_EE));
+            h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(Rob.I_qa,Rob.I_EE)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h4dq = (h4_test-h(4))./qD_test';
             h4dq(isnan(h4dq)) = 0;
             if s.debug
@@ -386,11 +392,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               q_test = q1; % ausgehend von aktueller Konfiguration
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               Jik_kkk=Rob.constr3grad_q(q_test, xE_soll);% Berechnung identisch mit oben
-              condJik_kkk = cond(Jik_kkk);
+              h3_kkk = invkin_optimcrit_condsplineact(cond(Jik_kkk), ...
+                1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
               % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
               % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
               % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort gering.
-              h3dq(kkk) = (condJik_kkk-condJ)/1e-6;
+              h3dq(kkk) = (h3_kkk-h(3))/1e-6;
             end
           end
           if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
@@ -400,14 +407,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
               [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll;
-              condJpkm_kkk = cond(Jinv_kkk(Rob.I_qa,Rob.I_EE));
-              h4dq(kkk) = (condJpkm_kkk-condJpkm)/1e-6;
+              h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(Rob.I_qa,Rob.I_EE)), ...
+                1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+              h4dq(kkk) = (h4_kkk-h(4))/1e-6;
             end
           end
         end
         if wn(3), v = v - wn(3)*h3dq'; end
         if wn(4), v = v - wn(4)*h4dq'; end
-        h(3) = condJ;
       end
       if wn(5) || wn(9) % Kollisionsprüfung
         % Direkte Kinematik aller Beinketten (Datenformat für Kollision)
@@ -1044,7 +1051,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     condJ = NaN;
   end
   if wn(3) && condJ > s.cond_thresh_ikjac
-    h(3) = condJ;
+    h(3) = invkin_optimcrit_condsplineact(condJ, ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
@@ -1058,7 +1066,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       condJpkm = NaN;
     end
     if condJpkm > s.cond_thresh_jac
-      h(4) = condJpkm;
+      h(4) = invkin_optimcrit_condsplineact(condJpkm, ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben

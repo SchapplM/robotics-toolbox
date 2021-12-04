@@ -599,10 +599,12 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
       if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = condPhi;
+        h(5) = invkin_optimcrit_condsplineact(condPhi, ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
-        h5_test = cond(Phi_q_test);
+        h5_test = invkin_optimcrit_condsplineact(cond(Phi_q_test), ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         h5drz = (h5_test-h(5))/xD_test(6);
         h5dqa = h5drz * J_ax(end,:);
         v_qaD = v_qaD - wn(9)*h5dqa(:);
@@ -612,7 +614,8 @@ for k = 1:nt
       end
       if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
-        h(6) = condJ;
+        h(6) = invkin_optimcrit_condsplineact(condJ, ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
         % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
         % Entspricht direkt dem Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
@@ -620,13 +623,14 @@ for k = 1:nt
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
         J_x_inv_test_v3 = -Phi_q_voll_test\Phi_x_voll_test;
-        h6_test_v3 = cond(J_x_inv_test_v3(Rob.I_qa,:));
+        h6_test_v3 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v3(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6drz_v3 = (h6_test_v3-h(6))/xD_test(6);
 
         if false && ... % Aus numerischen Gründen liefern alternative Modellierungen manchmal andere Ergebnisse (Rundungsfehler und Konditionsberechnung). TODO: Wirklich nur Numerik?
             debug && abs(h6_test_v3-h(6))>1e-10 && ... % Vergleich lohnt sich nur, wenn numerisch unterschiedlich
-            h(6) < 1e2 % funktioniert schlecht bei schlechter Kondition. TODO: Schwellwert zu niedrig.
+            condJ < 1e2 % funktioniert schlecht bei schlechter Kondition. TODO: Schwellwert zu niedrig.
           % Alternative 1 für Berechnung: Allgemeine Zwangsbedingungen.
           % Nicht benutzen, da nicht mit constr3-Ergebnissen von oben kombinierbar.
           [~,Phi_q_voll_v4] = Rob.constr4grad_q(q_k);
@@ -634,7 +638,8 @@ for k = 1:nt
           [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
           [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k_ist+xD_test);
           J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
-          h6_test_v1 = cond(J_x_inv_test(Rob.I_qa,:));
+          h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h6drz_v1 = (h6_test_v1-h(6))/xD_test(6);
           % Alternative 2: Differenzenquotient aus Differential der inv-
@@ -644,7 +649,8 @@ for k = 1:nt
           J_x_inv_test_v2 = J_x_inv + ...
             Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4(:,Rob.I_EE) + ...
             -Phi_q_voll_v4\PhiD_x_voll_v4(:,Rob.I_EE);
-          h6_test_v2 = cond(J_x_inv_test_v2(Rob.I_qa,:));
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v2(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v2 = (h6_test_v2-h(6))/xD_test(6);
 
           % Alternative 4 für Berechnung: Mit Differenzenquotient das Differential annähern.
@@ -656,7 +662,8 @@ for k = 1:nt
           J_x_inv_test_v4 = J_x_inv + ...
             Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
             -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
-          h6_test_v4 = cond(J_x_inv_test_v4(Rob.I_qa,:));
+          h6_test_v4 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v4(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v4 = (h6_test_v4-h(6))/xD_test(6);
 
           % Debug-Teil: Vergleiche die vier Berechnungsalternativen.
@@ -915,10 +922,12 @@ for k = 1:nt
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
       if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = condPhi;
+        h(5) = invkin_optimcrit_condsplineact(condPhi, ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
-        h5_test = cond(Phi_q_test);
+        h5_test = invkin_optimcrit_condsplineact(cond(Phi_q_test), ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         if abs(h5_test-h(5)) < 1e-12
           h5dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
@@ -932,7 +941,8 @@ for k = 1:nt
       end
       if (wn(6) ~= 0 || wn(10) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
-        h(6) = condJ;
+        h(6) = invkin_optimcrit_condsplineact(condJ, ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Siehe gleiche Berechnung oben.
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test,x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test,x_k+xD_test);
@@ -940,7 +950,8 @@ for k = 1:nt
         % (ist hier ausreichend genau).
         % Alternative 1: Jacobi-Matrix direkt berechnen
         J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
-        h6_test_v1 = cond(J_x_inv_test(Rob.I_qa,:));
+        h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         
         if debug && abs(h6_test_v1-h(6)) > 1e-12 && h(6) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
             cond(Phi_q_voll) < 500 % IK sollte nicht singulär sein
@@ -953,7 +964,8 @@ for k = 1:nt
           J_x_inv_test = J_x_inv + ...
             Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
             -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
-          h6_test_v2 = cond(J_x_inv_test(Rob.I_qa,:));
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           abserr_12 = h6_test_v1 - h6_test_v2;
           relerr_12 = abserr_12/(h6_test_v1-h(6));
           if abs(abserr_12) > 1e-3 * (1+log10(condJ)^2) && ...

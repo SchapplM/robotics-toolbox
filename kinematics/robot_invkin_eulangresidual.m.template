@@ -344,6 +344,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         v = v - wn(2)*h2dq';
       end
       if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac % Singularitäts-Kennzahl mit Log-Konditionszahl
+        h(3) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
+            1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
         hdq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
@@ -355,14 +357,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Phi_voll_kkk = %RN%_constr2(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
             Jdk_kkk = %RN%_constr4grad(Jdk_voll_kkk, Phi_voll_kkk, s.I_EE, reci);
           end
-          condJ_kkk = cond(Jdk_kkk);
-          % Differenzenquotient aus Log-Kond. scheint bei hohen Konditions-
-          % zahlen numerisch etwas besser zu dämpfen (sonst dort sofort
-          % maximal große Sprünge der Gelenkwinkel). Dafür Gradient dort zu gering.
-          hdq(kkk) = (condJ_kkk-condJ)/1e-6;
+          h3_kkk = invkin_optimcrit_condsplineact(cond(Jdk_kkk), ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
+          hdq(kkk) = (h3_kkk-h(3))/1e-6;
         end
         v = v - wn(3)*hdq';
-        h(3) = condJ;
       else
         h(3) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
       end
@@ -880,9 +879,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   end
   if ~any(isnan(Jdk(:))) && ~any(isinf(Jdk(:)))
     condJ = cond(Jdk);
+  else
+    condJ = NaN;
   end
   if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac
-    h(3) = condJ;
+    h(3) = invkin_optimcrit_condsplineact(condJ, ...
+              1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
   if wn(4) ~= 0 % Berechnung muss genauso sein wie oben. TODO wn8
     colldet = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...

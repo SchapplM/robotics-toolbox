@@ -444,7 +444,8 @@ for k = 1:nt
     end
     condJ = cond(J_x(I_EE,:));
     if (wn(5) ~= 0 || wn(8) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
-      h(5) = condJ;
+      h(5) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
+          1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
       if NQJ - sum(I_EE) == 1 && ~I_EE(end)
         % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
         % Numerischer Differenzenquotient aus Bewegung in EE-z-Drehung.
@@ -452,9 +453,10 @@ for k = 1:nt
         qD_test = J_x\xD_test;
         Jg_test = %RN%_jacobig_sym_varpar(q_k+qD_test, link_index, r_i_i_C, pkin);
         J_x_test = [Jg_test(1:3,:); Tw \ Jg_test(4:6,:)]; % analytische Jacobi-Matrix
-        condJ_test = cond(J_x_test(I_EE,:));
+        h5test = invkin_optimcrit_condsplineact(cond(J_x_test(I_EE,:)), ...
+          1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
-        h5drz = (condJ_test-condJ)/1e-6;
+        h5drz = (h5test-h(5))/1e-6;
         % Umrechnung auf Gelenke mit Jacobi-Matrix
         h5dq = h5drz*J_x(end,:);
       else
@@ -466,8 +468,9 @@ for k = 1:nt
             q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
             Jg_kkk = %RN%_jacobig_sym_varpar(q_test, link_index, r_i_i_C, pkin);
             J_x_kkk_voll = [Jg_kkk(1:3,:); Tw \ Jg_kkk(4:6,:)]; % analytische Jacobi-Matrix
-            condJ_kkk = cond(J_x_kkk_voll(I_EE,:));
-            h5dq(kkk) = (condJ_kkk-condJ)/1e-6;
+            h5_kkk = invkin_optimcrit_condsplineact(cond(J_x_kkk_voll(I_EE,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+            h5dq(kkk) = (h5_kkk-h(5))/1e-6;
           end
           q_wn5 = q_k;
         end
