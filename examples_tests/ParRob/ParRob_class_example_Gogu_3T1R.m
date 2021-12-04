@@ -291,7 +291,7 @@ for testcase = 1:5
       change_current_figure(2345+i);clf;
       set(2345+i, 'NumberTitle', 'off', 'Name', sprintf('IK_Debug_Leg%d', i));
       subplot(2,3,1);
-      plot(Stats.condJ(1:Stats.iter(i)));
+      plot(Stats.condJ(1:Stats.iter(i),1));
       xlabel('Iterationen'); grid on;
       ylabel('cond(J)');
       subplot(2,3,2);

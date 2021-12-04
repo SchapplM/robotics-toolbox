@@ -254,11 +254,11 @@ condJ = NaN;
 success = false;
 
 if nargout == 4
-  Stats_default = struct('Q', NaN(1+n_max, NQJ), 'PHI', NaN(1+n_max, 6), 'iter', n_max, ...
-    'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-    NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+8), 'coll', false, ...
-    'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
-    'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 1);
+  Stats_default = struct('file', 'robot_invkin_eul', 'Q', NaN(1+n_max, NQJ), ...
+    'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
+    'condJ', NaN(1+n_max,1), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
+    'h', NaN(1+n_max,1+8), 'coll', false, 'instspc_mindst', NaN(1+n_max,1), ...
+    'maxcolldepth', NaN(1+n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 2);
   Stats = Stats_default;
 end
 
@@ -402,7 +402,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
-          I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-10;
+          I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-12;
           % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
           % Falls keine Kollision vorliegt (mit den kleineren
           % Kollisionskörpern), dann Abstände negativ angeben.
@@ -479,7 +479,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           s.collchecks_instspc, JP_test, struct('collsearch', false));
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-        I_nochange = abs(diff(minmax2(absdist')')) < 1e-10;
+        I_nochange = abs(diff(minmax2(absdist')')) < 1e-12;
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
           % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
           mindist_all = repmat(absdist(1), size(JP_test,1),1);

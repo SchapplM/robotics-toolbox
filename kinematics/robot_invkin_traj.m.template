@@ -335,8 +335,8 @@ x_k_ist = NaN(6,1);
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('h', NaN(nt,1+11), 'h_instspc_thresh', NaN, ...
-  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 3);
+Stats = struct('file', 'robot_invkin_traj', 'h', NaN(nt,1+11), ...
+  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 4);
 h = zeros(11,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -513,7 +513,7 @@ for k = 1:nt
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
-          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
           if all(I_nochange) % Keine Kollision nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
             mincolldist_test = repmat(colldist_test(1), size(colldist_test,1),1);
@@ -570,7 +570,7 @@ for k = 1:nt
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal
           [~, colldist_test] = check_collisionset_simplegeom( ...
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
-          I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-10;
+          I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-12;
           if all(I_nochange) % Keine Kollision nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
             mincolldist_test = repmat(colldist_test(1), size(colldist_test,1),1);
@@ -644,7 +644,7 @@ for k = 1:nt
         JP_test(1+1,:) = Tc_stack_test(:,4);
         [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
           s.collchecks_instspc, JP_test, struct('collsearch', false));
-        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
           % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
           mindist_all = repmat(absdist(1), size(JP_test,1),1);

@@ -237,11 +237,12 @@ rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [Cork
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJpkm = NaN;
 
-Stats_default = struct('Q', NaN(1+n_max, Rob.NJ), 'PHI', NaN(1+n_max, 6*Rob.NLEG), ...
-  'iter', n_max, 'retry_number', retry_limit, 'condJ', NaN(1+n_max,1), 'lambda', ...
-  NaN(n_max,2), 'rejcount', NaN(n_max,1), 'h', NaN(1+n_max,1+9), 'coll', false, ...
-  'instspc_mindst', NaN(1+n_max,1), 'maxcolldepth', NaN(1+n_max,1), ...
-  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'mode', uint32(zeros(n_max,1)));
+Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, Rob.NJ), ...
+  'PHI', NaN(1+n_max, 6*Rob.NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
+  'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
+  'h', NaN(1+n_max,1+9), 'coll', false, 'instspc_mindst', NaN(1+n_max,1), ...
+  'maxcolldepth', NaN(1+n_max,1), 'h_instspc_thresh', NaN, ...
+  'h_coll_thresh', NaN, 'mode', uint32(zeros(n_max,1)));
 Stats = Stats_default;
 
 %% Iterative Berechnung der inversen Kinematik
@@ -435,7 +436,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Bestimme Nullraumbewegung durch Differenzenquotient für die 
             % redundante Koordinate. Dadurch nur eine neue Funktions- 
             % auswertung
-            xD_test_3T3R = [zeros(5,1);1e-8];
+            xD_test_3T3R = [zeros(5,1);1e-6];
             xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
             qD_test = Jinv * xD_test;
             JP_test = [JP; NaN(1, size(JP,2))];
@@ -447,7 +448,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
             % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
             % beeinflusst werden
-            I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+            I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
             % Benutze nur die zur Bildung des Gradienten
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
@@ -505,7 +506,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
-            I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-10;
+            I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-12;
             if all(I_nochange) % Keine Kollision nennenswert geändert
               % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
               mincolldist_test = repmat(colldist_test(1), size(JP_test,1),1);
@@ -576,7 +577,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bestimme Nullraumbewegung durch Differenzenquotient für die 
           % redundante Koordinate. Dadurch nur eine neue Funktions- 
           % auswertung
-          xD_test_3T3R = [zeros(5,1);1e-8];
+          xD_test_3T3R = [zeros(5,1);1e-6];
           xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
           JP_test = [JP; NaN(1, size(JP,2))];
@@ -584,7 +585,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal
           [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-          I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+          I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
           if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
             mindist_all = repmat(absdist(1), 2, 1);
@@ -634,7 +635,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal.
           [~, absdist] = check_collisionset_simplegeom(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-          I_nochange = abs(diff(minmax2(absdist')')) < 1e-10;
+          I_nochange = abs(diff(minmax2(absdist')')) < 1e-12;
           if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
             mindist_all = repmat(absdist(1), size(JP_test,1),1);
@@ -947,7 +948,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.Q(1+jj,:) = q1;
       Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
-      Stats.condJ(jj) = condJ;
+      Stats.condJ(jj,:) = [condJ,condJpkm];
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
@@ -1113,7 +1114,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1) = h(3);
+  Stats.condJ(Stats.iter+1,:) = [condJ, condJpkm];
 end
 q = q1;
 if s.normalize

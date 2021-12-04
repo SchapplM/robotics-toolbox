@@ -549,8 +549,9 @@ Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
-Stats = struct('h', NaN(nt,1+12), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
-  NaN, 'phi_zD', NaN(nt,1), 'version', 3, 'mode', uint32(zeros(nt,1)));
+Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+12), ...
+  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'condJ', NaN(nt,2), ...
+  'phi_zD', NaN(nt,1), 'version', 4, 'mode', uint32(zeros(nt,1)));
 h = zeros(12,1);
 
 for k = 1:nt
@@ -723,6 +724,7 @@ for k = 1:nt
   if condJ > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),23);
   end
+  Stats.condJ(k,:) = [condPhi, condJ];
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
     Stats.mode(k) = bitset(Stats.mode(k),2);
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
@@ -940,7 +942,7 @@ for k = 1:nt
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
-          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
           % Benutze nur die zur Bildung des Gradienten
           if all(I_nochange) % Keine Kollision nennenswert geändert
             mincolldist_test = repmat(colldist_test(1), 2, 1);
@@ -994,7 +996,7 @@ for k = 1:nt
         % Bauraumprüfung für alle Gelenkpositionen auf einmal
         [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
           s.collchecks_instspc, JP_test, struct('collsearch', false));
-        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
@@ -1216,7 +1218,7 @@ for k = 1:nt
             s.collbodies, s.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
-          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
           % Benutze nur die zur Bildung des Gradienten
           if all(I_nochange) % Keine Kollision nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
@@ -1271,7 +1273,7 @@ for k = 1:nt
         % Kollision angezeigt haben.
         [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
           s.collchecks_instspc, JP_test, struct('collsearch', false));
-        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert

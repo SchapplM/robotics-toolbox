@@ -324,8 +324,9 @@ qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
 xD_k_ist = NaN(6,1);
-Stats = struct('h', NaN(nt,1+12), 'h_instspc_thresh', NaN, ...
-  'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
+Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+12), ...
+  'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
+  'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
 h = zeros(12,1);
 
 for k = 1:nt
@@ -505,6 +506,7 @@ for k = 1:nt
   if condJ > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),23);
   end
+  Stats.condJ(k,:) = [condPhi, condJ];
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
     Stats.mode(k) = bitset(Stats.mode(k),2);
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
@@ -722,7 +724,7 @@ for k = 1:nt
             Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
-          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
           % Benutze nur die zur Bildung des Gradienten
           if all(I_nochange) % Keine Kollision nennenswert geändert
             mincolldist_test = repmat(colldist_test(1), 2, 1);
@@ -776,7 +778,7 @@ for k = 1:nt
         % Bauraumprüfung für alle Gelenkpositionen auf einmal
         [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
           Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
@@ -998,7 +1000,7 @@ for k = 1:nt
             Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
           % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
           % beeinflusst werden
-          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-10;
+          I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
           % Benutze nur die zur Bildung des Gradienten
           if all(I_nochange) % Keine Kollision nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
@@ -1053,7 +1055,7 @@ for k = 1:nt
         % Kollision angezeigt haben.
         [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
           Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-10;
+        I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
         % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
         % Bauraumkörper enthalten sind (falls Prüfung gefordert)
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
@@ -1488,7 +1490,7 @@ for k = 1:nt
   Phi_q_alt = Phi_q;
   Phi_x_alt = Phi_x;
 end
-if nargout == 4
+if nargout == 8
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
