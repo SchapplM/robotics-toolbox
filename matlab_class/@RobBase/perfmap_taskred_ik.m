@@ -160,9 +160,9 @@ s_ep.scale_lim = 0;
 s_ep_dummy = s_ep;
 s_ep_dummy.retry_limit = 0;
 if R.Type == 0 % hierdurch werden die Kriterien berechnet
-  s_ep_dummy.wn = ones(7,1); % Konsistent mit SerRob/invkin2
+  s_ep_dummy.wn = ones(8,1); % Konsistent mit SerRob/invkin2
 else
-  s_ep_dummy.wn = ones(8,1); % Konsistent mit ParRob/invkin4
+  s_ep_dummy.wn = ones(9,1); % Konsistent mit ParRob/invkin4
 end
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch
@@ -273,7 +273,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
           error('IK-Ergebnis hat sich bei Test verändert');
         end
         Q_all_ii(j, :, i) = q_j;
-        H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+        H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
         % Bauraumverletzung und Kollision nochmal gesondert eintragen
         if R.Type == 0, idxshift = 0; % Seriell
         else, idxshift = 1; end % PKM
