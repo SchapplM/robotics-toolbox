@@ -454,9 +454,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               any(abs(qN4_var1)>1e-4 & abs(test_qN4-1)>0.1 ) || ...  
               any(abs(qN3_var1)>1e-4) && all(sign(qN3_var1)==-sign(qN3_var2)) || ...
               any(abs(qN4_var1)>1e-4) && all(sign(qN4_var1)==-sign(qN4_var2))
-            error(['Beide Varianten der Gradientenbildung für Kriterium 3 ', ...
+            error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 3 ', ...
               'oder 4 (Sing.) stimmen nicht überein. Phi=%1.1e. ratio h3: %1.1e...%1.1e, ratio h4: %1.1e...%1.1e'], ...
-                max(abs(Phi)), min(test_qN3), max(test_qN3), min(test_qN4), max(test_qN4));
+                jj, max(abs(Phi)), min(test_qN3), max(test_qN3), min(test_qN4), max(test_qN4));
           end
         end
         if wn(3), v = v - wn(3)*h3dq'; end
@@ -550,12 +550,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             if s.debug
               h5dq_var1 = h5dq;
               h9dq_var1 = h9dq;
+              I_nochange_var1 = I_nochange;
             end
           end % Kein if-else, sondern neues if mit inverser Bedingung (wegen Debug)
           if ~(all(abs(Phi)<1e-6) && taskred_rotsym) || s.debug % Variante 2
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
             % Gelenkkoordinate.
             JP_test = [JP; NaN(Rob.NJ, size(JP,2))];
+            scale_Inochange = NaN(Rob.NJ,1); % Merke die Skalierung für unten
+            qD_test_all = NaN(Rob.NJ,Rob.NJ);
             for kkk = 1:Rob.NJ
               qD_test = zeros(Rob.NJ,1);
               qD_test(kkk) = 1e-6; % kleines Inkrement
@@ -564,8 +567,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % raumbewegung findet auch Bewegung des anderen Kollisions-
               % objektes statt. TODO: Saubere Herleitung fehlt noch.
               qD_test_N = N*qD_test;
-              % Normierung auf 1e-6
-              qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk);
+              % Normierung größtes Element auf 1e-6.
+              scale_Inochange(kkk) = 1e-6 / max(abs(qD_test_N));
+              qD_test_N = qD_test_N * scale_Inochange(kkk);
+              qD_test_all(:,kkk) = qD_test_N;
               q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
               % Bestimme die Veränderung der Gelenkpositionen
               [~, JP_test(1+kkk,:)] = Rob.fkine_coll(q_test);
@@ -573,7 +578,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
             [~, colldist_test] = check_collisionset_simplegeom_mex( ...
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
-            I_nochange = abs(diff(minmax2(colldist_test')')) < 1e-12;
+            % Prüfe, welche Kollisionsprüfungen sich nicht verändern.
+            % Bestimme die Änderung für jedes einzelne Inkrement
+            cdtdiff=repmat(colldist_test(1,:),Rob.NJ,1)-colldist_test(2:end,:);
+            % Benutze die Skalierungen, damit ein absolut großes Inkrement
+            % nicht numerisches Rauschen verstärkt und den Schwellwert
+            % damit überschreitet.
+            I_nochange_voll2 = abs(cdtdiff) < 1e-12*repmat(1./scale_Inochange, 1, size(cdtdiff,2));
+            % Berücksichtige nur Kollisionsprüfungen, die jetzt von min.
+            % einem Gelenk beeinflusst werden.
+            I_nochange = any(I_nochange_voll2);
             if all(I_nochange) % Keine Kollision nennenswert geändert
               % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
               mincolldist_test = repmat(colldist_test(1), size(JP_test,1),1);
@@ -591,11 +605,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 all(I_nochange)
                 h5dq(:) = 0;
               elseif ~isinf(h(5))
+                % Differenzenquotient für jedes Inkrement getrennt und dann Mittelwert.
+                % Damit stimmt das Ergebnis mit Variante 1 überein. Ohne nicht.
+                h5dq_all = NaN(Rob.NJ,Rob.NJ);
                 for kkk = 1:Rob.NJ
                   h5_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
                     [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
-                  h5dq(kkk) = (h5_test-h(5))/1e-6;
+                  h5dq_all(kkk,:) = (h5_test-h(5))./(qD_test_all(:,kkk)');
                 end
+                h5dq = mean(h5dq_all);
               else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
                 % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
                 for kkk = 1:Rob.NJ
@@ -612,15 +630,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h(9) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
               [-100*maxcolldepth, 0]);
             if wn(9) && ~all(I_nochange) % quadratisches Kriterium
+              h9dq_all = NaN(Rob.NJ,Rob.NJ);
               for kkk = 1:Rob.NJ
                 h9_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
                   [-100*maxcolldepth, 0]);
-                h9dq(kkk) = (h9_test-h(9))/1e-6;
+                h9dq_all(kkk,:) = (h9_test-h(9))./(qD_test_all(:,kkk)');
               end
+              h9dq = mean(h9dq_all);
             else
               h9dq(:) = 0;
             end
             if s.debug
+              I_nochange_var2 = I_nochange;
               h5dq_var2 = h5dq;
               h9dq_var2 = h9dq;
             end
@@ -628,7 +649,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if nargout == 4
             Stats.maxcolldepth(jj) = -mincolldist_test(1);
           end
-          if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym
+          if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym && ...
+              ~all(I_nochange_var1==I_nochange_var2) % Wenn beide ungleich sind, ist eine Abweichung zu erwarten
             % Prüfe, ob die Berechnung des Gradienten mit beiden Ansätzen gleich ist.
             qN5_var1 = N * h5dq_var1';
             qN5_var2 = N * h5dq_var2';
@@ -640,9 +662,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 any(abs(qN9_var1)>1e-4 & abs(test_qN9-1)>0.1 ) || ...  
                 any(abs(qN5_var1)>1e-4) && all(sign(qN5_var1)==-sign(qN5_var2)) || ...
                 any(abs(qN9_var1)>1e-4) && all(sign(qN9_var1)==-sign(qN9_var2))
-              error(['Beide Varianten der Gradientenbildung für Kriterium 5 ', ...
+              error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 5 ', ...
                 'oder 9 (Koll.) stimmen nicht überein. Phi=%1.1e. ratio h5: %1.1e...%1.1e, ratio h9: %1.1e...%1.1e'], ...
-                max(abs(Phi)), min(test_qN5(1)), max(test_qN5(1)), min(test_qN9(1)), max(test_qN9(1)));
+                jj, max(abs(Phi)), min(test_qN5(1)), max(test_qN5(1)), min(test_qN9(1)), max(test_qN9(1)));
             end
           end
           if wn(5)
@@ -770,16 +792,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h6dq_var2 = h6dq;
           end
         end
-        if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym % 1e-3, da es auch bei gröberer Toleranz funktionieren muss
+        if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym
           % Prüfe, ob die Berechnung des Gradienten mit beiden Ansätzen gleich ist.
           qN6_var1 = N * h6dq_var1';
           qN6_var2 = N * h6dq_var2';
           test_qN6 = qN6_var1 ./ qN6_var2;
           if any(abs(qN6_var1)>1e-4) && (any(abs(test_qN6-1)>0.1) || ...  % max. 10% Abweichung
               all(sign(qN6_var1)==-sign(qN6_var2))) % Bewegung darf nicht entgegengesetzt sein.
-            error(['Beide Varianten der Gradientenbildung für Kriterium 6 ', ...
+            error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 6 ', ...
               '(Bauraum) stimmen nicht überein. Phi=%1.1e. ratio h6: %1.1e...%1.1e'], ...
-                max(abs(Phi)), min(test_qN6), max(test_qN6));
+                jj, max(abs(Phi)), min(test_qN6), max(test_qN6));
           end
         end
         if nargout == 4
