@@ -32,7 +32,9 @@
 %   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
 %   .PHI (n+1)x6: Residuum
 %   .h (n+1x6): Leistungsmerkmale: siehe Reihenfolge in Eingabefeld "wn"
-%   .condJ (n+1x1): Konditionszahl der IK-Jacobi-Matrix
+%   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
+%     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
+%     der geometrischen Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
@@ -113,6 +115,7 @@ Phir_tol = s.Phir_tol;
 retry_limit = s.retry_limit;
 reci = s.reci;
 I_EElink = s.I_EElink;
+Rob_I_EE = %Rob_I_EE%; % Strukturelle FG (im Gegensatz zu Aufgaben-FG aus s.I_EE)
 T_N_E = s.T_N_E;
 pkin = s.pkin;
 NQJ = %NQJ%;
@@ -248,7 +251,7 @@ N = NaN(NQJ,NQJ); % Nullraum-Projektor
 h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
-condJ = NaN;
+condJik = NaN; condJ = NaN;
 
 % Ausgabe belegen
 success = false;
@@ -256,9 +259,9 @@ success = false;
 if nargout == 4
   Stats_default = struct('file', 'robot_invkin_eul', 'Q', NaN(1+n_max, NQJ), ...
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
-    'condJ', NaN(1+n_max,1), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
+    'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
     'h', NaN(1+n_max,1+8), 'coll', false, 'instspc_mindst', NaN(1+n_max,1), ...
-    'maxcolldepth', NaN(1+n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 2);
+    'maxcolldepth', NaN(1+n_max,1), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 3);
   Stats = Stats_default;
 end
 
@@ -304,9 +307,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
     % Bei Redundanz immer benutzen, nicht nur, falls Nullraumprojektion erfolglos.
-    condJ = cond(Jdk);
+    condJik = cond(Jdk); condJ = cond(Jgk(Rob_I_EE,:));
     % manipJ = det(Jdk*Jdk'); % Manipulierbarkeit; nicht weiter verfolgt.
-    if condJ > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
+    if condJik > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
       % Pseudo-Inverse mit Dämpfung:
       % Passe die Dämpfung lambda im DLS-Verfahren an. Wähle die Kon-
       % ditionszahl als Kriterium, da z.B. Grenzen für Singulärwerte
@@ -314,7 +317,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Skalierung zwischen 0 (z.B. Grenzfall cond=60) und 1 (komplett singulär).
       % Nehme einen Mindestwert für die Dämpfung und einen sich bei Stagnation
       % erhöhenden Aufschlag. Mit Aufschlag wird immer lambda_min benutzt.
-      lambda = (-1+2*2/pi*atan(condJ/condlimDLS))*(lambda_min+lambda_mult)/2;
+      lambda = (-1+2*2/pi*atan(condJik/condlimDLS))*(lambda_min+lambda_mult)/2;
       % Alternative Berechnung nach [NakamuraHan1986] (nicht weiter verfolgt):
       % manipJ0 = 1e-3;
       % lambda = 0.1*(1e-3+lambda_mult)*(1-manipJ/manipJ0)^2;
@@ -343,8 +346,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(2), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2);
         v = v - wn(2)*h2dq';
       end
-      if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac % Singularitäts-Kennzahl mit Log-Konditionszahl
-        h(3) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
+      if wn(3) ~= 0 && condJik > s.cond_thresh_ikjac % Singularitäts-Kennzahl mit Log-Konditionszahl
+        h(3) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
             1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
         hdq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
@@ -746,7 +749,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
         || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && Delta_Phi~=0 % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
-      if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
+      if condJik>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
         % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
         % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
         % da lambda gegen unendlich geht und dann sich Phi nicht mehr mit
@@ -773,7 +776,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
       lambda_mult = lambda_mult*2;
       rejcount = rejcount + 1;
-      if condJ <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+      if condJik <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
        rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
         if nargout == 4
@@ -786,7 +789,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.Q(1+jj,:) = q1;
       Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
-      Stats.condJ(jj) = condJ;
+      Stats.condJ(jj,:) = [condJik, condJ];
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
@@ -871,19 +874,20 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   h(:)=0; % Damit kein NaN bleibt, was die Gesamtsumme NaN werden lässt.
   if wn(1) ~= 0, h(1) = invkin_optimcrit_limits1(q1, [qmin, qmax]); end
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2); end
-  Jdk_voll = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+  [Jdk_voll, Jgk] = %RN%_constr2grad(q1, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   if ~use_constr4
     Jdk = Jdk_voll(I_IK,:);
   else
     Jdk = %RN%_constr4grad(Jdk_voll, Phi_voll, s.I_EE, reci);
   end
   if ~any(isnan(Jdk(:))) && ~any(isinf(Jdk(:)))
-    condJ = cond(Jdk);
+    condJik = cond(Jdk);
+    condJ   = cond(Jgk(Rob_I_EE,:));
   else
-    condJ = NaN;
+    condJik = NaN; condJ = NaN;
   end
-  if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac
-    h(3) = invkin_optimcrit_condsplineact(condJ, ...
+  if wn(3) ~= 0 && condJik > s.cond_thresh_ikjac
+    h(3) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
   if wn(4) ~= 0 % Berechnung muss genauso sein wie oben. TODO wn8
@@ -945,7 +949,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1) = condJ;
+  Stats.condJ(Stats.iter+1,:) = [condJik, condJ];
 end
 
 q = q1;

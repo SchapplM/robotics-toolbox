@@ -77,9 +77,12 @@
 %   * Kein Plattform-KS
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
-%   h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
+%   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
 %      Kriterien, siehe Beschreibung von Eingabe wn)
-%   mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
+%   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
+%   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
+%     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
+%     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
@@ -497,16 +500,16 @@ for k = 1:nt
   qDD_N_pre = zeros(Rob.NJ, 1);
   
   % Bestimme relevante Konditionszahlen in jedem Fall
-  condPhi = cond(Phi_q); % Benötigt als Singularitätskennzahl
+  condJik = cond(Phi_q); % Benötigt als Singularitätskennzahl
   Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
   condJ = cond(Jinv_ax);
-  if condPhi > 1e6
+  if condJik > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),22);
   end
   if condJ > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),23);
   end
-  Stats.condJ(k,:) = [condPhi, condJ];
+  Stats.condJ(k,:) = [condJik, condJ];
   if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
     Stats.mode(k) = bitset(Stats.mode(k),2);
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
@@ -598,8 +601,8 @@ for k = 1:nt
         h4dqa =  h4drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(4)*h4dqa(:);
       end
-      if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = invkin_optimcrit_condsplineact(condPhi, ...
+      if (wn(5) ~= 0 || wn(9) ~= 0) && condJik > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
+        h(5) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
@@ -894,7 +897,7 @@ for k = 1:nt
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
     % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
     if (condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug) && ...
-        condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
+        condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       % (bezogen auf vollständige Koordinaten)
       v_qD = zeros(Rob.NJ, 1);
@@ -921,8 +924,8 @@ for k = 1:nt
         [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
         v_qDD = v_qDD - wn(4)*h4dq(:);
       end
-      if (wn(5) ~= 0 || wn(9) ~= 0) && condPhi > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
-        h(5) = invkin_optimcrit_condsplineact(condPhi, ...
+      if (wn(5) ~= 0 || wn(9) ~= 0) && condJik > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
+        h(5) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         Stats.mode(k) = bitset(Stats.mode(k),8);
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
@@ -1318,7 +1321,7 @@ for k = 1:nt
   end
   
   if redundant && limits_qD_set && enforce_qDlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
-      condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
+      condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
     qD_pre = qD_k + qDD_pre*dt;
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
@@ -1376,7 +1379,7 @@ for k = 1:nt
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
   if redundant && limits_q_set && enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
-      condPhi < 1e10 % numerisch nicht für singuläre PKM sinnvoll
+      condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
     qD_pre2 = qD_k + qDD_pre2*dt;

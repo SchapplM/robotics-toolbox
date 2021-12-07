@@ -23,7 +23,10 @@
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .condJ [N x %NLEG%*2]
+%     Kondititionszahl im Verlauf der IK-Berechnung für alle %NLEG% Beinketten.
+%     Zuerst IK-Jacobi (erste %NLEG% Spalten), dann geom. Jacobi (letzte %NLEG% Spalten)
 %
 % Diese Datei ist identisch mit: ParRob/invkin_ser.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.
@@ -163,8 +166,8 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 if nargout == 4
   Stats = struct('file', 'pkm_invkin_ser', 'Q', NaN(1+s.n_max, %NJ%), ...
     'PHI', NaN(1+s.n_max, 6*%NLEG%), 'iter', repmat(s.n_max,1,%NLEG%), ...
-    'retry_number', zeros(1,%NLEG%), 'condJ', NaN(1+s.n_max,%NLEG%), ...
-    'lambda', NaN(s.n_max,2*%NLEG%), 'version', 2);
+    'retry_number', zeros(1,%NLEG%), 'condJ', NaN(1+s.n_max,2*%NLEG%), ...
+    'lambda', NaN(s.n_max,2*%NLEG%), 'version', 3);
 end
 
 for i = 1:NLEG
@@ -209,7 +212,7 @@ for i = 1:NLEG
     Stats.PHI(:,(i-1)*6+1:6*i) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;
     Stats.retry_number(i) = Stats_i.retry_number;
-    Stats.condJ(:,i) = Stats_i.condJ;
+    Stats.condJ(:,[i,i+%NLEG%]) = Stats_i.condJ(:,1:2);
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
   if i == 1 && (I_EE(6) && ~I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt

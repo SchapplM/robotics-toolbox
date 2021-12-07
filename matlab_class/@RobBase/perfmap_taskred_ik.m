@@ -175,7 +175,7 @@ s_ep_glbdscr.retry_limit = 10;
 s_ep_glbdscr.normalize = false; % no normalization (due to joint limits)
 s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work without redundancy
 s_traj_glbdscr = struct('simplify_acc', true);
-H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn));
+H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn)+2);
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
@@ -202,7 +202,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if isempty(I_ii)
     continue % Bei Eingabe einer NaN-Trajektorie oder unpassenden Grenzen zum Startwert
   end
-  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn));
+  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn)+2);
   Q_all_ii = NaN(length(I_ii), R.NJ, size(X_ref,1));
   t_lastmessage = tic();
   t1 = tic();
@@ -273,15 +273,19 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
           error('IK-Ergebnis hat sich bei Test verändert');
         end
         Q_all_ii(j, :, i) = q_j;
-        H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        % Speichere die Optimierungskriterien für Nullraumbewegungen
+        H_all_ii(i,j,1:end-2) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        % Speichere die Konditionszahl der Jacobi-Matrix separat. Zwei
+        % verschiedene: IK-Jacobi und analytische Jacobi
+        H_all_ii(i,j,end-1:end) = Stats_dummy.condJ(Stats_dummy.iter+1,:);
         % Bauraumverletzung und Kollision nochmal gesondert eintragen
         if R.Type == 0, idxshift = 0; % Seriell
         else, idxshift = 1; end % PKM
-        if H_all_ii(i,j,4+idxshift) > Stats_dummy.h_coll_thresh
-          H_all_ii(i,j,4+idxshift) = inf; % Kollision liegt vor
+        if H_all_ii(i,j,(4+idxshift):end-2) > Stats_dummy.h_coll_thresh
+          H_all_ii(i,j,(4+idxshift):end-2) = inf; % Kollision liegt vor
         end
-        if H_all_ii(i,j,5+idxshift) > Stats_dummy.h_instspc_thresh
-          H_all_ii(i,j,5+idxshift) = inf; % Bauraumverletzung liegt vor
+        if H_all_ii(i,j,(5+idxshift):end-2) > Stats_dummy.h_instspc_thresh
+          H_all_ii(i,j,(5+idxshift):end-2) = inf; % Bauraumverletzung liegt vor
         end
       end
     elseif strcmp(s.discretization_type, 'position-level')
@@ -378,14 +382,15 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         % Compute performance criteria
         R.update_EE_FG(s.I_EE_full,s.I_EE_red); % Roboter auf 3T2R einstellen
-        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn));
+        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn)+2);
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
           [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
           if any(abs(q_j_list(k,:)' - q_dummy) > 1e-8)
             error('IK-Ergebnis hat sich bei Test verändert');
           end
-          h_list(k,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+          h_list(k,:) = [Stats_dummy.h(Stats_dummy.iter+1,2:end), ...
+            Stats_dummy.condJ(Stats_dummy.iter+1,:)];
         end
         % select the joint angles that are nearest to the previous pose
         if ~(i==1 && j == 1) % not possible for first sample

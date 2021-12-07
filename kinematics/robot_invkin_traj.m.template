@@ -70,7 +70,10 @@
 %   gestapelte Positionen aller Gelenke für alle Zeitschritte
 %   (Entspricht letzter Spalte aller homogener Transformationsmatrizen)
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .condJ (NT x 2): (1.) Konditionszahl der analytischen Jacobi-Matrix
+%     (bezogen auf Aufgaben-FG). (2.)  Konditionszahl der geometrischen 
+%     Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 %
 % Siehe auch: ParRob/invkin_traj
 
@@ -154,6 +157,7 @@ JointPos_all = NaN( length(T), (%NJ%+1)*3 );
 % Einstellungsvariablen aus Struktur herausholen
 NQJ = %NQJ%;
 I_EE = s.I_EE;
+Rob_I_EE = %Rob_I_EE%; % Strukturelle FG (im Gegensatz zu Aufgaben-FG aus s.I_EE)
 n_Phi_t = sum(s.I_EE(1:3));
 nt = length(T);
 link_index = s.I_EElink;
@@ -335,8 +339,8 @@ x_k_ist = NaN(6,1);
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('file', 'robot_invkin_traj', 'h', NaN(nt,1+11), ...
-  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 4);
+Stats = struct('file', 'robot_invkin_traj', 'h', NaN(nt,1+11), 'condJ', NaN(nt,2), ...
+  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 5);
 h = zeros(11,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -365,6 +369,7 @@ for k = 1:nt
   Jg = %RN%_jacobig_sym_varpar(q_k, link_index, r_i_i_C, pkin);
   Tw = euljac(X(k,4:6)', s.phiconv_W_E); % Euler-Transformationsmatrix
   J_x = [Jg(1:3,:); Tw \ Jg(4:6,:)]; % analytische Jacobi-Matrix
+  condJik = cond(J_x(I_EE,:)); condJ = cond(Jg(Rob_I_EE,:));
   % Gelenk-Geschwindigkeit mit inverser Jacobi
   if ~(nsoptim || redundant)
     qD_k = J_x(I_EE,:) \ XD(k,I_EE)';
@@ -442,9 +447,8 @@ for k = 1:nt
       [h(4), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
       v_qDD = v_qDD - wn(4)*h4dq';
     end
-    condJ = cond(J_x(I_EE,:));
-    if (wn(5) ~= 0 || wn(8) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
-      h(5) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
+    if (wn(5) ~= 0 || wn(8) ~= 0) && condJik > s.cond_thresh_jac % Konditionszahl Jacobi-Matrix (Aufgaben-FG)
+      h(5) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
       if NQJ - sum(I_EE) == 1 && ~I_EE(end)
         % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
@@ -1056,6 +1060,7 @@ for k = 1:nt
   Stats.h(k,:) = [sum(wn([1:5,9,11,13,15 17 18]).*h([1:11])),h(1:11)'];
   XD_k_Stats = J_x * qD_k;
   Stats.phi_zD(k,1) = XD_k_Stats(6) - XD(k,6); % siehe wn(17)
+  Stats.condJ = [condJik, condJ];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;

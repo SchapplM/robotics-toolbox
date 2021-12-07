@@ -42,8 +42,11 @@
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
-%   mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
+%   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
+%     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
+%     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 % 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Modeling Parallel Robot Kine-
@@ -235,7 +238,7 @@ q0 = Q0(:,1);
 Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
-condJpkm = NaN;
+condJ = NaN;
 
 Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, Rob.NJ), ...
   'PHI', NaN(1+n_max, 6*Rob.NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
@@ -273,11 +276,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Gesamt-Jacobi bilden (reduziert um nicht betrachtete EE-Koordinaten)
     Jik=Rob.constr3grad_q(q1, xE_soll);
     %% Nullstellensuche für Positions- und Orientierungsfehler
-    condJ = cond(Jik);
+    condJik = cond(Jik);
     % (Optimierung der Aufgabe)
     % Benutze das Damped Least Squares Verfahren je nach Konditionszahl.
     % Bei Redundanz immer benutzen, nicht nur, falls Nullraumprojektion erfolglos.
-    if condJ > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
+    if condJik > condlimDLS% && (~nsoptim || nsoptim && rejcount > 0)
       % Pseudo-Inverse mit Dämpfung:
       % Passe die Dämpfung lambda im DLS-Verfahren an. Wähle die Kon-
       % ditionszahl als Kriterium, da z.B. Grenzen für Singulärwerte
@@ -285,7 +288,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % Skalierung zwischen 0 (z.B. Grenzfall cond=60) und 1 (komplett singulär).
       % Nehme einen Mindestwert für die Dämpfung und einen sich bei Stagnation
       % erhöhenden Aufschlag. Mit Aufschlag wird immer lambda_min benutzt.
-      lambda = (-1+2*2/pi*atan(condJ/condlimDLS))*(lambda_min+lambda_mult)/2;
+      lambda = (-1+2*2/pi*atan(condJik/condlimDLS))*(lambda_min+lambda_mult)/2;
       % [NakamuraHan1986], Gl. 22. Kleinere Dimension bei Redundanz als andere pinv.
       delta_q_T = ((Jik')/(Jik*Jik' + lambda*eye(length(Phi))))*(-Phi);
     else
@@ -329,12 +332,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
         [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
         Jinv = -Phi4_q_voll\Phi4_x_voll;
-        condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+        condJ = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
-      if wn(3) ~= 0 && condJ > s.cond_thresh_ikjac || wn(4) ~= 0 && condJpkm > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
-        h(3) = invkin_optimcrit_condsplineact(condJ, ... %  Spline-Übergang
+      if wn(3) ~= 0 && condJik > s.cond_thresh_ikjac || wn(4) ~= 0 && condJ > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
+        h(3) = invkin_optimcrit_condsplineact(condJik, ... %  Spline-Übergang
           1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); %  zwischen Null
-        h(4) = invkin_optimcrit_condsplineact(condJpkm, ... und der
+        h(4) = invkin_optimcrit_condsplineact(condJ, ... und der
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
@@ -347,7 +350,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           xD_test_3T3R = [zeros(5,1);1e-8];
           xD_test = xD_test_3T3R; % Hier werden für 2T1R nicht die Koordinaten reduziert
           qD_test = Jinv * xD_test;
-          if wn(3) && condJ > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+          if wn(3) && condJik > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
             % Einfacher Differenzenquotient für Kond. der IK-Jacobi-Matrix
             % Zusätzlich Spline-Übergang für Aktivierungsschwelle
@@ -360,7 +363,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else
             h3dq(:) = 0;
           end
-          if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(4) && condJ < 1e10 && condJ > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
@@ -378,7 +381,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
                 -Phi4_q_voll\Phi4D_x_voll;
               h4_test_2 = cond(Jinv_test_2(Rob.I_qa,Rob.I_EE));
-              if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJpkm) < 1
+              if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJ) < 1
                 error('Beide Ansätze für Delta Jinv stimmen nicht überein');
               end
             end
@@ -393,7 +396,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         if ~all(abs(Phi)<1e-6) && taskred_rotsym || s.debug % Variante 2
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
-          if wn(3) && condJ > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
+          if wn(3) && condJik > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
             for kkk = 1:Rob.NJ
               % Inkrement in einem Gelenkwinkel. Keine Vorwegnahme der
@@ -409,7 +412,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h3dq(kkk) = Rob.NJ * (h3_kkk-h(3))/1e-6;
             end
           end
-          if wn(4) && condJpkm < 1e10 && condJpkm > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(4) && condJ < 1e10 && condJ > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             for kkk = 1:Rob.NJ
               qD_test = zeros(Rob.NJ,1);
@@ -1045,7 +1048,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     if Phi_iO || Delta_Phi < 0 ... % Verbesserung des Residuums
         || any(delta_q_N) && all(abs(Phi_neu)<1e-3) && Delta_Phi~=0 % Bei Nullraumbewegung auch Verschlechterung möglich, wenn noch im "guten" Bereich
-      if condJ>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
+      if condJik>1e4 && Delta_Phi > -Phit_tol % Singularität mit Mini-Schritten
         % Erhöhe Dämpfung um von Singularität wegzukommen. Falls das nicht
         % funktioniert, führt das immerhin zu einem relativ frühen Abbruch,
         % da lambda gegen unendlich geht und dann sich Phi nicht mehr mit
@@ -1068,7 +1071,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % oben das DLS-Verfahren benutzt wird. Ansonsten Stillstand.
       lambda_mult = lambda_mult*2;
       rejcount = rejcount + 1;
-      if condJ <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
+      if condJik <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
        rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
         if nargout == 4
@@ -1081,7 +1084,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.Q(1+jj,:) = q1;
       Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
-      Stats.condJ(jj,:) = [condJ,condJpkm];
+      Stats.condJ(jj,:) = [condJik,condJ];
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
@@ -1172,12 +1175,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(2) ~= 0, h(2) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
   Jik=Rob.constr3grad_q(q1, xE_soll);
   if ~any(isnan(Jik(:))) && ~any(isinf(Jik(:)))
-    condJ = cond(Jik);
+    condJik = cond(Jik);
   else
-    condJ = NaN;
+    condJik = NaN;
   end
-  if wn(3) && condJ > s.cond_thresh_ikjac
-    h(3) = invkin_optimcrit_condsplineact(condJ, ...
+  if wn(3) && condJik > s.cond_thresh_ikjac
+    h(3) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
   if wn(4) % Bestimme PKM-Jacobi für Iterationsschritt
@@ -1187,12 +1190,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
-      condJpkm = cond(Jinv(Rob.I_qa,Rob.I_EE));
+      condJ = cond(Jinv(Rob.I_qa,Rob.I_EE));
     else
-      condJpkm = NaN;
+      condJ = NaN;
     end
-    if condJpkm > s.cond_thresh_jac
-      h(4) = invkin_optimcrit_condsplineact(condJpkm, ...
+    if condJ > s.cond_thresh_jac
+      h(4) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
   end
@@ -1249,7 +1252,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1,:) = [condJ, condJpkm];
+  Stats.condJ(Stats.iter+1,:) = [condJik, condJ];
 end
 q = q1;
 if s.normalize
