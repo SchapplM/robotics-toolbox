@@ -535,7 +535,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % Inkrement für erste Beinkette. Müsste egal sein, da Null-
               % raumprojektion durchgeführt wurde, auch wenn qD_test einer
               % anderen Beinkette angehört
-              xD_test = Jinv(1:6,:) \ qD_test_N(1:6);
+              xD_test = zeros(6,1); % 3T3R-Formulierung. Eintragung z.B. bei 2T1R nur relevante FG
+              xD_test(Rob_I_EE) = Jinv(1:6,Rob_I_EE) \ qD_test_N(1:6);
               xE_test = xE_1 + xD_test;
               [~, Phi4_x_voll_kkk] = %PN%_constr4grad_x(xE_test,s_x);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll_kkk;
