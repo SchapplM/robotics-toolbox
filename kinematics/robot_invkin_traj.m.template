@@ -340,7 +340,7 @@ xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'h', NaN(nt,1+11), 'condJ', NaN(nt,2), ...
-  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 5);
+  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'phi_zD', NaN(nt,1), 'version', 6);
 h = zeros(11,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -530,7 +530,7 @@ for k = 1:nt
           end
           if colldet_warn % nur im Warnbereich aktiv
             h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
           else
             h(6) = 0;
           end
@@ -540,7 +540,7 @@ for k = 1:nt
               h6drz = 0;
             elseif ~isinf(h(6))
               h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
-                [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
               % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
               h6drz = (h6_test - h(6))/1e-6;
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -554,10 +554,10 @@ for k = 1:nt
             h6dq = h6drz*J_x(end,:);
           end
           h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]); % ist immer aktiv
+            [-10*maxcolldepth, 0]); % ist immer aktiv
           if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             h11_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
-              [-100*maxcolldepth, 0]);
+              [-10*maxcolldepth, 0]);
             h11drz = (h11_test - h(11))/1e-6;
             h11dq = h11drz*J_x(end,:);
           else
@@ -587,7 +587,7 @@ for k = 1:nt
           end
           if colldet_warn % aktiv im Warnbereich
             h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
           else
             h(6) = 0;
           end
@@ -598,7 +598,7 @@ for k = 1:nt
               for kkk = 1:NQJ
                 % Kriterium für Inkrement berechnen
                 h6_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
-                  [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                  [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
                 % Differenzenquotient
                 h6dq(kkk) = (h6_test'-h(6))/1e-6;
               end
@@ -613,12 +613,12 @@ for k = 1:nt
             end
           end
           h(11) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]);
+            [-10*maxcolldepth, 0]);
           if any(wn([18,19]) ~= 0) && ~all(I_nochange) % quadratisches Kriterium
             for kkk = 1:NQJ
               % Kriterium für Inkrement berechnen
               h11_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ...
-                [-100*maxcolldepth, 0]);
+                [-10*maxcolldepth, 0]);
               % Differenzenquotient
               h11dq(kkk) = (h11_test'-h(11))/1e-6;
             end
@@ -1079,7 +1079,7 @@ if nargout == 4
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt

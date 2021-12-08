@@ -744,7 +744,7 @@ for k = 1:nt
           % Kollisions-Kriterium berechnen
           if colldet_warn
             h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
           else
             h(7) = 0;
           end
@@ -754,7 +754,7 @@ for k = 1:nt
               h7drz = 0;
             elseif ~isinf(h(7))
               h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
-                [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
               % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
               h7drz = (h7_test-h(7))/xD_test(6);
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -769,10 +769,10 @@ for k = 1:nt
             v_qaDD = v_qaDD - wn(11)*h7dqa(:);
           end
           h(12) = invkin_optimcrit_limits1(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-            [-100*maxcolldepth, 0]);
+            [-10*maxcolldepth, 0]);
           if any(wn([20 21])) % Quadratisches Kriterium
             h12_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
-              [-100*maxcolldepth, 0]);
+              [-10*maxcolldepth, 0]);
             % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
             h12drz = (h12_test-h(12))/xD_test(6);
             h12dqa = h12drz * J_ax(end,:);
@@ -1026,7 +1026,7 @@ for k = 1:nt
           % Kollisions-Kriterium berechnen
           if colldet_warn
             h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-              [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
           else
             h(7) = 0;
           end
@@ -1036,7 +1036,7 @@ for k = 1:nt
               h7dq = zeros(1,Rob.NJ);
             elseif ~isinf(h(7))
               h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
-                [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
               h7dq = (h7_test-h(7))./(qD_test');
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
@@ -1050,10 +1050,10 @@ for k = 1:nt
             v_qDD = v_qDD - wn(11)*h7dq(:);
           end
           h(12) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
-            [-100*maxcolldepth, 0]);
+            [-10*maxcolldepth, 0]);
           if any(wn([20 21]) ~= 0) % quadratisches Kriterium
             h12_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
-              [-100*maxcolldepth, 0]);
+              [-10*maxcolldepth, 0]);
             h12dq = (h12_test-h(12))./(qD_test');
             h12dq(isnan(h12dq)) = 0;
             v_qD = v_qD - wn(21)*h12dq(:);
@@ -1509,7 +1509,7 @@ if nargout == 8
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
     Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-100*maxcolldepth, 0], [-80*maxcolldepth, -collobjdist_thresh]);
+      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
