@@ -155,10 +155,16 @@ s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer als bei 
 s_ep.retry_on_limitviol = true;
 s_ep.retry_limit = 100; % Neuversuche erlauben (bei Einzelpunkt i.O.)
 s_ep.normalize = false;
-s_ep.finish_in_limits = true;
+% Keine Einhaltung der Grenzen erzwingen, da dies eher
+% Konfigurationswechsel bringt. Diese erzeugen dann Artefakte im Bild.
+s_ep.finish_in_limits = false;
 s_ep.scale_lim = 0;
 % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
+% Dient nur zur Berechnung der Optimierungskriterien.
 s_ep_dummy = s_ep;
+s_ep_dummy.finish_in_limits = false; % Muss deaktiviert sein. Sonst ...
+s_ep_dummy.retry_on_limitviol = false; % ... Veränderung von wn in IK-Aufruf
+s_ep_dummy.n_max = 1;
 s_ep_dummy.retry_limit = 0;
 if R.Type == 0 % hierdurch werden die Kriterien berechnet
   s_ep_dummy.wn = ones(8,1); % Konsistent mit SerRob/invkin2
