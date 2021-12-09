@@ -11,10 +11,12 @@
 %   Struktur mir Einstellungswerten (siehe Quelltext)
 % 
 % Ausgabe:
-% H_all [NI x NP x NK]
+% H_all [NI x NP x NK+4]
 %   Diskretisierung aller `NK` IK-Zielfunktionen, die in der Einzelpunkt-IK
 %   benutzt werden können. Für jedes Kriterium wird eine Rasterung erstellt
-%   mit Auflösung NI x NP.
+%   mit Auflösung NI x NP. Zusätzlich werden die physikalischen Werte der
+%   Kriterien gespeichert: Kollisionstiefe, Bauraumüberschreitung,
+%   Kondition IK-Jacobi, Kondition Jacobi (siehe invkin-Funktionen)
 % Q_all [NP x NJ x NI]
 %   Gelenkwinkel für die Konfiguration des Roboters zu jeder der Punkte auf
 %   der gerasterten Karte aus H_all.
@@ -191,7 +193,7 @@ s_ep_glbdscr.retry_limit = 10;
 s_ep_glbdscr.normalize = false; % no normalization (due to joint limits)
 s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work without redundancy
 s_traj_glbdscr = struct('simplify_acc', true);
-H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn)+2);
+H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn)+4);
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
@@ -218,7 +220,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if isempty(I_ii)
     continue % Bei Eingabe einer NaN-Trajektorie oder unpassenden Grenzen zum Startwert
   end
-  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn)+2);
+  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn)+4);
   Q_all_ii = NaN(length(I_ii), R.NJ, size(X_ref,1));
   t_lastmessage = tic();
   t1 = tic();
@@ -290,7 +292,11 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         Q_all_ii(j, :, i) = q_j;
         % Speichere die Optimierungskriterien für Nullraumbewegungen
-        H_all_ii(i,j,1:end-2) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        H_all_ii(i,j,1:end-4) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        % Speichere Abstand zu Kollision und Bauraumgrenze separat.
+        % Positive Zahlen sind eine Überschreitung bzw. Eindringen (schlecht).
+        H_all_ii(i,j,end-3) = Stats_dummy.maxcolldepth(Stats_dummy.iter+1,1);
+        H_all_ii(i,j,end-2) = Stats_dummy.instspc_mindst(Stats_dummy.iter+1,1);
         % Speichere die Konditionszahl der Jacobi-Matrix separat. Zwei
         % verschiedene: IK-Jacobi und analytische Jacobi
         H_all_ii(i,j,end-1:end) = Stats_dummy.condJ(Stats_dummy.iter+1,:);
@@ -369,7 +375,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
             repmat(qlim_noninf(:,2)' - qlim_noninf(:,1)',200,1)];  %#ok<AGROW>
         end
         % In case of second run overwrite everything and directly take
-        % results for phi=0. Otherwise their may be a discontinuity
+        % results for phi=0. Otherwise there may be a discontinuity
         if ii_sign == 2 && j == 1 % first value corresponds to 0
           q0_list = Q_all(length(phiz_range_ii),:,i);
         end
@@ -398,7 +404,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         % Compute performance criteria
         R.update_EE_FG(s.I_EE_full,s.I_EE_red); % Roboter auf 3T2R einstellen
-        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn)+2);
+        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn)+4);
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
           [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
@@ -406,6 +412,8 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
             error('IK-Ergebnis hat sich bei Test verändert');
           end
           h_list(k,:) = [Stats_dummy.h(Stats_dummy.iter+1,2:end), ...
+            Stats_dummy.maxcolldepth(Stats_dummy.iter+1,1), ...
+            Stats_dummy.instspc_mindst(Stats_dummy.iter+1,1), ...
             Stats_dummy.condJ(Stats_dummy.iter+1,:)];
         end
         % select the joint angles that are nearest to the previous pose
