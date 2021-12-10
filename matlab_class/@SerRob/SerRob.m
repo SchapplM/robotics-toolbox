@@ -674,6 +674,7 @@ classdef SerRob < RobBase
         'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
         'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+        'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
         'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
         'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
         'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)
@@ -764,6 +765,7 @@ classdef SerRob < RobBase
          'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
          'collbodies', R.collbodies, ... % Liste der Kollisionskörper
          'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+         'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
          'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
          'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
          'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)

@@ -118,6 +118,7 @@ s_std = struct( ...
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_xDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen für die Plattform (bei Nullraumbewegung)
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+  'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
   'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
   'debug', false); % Zusätzliche Test-Berechnungen
 if nargin < 7
@@ -282,6 +283,9 @@ if any(wn([11 12 20 21]))
   % eher zu groß gewählt werden (über Parameter collbodies_thresh).
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
+end
+if ~isnan(s.collision_thresh)
+  collobjdist_thresh = s.collision_thresh;
 end
 
 % Grenze zum Umschalten zwischen Nullraumbewegung in Antriebs- oder
@@ -743,8 +747,8 @@ for k = 1:nt
           end
           % Kollisions-Kriterium berechnen
           if colldet_warn
-            h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+            h(7) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(7) = 0;
           end
@@ -753,8 +757,8 @@ for k = 1:nt
               all(I_nochange)
               h7drz = 0;
             elseif ~isinf(h(7))
-              h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
-                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+              h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
               % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
               h7drz = (h7_test-h(7))/xD_test(6);
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -808,15 +812,15 @@ for k = 1:nt
           end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
-        h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+        h(8) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
-            [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+            -s.installspace_thresh); % oberer Schwellwert: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         if h(8) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange)
           h8drz = 0;
         elseif ~isinf(h(8))
-          h8_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-              [-100.0, 0], [-90, -s.installspace_thresh]);
+          h8_test = invkin_optimcrit_limits3(mindist_all(2), ... % Wert bezogen auf Test-Pose
+              [-100.0, 0], -s.installspace_thresh);
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h8drz = (h8_test-h(8))/xD_test(6);
         else
@@ -1025,8 +1029,8 @@ for k = 1:nt
           end
           % Kollisions-Kriterium berechnen
           if colldet_warn
-            h(7) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+            h(7) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(7) = 0;
           end
@@ -1035,8 +1039,8 @@ for k = 1:nt
               all(I_nochange)
               h7dq = zeros(1,Rob.NJ);
             elseif ~isinf(h(7))
-              h7_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
-                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+              h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
               h7dq = (h7_test-h(7))./(qD_test');
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
@@ -1090,14 +1094,14 @@ for k = 1:nt
           end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
-        h(8) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
+        h(8) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+            [-100.0, 0], -s.installspace_thresh);
         if h(8) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange)
           h8dq = zeros(1,Rob.NJ);
         elseif ~isinf(h(8))
-          h8_test = invkin_optimcrit_limits2(mindist_all(2), ...
-              [-100.0, 0], [-90, -s.installspace_thresh]);
+          h8_test = invkin_optimcrit_limits3(mindist_all(2), ...
+              [-100.0, 0], -s.installspace_thresh);
           h8dq = (h8_test-h(8))./(qD_test');
         else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
           % Indirekte Bestimmung über Abstand
@@ -1508,12 +1512,12 @@ end
 if nargout == 8
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
-    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+    Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
+      [-5*collobjdist_thresh, 0], -collobjdist_thresh);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
-    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
+    Stats.h_instspc_thresh = invkin_optimcrit_limits3(0, ...
+      [-100.0, 0], -s.installspace_thresh);
   end
 end

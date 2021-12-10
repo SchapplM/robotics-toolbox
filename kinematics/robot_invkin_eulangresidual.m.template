@@ -94,6 +94,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
+%$cgargs  'collision_thresh', NaN,
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs  'collbodies_instspc', struct(
@@ -166,6 +167,9 @@ if scale_coll || any(wn([4 8])) || avoid_collision_finish
   % eher zu groß gewählt werden (über Parameter collbodies_thresh).
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
+end
+if ~isnan(s.collision_thresh)
+  collobjdist_thresh = s.collision_thresh;
 end
 
 % Indizes für kinematische Zwangsbedingungen festlegen
@@ -418,8 +422,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             Stats.maxcolldepth(jj) = -mincolldist_test(1);
           end
           if colldet_warn % (nur im Warnbereich aktiv)
-            h(4) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+            h(4) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(4) = 0;
           end
@@ -430,8 +434,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             elseif ~isinf(h(4))
               for kkk = 1:NQJ
                 % Kriterium für Inkrement berechnen
-                h4_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
-                  [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+                h4_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ...
+                  [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                 % Differenzenquotient
                 hdq(kkk) = (h4_test-h(4))/1e-6;
               end
@@ -501,17 +505,17 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
         % positiver ist außerhalb (schlecht). Größter positiver Wert
         % maßgeblich
-        h(5) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+        h(5) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
-          [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+          -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         if h(5) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange) % Kein Gradient bestimmbar
           hdq(:) = 0;
         elseif ~isinf(h(5))
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
-            h5_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ...
-              [-100.0, s.installspace_thresh], [-90, -s.installspace_thresh]);
+            h5_test = invkin_optimcrit_limits3(mindist_all(1+kkk), ...
+              [-100.0, s.installspace_thresh], -s.installspace_thresh);
             % Differenzenquotient
             hdq(kkk) = (h5_test-h(5))/1e-6;
           end
@@ -897,8 +901,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks(colldet,:), ...
         Tc_stack(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
       Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
-      h(4) = invkin_optimcrit_limits2(Stats.maxcolldepth(Stats.iter+1), ...
-        [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+      h(4) = invkin_optimcrit_limits3(Stats.maxcolldepth(Stats.iter+1), ...
+        [-5*collobjdist_thresh, 0], -collobjdist_thresh);
       if any(colldet)
         Stats.coll = true;
       end
@@ -906,8 +910,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       h(4) = 0;
     end
     % Trage den Wert ein, ab dem eine Kollision vorliegt
-    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+    Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
+      [-5*collobjdist_thresh, 0], -collobjdist_thresh);
   end
   if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
@@ -919,12 +923,12 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       mindist_i = min(absdist(:,I),[],2);
       mindist_all = max([mindist_i,mindist_all],[],2);
     end
-    h(5) = invkin_optimcrit_limits2(mindist_all, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
+    h(5) = invkin_optimcrit_limits3(mindist_all, ...
+      [-100.0, 0], -s.installspace_thresh);
     Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
-    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
+    Stats.h_instspc_thresh = invkin_optimcrit_limits3(0, ...
+      [-100.0, 0], -s.installspace_thresh);
   end
   if wn(6) ~= 0 || wn(7) ~= 0
     T_0_N = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q1, I_EElink, pkin);

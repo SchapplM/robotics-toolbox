@@ -138,6 +138,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
+%$cgargs  'collision_thresh', NaN,
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]), 
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs  'collbodies_instspc', struct(
@@ -274,6 +275,9 @@ if any(wn([9,10,18,19]))
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
 end
+if ~isnan(s.collision_thresh)
+  collobjdist_thresh = s.collision_thresh;
+end
 
 simplify_acc = s.simplify_acc;
 % Einstellungsvariable für Positions-IK zusammenstellen. Fast alle sind
@@ -314,6 +318,7 @@ s_pik = struct( ...
     'type', uint8(zeros(1,1)), ...
     'params', zeros(1,10)), ...
   'collbodies_thresh', 1.5, ... % keine Wirkung
+  'collision_thresh', NaN, ... % keine Wirkung
   'collchecks', uint8(zeros(1,2)), ... % Dummy-Eintrag
   'installspace_thresh', 0.100, ... % keine Wirkung
   'collbodies_instspc', struct(... % Dummy-Eintrag für Kompilierbarkeit
@@ -529,8 +534,8 @@ for k = 1:nt
             mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
           end
           if colldet_warn % nur im Warnbereich aktiv
-            h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+            h(6) = invkin_optimcrit_limits3(-mincolldist_test(1), ...
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(6) = 0;
           end
@@ -539,8 +544,8 @@ for k = 1:nt
               all(I_nochange) % Kein Gradient bestimmbar
               h6drz = 0;
             elseif ~isinf(h(6))
-              h6_test = invkin_optimcrit_limits2(-mincolldist_test(2), ...
-                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+              h6_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
               % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
               h6drz = (h6_test - h(6))/1e-6;
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -586,8 +591,8 @@ for k = 1:nt
             mincolldist_test = min(colldist_test,[],2); % Schlimmste Kollision für jeden Körper bestimmen
           end
           if colldet_warn % aktiv im Warnbereich
-            h(6) = invkin_optimcrit_limits2(-mincolldist_test(1), ...
-              [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+            h(6) = invkin_optimcrit_limits3(-mincolldist_test(1), ...
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(6) = 0;
           end
@@ -597,8 +602,8 @@ for k = 1:nt
             elseif ~isinf(h(6))
               for kkk = 1:NQJ
                 % Kriterium für Inkrement berechnen
-                h6_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ...
-                  [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+                h6_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ...
+                  [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                 % Differenzenquotient
                 h6dq(kkk) = (h6_test'-h(6))/1e-6;
               end
@@ -673,15 +678,15 @@ for k = 1:nt
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
         % positiver ist außerhalb (schlecht). Größter positiver Wert
         % maßgeblich
-        h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+        h(7) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
           [-100.0, 0], ... % obere Grenze: Bei Überschreitung des Bauraums ist Wert inf
-          [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+          -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         if h(7) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange) % Kein Gradient bestimmbar
           h7drz = 0;
         elseif ~isinf(h(7))
-          h7_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
+          h7_test = invkin_optimcrit_limits3(mindist_all(2), ... % Wert bezogen auf Test-Pose
+            [-100.0, 0], -s.installspace_thresh);
           % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
           h7drz = (h7_test - h(7))/1e-6;
         else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -714,15 +719,15 @@ for k = 1:nt
           mindist_i = min(absdist(:,I),[],2);
           mindist_all = max([mindist_i,mindist_all],[],2);
         end
-        h(7) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-          [-100.0, 0], [-90, -s.installspace_thresh]);
+        h(7) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+          [-100.0, 0], -s.installspace_thresh);
         if h(7) == 0 % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           h7dq(:) = 0;
         elseif ~isinf(h(7))
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
-            h7_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
-              [-100.0, 0], [-90, -s.installspace_thresh]);
+            h7_test = invkin_optimcrit_limits3(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose
+              [-100.0, 0], -s.installspace_thresh);
             % Differenzenquotient
             h7dq(kkk) = (h7_test'-h(7))/1e-6;
           end
@@ -1078,12 +1083,12 @@ end
 if nargout == 4
   if wn(9) ~= 0 % Berechnung muss genauso sein wie oben
     % Trage den Wert ein, ab dem eine Kollision vorliegt
-    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+    Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
+      [-5*collobjdist_thresh, 0], -collobjdist_thresh);
   end
   if wn(11) ~= 0
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
-    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
+    Stats.h_instspc_thresh = invkin_optimcrit_limits3(0, ...
+      [-100.0, 0], -s.installspace_thresh);
   end
 end

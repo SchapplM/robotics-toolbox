@@ -481,14 +481,76 @@ end
 
 %% Debuggen der Zielfunktion
 return
-colldepth_test = linspace(-1, 0.3, 1e4)';
-maxcolldepths = 0.3;
+% Erste Version der Zielfunktion (bis Dezember 2021):
+colldepth_test = linspace(-1, 0.3, 1e3)';
+d_lim = [-10*maxcolldepth, 0];
+d_thr = [-8*maxcolldepth, -2*collobjdist_thresh];
+maxcolldepth = 0.3;
+collobjdist_thresh = 0.1;
 h_test = NaN(length(colldepth_test),1)';
 for i = 1:length(colldepth_test)
-  h_test(i) = invkin_optimcrit_limits2(colldepth_test(i), [-100*maxcolldepths, maxcolldepths], [-80*maxcolldepths, -2*maxcolldepths]);
+  h_test(i) = invkin_optimcrit_limits2(colldepth_test(i), d_lim, d_thr);
 end
+% Probe:
+h_thrtest(1) = invkin_optimcrit_limits2(d_thr(1)-eps, d_lim, d_thr);
+h_thrtest(2) = invkin_optimcrit_limits2(d_thr(1), d_lim, d_thr);
+h_thrtest(3) = invkin_optimcrit_limits2(d_thr(1)+eps, d_lim, d_thr);
+h_thrtest(5) = invkin_optimcrit_limits2(d_thr(2)-eps, d_lim, d_thr);
+h_thrtest(4) = invkin_optimcrit_limits2(d_thr(2), d_lim, d_thr);
+h_thrtest(6) = invkin_optimcrit_limits2(d_thr(2)+eps, d_lim, d_thr);
+assert(all(abs(h_thrtest) < 1e-10), 'Zielfunktion an Schwellwert nicht Null');
+
 figure(1);clf;
-plot(colldepth_test, h_test);
-xlim([-0.9, 0.25])
-xlabel('Eindringtiefe (positiv ist Kollision, negativ ist Abstand)');
-ylabel('Zielkriterium');
+for i = 1:2
+  subplot(1,2,i);
+  plot(colldepth_test, h_test);
+  if i == 2, set(gca, 'yscale', 'log'); end
+  xlim([-0.9, 0.25]); grid on;
+  xlabel('Eindringtiefe (positiv ist Kollision, negativ ist Abstand)');
+  ylabel('Zielkriterium (limits2)');
+end
+sgtitle('invkin_optimcrit_limits2', 'interpreter', 'none');
+
+% Erste Version der Zielfunktion (ab Dezember 2021):
+n_scale = 10;
+h_test = NaN(length(colldepth_test),n_scale)';
+legtxt = cell(n_scale,1);
+for j = 1:n_scale
+  for i = 1:length(colldepth_test)
+    h_test(i,j) = invkin_optimcrit_limits3(colldepth_test(i), [-(1+j)*collobjdist_thresh, 0], -collobjdist_thresh);
+  end
+  legtxt{j} = sprintf('scale=%d', 1+j);
+end
+% Probe:
+d_lim = [-2*collobjdist_thresh, 0];
+d_thr = -collobjdist_thresh;
+h_thrtest = NaN(3,1);
+h_thrtest(1) = invkin_optimcrit_limits3(d_thr-eps, d_lim, d_thr);
+h_thrtest(2) = invkin_optimcrit_limits3(d_thr, d_lim, d_thr);
+h_thrtest(3) = invkin_optimcrit_limits3(d_thr+eps, d_lim, d_thr);
+assert(all(abs(h_thrtest) < 1e-10), 'Zielfunktion an Schwellwert nicht Null');
+
+figure(2);clf;
+for i = 1:2
+  subplot(1,2,i);
+  plot(colldepth_test, h_test);
+  if i == 2, set(gca, 'yscale', 'log'); end
+  xlim([-0.9, 0.25]); grid on;
+  xlabel('Eindringtiefe (positiv ist Kollision, negativ ist Abstand)');
+  ylabel('Zielkriterium (limits3)');
+end
+legend(legtxt);
+sgtitle('invkin_optimcrit_limits3', 'interpreter', 'none');
+
+% Probe, ob beide Kriterien überführbar sind
+d_lim = [-10*maxcolldepth, 0];
+d_thr = [-8*maxcolldepth, -2*collobjdist_thresh];
+h_thrtest = NaN(3,2);
+h_thrtest(1,1) = invkin_optimcrit_limits2(d_thr(2)-1e-3, d_lim, d_thr);
+h_thrtest(2,1) = invkin_optimcrit_limits2(d_thr(2), d_lim, d_thr);
+h_thrtest(3,1) = invkin_optimcrit_limits2(d_thr(2)+1e-3, d_lim, d_thr);
+h_thrtest(1,2) = invkin_optimcrit_limits3(d_thr(2)-1e-3, d_lim, d_thr(:,2));
+h_thrtest(2,2) = invkin_optimcrit_limits3(d_thr(2), d_lim, d_thr(:,2));
+h_thrtest(3,2) = invkin_optimcrit_limits3(d_thr(2)+1e-3, d_lim, d_thr(:,2));
+assert(all(abs(h_thrtest(:,1)-h_thrtest(:,2)) < 1e-10), ...
+  'invkin_optimcrit_limits2 und invkin_optimcrit_limits3 nicht konsistent');

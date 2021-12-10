@@ -102,6 +102,7 @@ s = struct('I_EE', R.I_EE,...
 'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
 'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
 'collbodies_instspc', R.collbodies_instspc, ... % Ersatzkörper zur Bauraumprüfung

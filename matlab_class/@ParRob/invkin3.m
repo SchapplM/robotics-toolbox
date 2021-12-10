@@ -88,6 +88,7 @@ s = struct(...
   'scale_lim', 0, ... % Herunterskalierung bei Grenzüberschreitung
   'scale_coll', 0, ... % Herunterskalierung bei Kollision
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+  'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
   'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
   'Phit_tol', 1e-8, ... % Toleranz für translatorischen Fehler
   'Phir_tol', 1e-8,... % Toleranz für rotatorischen Fehler
@@ -231,6 +232,10 @@ if scale_coll || wn(5) || wn(9) || avoid_collision_finish
   % je kleiner der Wert wird, desto später wird die Vermeidung wirksam
   collobjdist_thresh = 0.3 * maxcolldepth;
 end
+if ~isnan(s.collision_thresh)
+  collobjdist_thresh = s.collision_thresh;
+end
+
 q0 = Q0(:,1);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
@@ -516,8 +521,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
             end
             if colldet_warn % nur im Warnbereich aktiv
-              h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+              h(5) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
             else
               h(5) = 0;
             end
@@ -526,8 +531,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 all(I_nochange) % Gradient nicht bestimmbar
                 h5dq(:) = 0;
               elseif ~isinf(h(5))
-                h5_test = invkin_optimcrit_limits2(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
-                  [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+                h5_test = invkin_optimcrit_limits3(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
+                  [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                 % Einfacher Differenzenquotient
                 h5dq = (h5_test-h(5))./qD_test';
               else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -599,8 +604,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
             end
             if colldet_warn
-              h(5) = invkin_optimcrit_limits2(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-                [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+              h(5) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
             else
               h(5) = 0;
             end
@@ -613,8 +618,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 % Damit stimmt das Ergebnis mit Variante 1 überein. Ohne nicht.
                 h5dq_all = NaN(Rob.NJ,Rob.NJ);
                 for kkk = 1:Rob.NJ
-                  h5_test = invkin_optimcrit_limits2(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
-                    [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+                  h5_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
+                    [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                   h5dq_all(kkk,:) = (h5_test-h(5))./(qD_test_all(:,kkk)');
                 end
                 h5dq = mean(h5dq_all);
@@ -1206,8 +1211,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks(colldet,:), ...
         Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
       Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
-      h(5) = invkin_optimcrit_limits2(Stats.maxcolldepth(Stats.iter+1), ...
-        [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+      h(5) = invkin_optimcrit_limits3(Stats.maxcolldepth(Stats.iter+1), ...
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
       if any(colldet)
         Stats.coll = true;
       end
@@ -1215,8 +1220,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       h(5) = 0;
     end
     % Trage den Wert ein, ab dem eine Kollision vorliegt
-    Stats.h_coll_thresh = invkin_optimcrit_limits2(0, ...
-      [-10*maxcolldepth, 0], [-8*maxcolldepth, -collobjdist_thresh]);
+    Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
   end
   if wn(6) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
