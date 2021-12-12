@@ -43,7 +43,7 @@ if any(isnan(Q(1,:))) || ~isempty(X) && any(isnan(X(1,:)))
   return
 end
 %% Initialisierung
-s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', [], 'png_name', []);
+s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', [], 'png_name', [], 'tmpdir', []);
 
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -76,13 +76,22 @@ elseif ~isempty(s_anim.png_name) && (~contains(s_anim.png_name, '%') || ...
     ~strcmp(s_anim.mp4_name(end-2:end), 'png'))
   error('PNG-Dateimuster %s hat falsche Endung oder enthält kein %%d-Muster', s_anim.png_name);
 end
+if ~isfield(s_anim, 'tmpdir')
+  s_anim.tmpdir = [];
+end
 
 if isempty(s_anim.avi_name) && ~isempty(s_anim.mp4_name)
   % Die AVI-Datei wird nur temporär erstellt und am Ende wieder gelöscht
   avi_only_temp = true;
   % Setze einen neuen Namen für die AVI-Datei
   [f,d] = fileparts(s_anim.mp4_name);
-  s_anim.avi_name = fullfile(f, [d, '.avi']);
+  if isempty(s_anim.tmpdir)
+    % kein spezielles temporäres Verzeichnis gefordert. Lege am Ort der mp4 an
+    s_anim.avi_name = fullfile(f, [d, '.avi']);
+  else
+    % Benutze vorgegebenes Verzeichnis (Platz sparen)
+    s_anim.avi_name = fullfile(s_anim.tmpdir, [d, '.avi']);
+  end
 else
   % Beide Dateien sollen erhalten bleiben oder nur AVI gefordert.
   avi_only_temp = false;
@@ -296,4 +305,9 @@ end
 %% Komprimiere die AVI-Datei
 if ~isempty(s_anim.mp4_name)
   compress_video_file(s_anim.avi_name, avi_only_temp, 1);
+  % Verschiebe die erzeugte mp4-Datei an den gewünschten Zielort
+  [~,d] = fileparts(s_anim.avi_name);
+  if ~isempty(s_anim.tmpdir)
+    movefile(fullfile(s_anim.tmpdir, [d, '.mp4']), s_anim.mp4_name);
+  end
 end
