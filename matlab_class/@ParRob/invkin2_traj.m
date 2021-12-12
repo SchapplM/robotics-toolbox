@@ -92,14 +92,17 @@ s = struct('I_EE', R.I_EE,...
    'simplify_acc', false,...
         'mode_IK', 3,... % 1=Seriell-IK, 2=Parallel-IK, 3=Beide
           'debug', false,...
-             'wn', zeros(19,1),...
+             'wn', zeros(21,1),...
            'xlim', R.xlim, ...
           'xDlim', R.xDlim, ...
          'xDDlim', R.xDDlim, ...
    'thresh_ns_qa', 1, ... % ab dieser Konditionszahl NR-Bewegung in Gesamt-Koordinaten. Standardmäßig immer.
  'optimcrit_limits_hyp_deact', 0.9, ... % innerhalb der mittleren 90% der Gelenkspannweite hyperbolische Grenzfunktion ausschalten
+'cond_thresh_ikjac', 1, ... % Schwellwert zur Aktivierung der IK-Jacobi-Optimierung
+'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
      'collbodies', R.collbodies, ... % Liste der Kollisionskörper
 'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
      'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
 'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
 'collbodies_instspc', R.collbodies_instspc, ... % Ersatzkörper zur Bauraumprüfung
@@ -162,7 +165,7 @@ if nargin >= 7 && ~isempty(s_in)
     end
   end
 end
-if length(s.wn) < 19, s.wn=[s.wn;zeros(19-length(s.wn),1)]; end
+if length(s.wn) < 21, s.wn=[s.wn;zeros(21-length(s.wn),1)]; end
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
 end

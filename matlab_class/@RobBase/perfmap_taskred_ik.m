@@ -11,10 +11,12 @@
 %   Struktur mir Einstellungswerten (siehe Quelltext)
 % 
 % Ausgabe:
-% H_all [NI x NP x NK]
+% H_all [NI x NP x NK+4]
 %   Diskretisierung aller `NK` IK-Zielfunktionen, die in der Einzelpunkt-IK
 %   benutzt werden können. Für jedes Kriterium wird eine Rasterung erstellt
-%   mit Auflösung NI x NP.
+%   mit Auflösung NI x NP. Zusätzlich werden die physikalischen Werte der
+%   Kriterien gespeichert: Kollisionstiefe, Bauraumüberschreitung,
+%   Kondition IK-Jacobi, Kondition Jacobi (siehe invkin-Funktionen)
 % Q_all [NP x NJ x NI]
 %   Gelenkwinkel für die Konfiguration des Roboters zu jeder der Punkte auf
 %   der gerasterten Karte aus H_all.
@@ -53,6 +55,7 @@ s = struct( ...
   'mapres_thresh_eerot', 3*pi/180, ... % 3deg ...
   'mapres_thresh_pathcoordres', 0.05, ...% min 20 values between key points
   'mapres_redcoord_dist_deg', 3, ... % Auflösung der redundanten Koordinate; 3deg
+  'settings_ik', struct(''), ... % Einstellungs-Struktur für den IK-Aufruf (Modifikation der Optimierungskriterien)
   'verbose', false);
 if nargin == 4
   for f = fields(s_in)'
@@ -154,28 +157,43 @@ s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer als bei 
 s_ep.retry_on_limitviol = true;
 s_ep.retry_limit = 100; % Neuversuche erlauben (bei Einzelpunkt i.O.)
 s_ep.normalize = false;
-s_ep.finish_in_limits = true;
+% Keine Einhaltung der Grenzen erzwingen, da dies eher
+% Konfigurationswechsel bringt. Diese erzeugen dann Artefakte im Bild.
+s_ep.finish_in_limits = false;
 s_ep.scale_lim = 0;
 % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
+% Dient nur zur Berechnung der Optimierungskriterien.
 s_ep_dummy = s_ep;
+s_ep_dummy.finish_in_limits = false; % Muss deaktiviert sein. Sonst ...
+s_ep_dummy.retry_on_limitviol = false; % ... Veränderung von wn in IK-Aufruf
+s_ep_dummy.n_max = 1;
 s_ep_dummy.retry_limit = 0;
 if R.Type == 0 % hierdurch werden die Kriterien berechnet
-  s_ep_dummy.wn = ones(7,1); % Konsistent mit SerRob/invkin2
+  s_ep_dummy.wn = ones(8,1); % Konsistent mit SerRob/invkin2
 else
-  s_ep_dummy.wn = ones(8,1); % Konsistent mit ParRob/invkin4
+  s_ep_dummy.wn = ones(9,1); % Konsistent mit ParRob/invkin4
 end
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch
 s_ep_dummy.optimcrit_limits_hyp_deact = s.optimcrit_limits_hyp_deact;
 s_ep_dummy.Phit_tol = 1; % Deaktiviere Einhaltung einer IK-Toleranz. Es findet ...
 s_ep_dummy.Phir_tol = 1; % ... sowieso keine Bewegung statt.
+% Spezifische Einstellungen für einige Optimierungskriterien übernehmen.
+% Betrifft solche, die den Wert der Kriterien beeinflussen.
+for f = fields(s.settings_ik)'
+  if any(strcmp(f{1}, {'cond_thresh_ikjac', 'optimcrit_limits_hyp_deact', ...
+      'collbodies_thresh', 'installspace_thresh'})) || ...
+      R.Type == 2 && any(strcmp(f{1}, {'cond_thresh_jac'}))
+    s_ep_dummy.(f{1}) = s.settings_ik.(f{1});
+  end
+end
 % Einstellung für IK bei globaler Diskretisierung über Trajektorie
 s_ep_glbdscr = s_ep; % leave as is (temporarily permit limit violations; no scaling until limit)
 s_ep_glbdscr.retry_limit = 10;
 s_ep_glbdscr.normalize = false; % no normalization (due to joint limits)
 s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work without redundancy
 s_traj_glbdscr = struct('simplify_acc', true);
-H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn));
+H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn)+4);
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
@@ -202,7 +220,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if isempty(I_ii)
     continue % Bei Eingabe einer NaN-Trajektorie oder unpassenden Grenzen zum Startwert
   end
-  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn));
+  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn)+4);
   Q_all_ii = NaN(length(I_ii), R.NJ, size(X_ref,1));
   t_lastmessage = tic();
   t1 = tic();
@@ -273,15 +291,23 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
           error('IK-Ergebnis hat sich bei Test verändert');
         end
         Q_all_ii(j, :, i) = q_j;
-        H_all_ii(i,j,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+        % Speichere die Optimierungskriterien für Nullraumbewegungen
+        H_all_ii(i,j,1:end-4) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        % Speichere Abstand zu Kollision und Bauraumgrenze separat.
+        % Positive Zahlen sind eine Überschreitung bzw. Eindringen (schlecht).
+        H_all_ii(i,j,end-3) = Stats_dummy.maxcolldepth(Stats_dummy.iter+1,1);
+        H_all_ii(i,j,end-2) = Stats_dummy.instspc_mindst(Stats_dummy.iter+1,1);
+        % Speichere die Konditionszahl der Jacobi-Matrix separat. Zwei
+        % verschiedene: IK-Jacobi und analytische Jacobi
+        H_all_ii(i,j,end-1:end) = Stats_dummy.condJ(Stats_dummy.iter+1,:);
         % Bauraumverletzung und Kollision nochmal gesondert eintragen
         if R.Type == 0, idxshift = 0; % Seriell
         else, idxshift = 1; end % PKM
-        if H_all_ii(i,j,4+idxshift) > Stats_dummy.h_coll_thresh
-          H_all_ii(i,j,4+idxshift) = inf; % Kollision liegt vor
+        if H_all_ii(i,j,(4+idxshift):end-2) > Stats_dummy.h_coll_thresh
+          H_all_ii(i,j,(4+idxshift):end-2) = inf; % Kollision liegt vor
         end
-        if H_all_ii(i,j,5+idxshift) > Stats_dummy.h_instspc_thresh
-          H_all_ii(i,j,5+idxshift) = inf; % Bauraumverletzung liegt vor
+        if H_all_ii(i,j,(5+idxshift):end-2) > Stats_dummy.h_instspc_thresh
+          H_all_ii(i,j,(5+idxshift):end-2) = inf; % Bauraumverletzung liegt vor
         end
       end
     elseif strcmp(s.discretization_type, 'position-level')
@@ -349,7 +375,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
             repmat(qlim_noninf(:,2)' - qlim_noninf(:,1)',200,1)];  %#ok<AGROW>
         end
         % In case of second run overwrite everything and directly take
-        % results for phi=0. Otherwise their may be a discontinuity
+        % results for phi=0. Otherwise there may be a discontinuity
         if ii_sign == 2 && j == 1 % first value corresponds to 0
           q0_list = Q_all(length(phiz_range_ii),:,i);
         end
@@ -378,14 +404,17 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         % Compute performance criteria
         R.update_EE_FG(s.I_EE_full,s.I_EE_red); % Roboter auf 3T2R einstellen
-        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn));
+        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn)+4);
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
           [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
           if any(abs(q_j_list(k,:)' - q_dummy) > 1e-8)
             error('IK-Ergebnis hat sich bei Test verändert');
           end
-          h_list(k,:) = Stats_dummy.h(Stats_dummy.iter+1,2:end);
+          h_list(k,:) = [Stats_dummy.h(Stats_dummy.iter+1,2:end), ...
+            Stats_dummy.maxcolldepth(Stats_dummy.iter+1,1), ...
+            Stats_dummy.instspc_mindst(Stats_dummy.iter+1,1), ...
+            Stats_dummy.condJ(Stats_dummy.iter+1,:)];
         end
         % select the joint angles that are nearest to the previous pose
         if ~(i==1 && j == 1) % not possible for first sample

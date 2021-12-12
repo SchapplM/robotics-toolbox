@@ -56,13 +56,16 @@ if isempty(which('parroblib_path_init.m'))
 end
 % Namen der Optimierungskriterien der IK (für Diagramme)
 hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond IK-Jac.', 'cond PKM-Jac.', ...
-  'xlim quadrat.', 'xlim hyperb.'};
+  'coll. hyp.', 'xlim quadrat.', 'xlim hyperb.', 'coll. quadr.'};
 % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
 % Reihenfolge: quadratischer Grenzabstand, hyperbolischer Grenzabstand,
-% Konditionszahl IK-Jacobi, Konditionszahl PKM-Jacobi, quadr. EE-Grenzen, hyperb. EE-Grenzen
-I_wn_traj = [1 2 5 6 15 17]; % Siehe P3RRR1_invkin_traj (Eingabe wn)
-I_stats_traj = [1 2 5 6 9 10]; % Siehe P3RRR1_invkin_traj (Ausgabe Stats.h)
-I_wn_ep = [1 2 3 4 7 8]; % Siehe P3RRR1_invkin3 (Eingabe wn, Ausgabe h)
+% Konditionszahl IK-Jacobi, Konditionszahl PKM-Jacobi, Kollision, quadr.
+% EE-Grenzen, hyperb. EE-Grenzen, quadr. Kollision
+I_wn_traj =    [1 2 5 6 11 15 17 20]; % Siehe P3RRR1_invkin_traj (Eingabe wn)
+I_stats_traj = [1 2 5 6  7  9 10 12]; % Siehe P3RRR1_invkin_traj (Ausgabe Stats.h)
+I_wn_ep =      [1 2 3 4  5  7  8  9]; % Siehe P3RRR1_invkin3 (Eingabe wn, Ausgabe h)
+assert(length(I_wn_traj)==length(I_stats_traj)&&length(I_wn_traj)==...
+  length(I_wn_ep), 'Länge der Index-Vektoren ist falsch');
 %% Alle Robotermodelle durchgehen
 for robnr = 1:5
   %% Initialisierung
@@ -175,6 +178,46 @@ for robnr = 1:5
   RS.xDlim = [repmat([-2, 2], 3, 1);repmat([-pi, pi], 3, 1)];
   xlim_abs = NaN(6,2); % Absolute Grenzen für EE-Koordinate (in Funktion relativ)
   xlim_abs(6,:) = [-45, 45]*pi/180;
+  % Kollisionsobjekte (siehe: ParRob_nullspace_collision_avoidance.m)
+  collbodies_empty = struct( ...
+          'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+          'type', [], ... % nx1 uint8, Art des Ersatzkörpers
+          'params', []); % Parameter des jeweiligen Ersatzkörpers
+  % Kollisionskörper der Beinketten eintragen
+  for j = 1:RP.NLEG
+    collbodies_j = collbodies_empty;
+    a = [RP.Leg(j).MDH.a;0];
+    for ii = 1:RP.Leg(j).NJ
+      % Prüfe, ob es überhaupt eine Verbindung gibt
+      if all(RP.Leg(j).MDH.d(ii)==0 & RP.Leg(j).MDH.a(ii)==0)
+        continue
+      end
+      % Schräge Verbindung mit Kapseln in Matlab-Klasse berechnen
+      collbodies_j.link = [collbodies_j.link; uint8([ii,ii-1])];
+      collbodies_j.type = [collbodies_j.type; uint8(6)];
+      collbodies_j.params = [collbodies_j.params; [10e-3,NaN(1,9)]];
+    end
+    RP.Leg(j).collbodies = collbodies_j;
+  end
+  RP.update_collbodies();
+  % Teste alle Beinketten gegeneinander (nur jeweils das zweite Segment).
+  % Dieses neigt zu Kollisionen, da die Ketten zur Plattform gehen.
+  I_cb_legs = 1:size(RP.collbodies.type,1);
+  collchecks = uint8(zeros(0,2));
+  for i = I_cb_legs
+    for j = I_cb_legs
+      if i >= j, continue; end % nicht sich selbst und nicht doppelt testen
+  %     fprintf('%d (Link %d) - %d (Link %d)', i, RP.collbodies.link(i,1), ...
+  %       RP.collbodies.link(j,1), j);
+      % Für Vergleich Typumwandlung in Format mit Vorzeichen
+      if abs(int16(RP.collbodies.link(i,1)) - int16(RP.collbodies.link(j,1))) <= 2
+        continue % die Kollisionskörper liegen auf dem selben Bein. Für diesen Roboter nicht sinnvoll.
+      end
+      collchecks = [collchecks; [j, i]]; %#ok<AGROW>
+    end
+  end
+  % Eintragen in Roboter-Klasse
+  RP.collchecks = collchecks;
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
   X0 = [ [0.05;0.03;0.6]; [2;-3;0]*pi/180 ];
@@ -207,7 +250,7 @@ for robnr = 1:5
     XL(:, ~RP.I_EE) = 0; XL = uniquetol(XL, 1e-10,'ByRows',true);
   end
   % Ergebnis-Tabellen vorbereiten (siehe Schleifen unten)
-  ResStat = array2table(NaN(size(XL,1)*9*6,9));
+  ResStat = array2table(NaN(size(XL,1)*12*6,9));
   ResStat.Properties.VariableNames = {'PktNr', 'OriNr', 'IK_Fall', ...
     'h_start', 'h_err_abs', 'h_err_rel', 'h_step_traj', 'h_step_ep', 'Error'};
   ResStat_emptyrow = ResStat(1,:);
@@ -224,12 +267,13 @@ for robnr = 1:5
   q0_ik_fix = q0;
   q0_ik_fix(RP.I1J_LEG(2):end) = NaN; % damit Übernahe Ergebnis Beinkette 1
   % Einstellungen für Einzelpunkt-IK.
-  s_ep = struct( 'wn', zeros(7,1), ... % Platzhalter einsetzen
+  s_ep = struct( 'wn', zeros(9,1), ... % Platzhalter einsetzen
+    'collbodies_thresh', 999, ... % 1000 mal größere Koll.-Körper (damit Kennzahl immer aktiv ist, wenn gewählt)
     'n_max', 5000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % , 'finish_in_limits', true
   % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
   s_ep_dummy = s_ep;
   s_ep_dummy.retry_limit = 0;
-  s_ep_dummy.wn = ones(8,1); % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn = ones(9,1); % hierdurch werden die Kriterien berechnet
   s_ep_dummy.K = zeros(RP.NJ,1); % hierdurch keine Bewegung und damit ...
   s_ep_dummy.Kn = zeros(RP.NJ,1); % ... sofortiger Abbruch
   ii_restab = 0; ii_restab_start = 0;
@@ -242,7 +286,7 @@ for robnr = 1:5
       nn = 90;
       x_test_ges = repmat(x_k',nn,1);
       x_test_ges(:,6) = linspace(-pi,pi,nn);
-      h_ges = NaN(nn,8); % Konsistent mit ParRob/invkin4
+      h_ges = NaN(nn,9); % Konsistent mit ParRob/invkin4
       q_jj = q0_ik_fix; % nehme immer den Wert von davor als Startwert. Dann weniger Konfigurationswechsel
       t0 = tic();
       for jj = 1:nn
@@ -250,7 +294,7 @@ for robnr = 1:5
         x_jj = x_test_ges(jj,:)';
         t1=tic();
         for iktrynum = 1:20 % mehrfache Versuche der IK für plausibles Ergebnis
-          s_ep_jj = s_ep; % Einstellungen so lassen (Grenzverletzung erlauben)
+          s_ep_jj = rmfield(s_ep, 'collbodies_thresh'); % Einstellungen so lassen (Grenzverletzung erlauben)
           [q_jj, Phi,~,Stats] = RP.invkin2(x_jj, q_jj, s_ep_jj);
           % Korrigiere die Konfiguration bei Robotern mit Schubantrieben.
           % Hier ist ein Umklappen der Konfiguration möglich und unerwünscht.
@@ -330,14 +374,14 @@ for robnr = 1:5
       xlim_l = xlim_abs - [zeros(5,2);repmat(x_l(6),1,2)];
       % Inverse Kinematik zum Startpunkt
       RP.update_EE_FG(I_EE_full,I_EE_full); % Roboter auf 3T3R einstellen
-      s_ep_start = s_ep;
+      s_ep_start = rmfield(s_ep, 'collbodies_thresh');
       s_ep_start.scale_lim = 0.5; % Grenzen nicht verlassen (lieber neu versuchen)
       [qs, Phi_ep_s, ~, Stats_ep_s] = RP.invkin2(x_l, q0_ik_fix, s_ep_start);
       if any(abs(Phi_ep_s) > 1e-8)
         % Mit Einhaltung der Grenzen keine Lösung gefunden. Dann eben mit
         % Verletzung der Grenzen. Führt auch zu Abbruch, ist aber für
         % Statistik wichtig, ob es rechnerisch überhaupt funktioniert.
-        s_ep_start = s_ep;
+        s_ep_start = rmfield(s_ep, 'collbodies_thresh');
         [qs, Phi_ep_s, ~, Stats_ep_s] = RP.invkin2(x_l, q0_ik_fix, s_ep_start);
       end
       xs = RP.fkineEE_traj(qs')';
@@ -365,6 +409,8 @@ for robnr = 1:5
         hold on; grid on; view(3);
         xlabel('x in m');ylabel('y in m');zlabel('z in m');
         s_plot = struct( 'straight', 0, 'mode', 4);
+        % Debugge von Kollisionskörpern:
+        % s_plot.mode = 5; s_plot.only_bodies =  true;
         RP.plot( qs, xs, s_plot );
       end
       ResStat_Start.Grenzen(ii_restab_start) = 1;
@@ -384,7 +430,7 @@ for robnr = 1:5
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 8 9 10] % Schleife über verschiedene Zielkriterien
+      for ii = [2 4 6 8 9 10 11 12] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RP.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
@@ -397,7 +443,7 @@ for robnr = 1:5
         % werden.
         s_ep_ii.scale_lim = 0.9;
         % Kriterien zusammenstellen
-        wn_traj = zeros(19,1);
+        wn_traj = zeros(21,1);
         % Dämpfung der Geschwindigkeit immer einbauen. Bei symmetrischen
         % Grenzen entspricht das dem Standard-Dämpfungsterm aus der
         % Literatur
@@ -444,6 +490,17 @@ for robnr = 1:5
             wn_traj(17) = 0.5; % P hyperb.
             wn_traj(18) = 0.05; % D hyperb. -> höhere Terme werden instabil
             wn_traj(19) = 0.1; % zusätzliche Dämpfung
+          case 11 % PD-Regler hyperbolische Kollisionsvermeidung
+            wn_traj(11) = 0.5;
+            wn_traj(12) = 0.1;
+            wn_traj(2) = 0; % Hyperbolische Gelenkgrenzen ignorieren
+            wn_traj(8) = 0;
+            s_ep_ii.collbodies_thresh = 999; % 1000 mal größere Koll.-Körper
+          case 12 % PD-Regler quadratische Kollisionsvermeidung
+            wn_traj(20) = 0.5;
+            wn_traj(21) = 0.1;
+            wn_traj(2) = 0; % Hyperbolische Gelenkgrenzen ignorieren
+            wn_traj(8) = 0;
         end
         % Roboter auf 3T2R einstellen
         RP.update_EE_FG(I_EE_full,I_EE_red);
@@ -469,6 +526,10 @@ for robnr = 1:5
         s_traj_ii = struct('wn', wn_traj);
         s_traj_ii.enforce_qlim = false; % Keine strikte Einhaltung der Gelenkgrenzen
         s_traj_ii.enforce_qDlim = false;
+        s_traj_ii.enforce_xDlim = false;
+        if isfield(s_ep_ii, 'collbodies_thresh')
+          s_traj_ii.collbodies_thresh = s_ep_ii.collbodies_thresh;
+        end
         s_traj_ii.xlim = xlim_l;
         s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
         % Nullraumprojektion erst in Antriebskoordinaten, dann in Gesamt- 
@@ -502,6 +563,7 @@ for robnr = 1:5
         Phi_ii = Phi_ii(1:I_finishacc,:);
         Traj_t = Traj_t(1:I_finishacc);
         Stats_traj.h = Stats_traj.h(1:I_finishacc,:);
+        Stats_traj.mode = Stats_traj.mode(1:I_finishacc);
         Q_ii2 = Q_ii2(1:I_finishacc,:);
         QD_ii2 = QD_ii2(1:I_finishacc,:);
         QDD_ii2 = QDD_ii2(1:I_finishacc,:);
@@ -519,16 +581,19 @@ for robnr = 1:5
         QDD_ii = QDD_ii(1:I_finish,:);
         Phi_ii = Phi_ii(1:I_finish,:);
         Stats_traj.h = Stats_traj.h(1:I_finish,:);
+        Stats_traj.mode = Stats_traj.mode(1:I_finish);
         Q_ii2 = Q_ii2(1:I_finish,:);
         QD_ii2 = QD_ii2(1:I_finish,:);
         QDD_ii2 = QDD_ii2(1:I_finish,:);
         Phi_ii2 = Phi_ii2(1:I_finish,:);
         Stats_traj2.h = Stats_traj2.h(1:I_finish,:);
+        Stats_traj2.mode = Stats_traj2.mode(1:I_finish);
         % Speichere EE-Pose resultierend aus Gelenkwinkeln aus dem
         % Konvergenzverlauf.
         % Bei Traj.-IK keine Normalisierung der Euler-Winkel vornehmen
         [X_ii, XD_ii] = RP.fkineEE2_traj(Q_ii, QD_ii);
         X_ii(:,6) = denormalize_angle_traj(X_ii(:,6), XD_ii(:,6), Traj_t);
+        warning('off', 'MATLAB:illConditionedMatrix'); % TODO: Auch Tra. mit Variante 2 bei NaN begrenzen
         [X_ii2, XD_ii2] = RP.fkineEE2_traj(Q_ii2, QD_ii2);
         X_ii2(:,6) = denormalize_angle_traj(X_ii2(:,6), XD_ii2(:,6), Traj_t);
         % Benutze bei Einzelpunkt-IK nur i.O.-Posen (keine Posen, bei denen
@@ -718,8 +783,8 @@ for robnr = 1:5
           
           % Bild: Zielkriterien (Zeitverlauf)
           change_current_figure(2);clf;set(2,'Name','h','NumberTitle','off');
-          for i = 1:6
-            subplot(2,3,i); hold on;
+          for i = 1:length(I_wn_ep)
+            subplot(3,3,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
             plot(100*progr_traj, Stats_traj2.h(:,1+I_stats_traj(i)));
@@ -774,6 +839,32 @@ for robnr = 1:5
 %           end
 %           linkxaxes
 %           sgtitle('Konsistenz q');
+          % Debuggen: Status der Traj.-IK
+%           change_current_figure(26);clf;
+%           set(26,'Name','mode_Traj_IK', 'NumberTitle', 'off');
+%           for kk = 1:23
+%             % Bestimme die Belegung des Status-Bits
+%             subplot(4,6,kk); hold on;
+%             stairs(100*progr_traj, bitget(Stats_traj.mode, kk), '-');
+%             stairs(100*progr_traj, bitget(Stats_traj2.mode, kk), '-');
+%             title(sprintf('%d', kk), 'interpreter', 'none');
+%             grid on;
+%           end
+%           legend({'Traj (FullProj)', 'Traj (ActProj)'});
+%           linkxaxes
+% 
+%           change_current_figure(27);clf;
+%           set(27,'Name','mode_EP_IK', 'NumberTitle', 'off');
+%           for kk = 1:25
+%             % Bestimme die Belegung des Status-Bits
+%             subplot(5,5,kk); hold on;
+%             stairs(100*progr_ep, bitget(Stats_ep.mode(1:1+Stats_ep.iter), kk));
+%             title(sprintf('%d', kk), 'interpreter', 'none');
+%             grid on;
+%           end
+%           legend({'EP'});
+%           linkxaxes
+        
         end
         
         % Bild: Roboter
@@ -796,15 +887,15 @@ for robnr = 1:5
         % In Zielfunktions-Bild eintragen
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
           change_current_figure(20);clf;set(20,'Name','h_x6','NumberTitle','off');
-          for jj = 1:6
-            subplot(2,3,jj); hold on; grid on;
+          for jj = 1:length(I_wn_ep)
+            subplot(3,3,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,I_wn_ep(jj)));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj})); grid on;
             xlabel('x6 in deg');
           end
           for jj = 1:length(I_wn_ep)
             if s_ep_ii.wn(I_wn_ep(jj))==0, continue; end
-            subplot(2,3,jj); hold on;
+            subplot(3,3,jj); hold on;
             % Debug: Ortskurve der Zwischenzustände einzeichnen
             hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_stats_traj(jj)), 'r+-');
             hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+I_wn_ep(jj)), 'gx-');

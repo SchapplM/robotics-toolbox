@@ -658,6 +658,10 @@ classdef SerRob < RobBase
         ... % dass in den mittleren 90% der Gelenkwinkelspannweite das Kriterium 
         ... % deaktiviert wird (Stetigkeit durch Spline). Deaktivierung mit NaN.
         'optimcrit_limits_hyp_deact', NaN, ... 
+        ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
+        ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
+        ... % permanente Optimierung der Jacobi
+        'cond_thresh_ikjac', 1, ... 
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
@@ -670,6 +674,7 @@ classdef SerRob < RobBase
         'retry_limit', 100, ...; % Anzahl der Neuversuche mit Zufallswert;
         'collbodies', R.collbodies, ... % Liste der Kollisionskörper
         'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+        'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
         'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
         'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
         'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)
@@ -686,7 +691,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) ~= 7, s.wn=[s.wn;zeros(7-length(s.wn),1)]; end
+      if length(s.wn) <= 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
         s.wn(4) = 0;
@@ -744,6 +749,10 @@ classdef SerRob < RobBase
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
+         ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
+         ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
+         ... % permanente Optimierung der Jacobi
+         'cond_thresh_jac', 1, ...
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(17,1), ... % Gewichtung der Nebenbedingung
@@ -756,6 +765,7 @@ classdef SerRob < RobBase
          'Phir_tol', 1e-12, ...% Toleranz für rotatorischen Fehler
          'collbodies', R.collbodies, ... % Liste der Kollisionskörper
          'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
+         'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
          'collchecks', R.collchecks, ... % Liste der zu prüfenden Kollisionsfälle
          'installspace_thresh', 0.100, ... % Ab dieser Nähe zur Bauraumgrenze Nullraumbewegung zur Einhaltung des Bauraums
          'collbodies_instspc', R.collbodies_instspc, ... % Bauraumkörper (Roboter und Bauraum)
@@ -769,7 +779,7 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 17, s.wn=[s.wn;zeros(17-length(s.wn),1)]; end
+      if length(s.wn) < 19, s.wn=[s.wn;zeros(19-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

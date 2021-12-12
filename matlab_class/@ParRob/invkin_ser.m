@@ -29,7 +29,10 @@
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
 % Stats
-%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung
+%   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
+%   .condJ [N x NLEG*2]
+%     Kondititionszahl im Verlauf der IK-Berechnung für alle Beinketten.
+%     Zuerst IK-Jacobi (erste Spalten), dann geom. Jacobi (letzte Spalten)
 %
 % Siehe auch: SerRob/invkin.m
 %
@@ -106,7 +109,7 @@ out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 if nargout == 4
   Stats = struct('Q', NaN(1+s.n_max, Rob.NJ), 'PHI', NaN(1+s.n_max, Rob.I2constr_red(end)), ...
     'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
-    'condJ', NaN(1+s.n_max,Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
+    'condJ', NaN(1+s.n_max,2*Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
 end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
@@ -161,7 +164,7 @@ for i = 1:Rob.NLEG
     Stats.PHI(:,Rob.I1constr(i):Rob.I2constr(i)) = Stats_i.PHI;
     Stats.iter(i)= Stats_i.iter;
     Stats.retry_number(i) = Stats_i.retry_number;
-    Stats.condJ(:,i) = Stats_i.condJ;
+    Stats.condJ(:,[i,i+Rob.NLEG]) = Stats_i.condJ(:,1:2);
     Stats.lambda(:,(i-1)*2+1:2*i) = Stats_i.lambda;
   end
   if i == 1 && (Rob.I_EE(6) && ~s_par.I_EE_Task(6) || ... % Letzter FG für Aufgabe nicht gesetzt
