@@ -24,7 +24,7 @@ for testcase = 1:5
     %% Isoglide3-T3; [Gogu2008] S.154
     % 3xPRRR  S4PRRR2
     RobTitles{testcase} = 'Isoglide3-T3 ([Gogu2008] S.154)';
-    RS1 = serroblib_create_robot_class('S4PRRR2');
+    RS1 = serroblib_create_robot_class('S4PRRR2'); RS2 = RS1;
     RS1.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
@@ -247,6 +247,7 @@ for testcase = 1:5
     RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = repmat([-1, 1]*3, sum(RP.Leg(i).MDH.sigma==1), 1);
   end
   fprintf('Untersuche %dT%dR-PKM %s.\n', sum(I_EE(1:3)), sum(I_EE(4:6)), RobTitles{testcase});
+  serroblib_update_template_functions({RS1.mdlname, RS2.mdlname});
 %   for i = 1:2
 %     if i == 2 && strcmp(RP.Leg(i).mdlname, RP.Leg(1).mdlname), continue; end
 %     serroblib_create_template_functions({RP.Leg(i).mdlname}, false);
@@ -272,7 +273,7 @@ for testcase = 1:5
   % gesetzt werden, da die IK-Modellierung bei Phi=0 nicht differenzierbar
   % ist.
   [q,phi,~,Stats] = RP.invkin_ser(X_E, q0, struct('Phit_tol', 1e-11, ...
-    'Phir_tol', 1e-11, 'retry_limit', 5));
+    'Phir_tol', 1e-11, 'retry_limit', 20));
   % Debuggen der IK (besondere IK-Modellierung für 3T1R-PKM)
   if all(cat(1,RP.Leg(:).NJ) == 5)
     for i = 1:RP.NLEG

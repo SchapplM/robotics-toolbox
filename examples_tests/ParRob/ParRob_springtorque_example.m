@@ -13,6 +13,7 @@ usr_robotfigure = false;
 usr_define_springtorque = false;
 %% Definiere Roboter
 RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
+parroblib_update_template_functions({'P6RRPRRR14V3G1P4A1'});
 RP.fill_fcn_handles(true, true); % kompilierte Funktionen
 for i = 1:RP.NLEG % Gelenkgrenzen setzen (für IK)
   RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);

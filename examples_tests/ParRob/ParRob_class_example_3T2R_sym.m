@@ -99,6 +99,7 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
     I_qa_Typ = zeros(5,1); % Typ1: S5PRRRR1
     I_qa_Typ(2) = 1; % das 2te Gelenk P ist aktuiert
   end
+  serroblib_update_template_functions({RS.mdlname});
   RP.fill_fcn_handles(false, true);
   RP.update_actuation(repmat(I_qa_Typ,5,1));
   % qlim setzen, damit Neuversuche in IK besser funktionieren

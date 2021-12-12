@@ -18,6 +18,8 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 %% Initialisierung
+serroblib_update_template_functions({'S5PRRRR10', 'S5RRRRR2', 'S5RRRRR2', ...
+  'S5RRPRR12V1', 'S6PRRRRR6', 'S6RRRRRR10', 'S6RRPRRR14V3'});
 % Beinketten definieren
 % Führungsketten (3T2R)
 RS_PUU = serroblib_create_robot_class('S5PRRRR10');

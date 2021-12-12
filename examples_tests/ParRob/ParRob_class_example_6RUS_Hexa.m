@@ -17,6 +17,8 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
+serroblib_update_template_functions({'S6RRRRRR10V3'});
+parroblib_update_template_functions({'P6RRRRRR10V3G6P4'});
 RP = parroblib_create_robot_class('P6RRRRRR10V3G6P4A1', [0.2; 0.1], [0.2; 0.1]);
 RP.fill_fcn_handles(true, true); % keine mex-Funktionen, einfache Rechnung
 

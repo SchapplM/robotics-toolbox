@@ -76,12 +76,10 @@ for Robot_Data = Robots
   %% Roboter in Nullstellung plotten (mit im Gelenkraum entworfener Trajektorie)
   if debug_mode
     s_plot = struct( 'ks', [RS.NJ+2, RS.NJ+2], 'straight', 0);
-    figure(1);clf;
+    change_current_figure(1);clf;
     hold on;
     grid on;
-    xlabel('x [m]');
-    ylabel('y [m]');
-    zlabel('z [m]');
+    xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
     RS.plot( zeros(RS.NJ,1), s_plot );
     title(sprintf('Nullstellung: %s', RS.descr));
@@ -92,12 +90,10 @@ for Robot_Data = Robots
     % qref = [0;90;0;90;0;0]*pi/180;
     qref = RS.qref;
     s_plot = struct( 'ks', [RS.NJ+2, RS.NJ+2], 'straight', 0);
-    figure(2);clf;
+    change_current_figure(2);clf;
     hold on;
     grid on;
-    xlabel('x [m]');
-    ylabel('y [m]');
-    zlabel('z [m]');
+    xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
     RS.plot( qref, s_plot );
     title(sprintf('Grundstellung: %s', RS.descr));
@@ -200,12 +196,10 @@ for Robot_Data = Robots
   %% Roboter in Grundstellung plotten (mit im Arbeitsraum entworfener Trajektorie)
   if debug_mode
     s_plot = struct( 'ks', [RS.NJ+2, RS.NJ+2], 'straight', 0);
-    figure(6);clf;
+    change_current_figure(6);clf;
     hold on;
     grid on;
-    xlabel('x [m]');
-    ylabel('y [m]');
-    zlabel('z [m]');
+    xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
     RS.plot( q0, s_plot );
     title(sprintf('Grundstellung: %s', RS.descr));
@@ -214,13 +208,11 @@ for Robot_Data = Robots
     
     if traj_anim
       s_anim = struct( 'gif_name', '');
-      figure(4);clf;
+      change_current_figure(4);clf;
       hold on;
       plot3(X(:,1), X(:,2), X(:,3));
       grid on;
-      xlabel('x [m]');
-      ylabel('y [m]');
-      zlabel('z [m]');
+      xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
       view(3);
       title('Animation der Gelenktrajektorie');
       RS.anim( Q(1:50:end,:), [], s_anim, s_plot);
@@ -235,12 +227,10 @@ for Robot_Data = Robots
   if debug_mode
     s_plot = struct( 'ks', [RS.NJ+2, RS.NJ+2], 'straight', 0);
     s_plot_KS = struct( 'ks', [8, RS.NJ+2], 'straight', 0, 'mode', 2);
-    figure(7);clf;
+    change_current_figure(7);clf;
     hold on;
     grid on;
-    xlabel('x [m]');
-    ylabel('y [m]');
-    zlabel('z [m]');
+    xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
     % Plot des Roboters mit Trajektorie
     RS.plot( q0, s_plot );
@@ -274,7 +264,7 @@ for Robot_Data = Robots
   %% Einzelpunkt-IK | Initialisierung und Berechnung
   fprintf('Starte Berechnungen für Trajektorie als Einzelpunkte\n');
   i_phiconv = uint8([2]);
-  Phirt_tol = 1e-12;
+  Phirt_tol = 1e-10; % Fehler der IK mit 1e-12 (vermutlich durch Ungenauigkeit bei DLS)
   n_max = 2500;
   amount_optcrit = 1+2; % 1(3T2R) + 2(limred hyp + quadhyp)
   
@@ -474,8 +464,7 @@ for Robot_Data = Robots
   if noplot ~= 1
     for ii = 1:size(plot_vector,2)
       pkt = plot_vector(1,ii);
-      f3 = figure(100+ii);clf;
-      f3.Position = [200 200 2000 1000];
+      f3 = change_current_figure(100+ii);clf;
       ylable_first_plot_incolumn = ones(4,1);   % 4 = Anzahl der Zeilen
       for kk = 1:amount_optcrit
         index_phiz = 1:(iter_ep(pkt,kk)+1);
@@ -703,8 +692,7 @@ for Robot_Data = Robots
   
   %% Trajektorien-IK | Plot
   if traj_plot_needed
-    f4 = figure(100+1);clf;
-    f4.Position = [200 200 2000 1000];
+    f4 = change_current_figure(100+1);clf;
     sgtitle('Verlauf von phiz, h(7:9) und phizD');
     index_traj = 1:size(T,1);
     ylable_first_plot_incolumn = ones(5,1);   % 4 = Anzahl der Zeilen
@@ -808,8 +796,7 @@ for Robot_Data = Robots
   
   if gelenkplot_wanted
     for qplots = 5:5%size(Namen_Methoden,2) % Kommentar entfernen, wenn alle Opt.Methoden erwünscht sind
-      f = figure(300*4+qplots);clf;
-      f.Position = [200 200 2000 1000];
+      f = change_current_figure(300*4+qplots);clf;
       Q_work   = Q_k_ges(:,:,qplots);
       QD_work  = QD_k_ges(:,:,qplots);
       QDD_work = QDD_k_ges(:,:,qplots);

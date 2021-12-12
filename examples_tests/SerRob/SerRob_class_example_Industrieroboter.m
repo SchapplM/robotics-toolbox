@@ -32,6 +32,7 @@ RName='S6RRRRRR10V2_KUKA1';
 % serroblib_generate_mapleinput({'S6RRRRRR10V2'})
 % serroblib_generate_code({'S6RRRRRR10V2'})
 % serroblib_create_template_functions({SName}, false);
+serroblib_update_template_functions({SName}, false);
 % Instanz der Roboterklasse erstellen
 
 RS = serroblib_create_robot_class(SName, RName);

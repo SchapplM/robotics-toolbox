@@ -48,6 +48,7 @@ end
 if ~use_parrob
   % Typ des seriellen Roboters auswählen (S6RRPRRRV3 = UPS)
   SName='S6RRPRRR14V3';
+  serroblib_update_template_functions({SName});
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName);
   RS.fill_fcn_handles(true, true); % kompilierte Funktionen verwenden
@@ -71,6 +72,7 @@ if use_parrob
     warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
     return
   end
+  parroblib_update_template_functions({'P6RRPRRR14V3G1P1'});
   RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 0.5, 0.2);
 end
 

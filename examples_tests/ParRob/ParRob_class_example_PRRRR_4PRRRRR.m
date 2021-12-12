@@ -19,6 +19,7 @@ RS1 = serroblib_create_robot_class('S5PRRRR2');%yz
 RS1.fill_fcn_handles(use_mex, true);
 RS2 = serroblib_create_robot_class('S6PRRRRR6');
 RS2.fill_fcn_handles(use_mex, true);
+serroblib_update_template_functions({RS1.mdlname, RS2.mdlname});
 
 % ParRob-Klasse für PKM erstellen
 RP = ParRob('Isoglide5_3T2R_mod');

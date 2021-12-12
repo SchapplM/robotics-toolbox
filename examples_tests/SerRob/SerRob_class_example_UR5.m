@@ -62,6 +62,7 @@ SName='S6RRRRRR10V4';
 RName='S6RRRRRR10V4_UR5';
 % Vorlagen-Funktionen neu erstellen (nur notwendig bei Code-Änderung)
 % serroblib_create_template_functions({SName}, false);
+serroblib_update_template_functions({SName}, false);
 % Instanz der Roboterklasse erstellen
 RS = serroblib_create_robot_class(SName, RName);
 RS.fill_fcn_handles(true, true); % kompilierte Funktionen benutzen

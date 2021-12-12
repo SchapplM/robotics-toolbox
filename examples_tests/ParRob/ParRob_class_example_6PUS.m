@@ -11,7 +11,7 @@ clc
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
 %% Definitionen, Benutzereingaben
-
+serroblib_update_template_functions({'S6PRRRRR6V2'});
 RS = serroblib_create_robot_class('S6PRRRRR6V2');
 RS.fill_fcn_handles(false);
 % ParRob-Klasse für PKM erstellen

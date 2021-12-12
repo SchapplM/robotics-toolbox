@@ -119,12 +119,14 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
   end
   % Debug: Alle Vorlagen-Funktionen neu generieren:
-  serroblib_create_template_functions({RP.Leg(1).mdlname}, false, false);
-  parroblib_create_template_functions({RP.mdlname(1:end-2)}, false, false);
-  matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
-  matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
-  matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
-  matlabfcn2mex({[RP.Leg(1).mdlname, '_invkin_eulangresidual']});
+  serroblib_update_template_functions({RP.Leg(1).mdlname});
+  parroblib_update_template_functions({RP.mdlname(1:end-2)});
+%   serroblib_create_template_functions({RP.Leg(1).mdlname}, false, false);
+%   parroblib_create_template_functions({RP.mdlname(1:end-2)}, false, false);
+%   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
+%   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
+%   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
+%   matlabfcn2mex({[RP.Leg(1).mdlname, '_invkin_eulangresidual']});
   RP.fill_fcn_handles(true,true);
 
   I_EE_full = RP.I_EE;
@@ -719,7 +721,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
     % Plattform-Pose aus direkter Kinematik abspeichern
     [XE_all(:,:,kk), XDE_all(:,:,kk), XDDE_all(:,:,kk)] = RP.fkineEE2_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
-    test2_XEall = X_ist(:,1:6) - XE_all(:,:,kk);
+    test2_XEall = X_ist(1:n_iO,1:6) - XE_all(1:n_iO,:,kk);
     assert(all(abs(test2_XEall(:)) < 1e-10), 'Neuberechnung mit fkineEE2_traj falsch');
     XE_all(:,6,kk) = denormalize_angle_traj(XE_all(:,6,kk), XDE_all(:,6,kk), t);
     

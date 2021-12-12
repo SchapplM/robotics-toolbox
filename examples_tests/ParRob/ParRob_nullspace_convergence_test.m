@@ -133,6 +133,10 @@ for robnr = 1:5
     if mexerr
       error('Fehler beim Kompilieren');
     end
+  else
+    % Prüfe zumindest die Aktualisierung
+    serroblib_update_template_functions({RP.Leg(1).mdlname}, true);
+    parroblib_update_template_functions({RP.mdlname(1:end-2)}, true);
   end
   RP.fill_fcn_handles(use_mex_functions,true);
   % Definition der Freiheitsgrade (vollständig und reduziert)
@@ -180,8 +184,8 @@ for robnr = 1:5
   xlim_abs(6,:) = [-45, 45]*pi/180;
   % Kollisionsobjekte (siehe: ParRob_nullspace_collision_avoidance.m)
   collbodies_empty = struct( ...
-          'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
-          'type', [], ... % nx1 uint8, Art des Ersatzkörpers
+          'link', uint8(zeros(0,2)), ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+          'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
           'params', []); % Parameter des jeweiligen Ersatzkörpers
   % Kollisionskörper der Beinketten eintragen
   for j = 1:RP.NLEG

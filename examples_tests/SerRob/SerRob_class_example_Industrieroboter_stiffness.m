@@ -18,6 +18,7 @@ SName='S6RRRRRR10V2';
 RName='S6RRRRRR10V2_KUKA1';
 
 % Instanz der Roboterklasse erstellen
+serroblib_update_template_functions({SName}, false);
 RS = serroblib_create_robot_class(SName, RName);
 % Test-Einstellungen generieren
 TSS = RS.gen_testsettings(true, false);

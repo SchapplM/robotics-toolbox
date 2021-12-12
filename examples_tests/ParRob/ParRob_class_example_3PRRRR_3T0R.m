@@ -90,7 +90,7 @@ for PKMName = PKM_selection
     pkin(strcmp(RP.Leg(1).pkin_names, 'a5')) = 0.3;
     pkin(strcmp(RP.Leg(1).pkin_names, 'd5')) = 0.1;
   else
-    error('Peine parameter hinterlegt');
+    error('Keine Parameter hinterlegt');
   end
   for i = 1:RP.NLEG
     RP.Leg(i).update_mdh(pkin);

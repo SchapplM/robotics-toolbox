@@ -78,6 +78,7 @@ for Robot_Data = Robots
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
   % serroblib_create_template_functions({SName}, false, false);
+  serroblib_update_template_functions({SName});
   RS = serroblib_create_robot_class(SName, RName);
 %   RS.mex_dep(true);
   RS.fill_fcn_handles(use_mex_functions, true);
@@ -591,8 +592,10 @@ for jj = 1:3
     hdq_diff = (h1-h)/deltaq;
     test_hdq_abs = hdq-hdq_diff;
     test_hdq_rel = test_hdq_abs/hdq;
-    if abs(test_h_abs) > 1e-5 && test_h_rel > 1e-2 || ...
-        abs(test_hdq_abs) > 1e-3 && test_hdq_rel > 1e-2
+    % Fehlertoleranz 5%. Bei hyperbolischem Kriterium können sehr große
+    % Zahlen entstehen. Dann ungenaue Linearisierung.
+    if abs(test_h_abs) > 1e-5 && test_h_rel > 5e-2 || ...
+        abs(test_hdq_abs) > 1e-3 && test_hdq_rel > 5e-2
       figure(1); clf; hold on;
       Qplot = unique([(min([q;qlim(1)]):1e-4:max([q;qlim(2)]))';q;q1]);
       Hplot = NaN(size(Qplot));

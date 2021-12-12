@@ -28,7 +28,7 @@ I_EE_Leg = logical([1 1 1 1 1 1]);
 % Funktionen für Beinkette initialisieren
 % Typ des seriellen Roboters auswählen (S5RRRRR10V1 = RUU = Delta-Bein)
 SName='S5RRRRR10V1'; % Alternativ: S5RRRRR2 (manuell erstellt)
-
+serroblib_update_template_functions({SName});
 % Instanz der Roboterklasse erstellen
 RS = serroblib_create_robot_class(SName);
 RS.fill_fcn_handles(true, true); % Benutze kompilierte Funktionen

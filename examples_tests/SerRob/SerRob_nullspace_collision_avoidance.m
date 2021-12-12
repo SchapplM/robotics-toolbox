@@ -22,6 +22,7 @@ RS = serroblib_create_robot_class(SName, RName);
 RS.update_EE([0;0;-0.05], [pi/2;0;-pi/2]); % z-Achse aus Zeichenebene, x-Achse aus EE heraus
 RS.qDDlim = repmat([-100, 100], RS.NJ, 1);
 % Debug: Funktionen neu generieren und kompilieren (bei Änderung)
+serroblib_update_template_functions({SName}, false);
 % serroblib_create_template_functions({SName}, false);
 % mexerr = false;
 % mexerr = mexerr | matlabfcn2mex({'S6RRRRRR10V2_invkin_eulangresidual'}, true);

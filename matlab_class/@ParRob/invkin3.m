@@ -338,7 +338,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6)
+      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -416,6 +416,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % Nullraumbewegung (mit N-Mult.) notwendig (wie bei Kollision)
               qD_test = zeros(Rob.NJ,1);
               qD_test(kkk) = 1e-6; % kleines Inkrement
+%               qD_test_N = N*qD_test;
+%               qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk); % Normierung auf 1e-6
+%               q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
               q_test = q1 + qD_test; % Test-Konfiguration mit Inkrement
               Jik_kkk=Rob.constr3grad_q(q_test, xE_soll); % Berechnung identisch mit oben
               h3_kkk = invkin_optimcrit_condsplineact(cond(Jik_kkk), ...
@@ -436,6 +439,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % erfolgt eine Mittelwertbildung über alle Gelenke, da die
               % kinematischen Ketten nicht geschlossen sind
               qD_test_N = N*qD_test;
+              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
               qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk); % Normierung auf 1e-6
               q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
               % Geometrische Matrizen mit Inkrement bestimmen. Auch für
@@ -471,9 +475,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               any(abs(qN4_var1)>1e-4 & abs(test_qN4-1)>0.1 ) || ...  
               any(abs(qN3_var1)>1e-4) && all(sign(qN3_var1)==-sign(qN3_var2)) || ...
               any(abs(qN4_var1)>1e-4) && all(sign(qN4_var1)==-sign(qN4_var2))
-            error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 3 ', ...
+            warning(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 3 ', ...
               'oder 4 (Sing.) stimmen nicht überein. Phi=%1.1e. ratio h3: %1.1e...%1.1e, ratio h4: %1.1e...%1.1e'], ...
                 jj, max(abs(Phi)), min(test_qN3), max(test_qN3), min(test_qN4), max(test_qN4));
+          else
+            fprintf('jj=%d. Gradientenbildung i.O.\n', jj);
           end
         end
         if wn(3), v = v - wn(3)*h3dq'; end
@@ -586,6 +592,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % raumbewegung findet auch Bewegung des anderen Kollisions-
               % objektes statt. TODO: Saubere Herleitung fehlt noch.
               qD_test_N = N*qD_test;
+              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
               % Normierung größtes Element auf 1e-6.
               scale_Inochange(kkk) = 1e-6 / max(abs(qD_test_N));
               qD_test_N = qD_test_N * scale_Inochange(kkk);

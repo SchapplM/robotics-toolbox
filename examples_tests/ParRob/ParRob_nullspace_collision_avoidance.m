@@ -24,6 +24,7 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 RP = parroblib_create_robot_class('P6RRRRRR10V3G6P4A1', [0.2; 0.1], [0.2; 0.1]);
+parroblib_update_template_functions({'P6RRRRRR10V3G6P4A1'});
 RP.fill_fcn_handles(true, true); % keine mex-Funktionen, einfache Rechnung
 
 pkin = NaN(length(RP.Leg(1).pkin_names),1);

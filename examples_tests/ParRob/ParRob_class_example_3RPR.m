@@ -25,6 +25,7 @@ end
 SName='S3RPR1';
 
 % Instanz der Roboterklasse erstellen
+serroblib_update_template_functions({SName});
 RS = serroblib_create_robot_class(SName);
 RS.fill_fcn_handles(true);
 RS.mex_dep()

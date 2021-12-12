@@ -88,6 +88,8 @@ for robnr = 1:2
     if mexerr
       error('Fehler beim Kompilieren');
     end
+  else
+    serroblib_update_template_functions({RS.mdlname});
   end
   RS.fill_fcn_handles(use_mex_functions,true);
   % Definition der Freiheitsgrade (vollständig und reduziert)
@@ -716,7 +718,6 @@ for robnr = 1:2
             'zum gleichen Ergebnis (h)'], k, l);
         end
       end % for ii (Testfälle der IK)
-      return
     end % for l (Drehung des Endeffektors)
     fprintf('%d/%d Posen für Punkt %d geprüft. Bei restlichen IK nicht erfolgreich\n', ...
       num_ik_qs_successfull, length(x6_l_range), k);

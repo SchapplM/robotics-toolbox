@@ -29,6 +29,7 @@ end
 if ~use_parrob
   % Typ des seriellen Roboters auswählen (S6RRPRRRV3 = UPS)
   SName='S6RRPRRR14V3';
+  serroblib_update_template_functions({SName});
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName);
   RS.fill_fcn_handles(true, true);
@@ -55,7 +56,7 @@ if use_parrob
   RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
 end
-
+parroblib_update_template_functions({RP.mdlname});
 %% Plattform-Konfiguration verändern
 % Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
 % singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung

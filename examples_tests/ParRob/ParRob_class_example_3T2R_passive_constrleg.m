@@ -122,6 +122,7 @@ for robnr = 1:3
       RP.Leg(ii).update_EE(zeros(3,1),zeros(3,1));
     end
   end
+  serroblib_update_template_functions({RS1.mdlname, RS2.mdlname});
   RP.fill_fcn_handles(false, true);
   RP.update_actuation(I_qa);
   % Gelenkgrenzen setzen, damit IK-Neuversuche möglich sind

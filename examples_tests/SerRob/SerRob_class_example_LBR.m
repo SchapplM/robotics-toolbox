@@ -22,6 +22,7 @@ SName='S7RRRRRRR1';
 RName='S7RRRRRRR1_LWR4P';
 
 % Instanz der Roboterklasse erstellen
+serroblib_update_template_functions({SName}, false);
 RS = serroblib_create_robot_class(SName, RName);
 
 %% CAD-Modell plotten

@@ -23,6 +23,7 @@ RP.fill_fcn_handles(false, false); % keine mex-Funktionen, einfache Rechnung
 % Lade Kinematik-Parameter des KR 30-3 und schreibe sie in die
 % Kinematikparameter dieses Robotermodells. Durch Umweg über das allgemeine
 % Modell werden die Handgelenksparameter zu Null gesetzt (Kugelgelenk).
+serroblib_update_template_functions({'S6RRRRRR10V2'});
 RS_tmp = serroblib_create_robot_class('S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1');
 pkin_gen = S6RRRRRR10V2_pkin_var2gen(RS_tmp.pkin);
 pkin_tmp = S6RRRRRR10V3_pkin_gen2var(pkin_gen);

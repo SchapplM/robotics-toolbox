@@ -444,7 +444,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6)
+      if wn(4) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -542,6 +542,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % erfolgt eine Mittelwertbildung über alle Gelenke, da die
               % kinematischen Ketten nicht geschlossen sind
               qD_test_N = N*qD_test;
+              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
               qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk); % Normierung auf 1e-6
               q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
               % Geometrische Matrizen mit Inkrement bestimmen. Auch für
@@ -696,6 +697,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % raumbewegung findet auch Bewegung des anderen Kollisions-
               % objektes statt. TODO: Saubere Herleitung fehlt noch.
               qD_test_N = N*qD_test;
+              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
               % Normierung größtes Element auf 1e-6.
               scale_Inochange(kkk) = 1e-6 / max(abs(qD_test_N));
               qD_test_N = qD_test_N * scale_Inochange(kkk);

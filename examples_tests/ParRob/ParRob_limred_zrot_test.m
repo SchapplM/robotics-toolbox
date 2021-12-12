@@ -35,6 +35,7 @@ if ~use_parrob
   SName='S6RRPRRR14V3';
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName);
+  serroblib_update_template_functions({SName});
   RS.fill_fcn_handles(true, true);
 %  serroblib_create_template_functions({SName}, false, false);
 %   matlabfcn2mex({[RS.mdlname, '_invkin_eulangresidual']});
@@ -59,6 +60,7 @@ if use_parrob
     return
   end
   RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
+  parroblib_update_template_functions({'P6RRPRRR14V3G1P4A1'});
 end
 RP.fill_fcn_handles(true, true);
 % parroblib_create_template_functions({RP.mdlname}, false, false);
