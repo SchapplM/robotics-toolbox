@@ -47,6 +47,11 @@
 %   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
 %     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
+%   .maxcolldepth (n+1x2): Eindringtiefe der Kollisionen. Erste Spalte alle
+%     Prüfungen. Zweite Spalte nur mit Redundanz beeinflussbare Prüfungen.
+%     Negative Werte sind keine Kollision (gut)
+%   .instspc_mindst (n+1x2): Überschreitungsdistanz des Bauraums. Erste Spalte
+%     alle, zweite nur beeinflussbare Prüfungen. Negative Werte sind im Bauraum (gut)
 % 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Modeling Parallel Robot Kine-
@@ -235,6 +240,9 @@ end
 if ~isnan(s.collision_thresh)
   collobjdist_thresh = s.collision_thresh;
 end
+% Übergreifende Variable zur Speicherung aktiver Kollisionsprüfungen.
+I_collcheck_nochange_all = false(1,size(Rob.collchecks,1));
+I_instspccheck_nochange = false(1,size(Rob.collchecks_instspc,1));
 
 q0 = Q0(:,1);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
@@ -243,13 +251,13 @@ q0 = Q0(:,1);
 Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
-condJ = NaN;
+condJ = NaN; condJik = NaN;
 
 Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, Rob.NJ), ...
   'PHI', NaN(1+n_max, 6*Rob.NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
   'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
-  'h', NaN(1+n_max,1+9), 'coll', false, 'instspc_mindst', NaN(1+n_max,1), ...
-  'maxcolldepth', NaN(1+n_max,1), 'h_instspc_thresh', NaN, ...
+  'h', NaN(1+n_max,1+9), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
+  'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, ...
   'h_coll_thresh', NaN, 'mode', uint32(zeros(n_max,1)));
 Stats = Stats_default;
 
@@ -510,16 +518,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
             % Prüfe, welche Kollisionsprüfungen durch die Gelenkbewegung
             % beeinflusst werden
-            I_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
+            I_collcheck_nochange = abs(colldist_test(1,:)-colldist_test(2,:)) < 1e-12;
             % Benutze nur die zur Bildung des Gradienten
             % Kollisions-Kriterium berechnen: Tiefste Eindringtiefe (positiv)
             % Falls keine Kollision vorliegt (mit den kleineren
             % Kollisionskörpern), dann Abstände negativ angeben.
-            if all(I_nochange) % Keine Kollision nennenswert geändert
+            if all(I_collcheck_nochange) % Keine Kollision nennenswert geändert
               mincolldist_test = repmat(colldist_test(1), 2, 1);
             else
-              mincolldist_test = min(colldist_test(:,~I_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
+              mincolldist_test = min(colldist_test(:,~I_collcheck_nochange),[],2); % Schlimmste Kollision für jeden Körper bestimmen
             end
+            I_collcheck_nochange_all( colldet) = I_collcheck_nochange;
+            I_collcheck_nochange_all(~colldet) = false;
             if colldet_warn % nur im Warnbereich aktiv
               h(5) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
                 [-5*collobjdist_thresh, 0], -collobjdist_thresh);
@@ -528,7 +538,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             if wn(5) ~= 0 % hyperbolisches Kriterium
               if h(5) == 0 || ... % nichts tun. Noch im Toleranzbereich
-                all(I_nochange) % Gradient nicht bestimmbar
+                all(I_collcheck_nochange) % Gradient nicht bestimmbar
                 h5dq(:) = 0;
               elseif ~isinf(h(5))
                 h5_test = invkin_optimcrit_limits3(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
@@ -547,7 +557,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             h(9) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
               [-10*maxcolldepth, 0]); % immer aktiv
-            if wn(9) && ~all(I_nochange) % quadratisches Kriterium
+            if wn(9) && ~all(I_collcheck_nochange) % quadratisches Kriterium
               h9_test = invkin_optimcrit_limits1(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
                 [-10*maxcolldepth, 0]);
               % Einfacher Differenzenquotient
@@ -559,7 +569,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             if s.debug
               h5dq_var1 = h5dq;
               h9dq_var1 = h9dq;
-              I_nochange_var1 = I_nochange;
+              I_collcheck_nochange_var1 = I_collcheck_nochange;
             end
           end % Kein if-else, sondern neues if mit inverser Bedingung (wegen Debug)
           if ~(all(abs(Phi)<1e-6) && taskred_rotsym) || s.debug % Variante 2
@@ -593,16 +603,18 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             % Benutze die Skalierungen, damit ein absolut großes Inkrement
             % nicht numerisches Rauschen verstärkt und den Schwellwert
             % damit überschreitet.
-            I_nochange_voll2 = abs(cdtdiff) < 1e-12*repmat(1./scale_Inochange, 1, size(cdtdiff,2));
+            I_collcheck_nochange_voll2 = abs(cdtdiff) < 1e-12*repmat(1./scale_Inochange, 1, size(cdtdiff,2));
             % Berücksichtige nur Kollisionsprüfungen, die jetzt von min.
             % einem Gelenk beeinflusst werden.
-            I_nochange = any(I_nochange_voll2);
-            if all(I_nochange) % Keine Kollision nennenswert geändert
+            I_collcheck_nochange = any(I_collcheck_nochange_voll2);
+            if all(I_collcheck_nochange) % Keine Kollision nennenswert geändert
               % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
               mincolldist_test = repmat(colldist_test(1), size(JP_test,1),1);
             else
-              mincolldist_test = min(colldist_test(:,~I_nochange),[],2);
+              mincolldist_test = min(colldist_test(:,~I_collcheck_nochange),[],2);
             end
+            I_collcheck_nochange_all( colldet) = I_collcheck_nochange;
+            I_collcheck_nochange_all(~colldet) = false;
             if colldet_warn
               h(5) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
                 [-5*collobjdist_thresh, 0], -collobjdist_thresh);
@@ -611,7 +623,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             if wn(5) % Hyperbolisches Kriterium
               if h(5) == 0 || ... % nichts tun. Noch im Toleranzbereich
-                all(I_nochange)
+                all(I_collcheck_nochange)
                 h5dq(:) = 0;
               elseif ~isinf(h(5))
                 % Differenzenquotient für jedes Inkrement getrennt und dann Mittelwert.
@@ -638,7 +650,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             h(9) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
               [-10*maxcolldepth, 0]);
-            if wn(9) && ~all(I_nochange) % quadratisches Kriterium
+            if wn(9) && ~all(I_collcheck_nochange) % quadratisches Kriterium
               h9dq_all = NaN(Rob.NJ,Rob.NJ);
               for kkk = 1:Rob.NJ
                 h9_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
@@ -650,16 +662,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h9dq(:) = 0;
             end
             if s.debug
-              I_nochange_var2 = I_nochange;
+              I_collcheck_nochange_var2 = I_collcheck_nochange;
               h5dq_var2 = h5dq;
               h9dq_var2 = h9dq;
             end
           end
           if nargout == 4
-            Stats.maxcolldepth(jj) = -mincolldist_test(1);
+            Stats.maxcolldepth(jj,:) = [-min(colldist_test(1,:)),-mincolldist_test(1)];
           end
           if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym && ...
-              ~all(I_nochange_var1==I_nochange_var2) % Wenn beide ungleich sind, ist eine Abweichung zu erwarten
+              ~all(I_collcheck_nochange_var1==I_collcheck_nochange_var2) % Wenn beide ungleich sind, ist eine Abweichung zu erwarten
             % Prüfe, ob die Berechnung des Gradienten mit beiden Ansätzen gleich ist.
             qN5_var1 = N * h5dq_var1';
             qN5_var2 = N * h5dq_var2';
@@ -704,39 +716,39 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal
           [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-          I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
-          if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+          I_instspccheck_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
+          if all(I_instspccheck_nochange) % Keine Bauraumprüfung nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
-            mindist_all = repmat(absdist(1), 2, 1);
+            mindist_h_all = repmat(absdist(1), 2, 1);
           else
             % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
             % Bauraumkörper enthalten sind (falls Prüfung gefordert)
-            mindist_all = -inf(size(JP_test,1),1);
+            mindist_h_all = -inf(size(JP_test,1),1);
             for i = 1:size(Rob.collbodies_instspc.link,1)
               % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
               I = Rob.collchecks_instspc(:,1) == i & ... % erste Spalte für Roboter-Obj.
-                ~I_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
+                ~I_instspccheck_nochange'; % Nur solche Objektprüfungen berücksichtigen, die hier beeinflusst werden
               if ~any(I), continue; end % Bauraum-Objekte nicht direkt prüfen. Sonst leeres Array
               % Falls mehrere Bauraum-Objekte, nehme das mit dem besten Wert
               mindist_i = min(absdist(:,I),[],2);
               % Nehme den schlechtesten Wert von allen Objekten
-              mindist_all = max([mindist_i,mindist_all],[],2);
+              mindist_h_all = max([mindist_i,mindist_h_all],[],2);
             end
           end
           % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
           % positiver ist außerhalb (schlecht). Größter positiver Wert
           % maßgeblich
-          h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+          h(6) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
-            [-90, -s.installspace_thresh]); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-          h6_test = invkin_optimcrit_limits2(mindist_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
+            -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+          h6_test = invkin_optimcrit_limits3(mindist_h_all(2), ... % Wert bezogen auf Test-Pose
+            [-100.0, 0], -s.installspace_thresh);
           if ~isinf(h(6))
             h6dq = (h6_test-h(6))./qD_test';
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
             % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
-            h6dq = 1e3*(mindist_all(2)-mindist_all(1))./qD_test';
-            currinstspcdist = mindist_all(1);
+            h6dq = 1e3*(mindist_h_all(2)-mindist_h_all(1))./qD_test';
+            currinstspcdist = mindist_h_all(1);
             if all(abs(Phi) < 1e-3)
               bestinstspcdist = min(bestinstspcdist,currinstspcdist);
             end
@@ -761,28 +773,28 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraumprüfung für alle Gelenkpositionen auf einmal.
           [~, absdist] = check_collisionset_simplegeom(Rob.collbodies_instspc, ...
             Rob.collchecks_instspc, JP_test, struct('collsearch', false));
-          I_nochange = abs(diff(minmax2(absdist')')) < 1e-12;
-          if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
+          I_instspccheck_nochange = abs(diff(minmax2(absdist')')) < 1e-12;
+          if all(I_instspccheck_nochange) % Keine Bauraumprüfung nennenswert geändert
             % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
-            mindist_all = repmat(absdist(1), size(JP_test,1),1);
+            mindist_h_all = repmat(absdist(1), size(JP_test,1),1);
           else
-            mindist_all = -inf(size(JP_test,1),1); % gleiche Rechnung wie oben
+            mindist_h_all = -inf(size(JP_test,1),1); % gleiche Rechnung wie oben
             for i = 1:size(Rob.collbodies_instspc.link,1)
-              I = Rob.collchecks_instspc(:,1) == i & ~I_nochange';
+              I = Rob.collchecks_instspc(:,1) == i & ~I_instspccheck_nochange';
               if ~any(I), continue; end
               mindist_i = min(absdist(:,I),[],2);
-              mindist_all = max([mindist_i,mindist_all],[],2);
+              mindist_h_all = max([mindist_i,mindist_h_all],[],2);
             end
           end
-          h(6) = invkin_optimcrit_limits2(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], [-90, -s.installspace_thresh]);
+          h(6) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
+            [-100.0, 0], -s.installspace_thresh);
           if h(6) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
-            all(I_nochange)
+            all(I_instspccheck_nochange)
             h6dq(:) = 0;
           elseif ~isinf(h(6))
             for kkk = 1:Rob.NJ
-              h6_test = invkin_optimcrit_limits2(mindist_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
-                [-100.0, 0], [-90, -s.installspace_thresh]);
+              h6_test = invkin_optimcrit_limits3(mindist_h_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
+                [-100.0, 0], -s.installspace_thresh);
               h6dq(kkk) = (h6_test-h(6))/1e-6; % Differenzenquotient bzgl. Inkrement
             end
           else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -790,9 +802,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             for kkk = 1:Rob.NJ
               % Skaliere mit Gelenkzahl des Roboters (TODO: Mathematische
               % Begründung fehlt. Empirisch ermittelt. Ziel: var1=var2).
-              h6dq(kkk) = Rob.NJ * 1e3*(mindist_all(1+kkk)-mindist_all(1))/1e-6';
+              h6dq(kkk) = Rob.NJ * 1e3*(mindist_h_all(1+kkk)-mindist_h_all(1))/1e-6';
             end
-            currinstspcdist = mindist_all(1);
+            currinstspcdist = mindist_h_all(1);
             if all(abs(Phi) < 1e-3)
               bestinstspcdist = min(bestinstspcdist,currinstspcdist);
             end
@@ -814,7 +826,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
         end
         if nargout == 4
-          Stats.instspc_mindst(jj) = mindist_all(1);
+          % Bestimme auch den Abstand ohne Berücksichtigung der
+          % beeinflussbaren Prüfungen
+          mindist_all = -inf; % ähnliche Rechnung wie oben
+          for i = 1:size(Rob.collbodies_instspc.link,1)
+            I = Rob.collchecks_instspc(:,1) == i;
+            if ~any(I), continue; end
+            mindist_i = min(absdist(1,I));
+            mindist_all = max([mindist_i,mindist_all]);
+          end
+          Stats.instspc_mindst(jj,:) = [mindist_all, mindist_h_all(1)];
         end
         v = v - wn(6)*h6dq';
       end
@@ -836,10 +857,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         Stats.mode(jj) = bitset(Stats.mode(jj),16);
         h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
         h8_test = invkin_optimcrit_limits2(Phi_voll(4)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));
-        if isinf(h(8))
-          if Phi_voll(4) <= s.xlim(6,1)
+        if isinf(h(8)) || isinf(h8_test)
+          if Phi_voll(4) <= s.xlim(6,1) + 1e-6
             h8dq = -1e6*qD_test';
-          elseif Phi_voll(4) >= s.xlim(6,2)
+          elseif Phi_voll(4) >= s.xlim(6,2) - 1e-6
             h8dq = +1e6*qD_test';
           else
             error('Fall sollte eigentlich nicht vorkommen');
@@ -917,7 +938,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
     
     % Prüfe ob mit dem Inkrement eine Kollision erzeugt wird und reduziere
-    % die Bewegung darauf hin. Ist nur bezugen auf die Aufgabe, da die
+    % die Bewegung darauf hin. Ist nur bezogen auf die Aufgabe, da die
     % Nullraumbewegung keine Kollision erzeugt (falls das Kriterium benutzt wird)
     if scale_coll
       % Bestimme Abstand der Objekte vor und nach dem Schritt
@@ -1089,7 +1110,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       Stats.Q(1+jj,:) = q1;
       Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
-      Stats.condJ(jj,:) = [condJik,condJ];
+      Stats.condJ(jj,:) = [condJik, condJ];
       Stats.lambda(jj,:) = [lambda, lambda_mult];
       Stats.rejcount(jj) = rejcount;
     end
@@ -1117,7 +1138,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;0;wn(7);wn(8)]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn = [0;1;0;0;0;0;wn(7);wn(8);0]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -1204,41 +1225,58 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
   end
-  if wn(5) ~= 0 % Berechnung muss genauso sein wie oben
-    colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
-      Tc_stack_PKM(:,4)', struct('collsearch', true));
-    if any(colldet) % Jetzt Betrachtung der eigentlichen Kollisionskörper
-      [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks(colldet,:), ...
-        Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
-      Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
-      h(5) = invkin_optimcrit_limits3(Stats.maxcolldepth(Stats.iter+1), ...
-              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
+  h([5 9]) = 0;
+  if wn(5) ~= 0 || wn(9) ~= 0 % Berechnung muss genauso sein wie oben
+    colldet1 = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
+          Tc_stack_PKM(:,4)', struct('collsearch', true));
+    if any(colldet1) % Jetzt Betrachtung der eigentlichen Kollisionskörper
+      [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, ...
+        Rob.collchecks(colldet1,:), Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
+      if all(I_collcheck_nochange_all(colldet1))
+        mincolldist_h = -colldist(1);
+      else
+        mincolldist_h = -min(colldist(~I_collcheck_nochange_all(colldet1)));
+      end
       if any(colldet)
         Stats.coll = true;
       end
-    else
-      h(5) = 0;
+      Stats.maxcolldepth(Stats.iter+1,:) = [-min(colldist), mincolldist_h];
+      if wn(5) ~= 0
+        h(5) = invkin_optimcrit_limits3(mincolldist_h, ...
+                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
+        % Trage den Wert ein, ab dem eine Kollision vorliegt
+        Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
+                  [-5*collobjdist_thresh, 0], -collobjdist_thresh);
+      end
+      if wn(9) ~= 0
+        h(9) = invkin_optimcrit_limits1(mincolldist_h, ...
+          [-10*maxcolldepth, 0]);
+      end
     end
-    % Trage den Wert ein, ab dem eine Kollision vorliegt
-    Stats.h_coll_thresh = invkin_optimcrit_limits3(0, ...
-              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
   end
   if wn(6) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
       Rob.collchecks_instspc, Tc_stack_PKM(:,4)', struct('collsearch', false));
+    mindist_h_all = -inf;
+    for i = 1:size(Rob.collbodies_instspc.link,1)
+      I = Rob.collchecks_instspc(:,1) == i & ~I_instspccheck_nochange';
+      if ~any(I), continue; end
+      mindist_h_i = min(absdist(1,I));
+      mindist_h_all = max([mindist_h_i,mindist_h_all]);
+    end
     mindist_all = -inf;
     for i = 1:size(Rob.collbodies_instspc.link,1)
       I = Rob.collchecks_instspc(:,1) == i;
       if ~any(I), continue; end
-      mindist_i = min(absdist(:,I),[],2);
-      mindist_all = max([mindist_i,mindist_all],[],2);
+      mindist_i = min(absdist(1,I));
+      mindist_all = max([mindist_i,mindist_all]);
     end
-    h(6) = invkin_optimcrit_limits2(mindist_all, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
-    Stats.instspc_mindst(Stats.iter+1) = mindist_all(1);
+    h(6) = invkin_optimcrit_limits3(mindist_h_all, ...
+      [-100.0, 0], -s.installspace_thresh);
+    Stats.instspc_mindst(Stats.iter+1,:) = [mindist_all,mindist_h_all(1)];
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
-    Stats.h_instspc_thresh = invkin_optimcrit_limits2(0, ...
-      [-100.0, 0], [-90, -s.installspace_thresh]);
+    Stats.h_instspc_thresh = invkin_optimcrit_limits3(0, ...
+      [-100.0, 0], -s.installspace_thresh);
   end
   if wn(7) ~= 0
     h(7) = invkin_optimcrit_limits1(Phi_voll(4), s.xlim(6,1:2));
@@ -1246,18 +1284,8 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(8) ~= 0
     h(8) = invkin_optimcrit_limits2(Phi_voll(4), s.xlim(6,1:2), xlim_thr_h8(6,:));
   end
-  if wn(9) ~= 0
-    [colldet,colldist] = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks, ...
-      Tc_stack_PKM(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
-    Stats.maxcolldepth(Stats.iter+1) = -min(colldist);
-    h(9) = invkin_optimcrit_limits1(Stats.maxcolldepth(Stats.iter+1), ...
-      [-10*maxcolldepth, 0]);
-    if any(colldet)
-      Stats.coll = true;
-    end
-  end
-  Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];
-  Stats.condJ(Stats.iter+1,:) = [condJik, condJ];
+  Stats.h(1+Stats.iter,:) = [sum(wn.*h),h'];
+  Stats.condJ(1+Stats.iter,:) = [condJik, condJ];
 end
 q = q1;
 if s.normalize

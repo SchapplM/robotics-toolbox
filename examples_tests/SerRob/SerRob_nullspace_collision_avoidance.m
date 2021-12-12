@@ -155,7 +155,7 @@ end
   RS.collchecks, JP_all_cav, struct('collsearch', false));
 maxcolldepth_cav_2 = max(-colldist_cav,[],2);
 test_maxcolldepth_cav = maxcolldepth_cav_2 - ...
-  Stats_CollAvoid.maxcolldepth(1:1+Stats_CollAvoid.iter);
+  Stats_CollAvoid.maxcolldepth(1:1+Stats_CollAvoid.iter,2);
 assert(all(abs(test_maxcolldepth_cav)<1e-10), 'Nachrechnung der Kollisionstiefen stimmt nicht');
 assert(~any(colldet_cav(end,:)), 'Trotz Kollisionsvermeidungsstrategie gibt es in Endpose eine Kollision');
 
