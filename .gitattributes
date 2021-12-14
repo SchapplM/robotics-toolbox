@@ -16,3 +16,5 @@
 *.jar binary
 *.mex* binary
 *.png binary
+
+*.m.template gitlab-language=matlab
