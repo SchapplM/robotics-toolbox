@@ -156,6 +156,8 @@ classdef SerRob < RobBase
       else
         R.Type = 1; % hybride Struktur
       end
+      [R.idx_ikpos_wn, R.idx_ikpos_hn, R.idx_iktraj_wnP, R.idx_iktraj_wnD, ...
+        R.idx_iktraj_hn] = ik_optimcrit_index(R.Type);
 
       R.MDH = Par_struct;
       % Fehlende Felder mit Standard-Werten beschreiben
