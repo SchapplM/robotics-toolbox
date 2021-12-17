@@ -157,7 +157,7 @@ classdef SerRob < RobBase
         R.Type = 1; % hybride Struktur
       end
       [R.idx_ikpos_wn, R.idx_ikpos_hn, R.idx_iktraj_wnP, R.idx_iktraj_wnD, ...
-        R.idx_iktraj_hn] = ik_optimcrit_index(R.Type);
+        R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index(R.Type);
 
       R.MDH = Par_struct;
       % Fehlende Felder mit Standard-Werten beschreiben
@@ -649,7 +649,7 @@ classdef SerRob < RobBase
         'T_N_E', R.T_N_E, ... % Transformationsmatrix letztes Körper-KS zu EE)
         'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten (Bewegung für IK-Residuum)
         'Kn', ones(R.NQJ,1), ... % Verstärkung 1 ist gut (für Nullraumbewegung)
-        'wn', zeros(7,1), ... % Gewichtung der Nebenbedingung
+        'wn', zeros(R.idx_ik_length.wnpos,1), ... % Gewichtung der Nebenbedingung
         'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
         'scale_lim', 0.0, ... % Herunterskalierung bei Grenzüberschreitung
         'scale_coll', 0.0, ... % Herunterskalieren bei angehender Kollision
@@ -693,7 +693,6 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) <= 8, s.wn=[s.wn;zeros(8-length(s.wn),1)]; end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
         s.wn(4) = 0;
@@ -757,7 +756,7 @@ classdef SerRob < RobBase
          'cond_thresh_jac', 1, ...
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
-         'wn', zeros(17,1), ... % Gewichtung der Nebenbedingung
+         'wn', zeros(R.idx_ik_length.wntraj,1), ... % Gewichtung der Nebenbedingung
          'maxrelstep', 0.1, ... % Maximale auf Grenzen bezogene Schrittweite
          'normalize', false, ... % Kein Normalisieren auf +/- 180° (erzeugt Sprung)
          'n_min', 0, ... % Minimale Anzahl Iterationen
@@ -781,7 +780,6 @@ classdef SerRob < RobBase
           end
         end
       end
-      if length(s.wn) < 19, s.wn=[s.wn;zeros(19-length(s.wn),1)]; end
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

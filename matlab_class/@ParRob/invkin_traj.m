@@ -110,7 +110,7 @@ s_std = struct( ...
   'cond_thresh_jac', 1, ... % Schwellwert zur Aktivierung der PKM-Jacobi-Optimierung
   ... % Grenze zum Umschalten des Koordinatenraums der Nullraumbewegung
   'thresh_ns_qa', 1, ... % immer vollständigen Gelenkraum benutzen
-  'wn', zeros(19,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
+  'wn', zeros(Rob.idx_ik_length.wntraj,1), ... % Gewichtung der Nebenbedingung. Standard: Ohne
   'xlim', Rob.xlim, ... % Grenzen für EE-Koordinaten
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xDDlim', Rob.xDDlim, ... % Grenzen für EE-Geschwindigkeiten
@@ -171,7 +171,7 @@ s_pik = struct(...
   'K', ones(Rob.NJ,1), ... % Verstärkung
   'Kn', zeros(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
   ... % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
-  'wn', zeros(3,1), ...
+  ... % (Variable wn muss gar nicht belegt werden. Standardmäßig Null.)
   'normalize', false, ... % würde Sprung erzeugen
   'n_min', 0, ... % Minimale Anzahl Iterationen
   'n_max', 1000, ... % Maximale Anzahl Iterationen
@@ -256,9 +256,9 @@ xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 wn = [s.wn;zeros(21-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 
-idx_wnP = R.idx_iktraj_wnP;
-idx_wnD = R.idx_iktraj_wnD;
-idx_hn  = R.idx_iktraj_hn;
+idx_wnP = Rob.idx_iktraj_wnP;
+idx_wnD = Rob.idx_iktraj_wnD;
+idx_hn  = Rob.idx_iktraj_hn;
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = Rob.collbodies;
@@ -335,7 +335,7 @@ qD_N_pre_alt = zeros(Rob.NJ,1);
 qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
 qDD_N_pre1 = zeros(Rob.NJ,1);
 xD_k_ist = NaN(6,1);
-Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+12), ...
+Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+Rob.idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
   'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
 h = zeros(12,1);

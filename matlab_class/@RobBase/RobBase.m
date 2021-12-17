@@ -34,6 +34,7 @@ classdef RobBase < matlab.mixin.Copyable
     idx_iktraj_wnP % Indizes für P-Gewichtungsfaktoren-Eingabe in Trajektorien-IK
     idx_iktraj_wnD % Indizes für D-Gewichtungsfaktoren-Eingabe in Trajektorien-IK
     idx_iktraj_hn % Indizes für Zielkriterien-Ausgabe in Trajektorien-IK
+    idx_ik_length % Maximale Indizes in den vorherigen Strukturen
   end
 
   methods
