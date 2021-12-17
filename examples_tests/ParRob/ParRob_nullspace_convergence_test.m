@@ -33,7 +33,7 @@ clc
 % Benutzereinstellungen. Standardmäßig als reines Testskript laufen lassen
 % und nur bei übermäßig vielen Fehlern abbrechen (am Ende).
 use_mex_functions = true; % Mex-Funktionen benutzen (wesentlich schneller)
-usr_recreate_mex = true; % Mex-Funktionen neu erzeugen (und kompilieren)
+usr_recreate_mex = false; % Mex-Funktionen neu erzeugen (und kompilieren)
 usr_plot_debug = false; % Debug-Plots über den Verlauf der Berechnungen
 usr_plot_objfun = false; % Verlauf der Zielfunktionen (über red. Koord.) zeichnen
 usr_plot_robot = false; % Skizze des Roboters zeichnen
@@ -54,18 +54,7 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Skript nicht ausführbar.');
   return
 end
-% Namen der Optimierungskriterien der IK (für Diagramme)
-hnames = {'qlim quadrat.', 'qlim hyperb.', 'cond IK-Jac.', 'cond PKM-Jac.', ...
-  'coll. hyp.', 'xlim quadrat.', 'xlim hyperb.', 'coll. quadr.'};
-% Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
-% Reihenfolge: quadratischer Grenzabstand, hyperbolischer Grenzabstand,
-% Konditionszahl IK-Jacobi, Konditionszahl PKM-Jacobi, Kollision, quadr.
-% EE-Grenzen, hyperb. EE-Grenzen, quadr. Kollision
-I_wn_traj =    [1 2 5 6 11 15 17 20]; % Siehe P3RRR1_invkin_traj (Eingabe wn)
-I_stats_traj = [1 2 5 6  7  9 10 12]; % Siehe P3RRR1_invkin_traj (Ausgabe Stats.h)
-I_wn_ep =      [1 2 3 4  5  7  8  9]; % Siehe P3RRR1_invkin3 (Eingabe wn, Ausgabe h)
-assert(length(I_wn_traj)==length(I_stats_traj)&&length(I_wn_traj)==...
-  length(I_wn_ep), 'Länge der Index-Vektoren ist falsch');
+
 %% Alle Robotermodelle durchgehen
 for robnr = 1:5
   %% Initialisierung
@@ -135,8 +124,8 @@ for robnr = 1:5
     end
   else
     % Prüfe zumindest die Aktualisierung
-    serroblib_update_template_functions({RP.Leg(1).mdlname}, true);
-    parroblib_update_template_functions({RP.mdlname(1:end-2)}, true);
+    serroblib_update_template_functions({RP.Leg(1).mdlname});
+    parroblib_update_template_functions({RP.mdlname(1:end-2)});
   end
   RP.fill_fcn_handles(use_mex_functions,true);
   % Definition der Freiheitsgrade (vollständig und reduziert)
@@ -179,7 +168,7 @@ for robnr = 1:5
   qlim   = cat(1, RP.Leg.qlim);
   qDlim  = cat(1, RP.Leg.qDlim);
   qDDlim = cat(1, RP.Leg.qDDlim);
-  RS.xDlim = [repmat([-2, 2], 3, 1);repmat([-pi, pi], 3, 1)];
+  RP.xDlim = [repmat([-2, 2], 3, 1);repmat([-pi, pi], 3, 1)];
   xlim_abs = NaN(6,2); % Absolute Grenzen für EE-Koordinate (in Funktion relativ)
   xlim_abs(6,:) = [-45, 45]*pi/180;
   % Kollisionsobjekte (siehe: ParRob_nullspace_collision_avoidance.m)
@@ -222,6 +211,26 @@ for robnr = 1:5
   end
   % Eintragen in Roboter-Klasse
   RP.collchecks = collchecks;
+
+
+  % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
+  % Reihenfolge: Siehe RS.idx_ikpos_wn.
+  I_wn_traj = zeros(1,RP.idx_ik_length.wnpos);
+  i=0;
+  for f = fields(RP.idx_ikpos_wn)'
+    i=i+1;
+    I_wn_traj(i) = RP.idx_iktraj_wnP.(f{1});
+  end
+  I_stats_traj = zeros(RP.idx_ik_length.hnpos,1);
+  i=0;
+  for f = fields(RP.idx_ikpos_hn)'
+    i=i+1;
+    I_stats_traj(i) = RP.idx_iktraj_hn.(f{1});
+  end
+  I_wn_ep = 1:RP.idx_ik_length.wnpos;
+  % Namen der Optimierungskriterien der IK (für Diagramme)
+  hnames = fields(RP.idx_ikpos_hn)';
+
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
   X0 = [ [0.05;0.03;0.6]; [2;-3;0]*pi/180 ];
@@ -271,7 +280,7 @@ for robnr = 1:5
   q0_ik_fix = q0;
   q0_ik_fix(RP.I1J_LEG(2):end) = NaN; % damit Übernahe Ergebnis Beinkette 1
   % Einstellungen für Einzelpunkt-IK.
-  s_ep = struct( 'wn', zeros(9,1), ... % Platzhalter einsetzen
+  s_ep = struct( 'wn', zeros(RP.idx_ik_length.wnpos,1), ... % Platzhalter einsetzen
     'collbodies_thresh', 999, ... % 1000 mal größere Koll.-Körper (damit Kennzahl immer aktiv ist, wenn gewählt)
     'n_max', 5000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % , 'finish_in_limits', true
   % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
@@ -447,64 +456,64 @@ for robnr = 1:5
         % werden.
         s_ep_ii.scale_lim = 0.9;
         % Kriterien zusammenstellen
-        wn_traj = zeros(21,1);
+        wn_traj = zeros(RP.idx_ik_length.wntraj,1);
         % Dämpfung der Geschwindigkeit immer einbauen. Bei symmetrischen
         % Grenzen entspricht das dem Standard-Dämpfungsterm aus der
         % Literatur
-        wn_traj(3) = 0.5;
+        wn_traj(RP.idx_iktraj_wnP.qDlim_par) = 0.5;
         % Zusätzlich Dämpfung bei Überschreitung des Grenzbereichs zu den
         % Positions-Grenzen. Dadurch weniger Überschreitungen der Grenze.
-        wn_traj(2) = 1;
-        wn_traj(8) = 1;
+        wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 1;
+        wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 1;
         optimcrit_limits_hyp_deact = 0.9;
         switch ii
           case 1 % P-Regler Quadratische Grenzfunktion
-            wn_traj(1) = 1; % konvergiert schlecht ohne D-Anteil
+            wn_traj(RP.idx_iktraj_wnP.qlim_par) = 1; % konvergiert schlecht ohne D-Anteil
           case 2 % PD-Regler Quadratische Grenzfunktion
-            wn_traj(1) = 1; % P
-            wn_traj(7) = 1; % D
+            wn_traj(RP.idx_iktraj_wnP.qlim_par) = 1; % P
+            wn_traj(RP.idx_iktraj_wnD.qlim_par) = 1; % D
           case 3 % P-Regler Hyperbolische Grenzfunktion
-            wn_traj(2) = 1; % konvergiert schlecht ohne D-Anteil
+            wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 1; % konvergiert schlecht ohne D-Anteil
             % Damit das Zielkriterium optimiert werden kann, muss es im
             % kompletten Gelenkbereich aktiv sein (nicht nur nahe Grenzen).
             optimcrit_limits_hyp_deact = NaN;
           case 4 % PD-Regler Hyperbolische Grenzfunktion
-            wn_traj(2) = 50; % ist mit Verstärkung 1 sehr langsam (aber in richtige Richtung)
-            wn_traj(8) = 20;
+            wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 50; % ist mit Verstärkung 1 sehr langsam (aber in richtige Richtung)
+            wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 20;
             optimcrit_limits_hyp_deact = NaN;
           case 5 % P-Regler IK-Jacobi-Konditionszahl
-            wn_traj(5) = 1; % funktioniert ordentlich
+            wn_traj(RP.idx_iktraj_wnP.ikjac_cond) = 1; % funktioniert ordentlich
           case 6 % PD-Regler IK-Jacobi-Konditionszahl
-            wn_traj(5) = 1;
-            wn_traj(9) = 0.2; % höhere D-Verstärkung kann Schwingung verursachen
+            wn_traj(RP.idx_iktraj_wnP.ikjac_cond) = 1;
+            wn_traj(RP.idx_iktraj_wnD.ikjac_cond) = 0.2; % höhere D-Verstärkung kann Schwingung verursachen
           case 7 % P-Regler PKM-Jacobi-Konditionszahl
-            wn_traj(6) = 1; % funktioniert manchmal ordentlich, aber ohne D-Anteil unzuverlässig
+            wn_traj(RP.idx_iktraj_wnP.jac_cond) = 1; % funktioniert manchmal ordentlich, aber ohne D-Anteil unzuverlässig
           case 8 % PD-Regler PKM-Jacobi-Konditionszahl
-            wn_traj(3) = 0.8;
-            wn_traj(6) = 1;
+            wn_traj(RP.idx_iktraj_wnP.qDlim_par) = 0.8;
+            wn_traj(RP.idx_iktraj_wnP.jac_cond) = 1;
             % Höhere Werte für D-Verstärkung führen zu (Dauer-)Schwingungen
-            wn_traj(10) = 0.1;
+            wn_traj(RP.idx_iktraj_wnD.jac_cond) = 0.1;
           case 9 % PD-Regler EE-Grenze für phi_z (quadratisch gewichtet)
-            wn_traj(15) = 1;
-            wn_traj(16) = 0.5;
-            wn_traj(19) = 0.1; % zusätzliche Dämpfung
+            wn_traj(RP.idx_iktraj_wnP.xlim_par) = 1;
+            wn_traj(RP.idx_iktraj_wnD.xlim_par) = 0.5;
+            wn_traj(RP.idx_iktraj_wnP.xDlim_par) = 0.1; % zusätzliche Dämpfung
           case 10 % PD-Regler EE-Grenze für phi_z (quadratisch+hyperb. gewichtet)
-            wn_traj(15) = 1; % P quadr.
-            wn_traj(16) = 0.5; % D quadr.
-            wn_traj(17) = 0.5; % P hyperb.
-            wn_traj(18) = 0.05; % D hyperb. -> höhere Terme werden instabil
-            wn_traj(19) = 0.1; % zusätzliche Dämpfung
+            wn_traj(RP.idx_iktraj_wnP.xlim_par) = 1; % P quadr.
+            wn_traj(RP.idx_iktraj_wnD.xlim_par) = 0.5; % D quadr.
+            wn_traj(RP.idx_iktraj_wnP.xlim_hyp) = 0.5; % P hyperb.
+            wn_traj(RP.idx_iktraj_wnD.xlim_hyp) = 0.05; % D hyperb. -> höhere Terme werden instabil
+            wn_traj(RP.idx_iktraj_wnP.xDlim_par) = 0.1; % zusätzliche Dämpfung
           case 11 % PD-Regler hyperbolische Kollisionsvermeidung
-            wn_traj(11) = 0.5;
-            wn_traj(12) = 0.1;
-            wn_traj(2) = 0; % Hyperbolische Gelenkgrenzen ignorieren
-            wn_traj(8) = 0;
+            wn_traj(RP.idx_iktraj_wnP.coll_hyp) = 0.5;
+            wn_traj(RP.idx_iktraj_wnD.coll_hyp) = 0.1;
+            wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 0; % Hyperbolische Gelenkgrenzen ignorieren
+            wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 0;
             s_ep_ii.collbodies_thresh = 999; % 1000 mal größere Koll.-Körper
           case 12 % PD-Regler quadratische Kollisionsvermeidung
-            wn_traj(20) = 0.5;
-            wn_traj(21) = 0.1;
-            wn_traj(2) = 0; % Hyperbolische Gelenkgrenzen ignorieren
-            wn_traj(8) = 0;
+            wn_traj(RP.idx_iktraj_wnP.coll_par) = 0.5;
+            wn_traj(RP.idx_iktraj_wnD.coll_par) = 0.1;
+            wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 0; % Hyperbolische Gelenkgrenzen ignorieren
+            wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 0;
         end
         % Roboter auf 3T2R einstellen
         RP.update_EE_FG(I_EE_full,I_EE_red);
@@ -792,7 +801,7 @@ for robnr = 1:5
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
             plot(100*progr_traj, Stats_traj2.h(:,1+I_stats_traj(i)));
-            ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i)))); grid on;
+            ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i))), 'interpreter', 'none'); grid on;
             xlabel('Fortschritt in %');
           end
           linkxaxes
@@ -894,7 +903,7 @@ for robnr = 1:5
           for jj = 1:length(I_wn_ep)
             subplot(3,3,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,I_wn_ep(jj)));
-            ylabel(sprintf('h %d (%s)', jj, hnames{jj})); grid on;
+            ylabel(sprintf('h %d (%s)', jj, hnames{jj}), 'interpreter', 'none'); grid on;
             xlabel('x6 in deg');
           end
           for jj = 1:length(I_wn_ep)

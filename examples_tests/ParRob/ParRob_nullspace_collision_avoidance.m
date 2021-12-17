@@ -200,8 +200,8 @@ assert(all(~colldet_start(:)), ['Es sollte keine Kollision in der Startpose ', .
 %% Verfahrbewegung in Positions-IK mit verschiedenen Einstellungen
 
 s_basic = struct('maxrelstep', 0.001, 'maxrelstep_ns', 0.001, ...
-  'retry_limit', 0, 'wn', zeros(5,1));
-s_basic.wn(4) = 1; % Optimiere PKM-Konditionszahl
+  'retry_limit', 0, 'wn', zeros(RP.idx_ik_length.wnpos,1));
+s_basic.wn(RP.idx_ikpos_wn.jac_cond) = 1; % Optimiere PKM-Konditionszahl
 x1 = x0 + [-0.4; 0; 0; zeros(3,1)]; % bewege den End-Effektor nach unten (in die Kollision)
 % if false
 % IK mit 3T3R (ohne Kollisions-Betrachtung). Benutze 
@@ -273,7 +273,7 @@ end
 t1 = tic();
 s_collav = s_basic;
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
-s_collav.wn(5) = 1; % Kollisionsvermeidung (hyperbolisch) aktiv
+s_collav.wn(RP.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung (hyperbolisch) aktiv
 [q1_cav, Phi_cav, Tcstack1_cav, Stats_PosIK_CollAvoid] = RP.invkin4(x1, q0, s_collav);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung im Nullraum nicht lösbar');
 if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich ist
@@ -296,7 +296,7 @@ end
 s_collav2 = s_basic;
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 s_collav2.wn(:) = 0; % Jacobi-Matrix-Optimierung ignorieren
-s_collav2.wn(9) = 1; % Kollisionsvermeidung (quadratisch) aktiv
+s_collav2.wn(RP.idx_ikpos_wn.coll_par) = 1; % Kollisionsvermeidung (quadratisch) aktiv
 [q1_cav2, Phi_cav2, Tcstack1_cav2, Stats_PosIK_CollAvoid2] = RP.invkin4(x1, q0, s_collav2);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung im Nullraum nicht lösbar');
 if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich ist
@@ -320,7 +320,7 @@ t1 = tic();
 s_collstop = s_basic;
 s_collstop.scale_coll = 0.5;
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
-s_collstop.wn(5) = 1; % Kollisionsvermeidung aktiv
+s_collstop.wn(RP.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung aktiv
 [q1_cst, Phi_cst, Tcstack1_cst, Stats_PosIK_CollStop] = RP.invkin4(x1, q0, s_collstop);
 assert(all(abs(Phi_cst)<1e-8), 'IK mit absoluter Kollisionsvermeidung nicht lösbar');
 if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich ist
@@ -537,11 +537,11 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T3R nicht erfolgreich berechnet'
 t1 = tic();
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 % Singularitätsvermeidung aktivieren (bzgl. IK-Jacobi-Matrix)
-s_traj_3T2R = struct('wn', zeros(21,1));
+s_traj_3T2R = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
 s_traj_3T2R.cond_thresh_ikjac = 1e3;
-s_traj_3T2R.wn(5) = 1; % P-Verstärkung Optimierung IK-Jacobi-Konditionszahl
-s_traj_3T2R.wn(9) = 0.1; % D-Verstärkung Optimierung IK-Jacobi-Konditionszahl
-s_traj_3T2R.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_3T2R.wn(RP.idx_iktraj_wnP.ikjac_cond) = 1; % P-Verstärkung Optimierung IK-Jacobi-Konditionszahl
+s_traj_3T2R.wn(RP.idx_iktraj_wnD.ikjac_cond) = 0.1; % D-Verstärkung Optimierung IK-Jacobi-Konditionszahl
+s_traj_3T2R.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_3T2R, QD_3T2R, QDD_3T2R, PHI, ~, ~, JP_3T2R, Stats_3T2R] = ...
   RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_3T2R);
@@ -558,12 +558,12 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet'
 
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler, Variante 1)
 t1 = tic();
-s_traj_Koll1 = struct('wn', zeros(12,1));
+s_traj_Koll1 = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
 s_traj_Koll1 = s_traj_3T2R;
-s_traj_Koll1.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_Koll1.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 % Die Einstellung der Parameter ist abhängig von den Maximalwerten für qDD
-s_traj_Koll1.wn(11) = 0.1; % P-Verstärkung Kollisionsvermeidung
-s_traj_Koll1.wn(12) = 0.01; % D-Verstärkung Kollisionsvermeidung
+s_traj_Koll1.wn(RP.idx_iktraj_wnP.coll_hyp) = 0.1; % P-Verstärkung Kollisionsvermeidung
+s_traj_Koll1.wn(RP.idx_iktraj_wnD.coll_hyp) = 0.01; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_Koll1, QD_Koll1, QDD_Koll1, PHI, ~, ~, JP_Koll1, Stats_Koll1] = ...
   RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll1);
@@ -589,8 +589,8 @@ end
 % die Vermeidung dann nicht funktioniert.
 t1 = tic();
 s_traj_Koll2 = s_traj_3T2R;
-s_traj_Koll2.wn(11) = 1e-4; % P-Verstärkung Kollisionsvermeidung
-s_traj_Koll2.wn(12) = 1e-3; % D-Verstärkung Kollisionsvermeidung
+s_traj_Koll2.wn(RP.idx_iktraj_wnP.coll_hyp) = 1e-4; % P-Verstärkung Kollisionsvermeidung
+s_traj_Koll2.wn(RP.idx_iktraj_wnD.coll_hyp) = 1e-3; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_Koll2, QD_Koll2, QDD_Koll2, PHI, ~, ~, JP_Koll2, Stats_Koll2] = ...
   RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll2);
@@ -621,8 +621,8 @@ end
 % Aktivitätsbereich der Kennzahl)
 t1 = tic();
 s_traj_Koll3 = s_traj_3T2R;
-s_traj_Koll3.wn(11) = 0.8; % P-Verstärkung Kollisionsvermeidung
-s_traj_Koll3.wn(12) = 0.2; % D-Verstärkung Kollisionsvermeidung
+s_traj_Koll3.wn(RP.idx_iktraj_wnP.coll_hyp) = 0.8; % P-Verstärkung Kollisionsvermeidung
+s_traj_Koll3.wn(RP.idx_iktraj_wnD.coll_hyp) = 0.2; % D-Verstärkung Kollisionsvermeidung
 s_traj_Koll3.collbodies_thresh = 3; % 200% größere Kollisionskörper für Aktivierung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_Koll3, QD_Koll3, QDD_Koll3, PHI, ~, ~, JP_Koll3, Stats_Koll3] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll3);
@@ -651,8 +651,8 @@ end
 % Mit 3T2R (Aufgabenredundanz, Quadratische Kollisionsvermeidung mit PD-Regler)
 t1 = tic();
 s_traj_Koll4 = s_traj_3T2R;
-s_traj_Koll4.wn(20) = 0.8; % P-Verstärkung Kollisionsvermeidung
-s_traj_Koll4.wn(21) = 0.2; % D-Verstärkung Kollisionsvermeidung
+s_traj_Koll4.wn(RP.idx_iktraj_wnP.coll_par) = 0.8; % P-Verstärkung Kollisionsvermeidung
+s_traj_Koll4.wn(RP.idx_iktraj_wnD.coll_par) = 0.2; % D-Verstärkung Kollisionsvermeidung
 RP.update_EE_FG(logical([1 1 1 1 1 1]), logical([1 1 1 1 1 0]));
 [Q_Koll4, QD_Koll4, QDD_Koll4, PHI, ~, ~, JP_Koll4, Stats_Koll4] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_Koll4);
 % assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit Kollisionsvermeidung Var. 4 nicht erfolgreich berechnet');

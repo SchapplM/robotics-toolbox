@@ -357,16 +357,22 @@ q0_ep = q1;
 
 % Structs definieren
 s_ep_wn = zeros(8,amount_optcrit);  % 3T2R mit wn(:) = 0
-s_ep_wn(2) = 1; % Abstoßung von Gelenkwinkelgrenzen (Hyp.) aktivieren
-s_ep_wn(7:8,2) = [0;1];  % limred mit hyperbolischem Ansatz
-s_ep_wn(7:8,3) = [1;0];  % limred mit quadratischem und hyperbolischem Ansatz
-s_ep_wn(7:8,4) = [1;1];  % limred mit quadratischem und hyperbolischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.qlim_hyp) = 1; % Abstoßung von Gelenkwinkelgrenzen (Hyp.) aktivieren
+% limred mit hyperbolischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,2) = 0;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,2) = 1;
+% limred mit quadratischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,3) = 1;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,3) = 0;
+% limred mit quadratischem und hyperbolischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,4) = 1;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,4) = 1;
 opt1 = s_ep_wn(7:8,2);   % Sicherung für späteren Plot
 opt2 = s_ep_wn(7:8,3);   % Sicherung für späteren Plot
 opt3 = s_ep_wn(7:8,4);   % Sicherung für späteren Plot
 s_ep = struct( ...
   'n_min', 0, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-  'scale_lim', 0, 'wn', zeros(7,1), 'retry_limit', 0);
+  'scale_lim', 0, 'wn', zeros(RP.idx_ik_length.wnpos,1), 'retry_limit', 0);
 s_ep.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
 
 for i = 1:size(XL,1)
@@ -673,45 +679,49 @@ traj_plot_needed = 0;
 wn_limred_save = NaN(5,length(Namen_Methoden)); % erstes Element bezieht sich auf Größe wn(13:17)
 
 for k = 6:length(Namen_Methoden)
-  s_traj_wn = zeros(19,1); % wn(:)=0 -> keine Opt.Krit
+  s_traj_wn = zeros(RS.idx_ik_length.wntraj,1); % wn(:)=0 -> keine Opt.Krit
   s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
     'reci', true, 'wn', s_traj_wn, 'enforce_qlim', false);
   s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
   s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
   s_qhyp = 0; % Schalter/Wert für Abstand von Gelenkwinkelgrenzen (Hyp.)
-  s_traj.wn(3) = 0.5;
+  s_traj.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.5;
   switch k
     % Zum Debuggen kann vollständiges Kriterium an Anfang gestellt und Rest
     % auskommentiert werden -> Schleifen auf 1:1 und Namen_Methoden = cell(1,1);
 %     case 1 % vollständiges Optimierungskriterium immer ans Ende stellen
 %       name_method = sprintf('3T2R-IK mit wn(13:17)=1');
-%       s_traj_wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+%       s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
 %       s_traj.wn(13:17) = 1;
     case 1
       name_method = sprintf('3T2R-IK mit wn(:)=0');
     case 2
       name_method = sprintf('3T2R-IK mit wn(2)=1');
-      s_traj.wn(2) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
     case 3     
       name_method = sprintf('3T2R-IK mit wn(15:16)=1');
-      s_traj.wn(2) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(15:16) = [1;1];  % quadr. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      % quadr. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_par) = 1;
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_par) = 1;
     case 4
       name_method = sprintf('3T2R-IK mit wn(17:18)=1');
-      s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(17:18) = [1;1]; % hyp. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+       % hyp. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_hyp) = 1;
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_hyp) = 1;
     case 5
       name_method = sprintf('3T2R-IK mit wn(19)=1');
-      s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(19) = 1;        % quadr. für qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.xDlim_par) = 1;        % quadr. für qDD
     case 6 % vollständiges Optimierungskriterium immer ans Ende stellen
       name_method = sprintf('3T2R-IK mit wn(15:19)=1');
-%       s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(15) = 1; % P-Regler quadratisch
-      s_traj.wn(16) = 0.5; % D-Regler quadratisch
-      s_traj.wn(17) = 0.5; % P-Regler hyperbolisch
-      s_traj.wn(18) = 0.05; % D-Regler hyperbolisch
-      s_traj.wn(19) = 0.1; % Dämpfung xlim quadratisch
+%       s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_par) = 1; % P-Regler quadratisch
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_par) = 0.5; % D-Regler quadratisch
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_hyp) = 0.5; % P-Regler hyperbolisch
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_hyp) = 0.05; % D-Regler hyperbolisch
+      s_traj.wn(RP.idx_iktraj_wnP.xDlim_par) = 0.1; % Dämpfung xlim quadratisch
   end
   wn_limred_save(:,k) = s_traj.wn(15:19);
     
