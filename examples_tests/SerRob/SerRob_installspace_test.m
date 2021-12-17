@@ -28,6 +28,7 @@ RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
 RS.qDlim = repmat([-4*pi, 4*pi], RS.NQJ, 1); % 2rpm
 RS.qDDlim = repmat([-100, 100], RS.NQJ, 1); % Entspricht 1.5 rpm in 100ms
 % Debug: Funktionen neu generieren und kompilieren (bei Änderung)
+serroblib_update_template_functions({SName});
 % serroblib_create_template_functions({SName}, false);
 % err = false;
 % err = err | matlabfcn2mex({'S3RRR1_invkin_eulangresidual'});
@@ -91,7 +92,7 @@ plot3(XL(:,1), XL(:,2), XL(:,3), 'c-');
 
 %% Verfahrbewegung in Positions-IK mit verschiedenen Einstellungen
 x1 = XL(2,:)'; % am weitesten entfernter Eckpunkt
-s_basic = struct('maxrelstep', 0.001, 'retry_limit', 0, 'wn', zeros(4,1));
+s_basic = struct('maxrelstep', 0.001, 'retry_limit', 0, 'wn', zeros(RS.idx_ik_length.wnpos,1));
 % IK mit 3T3R (ohne Bauraum-Betrachtung)
 s_3T3R = s_basic;
 s_3T3R.I_EE = logical([1 1 0 0 0 1]);
@@ -121,7 +122,7 @@ assert(all(abs(Phi)<1e-8), 'IK mit 3T2R (ohne Nebenbedingungen) nicht lösbar');
 % Verfahrbewegung mit Bauraumeinhaltung (aufgabenredundant).
 s_instspc = s_basic;
 s_instspc.I_EE = logical([1 1 0 0 0 0]);
-s_instspc.wn(5) = 1; % Bauraumeinhaltung aktiv
+s_instspc.wn(RS.idx_ikpos_wn.instspc_hyp) = 1; % Bauraumeinhaltung aktiv
 [q1_InstSpc, Phi_InstSpc, Tcstack1_InstSpc, Stats_InstSpc] = RS.invkin2(RS.x2tr(x1), q0, s_instspc);
 figure(4);clf;set(4,'Name','Zielpose_BauraumOpt','NumberTitle','off');
 hold on; grid on;
@@ -182,7 +183,7 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T3R nicht erfolgreich berechnet'
 [X_3T3R, XD_3T3R, XDD_3T3R] = RS.fkineEE2_traj(Q_3T3R, QD_3T3R, QDD_3T3R);
 
 % Mit 3T2R (Aufgabenredundanz, aber ohne Optimierung)
-s_traj_3T2R = struct('I_EE', logical([1 1 0 0 0 0]));
+s_traj_3T2R = struct('I_EE', logical([1 1 0 0 0 0]), 'wn', zeros(RS.idx_ik_length.wntraj,1));
 [Q_3T2R, QD_3T2R, QDD_3T2R, PHI, JP_3T2R, Stats_3T2R] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_3T2R);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet');
 [coll_3T2R, dist_3T2R] = check_collisionset_simplegeom(RS.collbodies_instspc, ...
@@ -190,10 +191,9 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet'
 [X_3T2R, XD_3T2R, XDD_3T2R] = RS.fkineEE2_traj(Q_3T2R, QD_3T2R, QDD_3T2R);
 
 % Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit P-Regler)
-s_traj_InstSpcP = struct('wn', zeros(12,1), 'I_EE', logical([1 1 0 0 0 0]));
-s_traj_InstSpcP.wn(11) = 1e-5; % P-Verstärkung Bauraumeinhaltung
-s_traj_InstSpcP.wn(3) = 0.5; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_InstSpcP.wn(5) = eps; % keine Wirkung, aber damit Berechnung der Jacobi
+s_traj_InstSpcP = s_traj_3T2R;
+s_traj_InstSpcP.wn(RS.idx_iktraj_wnP.instspc_hyp) = 1e-5; % P-Verstärkung Bauraumeinhaltung
+s_traj_InstSpcP.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.5; % Zusätzliche Dämpfung gegen Schwingungen
 [Q_ISP, QD_ISP, QDD_ISP, PHI, JP_ISP, Stats_ISP] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_InstSpcP);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit P-Bauraumeinhaltung nicht erfolgreich berechnet');
 [coll_ISP, dist_ISP] = check_collisionset_simplegeom(RS.collbodies_instspc, ...
@@ -201,11 +201,10 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit P-Bauraumeinhaltung nicht erfolgr
 [X_ISP, XD_ISP, XDD_ISP] = RS.fkineEE2_traj(Q_ISP, QD_ISP, QDD_ISP);
 
 % Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit PD-Regler)
-s_traj_InstSpcPD = struct('wn', zeros(12,1), 'I_EE', logical([1 1 0 0 0 0]));
-s_traj_InstSpcPD.wn(11) = 1e-5; % P-Verstärkung Bauraumeinhaltung
-s_traj_InstSpcPD.wn(12) = 4e-6; % D-Verstärkung Bauraumeinhaltung
-s_traj_InstSpcPD.wn(3) = 0.5; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_InstSpcPD.wn(5) = eps; % keine Wirkung, aber damit Berechnung der Jacobi
+s_traj_InstSpcPD = s_traj_3T2R;
+s_traj_InstSpcPD.wn(RS.idx_iktraj_wnP.instspc_hyp) = 1e-5; % P-Verstärkung Bauraumeinhaltung
+s_traj_InstSpcPD.wn(RS.idx_iktraj_wnD.instspc_hyp) = 4e-6; % D-Verstärkung Bauraumeinhaltung
+s_traj_InstSpcPD.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.5; % Zusätzliche Dämpfung gegen Schwingungen
 [Q_ISPD, QD_ISPD, QDD_ISPD, PHI, JP_ISPD, Stats_ISPD] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_InstSpcPD);
 [coll_ISPD, dist_ISPD] = check_collisionset_simplegeom(RS.collbodies_instspc, ...
   RS.collchecks_instspc, JP_ISPD, struct('collsearch', false));
@@ -219,19 +218,19 @@ for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; CD_kk = dist_3T3R;
     X_kk = X_3T3R; XD_kk = XD_3T3R; XDD_kk = XDD_3T3R;
-    h_kk = Stats_3T3R.h;
+    h_kk = Stats_3T3R.h; condJ = Stats_3T3R.condJ;
   elseif kk == 2
     Q_kk = Q_3T2R; QD_kk = QD_3T2R; QDD_kk = QDD_3T2R; CD_kk = dist_3T2R;
     X_kk = X_3T2R; XD_kk = XD_3T2R; XDD_kk = XDD_3T2R;
-    h_kk = Stats_3T2R.h;
+    h_kk = Stats_3T2R.h; condJ = Stats_3T2R.condJ;
   elseif kk == 3
     Q_kk = Q_ISP; QD_kk = QD_ISP; QDD_kk = QDD_ISP; CD_kk = dist_ISP;
     X_kk = X_ISP; XD_kk = XD_ISP; XDD_kk = XDD_ISP;
-    h_kk = Stats_ISP.h;
+    h_kk = Stats_ISP.h; condJ = Stats_ISP.condJ;
   elseif kk == 4
     Q_kk = Q_ISPD; QD_kk = QD_ISPD; QDD_kk = QDD_ISPD; CD_kk = dist_ISPD;
     X_kk = X_ISPD; XD_kk = XD_ISPD; XDD_kk = XDD_ISPD;
-    h_kk = Stats_ISPD.h;
+    h_kk = Stats_ISPD.h; condJ = Stats_ISPD.condJ;
   end
   change_current_figure(20); if kk == 1, clf; end
   % EE-Winkel
@@ -271,12 +270,12 @@ for kk = 1:length(Namen)
     ylabel('Abstand Bauraum-Prüfkörper (>0 ist außerhalb)'); grid on;
   end
   subplot(2,2,2); hold on;
-  plot(T, h_kk(:,1+7));
+  plot(T, h_kk(:,1+RS.idx_iktraj_hn.instspc_hyp));
   if kk == length(Namen)
     ylabel('Zielfunktion'); grid on;
   end
   subplot(2,2,3); hold on;
-  plot(T, h_kk(:,1+5));
+  plot(T, condJ(:,1));
   if kk == length(Namen)
     ylabel('Konditionszahl'); grid on;
   end
@@ -348,11 +347,10 @@ XD_dummy = zeros(size(X_dummy,1),6); XDD_dummy = XD_dummy;
 
 % Neue Einstellungen testen. Nehme sehr kleine Zahlenwerte. Nur so wird
 % verhindert, dass die Knick-Stelle beim Minimum zu weit überschritten wird
-s_traj_sm = struct('wn', zeros(12,1), 'I_EE', logical([1 1 0 0 0 0]));
-s_traj_sm.wn(11) = 1e-5; % P-Verstärkung Bauraumeinhaltung
-s_traj_sm.wn(12) = 0.2*s_traj_sm.wn(11); % D-Verstärkung Bauraumeinhaltung
-s_traj_sm.wn(3) = 0.4; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_sm.wn(5) = eps; % keine Wirkung, aber damit Berechnung der Jacobi
+s_traj_sm = struct('wn', zeros(RS.idx_ik_length.wntraj,1), 'I_EE', logical([1 1 0 0 0 0]));
+s_traj_sm.wn(RS.idx_iktraj_wnP.instspc_hyp) = 1e-5; % P-Verstärkung Bauraumeinhaltung
+s_traj_sm.wn(RS.idx_iktraj_wnD.instspc_hyp) = 0.2*s_traj_sm.wn(RS.idx_iktraj_wnP.instspc_hyp); % D-Verstärkung Bauraumeinhaltung
+s_traj_sm.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.4; % Zusätzliche Dämpfung gegen Schwingungen
 RS.fill_fcn_handles(true); % Debuggen der Funktion S3RRR1_invkin_traj
 [Q_sm, QD_sm, QDD_sm, PHI, JP_sm, Stats_sm] = RS.invkin2_traj(X_dummy, ...
   XD_dummy,XDD_dummy,T_dummy,q1,s_traj_sm);
@@ -388,15 +386,15 @@ subplot(3,3,7);
 plot(T_dummy, max(dist_sm,[],2));
 ylabel('Bauraumverletzung (Distanz)'); grid on;
 subplot(3,3,8); hold on;
-plot(T_dummy, Stats_sm.h(:,1+7));
-plot(T_dummy(1), Stats_sm.h(1,1+7), 'gs');
-plot(T_dummy(end), Stats_sm.h(end,1+7), 'rx');
+plot(T_dummy, Stats_sm.h(:,1+RS.idx_iktraj_hn.instspc_hyp));
+plot(T_dummy(1), Stats_sm.h(1,1+RS.idx_iktraj_hn.instspc_hyp), 'gs');
+plot(T_dummy(end), Stats_sm.h(end,1+RS.idx_iktraj_hn.instspc_hyp), 'rx');
 ylabel('h7 = installspace'); grid on;
 linkxaxes
 subplot(3,3,9); hold on;
-plot(X_sm(:,6), Stats_sm.h(:,1+7));
-plot(X_sm(1,6), Stats_sm.h(1,1+7), 'gs');
-plot(X_sm(end,6), Stats_sm.h(end,1+7), 'rx');
+plot(X_sm(:,6), Stats_sm.h(:,1+RS.idx_iktraj_hn.instspc_hyp));
+plot(X_sm(1,6), Stats_sm.h(1,1+RS.idx_iktraj_hn.instspc_hyp), 'gs');
+plot(X_sm(end,6), Stats_sm.h(end,1+RS.idx_iktraj_hn.instspc_hyp), 'rx');
 xlabel('phi z');
 ylabel('h7 = installspace'); grid on;
 
