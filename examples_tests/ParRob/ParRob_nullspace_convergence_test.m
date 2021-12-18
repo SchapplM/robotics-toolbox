@@ -559,7 +559,10 @@ for robnr = 1:5
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
         if all(I_noacc)
-          if ~all(RP.I_EE == [1 1 1 0 0 1])
+          if Stats_ep.iter == 1
+            warning('Keine Nullraumbewegung in Pos.- oder Traj.-IK. Nebenbedingung im Start bereits optimal.');
+            continue
+          elseif ~all(RP.I_EE == [1 1 1 0 0 1])
             error('Fehler in Parametrierung der Trajektorien-Funktion. Alle Beschleunigungen Null.');
           else
             warning('3T1R-PKM funktionieren aktuell noch nicht gut. Alle Beschleunigungen Null.');
@@ -653,7 +656,7 @@ for robnr = 1:5
           '%1.1e schlechter als Einzelpunkt-IK (%1.5f vs %1.5f). Verbesserung ', ...
           'gegen Start: %1.3f bzw. %1.3f\n'], ...
           k, l, 180/pi*x_l(6), h_traj_ii_sum - h_ep_ii(1), ...
-          h_traj_ii_sum, Stats_ep.h(Stats_ep.iter,1), -step_h_traj, -step_h_ep);
+          h_traj_ii_sum, Stats_ep.h(1+Stats_ep.iter,1), -step_h_traj, -step_h_ep);
         % Speichere Ergebnis in Tabelle
         ii_restab = ii_restab + 1;
         ResStat(ii_restab,:) = ResStat_emptyrow;

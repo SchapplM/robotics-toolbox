@@ -115,7 +115,7 @@ for DynParMode = 2:4
     PName = PNames_Akt{IIa};
     fprintf('Untersuche PKM %s\n', PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
-
+    parroblib_update_template_functions({PName}, true);
     %% Roboter Initialisieren
     RP = parroblib_create_robot_class(PName, 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
