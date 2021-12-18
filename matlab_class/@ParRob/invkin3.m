@@ -586,6 +586,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             JP_test = [JP; NaN(Rob.NJ, size(JP,2))];
             scale_Inochange = NaN(Rob.NJ,1); % Merke die Skalierung für unten
             qD_test_all = NaN(Rob.NJ,Rob.NJ);
+            I_qD = false(Rob.NJ,1); % Indizes relevanter Gelenke
             for kkk = 1:Rob.NJ
               qD_test = zeros(Rob.NJ,1);
               qD_test(kkk) = 1e-6; % kleines Inkrement
@@ -595,6 +596,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % objektes statt. TODO: Saubere Herleitung fehlt noch.
               qD_test_N = N*qD_test;
               if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
+              I_qD(kkk) = true; % erst jetzt Gelenk für Differenzenquotient unten benutzen
               % Normierung größtes Element auf 1e-6.
               scale_Inochange(kkk) = 1e-6 / max(abs(qD_test_N));
               qD_test_N = qD_test_N * scale_Inochange(kkk);
@@ -643,14 +645,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                     [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                   h5dq_all(kkk,:) = (h5_test-h(idx_hn.coll_hyp))./(qD_test_all(:,kkk)');
                 end
-                h5dq = mean(h5dq_all);
+                h5dq = mean(h5dq_all(I_qD,:));
               else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
                 % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
+                h5dq_all = NaN(Rob.NJ,Rob.NJ);
                 for kkk = 1:Rob.NJ
                   % Muss stetiges Kriterium sein, damit es nicht zu Dauer-
                   % schwingungen kommt. Wähle relativ großen Wert als Faktor
-                  h5dq(kkk) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))/1e-6;
+                  h5dq_all(kkk,:) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))./(qD_test_all(:,kkk)');
                 end
+                h5dq = mean(h5dq_all(I_qD,:));
                 currcolldepth = -mincolldist_test(1);
                 if all(abs(Phi) < 1e-3)
                   bestcolldepth = min(bestcolldepth,currcolldepth);

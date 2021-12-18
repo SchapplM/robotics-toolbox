@@ -771,7 +771,8 @@ for k = 1:nt
       h(idx_hn.instspc_hyp) = 0;
     end
     %% Einhaltung der Grenzen der redundanten Koordinate
-    if any(wn([idx_wnP.xlim_par,idx_wnD.xlim_par,idx_wnP.xlim_hyp,idx_wnD.xlim_hyp]))
+    if any(wn([idx_wnP.xlim_par, idx_wnD.xlim_par, idx_wnP.xDlim_par, ...
+        idx_wnP.xlim_hyp,idx_wnD.xlim_hyp]))
       % Bestimme Ist-Geschwindigkeit und Ist-Lage des Endeffektors.
       xD_k_ist = J_x * qD_k;
       x_k_ist = x_k;
