@@ -1234,7 +1234,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
   end
-  h([5 9]) = 0;
+  h([idx_hn.coll_hyp, idx_hn.coll_par]) = 0;
   if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Berechnung muss genauso sein wie oben
     colldet1 = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
           Tc_stack_PKM(:,4)', struct('collsearch', true));

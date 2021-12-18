@@ -268,7 +268,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     'scale_lim', 0.7, ...
     'retry_limit', 0, ...
     'maxrelstep', 0.25); % Grenzen sind nicht so breit; nehme größere max. Schrittweite
-  s.wn(RS.idx_ikpos_wn.qlim_hyp) = 1;
+  s.wn(RP.idx_ikpos_wn.qlim_hyp) = 1;
   % Würfel-Trajektorie (Kantenlänge 300mm
   d1=0.15; h1=0.15;
   X1 = X0+[-d1/2,d1/2,h1/2,0,0,0]'; % Start so, dass Würfel genau mittig ist
@@ -310,7 +310,9 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Berechne IK zu den einzelnen Eckpunkten. Wenn das nicht geht, bringt die
   % Trajektorie sowieso nichts. Benutze die IK mit Aufgabenredundanz 
   s_ep = s; % Einstellungen für die Eckpunkte-IK
-  s_ep.wn = [1;0]; % Nehme Zielfunktion 1. Damit Überschreitung der Ränder in Zwischenständen möglich
+  s_ep.wn = zeros(RP.idx_ik_length.wnpos, 1);
+  % Nehme Zielfunktion 1. Damit Überschreitung der Ränder in Zwischenständen möglich
+  s_ep.wn(RP.idx_ikpos_wn.qlim_par) = 1;
   s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer als bei Traj.-IK)
   s_ep.maxrelstep_ns = 0.05; % Große Werte, Größere Nullraumbewegung pro Zeitschritt
   s_ep.retry_limit = 100; % Neuversuche erlauben (bei Einzelpunkt i.O.)
@@ -334,7 +336,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       assert(all(abs(Phi_i_voll)<1e-8), ...
         sprintf('Ergebnis der %s-IK (Parallel) ist falsch', I_EE_red_str));
       % Berechne die IK mit Seriell-Methode (zum Testen).
-      [q_i_test, Phi_i_test] = RP.invkin_ser(XL(i,:)', qs, rmfield(s_ep,{'maxstep_ns','maxrelstep_ns'}));
+      [q_i_test, Phi_i_test] = RP.invkin_ser(XL(i,:)', qs, ...
+        rmfield(s_ep,{'wn', 'maxstep_ns','maxrelstep_ns'}));
       assert(all(size(Phi_i_test)==[RP.NLEG*n_legconstr_used-1 1]), ...
         'ZB Phi_i aus ParRob/invkin_ser hat die falsche Dimension');
       % Prüfe auch hiervon die Richtigkeit
@@ -531,7 +534,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   for kk = 1:length(Namen_Methoden)
     s_kk = s_Traj;
     s_kk.debug = true;
-    s_kk.wn = zeros(10,1);
+    s_kk.wn = zeros(RP.idx_ik_length.wntraj,1);
     s_kk.wn(RP.idx_iktraj_wnP.qlim_hyp) = 1; % Benutze Kriterium 2 (hyperbolische Grenzen für Position)
     s_kk.wn(RP.idx_iktraj_wnD.qlim_hyp) = 0.1; % auch als D-Anteil für schnellere Reaktion bei Annäherung an Grenzen
     s_kk.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.5; % lineare Grenzen für Geschwindigkeit bzw. Dämpfung

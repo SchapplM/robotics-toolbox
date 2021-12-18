@@ -593,13 +593,15 @@ for Robot_Data = Robots
   
   for k = 1:length(Namen_Methoden)
     % Default-Struct
-    s_traj_wn = zeros(RS.idx_ik_length.wnpos,1); % wn(:)=0 -> keine Opt.Krit
+    s_traj_wn = zeros(RS.idx_ik_length.wntraj,1); % wn(:)=0 -> keine Opt.Krit
     s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
                        'reci', true, 'I_EE', RS.I_EE_Task, 'wn', s_traj_wn);
     s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
     s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
 %     s_traj.xDDlim = [NaN(5,2); [-21 21]];        % vorläufige Konvertierung wie 4*pi zu 100 bei qD und qDD
-    
+    I_13bis17 = [RS.idx_iktraj_wnP.xlim_par, RS.idx_iktraj_wnD.xlim_par, ...
+      RS.idx_iktraj_wnP.xlim_hyp, RS.idx_iktraj_wnD.xlim_hyp, ...
+      RS.idx_iktraj_wnP.xDlim_par];
     switch k
       case 1
         name_method = sprintf('3T2R-IK mit wn(:)=0');
@@ -633,7 +635,7 @@ for Robot_Data = Robots
         name_method = sprintf('3T2R-IK mit wn(13:17)=1');
         name_method_save5 = name_method;
     end
-    wn_limred_save(:,k) = s_traj.wn(13:17);
+    wn_limred_save(:,k) = s_traj.wn(I_13bis17);
     
     % IK berechnen
     [Q_k, QD_k, QDD_k, Phi_k, ~, Stats_Traj_k] = RS.invkin2_traj(X,XD,XDD,T,q0_traj,s_traj);

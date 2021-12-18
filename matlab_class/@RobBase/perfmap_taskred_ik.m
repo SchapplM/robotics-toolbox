@@ -147,11 +147,9 @@ if s.verbose
 end
 % IK-Grundeinstellungen
 s_ik = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ... % sehr genau rechnen
-  'wn', [0;1], ... % keine Vorgabe von K oder Kn (Standard-Werte)
   'scale_lim', 0.7, ...
   'retry_limit', 0);
 s_ep = s_ik; % Einstellungen für die Eckpunkte-IK
-s_ep.wn = [1;0;0]; % Nehme Zielfunktion 1. Damit Überschreitung der Ränder in Zwischenständen möglich
 s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer als bei Traj.-IK)
 % s_ep.maxrelstep_ns = 0.05; % Große Werte, Größere Nullraumbewegung pro Zeitschritt
 s_ep.retry_on_limitviol = true;
@@ -168,11 +166,9 @@ s_ep_dummy.finish_in_limits = false; % Muss deaktiviert sein. Sonst ...
 s_ep_dummy.retry_on_limitviol = false; % ... Veränderung von wn in IK-Aufruf
 s_ep_dummy.n_max = 1;
 s_ep_dummy.retry_limit = 0;
-if R.Type == 0 % hierdurch werden die Kriterien berechnet
-  s_ep_dummy.wn = ones(8,1); % Konsistent mit SerRob/invkin2
-else
-  s_ep_dummy.wn = ones(9,1); % Konsistent mit ParRob/invkin4
-end
+% Hierdurch werden die Kriterien berechnet (konsistent mit SerRob/invkin2
+% und ParRob/invkin4)
+s_ep_dummy.wn = ones(R.idx_ik_length.wnpos,1); 
 s_ep_dummy.K = zeros(R.NJ,1); % hierdurch keine Bewegung und damit ...
 s_ep_dummy.Kn = zeros(R.NJ,1); % ... sofortiger Abbruch
 s_ep_dummy.optimcrit_limits_hyp_deact = s.optimcrit_limits_hyp_deact;
@@ -193,7 +189,7 @@ s_ep_glbdscr.retry_limit = 10;
 s_ep_glbdscr.normalize = false; % no normalization (due to joint limits)
 s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work without redundancy
 s_traj_glbdscr = struct('simplify_acc', true);
-H_all = NaN(size(X_ref,1), length(phiz_range(:)), length(s_ep_dummy.wn)+4);
+H_all = NaN(size(X_ref,1), length(phiz_range(:)), R.idx_ik_length.hnpos+4);
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
@@ -220,7 +216,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if isempty(I_ii)
     continue % Bei Eingabe einer NaN-Trajektorie oder unpassenden Grenzen zum Startwert
   end
-  H_all_ii = NaN(size(X_ref,1), length(I_ii), length(s_ep_dummy.wn)+4);
+  H_all_ii = NaN(size(X_ref,1), length(I_ii), R.idx_ik_length.hnpos+4);
   Q_all_ii = NaN(length(I_ii), R.NJ, size(X_ref,1));
   t_lastmessage = tic();
   t1 = tic();
@@ -292,7 +288,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         Q_all_ii(j, :, i) = q_j;
         % Speichere die Optimierungskriterien für Nullraumbewegungen
-        H_all_ii(i,j,1:end-4) = Stats_dummy.h(Stats_dummy.iter+1,2:(length(s_ep_dummy.wn)+1));
+        H_all_ii(i,j,1:end-4) = Stats_dummy.h(Stats_dummy.iter+1,2:(R.idx_ik_length.hnpos+1));
         % Speichere Abstand zu Kollision und Bauraumgrenze separat.
         % Positive Zahlen sind eine Überschreitung bzw. Eindringen (schlecht).
         H_all_ii(i,j,end-3) = Stats_dummy.maxcolldepth(Stats_dummy.iter+1,1);
@@ -404,7 +400,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         end
         % Compute performance criteria
         R.update_EE_FG(s.I_EE_full,s.I_EE_red); % Roboter auf 3T2R einstellen
-        h_list = NaN(size(q_j_list,1),length(s_ep_dummy.wn)+4);
+        h_list = NaN(size(q_j_list,1),R.idx_ik_length.hnpos+4);
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
           [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
