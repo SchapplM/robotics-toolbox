@@ -104,7 +104,11 @@ for i = 1:size(XL,1)-1
   I2 = IL(i+1);
   p_all = ( X_tref(I1:I2,1:5)-repmat(XL(i,1:5),I2-I1+1,1) ) ./ ...
            repmat(XL(i+1,1:5)-XL(i,1:5),I2-I1+1,1);
+  % Deaktiviere Koordinaten, die sich nur innerhalb der Rechenungenauigkeit
+  % verändern. Aus diesen soll keine Bahnkoordinate berechnet werden.
+  p_all(:,abs(XL(i+1,1:5)-XL(i,1:5)) < 1e-10) = NaN;
   p = mean(p_all,2, 'omitnan');
+  % Berechne die Bahnkoordinate aus dem normalisierten Fortschritt.
   s_tref(I1:I2) = (i-1)+p;
 end
 I_nonmon = find([false;diff(s_tref) < 0]);
@@ -115,6 +119,10 @@ for i = I_nonmon(:)'
 end
 if size(XL,1)==1 % kein Fortschritt bestimmbar
   s_tref = (1:size(X_tref,1))'/size(X_tref,1);
+end
+if any(s_tref > size(XL,1)-1 +1e-10)
+  warning(['Normalisierung der Bahnkoordinate nicht erfolgreich. max(s)=', ...
+    '%1.1f bei %d Punkten'], max(s_tref), size(X_tref,1));
 end
 % Output of the normalized progress of the trajectory input
 s_ref = s_tref;
