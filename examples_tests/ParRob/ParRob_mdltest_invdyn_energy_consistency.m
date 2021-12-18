@@ -97,6 +97,7 @@ for i_FG = 1:size(EEFG_Ges,1)
 
     %% Roboter Initialisieren
     % Vorlagen-Funktionen aktualisieren
+    parroblib_update_template_functions({PName}, true);
 %     parroblib_create_template_functions({PName},false);
 %     [~,LEG_Names,~,~,~,~,~,~,PName_Legs] = parroblib_load_robot(PName);
 %     serroblib_create_template_functions(LEG_Names(1),false);

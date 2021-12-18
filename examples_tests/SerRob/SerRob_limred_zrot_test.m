@@ -299,22 +299,26 @@ for Robot_Data = Robots
     q0_ep = RS.qref - 20*pi/180*(0.5-rand(RS.NQJ,1)); % Anfangswinkel 20° variieren
 
     % Structs definieren
-    s_ep_wn = zeros(7,amount_optcrit);  % 3T2R mit wn(:) = 0
-    s_ep_wn(6:7,2) = [0;1];  % limred mit hyperbolischem Ansatz
-    s_ep_wn(6:7,3) = [1;1];  % limred mit quadratischem und hyperbolischem Ansatz
+    s_ep_wn = zeros(RS.idx_ik_length.wnpos,amount_optcrit);  % 3T2R mit wn(:) = 0
+    % limred mit hyperbolischem Ansatz
+    s_ep_wn(RS.idx_ikpos_wn.xlim_par,2) = 0;
+    s_ep_wn(RS.idx_ikpos_wn.xlim_hyp,2) = 1;
+    % limred mit quadratischem und hyperbolischem Ansatz
+    s_ep_wn(RS.idx_ikpos_wn.xlim_par,3) = 1;
+    s_ep_wn(RS.idx_ikpos_wn.xlim_hyp,3) = 1;
     opt1 = s_ep_wn(6:7,2);   % Sicherung für späteren Plot
     opt2 = s_ep_wn(6:7,3);   % Sicherung für späteren Plot
     s_ep = struct( ...
       'n_min', 0, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-      'scale_lim', 0, 'reci', true, 'wn', zeros(7,1), 'retry_limit', 0);
+      'scale_lim', 0, 'reci', true, 'wn', zeros(RS.idx_ik_length.wnpos,1), 'retry_limit', 0);
     s_ep.xlim = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
 
     % Inverse Kinematik für die Auswertung mit Stats
     for k = 1:amount_optcrit
       s_ep.wn = s_ep_wn(:,k); % k verschiedene Optimierungskriterien
       [q_IK_ep, phi_IK_ep, ~, Stats_IK_ep] = RS.invkin2(RS.x2tr(XE(i,:)'), q0_ep, s_ep);
-      h6_ep(:,k,i)   = Stats_IK_ep.h(:,7);
-      h7_ep(:,k,i)   = Stats_IK_ep.h(:,8);
+      h6_ep(:,k,i)   = Stats_IK_ep.h(:,1+RS.idx_ikpos_hn.xlim_par);
+      h7_ep(:,k,i)   = Stats_IK_ep.h(:,1+RS.idx_ikpos_hn.xlim_hyp);
       phiz_ep(:,k,i) = Stats_IK_ep.PHI(:,4);
       iter_ep(i,k)   = Stats_IK_ep.iter;
       Q_ep(:,:,i,k)  = Stats_IK_ep.Q(:,:);
@@ -494,7 +498,7 @@ for Robot_Data = Robots
         end
 
         % Subplots Zweite Zeile: Verlauf von h(6) -------------------------------------
-        if s_ep_wn(6,kk) == 1
+        if s_ep_wn(RS.idx_ikpos_wn.xlim_par,kk) == 1
           subplot(5,18,amount_optcrit*RS.NQJ+RS.NQJ*(kk-1)+1:amount_optcrit*RS.NQJ+RS.NQJ*(kk-1)+RS.NQJ); hold on;
           plot(index_phiz, h6_ep(1:index_phiz(end),kk,pkt), 'm', 'LineWidth', 1');
           axe = gca;
@@ -507,7 +511,7 @@ for Robot_Data = Robots
         end
 
         % Subplots Dritte Zeile: Verlauf von h(7) -------------------------------------
-        if s_ep_wn(7,kk) == 1
+        if s_ep_wn(RS.idx_ikpos_wn.xlim_hyp,kk) == 1
           subplot(5,18,amount_optcrit*RS.NQJ*2+RS.NQJ*(kk-1)+1:amount_optcrit*RS.NQJ*2+RS.NQJ*(kk-1)+RS.NQJ); hold on;
           plot(index_phiz, h7_ep(1:index_phiz(end),kk,pkt), 'm', 'LineWidth', 1');
           % wenn h(6) = inf, dann grünen Asterisk plotten
@@ -528,7 +532,7 @@ for Robot_Data = Robots
         end
 
         % Subplots Vierte Zeile: Verlauf von limred_crit_active -------------------------------------
-        if s_ep_wn(6,kk) == 1 || s_ep_wn(7,kk) == 1
+        if s_ep_wn(RS.idx_ikpos_wn.xlim_par,kk) == 1 || s_ep_wn(RS.idx_ikpos_wn.xlim_hyp,kk) == 1
           subplot(5,18,amount_optcrit*RS.NQJ*3+RS.NQJ*(kk-1)+1:amount_optcrit*RS.NQJ*3+RS.NQJ*(kk-1)+RS.NQJ); hold on;
           for nn = 1:index_phiz(end)
             if limred_crit_active(nn,kk,pkt) == 1
@@ -589,39 +593,49 @@ for Robot_Data = Robots
   
   for k = 1:length(Namen_Methoden)
     % Default-Struct
-    s_traj_wn = zeros(17,1); % wn(:)=0 -> keine Opt.Krit
+    s_traj_wn = zeros(RS.idx_ik_length.wntraj,1); % wn(:)=0 -> keine Opt.Krit
     s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
                        'reci', true, 'I_EE', RS.I_EE_Task, 'wn', s_traj_wn);
     s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
     s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
 %     s_traj.xDDlim = [NaN(5,2); [-21 21]];        % vorläufige Konvertierung wie 4*pi zu 100 bei qD und qDD
-    
+    I_13bis17 = [RS.idx_iktraj_wnP.xlim_par, RS.idx_iktraj_wnD.xlim_par, ...
+      RS.idx_iktraj_wnP.xlim_hyp, RS.idx_iktraj_wnD.xlim_hyp, ...
+      RS.idx_iktraj_wnP.xDlim_par];
     switch k
       case 1
         name_method = sprintf('3T2R-IK mit wn(:)=0');
         name_method_save1 = name_method;
       case 2
         % wn(15:16)=1: hyp. für qD und qDD
-        s_traj.wn(15:16) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
         name_method = sprintf('3T2R-IK mit wn(15:16)=1');
         name_method_save2 = name_method;
       case 3
         % wn(17)=1: quadr. für qD
-        s_traj.wn(17) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
         name_method = sprintf('3T2R-IK mit wn(17)=1');
         name_method_save3 = name_method;
       case 4
         % wn(15:17)=1: Einfluss von fehlendem wn(13:14) testen
-        s_traj.wn(15:17) = 1;
+        % TODO: D-Verstärkung ist zu hoch
+        s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
         name_method = sprintf('3T2R-IK mit wn(15:17)=1');
         name_method_save4 = name_method;
       case 5  % vollständiges Optimierungskriterium immer ans Ende stellen
         % wn(13:17)=1: Alle Optimierungskriterien aktivieren
-        s_traj.wn(13:17) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xlim_par) = 1;
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_par) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
+        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
         name_method = sprintf('3T2R-IK mit wn(13:17)=1');
         name_method_save5 = name_method;
     end
-    wn_limred_save(:,k) = s_traj.wn(13:17);
+    wn_limred_save(:,k) = s_traj.wn(I_13bis17);
     
     % IK berechnen
     [Q_k, QD_k, QDD_k, Phi_k, ~, Stats_Traj_k] = RS.invkin2_traj(X,XD,XDD,T,q0_traj,s_traj);

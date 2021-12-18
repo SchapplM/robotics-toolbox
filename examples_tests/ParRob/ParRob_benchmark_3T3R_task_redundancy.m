@@ -264,10 +264,11 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % IK-Grundeinstellungen
   s = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ... % sehr genau rechnen
     'maxstep_ns', 1e-5, ... % Schrittweite für Nullraum-Inkremente gering halten
-    'wn', [0;1], ... % keine Vorgabe von K oder Kn (Standard-Werte)
+    'wn', zeros(RP.idx_ik_length.wnpos,1), ... % keine Vorgabe von K oder Kn (Standard-Werte)
     'scale_lim', 0.7, ...
     'retry_limit', 0, ...
     'maxrelstep', 0.25); % Grenzen sind nicht so breit; nehme größere max. Schrittweite
+  s.wn(RP.idx_ikpos_wn.qlim_hyp) = 1;
   % Würfel-Trajektorie (Kantenlänge 300mm
   d1=0.15; h1=0.15;
   X1 = X0+[-d1/2,d1/2,h1/2,0,0,0]'; % Start so, dass Würfel genau mittig ist
@@ -309,7 +310,9 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Berechne IK zu den einzelnen Eckpunkten. Wenn das nicht geht, bringt die
   % Trajektorie sowieso nichts. Benutze die IK mit Aufgabenredundanz 
   s_ep = s; % Einstellungen für die Eckpunkte-IK
-  s_ep.wn = [1;0]; % Nehme Zielfunktion 1. Damit Überschreitung der Ränder in Zwischenständen möglich
+  s_ep.wn = zeros(RP.idx_ik_length.wnpos, 1);
+  % Nehme Zielfunktion 1. Damit Überschreitung der Ränder in Zwischenständen möglich
+  s_ep.wn(RP.idx_ikpos_wn.qlim_par) = 1;
   s_ep.n_max = 5000; % Mehr Versuche (Abstände zwischen Punkten größer als bei Traj.-IK)
   s_ep.maxrelstep_ns = 0.05; % Große Werte, Größere Nullraumbewegung pro Zeitschritt
   s_ep.retry_limit = 100; % Neuversuche erlauben (bei Einzelpunkt i.O.)
@@ -333,7 +336,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       assert(all(abs(Phi_i_voll)<1e-8), ...
         sprintf('Ergebnis der %s-IK (Parallel) ist falsch', I_EE_red_str));
       % Berechne die IK mit Seriell-Methode (zum Testen).
-      [q_i_test, Phi_i_test] = RP.invkin_ser(XL(i,:)', qs, rmfield(s_ep,{'maxstep_ns','maxrelstep_ns'}));
+      [q_i_test, Phi_i_test] = RP.invkin_ser(XL(i,:)', qs, ...
+        rmfield(s_ep,{'wn', 'maxstep_ns','maxrelstep_ns'}));
       assert(all(size(Phi_i_test)==[RP.NLEG*n_legconstr_used-1 1]), ...
         'ZB Phi_i aus ParRob/invkin_ser hat die falsche Dimension');
       % Prüfe auch hiervon die Richtigkeit
@@ -530,10 +534,10 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   for kk = 1:length(Namen_Methoden)
     s_kk = s_Traj;
     s_kk.debug = true;
-    s_kk.wn = zeros(10,1);
-    s_kk.wn(2) = 1; % Benutze Kriterium 2 (hyperbolische Grenzen für Position)
-    s_kk.wn(8) = 0.1; % auch als D-Anteil für schnellere Reaktion bei Annäherung an Grenzen
-    s_kk.wn(3) = 0.5; % lineare Grenzen für Geschwindigkeit bzw. Dämpfung
+    s_kk.wn = zeros(RP.idx_ik_length.wntraj,1);
+    s_kk.wn(RP.idx_iktraj_wnP.qlim_hyp) = 1; % Benutze Kriterium 2 (hyperbolische Grenzen für Position)
+    s_kk.wn(RP.idx_iktraj_wnD.qlim_hyp) = 0.1; % auch als D-Anteil für schnellere Reaktion bei Annäherung an Grenzen
+    s_kk.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.5; % lineare Grenzen für Geschwindigkeit bzw. Dämpfung
     s_kk.normalize = false; % Mit Kriterium 2 keine Normalisierung. Sonst können Koordinaten jenseits der Grenzen landen
     for j = 1:RP.NLEG
       RP.Leg(j).qDlim = qDlim_backup(RP.I1J_LEG(j):RP.I2J_LEG(j),:);
@@ -546,7 +550,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       case 2
         name_method=sprintf('%s-IK ohne qD lim.', I_EE_red_str);
         for j = 1:RP.NLEG, RP.Leg(j).qDlim(:) = NaN; end % Dadurch Grenzen nicht aktiv
-        s_kk.wn(3:4) = 0; % Zielfunktionen basierend auf qDlim deaktivieren
+        s_kk.wn(RP.idx_iktraj_wnP.qDlim_par) = 0; % Zielfunktionen basierend auf qDlim deaktivieren
+        s_kk.wn(RP.idx_iktraj_wnP.qDlim_hyp) = 0;
         I_EE_Task_kk = I_EE_red;
       case 3
         name_method=sprintf('%s-IK ohne qDD lim.', I_EE_red_str);
@@ -558,13 +563,13 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
         I_EE_Task_kk = I_EE_red;
       case 5
         name_method=sprintf('%s-IK mit IK-cond.-Opt.', I_EE_red_str);
-        s_kk.wn(5) = 1; % IK-Konditionszahl auch verbessern (P-Anteil)
-        s_kk.wn(9) = 0.2; % mit D-Anteil
+        s_kk.wn(RP.idx_iktraj_wnP.ikjac_cond) = 1; % IK-Konditionszahl auch verbessern (P-Anteil)
+        s_kk.wn(RP.idx_iktraj_wnD.ikjac_cond) = 0.2; % mit D-Anteil
         I_EE_Task_kk = I_EE_red;
       case 6
         name_method=sprintf('%s-IK mit PKM-cond.-Opt.', I_EE_red_str);
-        s_kk.wn(6) = 1; % PKM-Jacobi optimieren (P-Anteil)
-        s_kk.wn(10) = 0.2; % sehr kleiner D-Anteil
+        s_kk.wn(RP.idx_iktraj_wnP.jac_cond) = 1; % PKM-Jacobi optimieren (P-Anteil)
+        s_kk.wn(RP.idx_iktraj_wnD.jac_cond) = 0.2; % sehr kleiner D-Anteil
         I_EE_Task_kk = I_EE_red;
       case 7
         name_method=sprintf('%s-IK', I_EE_full_str);
@@ -1077,7 +1082,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   RP.update_EE_FG(I_EE_full, I_EE_full);
   s_Traj_z = struct( ...
     'normalize', false, ...
-    'wn', [0;0;0;0]);
+    'wn', zeros(RP.idx_ik_length.wntraj,1));
   nzE = 360/10;
   Q_z_all = NaN(n, RP.NJ, nzE);
   h1_z_all = zeros(n,nzE);

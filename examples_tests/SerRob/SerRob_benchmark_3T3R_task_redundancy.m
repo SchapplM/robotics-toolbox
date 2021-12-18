@@ -142,7 +142,8 @@ for robnr = 2
   end
   s_ep = struct( ...
     'n_min', 1000, 'n_max', 2500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
-    'reci', true, 'wn', [1;0]);% keine Vorgabe von K oder Kn (Standard-Werte)
+    'reci', true, 'wn', zeros(RS.idx_ik_length.wnpos, 1));
+  s_ep.wn(RS.idx_ikpos_wn.qlim_par) = 1;
   %% Initialisierung Teil 2
   I_EE_full = RS.I_EE;
   if all(RS.I_EE == [1 1 1 1 1 1])
@@ -324,7 +325,8 @@ for robnr = 2
   s_start.maxrelstep = 0.02; % sehr kleine Schritte
   s_start.n_min = 1000; % Nullraum muss auf jeden Fall konvergiert sein
   s_start.n_max = 5000;
-  s_start.wn = [1;0];
+  s_start.wn = zeros(RS.idx_ik_length.wnpos, 1);
+  s_start.wn(RS.idx_ikpos_wn.qlim_par) = 1;
   % Berechne IK mit 3T2R (bzw. reduziertem FG)
   RS.I_EE_Task = I_EE_red;
   warning on
@@ -360,8 +362,13 @@ for robnr = 2
   % Allgemeine Einstellungen für Trajektorie
   s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
       'I_EE', I_EE_red, 'reci', true, ...
-      'wn', [0;1;20;0;0], ... % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
+      'wn', zeros(RS.idx_ik_length.wntraj, 1), ...
       'normalize', false);
+  % Hohe Gewichtung der Geschw.-Nebenbedingung, damit Überschreitungen gar nicht erst auftreten
+  s_Traj.wn(RS.idx_iktraj_wnP.qlim_par)=0;
+  s_Traj.wn(RS.idx_iktraj_wnP.qlim_hyp)=1;
+  s_Traj.wn(RS.idx_iktraj_wnD.qlim_hyp)=0.2;
+  s_Traj.wn(RS.idx_iktraj_wnP.qDlim_par)=20;
   % Ziehe 2 Prozent der Spannweite von den Geschw.- und Beschl.-Grenzen ab.
   % Dadurch wird die Grenze durch numerische Fehler hoffentlich nicht über-
   % schritten
@@ -386,7 +393,9 @@ for robnr = 2
         RS.I_EE_Task = I_EE_red;
         s_kk.I_EE = I_EE_red;
         s_kk.qDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
-        s_kk.wn(3:4) = 0; % Zielfunktionen basierend auf qDlim deaktivieren
+        % Zielfunktionen basierend auf qDlim deaktivieren
+        s_kk.wn(RS.idx_iktraj_wnP.qDlim_par)=0;
+        s_kk.wn(RS.idx_iktraj_wnP.qDlim_hyp)=0;
       case 3
         name_method=sprintf('%s-IK ohne qDD lim.', I_EE_red_str);
         RS.I_EE_Task = I_EE_red;
@@ -396,17 +405,19 @@ for robnr = 2
         name_method=sprintf('%s-IK ohne Opt.', I_EE_red_str);
         RS.I_EE_Task = I_EE_red;
         s_kk.I_EE = I_EE_red;
-        s_kk.wn = [0;0;0;0;0]; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
+        s_kk.wn(:) = 0; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
       case 5
         name_method=sprintf('%s-IK mit pos. cond.-Opt.', I_EE_red_str);
         RS.I_EE_Task = I_EE_red;
         s_kk.I_EE = I_EE_red;
-        s_kk.wn(5) = 1; % Auch Konditionszahl verbessern
+        s_kk.wn(RS.idx_iktraj_wnP.jac_cond)=1; % Auch Konditionszahl verbessern
+        s_kk.wn(RS.idx_iktraj_wnD.jac_cond)=0.3;
       case 6
         name_method=sprintf('%s-IK mit neg. cond.-Opt.', I_EE_red_str);
         RS.I_EE_Task = I_EE_red;
         s_kk.I_EE = I_EE_red;
-        s_kk.wn(5) = -1; % Konditionszahl testweise verschlechtern
+        s_kk.wn(RS.idx_iktraj_wnP.jac_cond)= -1; % Konditionszahl testweise verschlechtern
+        s_kk.wn(RS.idx_iktraj_wnD.jac_cond) = -0.3;
 %         name_method=sprintf('%s-IK simplify acc', I_EE_red_str);
 %         RS.I_EE_Task = I_EE_red;
 %         s_kk.I_EE = I_EE_red;
@@ -427,7 +438,8 @@ for robnr = 2
     % s_pik_kk.wn = s_kk.wn([1 2 5]); % Positions-Grenzen und Kondition
     % Wähle immer die gleichen Nebenbedingungen, damit alle mit gleicher
     % Konfiguration starten (besser vergleichbar)
-    s_pik_kk.wn = [1;0;0];
+    s_pik_kk.wn = zeros(RS.idx_ik_length.wnpos,1);
+    s_pik_kk.wn(RS.idx_ikpos_wn.qlim_par) = 1;    
     [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_pik_kk);
     if any(abs(Phi_s)>1e-6)
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
@@ -461,7 +473,10 @@ for robnr = 2
       Hcond_all(jj,kk) = cond(J_voll(RS.I_EE_Task,:));
     end
     % Summierte Zielfunktionen
-    Hsum_all(:,kk) = sum(repmat(s_kk.wn', length(t), 1) .* [H1_all(:,kk), ...
+    I = [RS.idx_iktraj_wnP.qlim_par, RS.idx_iktraj_wnP.qlim_hyp, ...
+      RS.idx_iktraj_wnP.qDlim_par, RS.idx_iktraj_wnP.qDlim_hyp, ...
+      RS.idx_iktraj_wnP.jac_cond];
+    Hsum_all(:,kk) = sum(repmat(s_kk.wn(I)', length(t), 1) .* [H1_all(:,kk), ...
       H2_all(:,kk), H1D_all(:,kk), H2D_all(:,kk), Hcond_all(:,kk)], 2);
     
     % Berechne Ist-EE-Traj.

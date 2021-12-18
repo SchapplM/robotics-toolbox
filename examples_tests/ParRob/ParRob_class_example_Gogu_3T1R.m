@@ -410,8 +410,8 @@ for testcase = 1:5
     % Berechne die EE-Rotation mit der besten Konditionszahl
     % Hat keinen Effekt, da die PKM ja isotrop ist. Daher muss die
     % Kondition eigentlich sogar gleich bleiben.
-    s = struct('wn', zeros(8,1));
-    s.wn(4) = 1;
+    s = struct('wn', zeros(RP.idx_ik_length.wnpos,1));
+    s.wn(RP.idx_ikpos_wn.jac_cond) = 1;
     [q_tr3, Phi_tr3, ~, Stats_tr3] = RP.invkin3(X_E, q, s);
     x_tr3 = RP.fkineEE_traj(q_tr3')';
     assert(all(abs(Phi_tr3)<1e-6), 'Erneute Rechnung der Gesamt-IK (mit Aufg.Red.) funktioniert nicht');

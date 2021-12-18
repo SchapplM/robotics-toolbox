@@ -88,7 +88,7 @@ RS.plot(q0, s_plot);
 title('Startpose mit Kollisionsmodell des Roboters');
 
 %% Verfahrbewegung in Positions-IK mit verschiedenen Einstellungen
-s_basic = struct('maxrelstep', 0.001, 'retry_limit', 0, 'wn', zeros(4,1));
+s_basic = struct('maxrelstep', 0.001, 'retry_limit', 0, 'wn', zeros(RS.idx_ik_length.wnpos,1));
 x0 = RS.t2x(RS.fkineEE(q0));
 x1 = x0 + [0.2; 0; 0.5; zeros(3,1)]; % bewege den End-Effektor nach oben rechts
 
@@ -122,7 +122,7 @@ title('Zielpose des Roboters (3T2R)');
 % in Zwischenphasen erlauben.
 s_collav = s_basic;
 s_collav.I_EE = logical([1 1 1 1 1 0]);
-s_collav.wn(4) = 1; % Kollisionsvermeidung aktiv
+s_collav.wn(RS.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung aktiv
 [q1_cav, Phi_cav, Tcstack1_cav, Stats_CollAvoid] = RS.invkin2(RS.x2tr(x1), q0, s_collav);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung im Nullraum nicht lösbar');
 
@@ -136,7 +136,7 @@ title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
 % Abstand global minimieren soll, statt nur die Kollision zu vermeiden
 s_collav2 = s_basic;
 s_collav2.I_EE = logical([1 1 1 1 1 0]);
-s_collav2.wn(8) = 1; % Kollisionsvermeidung aktiv
+s_collav2.wn(RS.idx_ikpos_wn.coll_par) = 1; % Kollisionsvermeidung aktiv
 [q1_cav2, Phi_cav2, Tcstack1_cav2, Stats_CollAvoid2] = RS.invkin2(RS.x2tr(x1), q0, s_collav2);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung 2 im Nullraum nicht lösbar');
 
@@ -165,7 +165,7 @@ assert(~any(colldet_cav(end,:)), 'Trotz Kollisionsvermeidungsstrategie gibt es i
 s_collstop = s_basic;
 s_collstop.scale_coll = 0.5;
 s_collstop.I_EE = logical([1 1 1 1 1 0]);
-s_collstop.wn(4) = 1; % Kollisionsvermeidung aktiv
+s_collstop.wn(RS.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung aktiv
 [q1_cst, Phi_cst, Tcstack1_cst, Stats_CollStop] = RS.invkin2(RS.x2tr(x1), q0, s_collstop);
 assert(all(abs(Phi_cst)<1e-8), 'IK mit absoluter Kollisionsvermeidung nicht lösbar');
 
@@ -318,26 +318,26 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T3R nicht erfolgreich berechnet'
   RS.collchecks, J_3T3R, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, aber ohne Optimierung)
-s_traj_3T2R = struct('I_EE', logical([1 1 1 1 1 0]));
+s_traj_3T2R = struct('I_EE', logical([1 1 1 1 1 0]), 'wn', zeros(RS.idx_ik_length.wntraj,1));
 [Q_3T2R, QD_3T2R, QDD_3T2R, PHI, J_3T2R, Stats_3T2R] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_3T2R);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet');
 [coll_3T2R, dist_3T2R] = check_collisionset_simplegeom(RS.collbodies, ...
   RS.collchecks, J_3T2R, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit P-Regler)
-s_traj_KollP = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
-s_traj_KollP.wn(9) = 1; % P-Verstärkung Kollisionsvermeidung
-s_traj_KollP.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_KollP = s_traj_3T2R;
+s_traj_KollP.wn(RS.idx_iktraj_wnP.coll_hyp) = 1; % P-Verstärkung Kollisionsvermeidung
+s_traj_KollP.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 [Q_CAP, QD_CAP, QDD_CAP, PHI, JP_CAP, Stats_CAP] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollP);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit P-Kollisionsvermeidung nicht erfolgreich berechnet');
 [coll_CAP, dist_CAP] = check_collisionset_simplegeom(RS.collbodies, ...
   RS.collchecks, JP_CAP, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, Kollisionsvermeidung mit PD-Regler)
-s_traj_KollPD = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
-s_traj_KollPD.wn(9) = 1; % P-Verstärkung Kollisionsvermeidung
-s_traj_KollPD.wn(10) = 0.1; % D-Verstärkung Kollisionsvermeidung
-s_traj_KollPD.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_KollPD = s_traj_3T2R;
+s_traj_KollPD.wn(RS.idx_iktraj_wnP.coll_hyp) = 1; % P-Verstärkung Kollisionsvermeidung
+s_traj_KollPD.wn(RS.idx_iktraj_wnD.coll_hyp) = 0.1; % D-Verstärkung Kollisionsvermeidung
+s_traj_KollPD.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 [Q_CAPD, QD_CAPD, QDD_CAPD, PHI, JP_CAPD, Stats_CAPD] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollPD);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung nicht erfolgreich berechnet');
 [coll_CAPD, dist_CAPD] = check_collisionset_simplegeom(RS.collbodies, ...
@@ -353,12 +353,12 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung (großer 
   RS.collchecks, JP_CAPDw, struct('collsearch', false));
 
 % Mit 3T2R (Aufgabenredundanz, Quadratische Kollisionsvermeidung mit PD-Regler)
-s_traj_KollPDq = struct('wn', zeros(19,1), 'I_EE', logical([1 1 1 1 1 0]));
-s_traj_KollPDq.wn(18) = 1; % P-Verstärkung quadr. Kollisionsvermeidung
-s_traj_KollPDq.wn(19) = 0.1; % D-Verstärkung quadr. Kollisionsvermeidung
-s_traj_KollPDq.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_KollPDq.wn(9) = 1e-6; % sehr schwache hyperbolische Funktion
-s_traj_KollPDq.wn(10) = 0.1e-6; % D-Verstärkung hyperbolische
+s_traj_KollPDq = s_traj_3T2R;
+s_traj_KollPDq.wn(RS.idx_iktraj_wnP.coll_par) = 1; % P-Verstärkung quadr. Kollisionsvermeidung
+s_traj_KollPDq.wn(RS.idx_iktraj_wnD.coll_par) = 0.1; % D-Verstärkung quadr. Kollisionsvermeidung
+s_traj_KollPDq.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_KollPDq.wn(RS.idx_iktraj_wnP.coll_hyp) = 1e-6; % sehr schwache hyperbolische Funktion
+s_traj_KollPDq.wn(RS.idx_iktraj_wnD.coll_hyp) = 0.1e-6; % D-Verstärkung hyperbolische
 
 [Q_CAPDq, QD_CAPDq, QDD_CAPDq, PHI, JP_CAPDq, Stats_CAPDq] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_KollPDq);
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Kollisionsvermeidung (quadratisch) nicht erfolgreich berechnet');

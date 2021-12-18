@@ -244,7 +244,8 @@ for Robot_Data = Robots
   % Gleiche Tests wie oben, aber zusätzliche Optimierung im Nullraum der
   % inversen Kinematik
   fprintf('%s: Test 5 (IK 3T2R und 3T3R mit Zusatzoptimierung)\n', SName);
-  wn = [1;0]; % Auswahl der Nebenbedingungen zur Optimierung
+  wn = zeros(RS.idx_ik_length.wnpos, 1);
+  wn(RS.idx_ikpos_wn.qlim_par) = 1; % Auswahl der Nebenbedingungen zur Optimierung
   for tr = [false, true] % Schleife 3T3R bzw 3T2R (Aufgabenredundanz)
     if tr
       % EE-Koordinaten, die für die Aufgabe benötigt sind. "0" bedeutet,

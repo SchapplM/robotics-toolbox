@@ -29,6 +29,12 @@ classdef RobBase < matlab.mixin.Copyable
     xlim % Minimal und maximal zulässige Endeffektorbewegung
     xDlim % Minimal und maximal zulässige Endeffektorgeschwindigkeit
     xDDlim % Minimal und maximal zulässige EndeffektorBeschleunigung
+    idx_ikpos_wn % Indizes für Gewichtungsfaktoren-Eingabe in Einzelpunkt-IK
+    idx_ikpos_hn % Indizes für Zielkriterien-Ausgabe in Einzelpunkt-IK
+    idx_iktraj_wnP % Indizes für P-Gewichtungsfaktoren-Eingabe in Trajektorien-IK
+    idx_iktraj_wnD % Indizes für D-Gewichtungsfaktoren-Eingabe in Trajektorien-IK
+    idx_iktraj_hn % Indizes für Zielkriterien-Ausgabe in Trajektorien-IK
+    idx_ik_length % Maximale Indizes in den vorherigen Strukturen
   end
 
   methods

@@ -178,13 +178,13 @@ end
 
 %% Roboter in Startpose plotten
 if debug_plot
-  figure(1); clf; hold on; grid on; % Bild als Kinematik-Skizze
+  change_current_figure(1); clf; hold on; grid on; % Bild als Kinematik-Skizze
   xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
   RP.plot( qs, X, s_plot );
   title('6UPS in Startkonfiguration als Kinematik-Skizze');
 
-  figure(2); clf; hold on; grid on; % Bild der Entwurfsparameter
+  change_current_figure(2); clf; hold on; grid on; % Bild der Entwurfsparameter
   xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0, 'mode', 4);
   RP.plot( qs, X, s_plot );
@@ -287,7 +287,7 @@ end
 
 if debug_plot
   % Plot des Roboters im Startpunkt
-  figure(3); clf; hold on; grid on; % Bild als Kinematik-Skizze
+  change_current_figure(3); clf; hold on; grid on; % Bild als Kinematik-Skizze
   xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
   s_plot = struct( 'ks_legs', [], 'straight', 0);
   RP.plot( q1, X_t(1,:)', s_plot );
@@ -295,7 +295,7 @@ if debug_plot
   plot3(XL(:,1), XL(:,2), XL(:,3), 'r-', 'LineWidth', 2);
 end
 % % Plot der KSe der Punkte im Startpunkt
-% figure(4); clf; hold on; grid on; % Bild als Kinematik-Skizze
+% change_current_figure(4); clf; hold on; grid on; % Bild als Kinematik-Skizze
 % xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
 % s_plot_KS = struct( 'ks', [8, RS.NJ+2], 'straight', 0, 'mode', 2);
 % % RP.plot( q1, X_t(1,:)', s_plot );
@@ -318,7 +318,7 @@ if debug_plot
     if any(abs(Phi_num1) > 1e-2)
       warning('IK konvergiert nicht');
     end
-    figure(100+kk); clf; hold on; grid on;
+    change_current_figure(100+kk); clf; hold on; grid on;
     xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
     RP.plot( q_traj_ep, XL(kk,:)', s_plot );
     hold on;
@@ -329,7 +329,7 @@ end
 %% Einzelpunkt-IK | Initialisierung und Berechnung
 fprintf('Starte Berechnungen für Trajektorie als Einzelpunkte\n');
 RP.update_EE_FG(I_EE_3T3R, I_EE_3T2R);
-Phirt_tol = 1e-12;
+Phirt_tol = 1e-9; % 1e-12 ist manchmal numerisch nicht erreichbar
 n_max = 2500;
 amount_optcrit = 1+3; % 1(3T2R) + 2(limred hyp + limred quadr + limred quadrhyp)
 h7_ep = NaN(1+n_max, amount_optcrit, size(XL,1)); % h6 kann auch ausgelesen werden, wenn wn(6) nicht aktiv ist
@@ -356,17 +356,24 @@ phiz_oob_thresh_state = 0;
 q0_ep = q1;
 
 % Structs definieren
-s_ep_wn = zeros(8,amount_optcrit);  % 3T2R mit wn(:) = 0
-s_ep_wn(2) = 1; % Abstoßung von Gelenkwinkelgrenzen (Hyp.) aktivieren
-s_ep_wn(7:8,2) = [0;1];  % limred mit hyperbolischem Ansatz
-s_ep_wn(7:8,3) = [1;0];  % limred mit quadratischem und hyperbolischem Ansatz
-s_ep_wn(7:8,4) = [1;1];  % limred mit quadratischem und hyperbolischem Ansatz
-opt1 = s_ep_wn(7:8,2);   % Sicherung für späteren Plot
-opt2 = s_ep_wn(7:8,3);   % Sicherung für späteren Plot
-opt3 = s_ep_wn(7:8,4);   % Sicherung für späteren Plot
+s_ep_wn = zeros(RP.idx_ik_length.wnpos,amount_optcrit);  % 3T2R mit wn(:) = 0
+s_ep_wn(RP.idx_ikpos_wn.qlim_hyp) = 1; % Abstoßung von Gelenkwinkelgrenzen (Hyp.) aktivieren
+% limred mit hyperbolischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,2) = 0;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,2) = 1;
+% limred mit quadratischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,3) = 1;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,3) = 0;
+% limred mit quadratischem und hyperbolischem Ansatz
+s_ep_wn(RP.idx_ikpos_wn.xlim_par,4) = 1;
+s_ep_wn(RP.idx_ikpos_wn.xlim_hyp,4) = 1;
+Iwnxlim = [RP.idx_ikpos_wn.xlim_par, RP.idx_ikpos_wn.xlim_hyp];
+opt1 = s_ep_wn(Iwnxlim,2);   % Sicherung für späteren Plot
+opt2 = s_ep_wn(Iwnxlim,3);   % Sicherung für späteren Plot
+opt3 = s_ep_wn(Iwnxlim,4);   % Sicherung für späteren Plot
 s_ep = struct( ...
   'n_min', 0, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
-  'scale_lim', 0, 'wn', zeros(7,1), 'retry_limit', 0);
+  'scale_lim', 0, 'wn', zeros(RP.idx_ik_length.wnpos,1), 'retry_limit', 0);
 s_ep.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
 
 for i = 1:size(XL,1)
@@ -374,8 +381,8 @@ for i = 1:size(XL,1)
   for k = 1:amount_optcrit
     s_ep.wn = s_ep_wn(:,k); % k verschiedene Optimierungskriterien
     [q_IK_ep, phi_IK_ep, ~, Stats_IK_ep] = RP.invkin3(XL(i,:)', q0_ep, s_ep);
-    h7_ep(:,k,i)   = Stats_IK_ep.h(:,8);
-    h8_ep(:,k,i)   = Stats_IK_ep.h(:,9);
+    h7_ep(:,k,i)   = Stats_IK_ep.h(:,1+RP.idx_ikpos_hn.xlim_par);
+    h8_ep(:,k,i)   = Stats_IK_ep.h(:,1+RP.idx_ikpos_hn.xlim_hyp);
     phiz_ep(:,k,i) = Stats_IK_ep.PHI(:,4);
     iter_ep(i,k)   = Stats_IK_ep.iter;
     Q_ep(:,:,i,k)  = Stats_IK_ep.Q(:,:);
@@ -387,9 +394,7 @@ for i = 1:size(XL,1)
     % Test-Berechnung ob wn(6) bzw. wn(7) aktiv ist (phi<1e-3, siehe invkin)
     for nn = 1:(Stats_IK_ep.iter+1)
       Stats_Phi_temp = Stats_IK_ep.PHI(nn,:);
-      I_EE_sort = [2:36];
-      I_EE_sort(1:5) = [1 2 3 6 5]; % ohne red. FHG
-      if all(abs(Stats_Phi_temp(I_EE_sort))<1e-3)  % vierten Eintrag ignorieren
+      if all(abs(Stats_Phi_temp(RP.I_constr_red))<1e-3)  % vierten Eintrag ignorieren
         limred_crit_active(nn,k,i) = 1;
       end
     end
@@ -518,8 +523,7 @@ end
 if noplot ~= 1
   for ii = 1:size(plot_vector,2)
     pkt = plot_vector(1,ii);
-    f3 = figure(100+ii);clf;
-    f3.Position = [200 200 2000 1000];
+    f3 = change_current_figure(100+ii);clf;
     ylable_first_plot_incolumn = ones(4,1);   % 4 = Anzahl der Zeilen
     for kk = 1:amount_optcrit
       index_phiz = 1:(iter_ep(pkt,kk)+1);
@@ -527,7 +531,7 @@ if noplot ~= 1
       % Subplots Erste Zeile: Verlauf von phiz -------------------------------------
       subplot(4,4,kk); hold on;
       plot(index_phiz, phiz_ep(1:index_phiz(end),kk,pkt)*180/pi, 'm', 'LineWidth',1);
-      xlim_vek = repmat([s_ep.xlim(RS.NQJ,1) s_ep.xlim(RS.NQJ,2)]*180/pi,index_phiz(end),1);
+      xlim_vek = repmat([s_ep.xlim(6,1) s_ep.xlim(6,2)]*180/pi,index_phiz(end),1);
       plot(index_phiz, xlim_vek(:,1), 'r--', 'LineWidth',1);
       plot(index_phiz, xlim_vek(:,2), 'r--', 'LineWidth',1);
       plot(index_phiz, xlim_vek(:,1)*0.8, 'b--', 'LineWidth',1);
@@ -673,45 +677,49 @@ traj_plot_needed = 0;
 wn_limred_save = NaN(5,length(Namen_Methoden)); % erstes Element bezieht sich auf Größe wn(13:17)
 
 for k = 6:length(Namen_Methoden)
-  s_traj_wn = zeros(19,1); % wn(:)=0 -> keine Opt.Krit
+  s_traj_wn = zeros(RP.idx_ik_length.wntraj,1); % wn(:)=0 -> keine Opt.Krit
   s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
     'reci', true, 'wn', s_traj_wn, 'enforce_qlim', false);
   s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
   s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
   s_qhyp = 0; % Schalter/Wert für Abstand von Gelenkwinkelgrenzen (Hyp.)
-  s_traj.wn(3) = 0.5;
+  s_traj.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.5;
   switch k
     % Zum Debuggen kann vollständiges Kriterium an Anfang gestellt und Rest
     % auskommentiert werden -> Schleifen auf 1:1 und Namen_Methoden = cell(1,1);
 %     case 1 % vollständiges Optimierungskriterium immer ans Ende stellen
 %       name_method = sprintf('3T2R-IK mit wn(13:17)=1');
-%       s_traj_wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+%       s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
 %       s_traj.wn(13:17) = 1;
     case 1
       name_method = sprintf('3T2R-IK mit wn(:)=0');
     case 2
       name_method = sprintf('3T2R-IK mit wn(2)=1');
-      s_traj.wn(2) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
     case 3     
       name_method = sprintf('3T2R-IK mit wn(15:16)=1');
-      s_traj.wn(2) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(15:16) = [1;1];  % quadr. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;     % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      % quadr. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_par) = 1;
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_par) = 1;
     case 4
       name_method = sprintf('3T2R-IK mit wn(17:18)=1');
-      s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(17:18) = [1;1]; % hyp. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+       % hyp. für qD und qDD
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_hyp) = 1;
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_hyp) = 1;
     case 5
       name_method = sprintf('3T2R-IK mit wn(19)=1');
-      s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(19) = 1;        % quadr. für qDD
+      s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.xDlim_par) = 1;        % quadr. für qDD
     case 6 % vollständiges Optimierungskriterium immer ans Ende stellen
       name_method = sprintf('3T2R-IK mit wn(15:19)=1');
-%       s_traj.wn(2) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
-      s_traj.wn(15) = 1; % P-Regler quadratisch
-      s_traj.wn(16) = 0.5; % D-Regler quadratisch
-      s_traj.wn(17) = 0.5; % P-Regler hyperbolisch
-      s_traj.wn(18) = 0.05; % D-Regler hyperbolisch
-      s_traj.wn(19) = 0.1; % Dämpfung xlim quadratisch
+%       s_traj.wn(RP.idx_iktraj_wnP.qlim_hyp) = s_qhyp;    % Abstand von Gelenkwinkelgrenzen (Hyp.) aktiv
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_par) = 1; % P-Regler quadratisch
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_par) = 0.5; % D-Regler quadratisch
+      s_traj.wn(RP.idx_iktraj_wnP.xlim_hyp) = 0.5; % P-Regler hyperbolisch
+      s_traj.wn(RP.idx_iktraj_wnD.xlim_hyp) = 0.05; % D-Regler hyperbolisch
+      s_traj.wn(RP.idx_iktraj_wnP.xDlim_par) = 0.1; % Dämpfung xlim quadratisch
   end
   wn_limred_save(:,k) = s_traj.wn(15:19);
     
@@ -797,8 +805,7 @@ end
 %% Trajektorien-IK | Plot
 T = t;
 if traj_plot_needed
-  f4 = figure(300+1);clf;
-  f4.Position = [200 200 2000 1000];
+  f4 = change_current_figure(300+1);clf;
   sgtitle('Verlauf von phiz, h(8:10) und phizD');
   index_traj = 1:size(T,1);
   ylable_first_plot_incolumn = ones(5,1);   % 5 = Anzahl der Zeilen
@@ -809,7 +816,7 @@ if traj_plot_needed
     plot(T, phiz_traj_diff_k(:,kk)*180/pi, 'm', 'LineWidth',1);
 %     plot(T, phiz_traj_diff_k(:,kk), 'm', 'LineWidth',1);
 %     plot(T, phiz_traj_diff_k_pre(:,kk)*180/pi, 'k--', 'LineWidth',1);
-    xlim_vek = repmat([s_traj.xlim(RS.NQJ,1) s_traj.xlim(RS.NQJ,2)]*180/pi,index_traj(end),1);
+    xlim_vek = repmat([s_traj.xlim(6,1) s_traj.xlim(6,2)]*180/pi,index_traj(end),1);
     plot(T, xlim_vek(:,1), 'r--', 'LineWidth',1);
     plot(T, xlim_vek(:,2), 'r--', 'LineWidth',1);
     xlim_vek_thresh = repmat([s_traj.xlim(6,1) s_traj.xlim(6,2)]*180/pi*0.8,index_traj(end),1);

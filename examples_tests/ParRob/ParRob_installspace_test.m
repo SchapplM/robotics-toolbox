@@ -122,8 +122,8 @@ view([0, 90])
 %% Verfahrbewegung in Positions-IK mit verschiedenen Einstellungen
 
 s_basic = struct('maxrelstep', 0.001, 'maxrelstep_ns', 0.001, ...
-  'retry_limit', 0, 'wn', zeros(5,1));
-s_basic.wn(4) = 1; % Optimiere PKM-Konditionszahl
+  'retry_limit', 0, 'wn', zeros(RP.idx_ik_length.wnpos,1));
+s_basic.wn(RP.idx_ikpos_wn.jac_cond) = 1; % Optimiere PKM-Konditionszahl
 q0 = q;
 x0 = X;
 x1 = x0 + [0.3; -0.1; 0; zeros(3,1)]; % bewege den End-Effektor nach unten rechts (außerhalb des Bauraums)
@@ -181,7 +181,7 @@ saveas(3, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_3T2R.fig
 t1 = tic();
 s_instspc = s_basic;
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
-s_instspc.wn(6) = 1; % Bauraumeinhaltung aktiv
+s_instspc.wn(RP.idx_ikpos_wn.instspc_hyp) = 1; % Bauraumeinhaltung aktiv
 [q1_instspc, Phi_instspc, Tcstack1_instspc, Stats_PosIK_InstSpc] = RP.invkin4(x1, q0, s_instspc);
 assert(all(abs(Phi_instspc)<1e-8), 'IK mit Bauraumeinhaltung im Nullraum nicht lösbar');
 if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich ist
@@ -359,8 +359,8 @@ assert(any(dist_3T3R(:)>0), ['In 3T3R-Traj. muss die Bauraumgrenze ver', ...
 % Mit 3T2R (Aufgabenredundanz)
 t1 = tic();
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
-s_traj_3T2R = struct('wn', zeros(12,1));
-s_traj_3T2R.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_3T2R = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
+s_traj_3T2R.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
 [Q_3T2R, QD_3T2R, QDD_3T2R, PHI, ~, ~, JP_3T2R, Stats_3T2R] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_3T2R);
 if usr_test_class
@@ -381,10 +381,10 @@ assert(any(dist_3T2R(:)>0), ['In 3T2R-Traj. muss die Bauraumgrenze ver', ...
 % parroblib_create_template_functions({RP.mdlname},false,false);
 t1 = tic();
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 1]));
-s_traj_IS1 = struct('wn', zeros(12,1));
-s_traj_IS1.wn(3) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_IS1.wn(13) = 1e-4; % P-Verstärkung Bauraumeinhaltung
-s_traj_IS1.wn(14) = 1e-5; % D-Verstärkung Bauraumeinhaltung
+s_traj_IS1 = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
+s_traj_IS1.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_IS1.wn(RP.idx_iktraj_wnP.instspc_hyp) = 1e-4; % P-Verstärkung Bauraumeinhaltung
+s_traj_IS1.wn(RP.idx_iktraj_wnD.instspc_hyp) = 1e-5; % D-Verstärkung Bauraumeinhaltung
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
 [Q_InstSpc1, QD_InstSpc1, QDD_InstSpc1, PHI, ~, ~, JP_InstSpc1, Stats_InstSpc1] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_IS1);
 if usr_test_class && all(~isnan(PHI(:))) % nur, wenn Traj. i.O., sonst numerische Abweichungen
