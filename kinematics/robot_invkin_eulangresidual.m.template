@@ -9,16 +9,17 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %   Auswahl der Einstellungen:	
-%   .wn [8x1] Gewichtungen der Zielfunktionen für Nullraumbewegung.
+%   .wn [9x1] Gewichtungen der Zielfunktionen für Nullraumbewegung.
 %     Indiziert mit idx_ikpos_wn aus ik_optimcrit_index.m
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
-%     (3) Konditionszahl der geometrischen Jacobi-Matrix
-%     (4) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
-%     (5) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
-%     (6) Abstand von phiz zur Grenze xlim (quadratisch gewertet)
-%     (7) Abstand von phiz zur Grenze xlim (hyperbolisch gewertet)
-%     (8) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
+%     (3) Konditionszahl der IK-Residuums-Jacobi-Matrix
+%     (4) Konditionszahl der geometrischen Jacobi-Matrix
+%     (5) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
+%     (6) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%     (7) Abstand von phiz zur Grenze xlim (quadratisch gewertet)
+%     (8) Abstand von phiz zur Grenze xlim (hyperbolisch gewertet)
+%     (9) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
 %
 % Ausgabe:
 % q [%NQJ% x 1]
@@ -32,7 +33,7 @@
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
 %   .PHI (n+1)x6: Residuum
-%   .h (n+1x6): Leistungsmerkmale: siehe Reihenfolge in Eingabefeld "wn"
+%   .h (n+1)x(1+9): Leistungsmerkmale: siehe Reihenfolge in Eingabefeld "wn"
 %   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
 %     der geometrischen Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
@@ -77,7 +78,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(8,1),
+%$cgargs              'wn', zeros(9,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'scale_coll', 0,
@@ -86,6 +87,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs'avoid_collision_finish', false,
 %$cgargs'optimcrit_limits_hyp_deact', NaN,
 %$cgargs  'cond_thresh_ikjac', 1,
+%$cgargs  'cond_thresh_jac', 1,
 %$cgargs       'normalize', false,
 %$cgargs      'condlimDLS', 60,
 %$cgargs      'lambda_min', 2e-4,
@@ -138,21 +140,21 @@ finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
 avoid_collision_finish = s.avoid_collision_finish;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-[idx_wn, idx_hn] = ik_optimcrit_index(0);
+[idx_wn, idx_hn, ~, ~, ~, idx_ik_length] = ik_optimcrit_index();
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  s.wn([4,8]) = 0; % Deaktivierung der Kollisionsvermeidung
+  s.wn([idx_wn.coll_hyp,idx_wn.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
   scale_coll = 0;
   avoid_collision_finish = false;
 end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
   s.wn(idx_wn.instspc_hyp) = 0; % Deaktivierung der Bauraumprüfung
 end
-wn = s.wn;
-if scale_coll || any(wn([4 8])) || avoid_collision_finish
+wn = s.wn; % Lokale Variable definieren (kann verändert werden)
+if scale_coll || any(wn([idx_wn.coll_hyp,idx_wn.coll_par])) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
@@ -235,7 +237,7 @@ qlim_thr_h2 = repmat(mean(s.qlim,2),1,2) + repmat(delta_qlim,1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h7 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+xlim_thr_h8 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 Jak = NaN(6,NQJ); % Belegung für Kompilierung
 Phi_voll = NaN(6,1); % Belegung für Kompilierung
@@ -263,7 +265,7 @@ Tc_stack = NaN(3*%NL%,4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
-h = zeros(8,1); h_alt = inf(8,1); % Speicherung der Werte der Nebenbedingungen
+h = zeros(idx_ik_length.hnpos,1); h_alt = inf(idx_ik_length.hnpos,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
 condJik = NaN; condJ = NaN;
@@ -275,7 +277,7 @@ if nargout == 4
   Stats_default = struct('file', 'robot_invkin_eul', 'Q', NaN(1+n_max, NQJ), ...
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
     'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
-    'h', NaN(1+n_max,1+8), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
+    'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
     'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 6);
   Stats = Stats_default;
 end
@@ -353,6 +355,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         (rejcount == 0 || rejcount~=0 && scale == 0)
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       v = zeros(NQJ, 1);
+      %% Einhaltung der Gelenkwinkel-Grenzen
       if wn(idx_wn.qlim_par) ~= 0 % Anziehung zu Gelenkwinkel-Mitte (linear)
         [h(idx_hn.qlim_par), h1dq] = invkin_optimcrit_limits1(q1, [qmin, qmax]);
         v = v - wn(idx_wn.qlim_par)*h1dq';
@@ -361,14 +364,19 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(idx_hn.qlim_hyp), h2dq] = invkin_optimcrit_limits2(q1, [qmin, qmax], qlim_thr_h2);
         v = v - wn(idx_wn.qlim_hyp)*h2dq';
       end
-      if wn(idx_wn.jac_cond) ~= 0 && condJik > s.cond_thresh_ikjac % Singularitäts-Kennzahl mit Log-Konditionszahl
-        h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
+      %% Singularitätsvermeidung Jacobi-Matrix (Aufgaben- und Roboter-FG)
+      h([idx_hn.ikjac_cond, idx_hn.jac_cond]) = 0;
+      if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || ...
+         wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac
+        h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
             1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
-        hdq = NaN(1,NQJ);
+        h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
+            1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
+        h3dq = NaN(1,NQJ); h4dq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
-          Jdk_voll_kkk = %RN%_constr2grad(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+          [Jdk_voll_kkk, Jgk_kkk] = %RN%_constr2grad(q_test, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
           if ~use_constr4
             Jdk_kkk = Jdk_voll_kkk(I_IK,:); % Berechnung identisch mit oben
           else
@@ -377,12 +385,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
           h3_kkk = invkin_optimcrit_condsplineact(cond(Jdk_kkk), ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
-          hdq(kkk) = (h3_kkk-h(idx_hn.jac_cond))/1e-6;
+          h4_kkk = invkin_optimcrit_condsplineact(cond(Jgk_kkk(Rob_I_EE,:)), ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+          h3dq(kkk) = (h3_kkk-h(idx_hn.ikjac_cond))/1e-6;
+          h4dq(kkk) = (h4_kkk-h(idx_hn.jac_cond))/1e-6;
         end
-        v = v - wn(idx_wn.jac_cond)*hdq';
-      else
-        h(idx_hn.jac_cond) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
+        v = v - wn(idx_wn.ikjac_cond)*h3dq';
+        v = v - wn(idx_wn.jac_cond)*h4dq';
       end
+ 
+      %% Kollisionsvermeidung
       if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Kollisionsvermeidung bzw. Kollisionsabstand
         hdq = zeros(1,NQJ);
         % Bestimme Kollisionen in aktueller Konfiguration. Nutze etwas
@@ -403,7 +415,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Prüfe im Folgenden Schritt alle Kollisionen
           colldet(:) = true;
         end
-        h([4 8]) = 0;
+        h([idx_wn.coll_hyp, idx_wn.coll_par]) = 0;
         if wn(idx_wn.coll_hyp) ~= 0 && colldet_warn || wn(idx_wn.coll_par)
           % Inkremente der Gelenkwinkel bilden. Dafür die Gelenkpositionen
           % bestimmen (für Kollisionsprüfung)
@@ -447,10 +459,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             elseif ~isinf(h(idx_hn.coll_hyp))
               for kkk = 1:NQJ
                 % Kriterium für Inkrement berechnen
-                h4_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ...
+                h5_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ...
                   [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                 % Differenzenquotient
-                hdq(kkk) = (h4_test-h(idx_hn.coll_hyp))/1e-6;
+                hdq(kkk) = (h5_test-h(idx_hn.coll_hyp))/1e-6;
               end
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
@@ -481,6 +493,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
         end
       end
+      %% Einhaltung der Bauraum-Grenzen
       if wn(idx_wn.instspc_hyp) ~= 0 % Bauraumeinhaltung
         hdq = zeros(1,NQJ);
         % Inkremente der Gelenkwinkel bilden. Dafür die Gelenkpositionen
@@ -527,10 +540,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         elseif ~isinf(h(idx_hn.instspc_hyp))
           for kkk = 1:NQJ
             % Kriterium für Inkrement berechnen
-            h5_test = invkin_optimcrit_limits3(mindist_h_all(1+kkk), ...
+            h6_test = invkin_optimcrit_limits3(mindist_h_all(1+kkk), ...
               [-100.0, s.installspace_thresh], -s.installspace_thresh);
             % Differenzenquotient
-            hdq(kkk) = (h5_test-h(idx_hn.instspc_hyp))/1e-6;
+            hdq(kkk) = (h6_test-h(idx_hn.instspc_hyp))/1e-6;
           end
         else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
           % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
@@ -559,6 +572,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       else
         h(idx_hn.instspc_hyp) = 0;
       end
+      %% Einhaltung der Grenzen der redundanten Koordinate
       if wn(idx_wn.xlim_par) ~= 0 || wn(idx_wn.xlim_hyp) ~= 0 % Jacobi-Matrizen für wn(idx_wn.xlim_par) und/oder wn(idx_wn.xlim_hyp)
         Jak = [Jgk(1:3,:); Tw_wn \ Jgk(4:6,:)]; % analytische Jacobi-Matrix
         T_0_N = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q1, I_EElink, pkin);
@@ -572,30 +586,31 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % Kriterium für aktuellen Iterationsschritt berechnen
         h(idx_hn.xlim_par) = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
         % Kriterium für Inkrement berechnen
-        h6_test = invkin_optimcrit_limits1(-delta_phi_z(3)+1e-6, s.xlim(6,1:2));
-        h6drz = (h6_test-h(idx_hn.xlim_par))/1e-6;
-        h6dq = h6drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
-        v = v - wn(idx_wn.xlim_par)*h6dq';
+        h7_test = invkin_optimcrit_limits1(-delta_phi_z(3)+1e-6, s.xlim(6,1:2));
+        h7drz = (h7_test-h(idx_hn.xlim_par))/1e-6;
+        h7dq = h7drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        v = v - wn(idx_wn.xlim_par)*h7dq';
       end
       if wn(idx_wn.xlim_hyp) ~= 0 && all(abs(Phi)<1e-3) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h7(6,:));
+        h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
         % Kriterium für Inkrement berechnen
-        h7_test = invkin_optimcrit_limits2(-delta_phi_z(3)+1e-6, s.xlim(6,1:2), xlim_thr_h7(6,:));   
-        if isinf(h(idx_hn.xlim_hyp)) || isinf(h7_test)
+        h8_test = invkin_optimcrit_limits2(-delta_phi_z(3)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));   
+        if isinf(h(idx_hn.xlim_hyp)) || isinf(h8_test)
           if -delta_phi_z(3) <= s.xlim(6,1) + 1e-6
-            h7drz = -1e10;
+            h8drz = -1e10;
           elseif -delta_phi_z(3) >= s.xlim(6,2) - 1e-6
-            h7drz = 1e10;
+            h8drz = 1e10;
           else
             error('Dieser Fall sollte eigentlich nicht vorkommen');
           end
         else
-          h7drz = (h7_test-h(idx_hn.xlim_hyp))/1e-6;
+          h8drz = (h8_test-h(idx_hn.xlim_hyp))/1e-6;
         end
-        h7dq = h7drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
-        v = v - wn(idx_wn.xlim_hyp)*h7dq';
+        h8dq = h8drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        v = v - wn(idx_wn.xlim_hyp)*h8dq';
       end
+      %% Nullraumbewegung abschließen
       % [SchapplerTapOrt2019]/(35); [1], Gl. (24)
       N = (eye(NQJ) - pinv(Jdk)* Jdk);
       delta_q_N(:) = N * v; % "(:)" notwendig für mex
@@ -843,7 +858,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;wn(6:7);0]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(:) = 0; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(idx_wn.qlim_hyp) = 1;
+        wn(idx_wn.xlim_par) = s.wn(idx_wn.xlim_par);
+        wn(idx_wn.xlim_hyp) = s.wn(idx_wn.xlim_hyp);
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -912,14 +930,21 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   else
     condJik = NaN; condJ = NaN;
   end
-  if wn(idx_wn.jac_cond) ~= 0 && condJik > s.cond_thresh_ikjac
-    h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJik, ...
+  if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac
+    h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
-  h([4 8]) = 0;
+  if wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac
+    h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
+              1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+  end
+  h([idx_hn.coll_hyp,idx_hn.coll_par]) = 0;
   if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Berechnung muss genauso sein wie oben.
     colldet1 = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
           Tc_stack(:,4)', struct('collsearch', true));
+    if wn(idx_wn.coll_par)
+      colldet1(:) = true;
+    end
     if any(colldet1) % Jetzt Betrachtung der eigentlichen Kollisionskörper
       [colldet,colldist] = check_collisionset_simplegeom(s.collbodies, s.collchecks(colldet1,:), ...
         Tc_stack(:,4)', struct('collsearch', false)); % "false" gibt auch Abstände ohne Kollision
@@ -978,7 +1003,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       h(idx_hn.xlim_par) = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
     end
     if wn(idx_wn.xlim_hyp) ~= 0
-      h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h7(6,:));
+      h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
     end
   end
   Stats.h(Stats.iter+1,:) = [sum(wn.*h),h'];

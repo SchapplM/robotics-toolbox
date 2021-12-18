@@ -282,7 +282,7 @@ if ~any(wn ~= 0)
   nsoptim = false; % Keine zusätzlichen Optimierungskriterien
 end
 
-[~, ~, idx_wnP, idx_wnD, idx_hn] = ik_optimcrit_index(2);
+[~, ~, idx_wnP, idx_wnD, idx_hn] = ik_optimcrit_index();
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;

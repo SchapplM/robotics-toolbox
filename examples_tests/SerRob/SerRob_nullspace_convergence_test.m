@@ -206,8 +206,9 @@ for robnr = 1:2
     'n_max', 5000, 'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % , 'finish_in_limits', true
   % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
   s_ep_dummy = s_ep;
+  s_ep_dummy.n_max = 1;
   s_ep_dummy.retry_limit = 0;
-  s_ep_dummy.wn = ones(8,1); % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn = ones(RS.idx_ik_length.wnpos,1); % hierdurch werden die Kriterien berechnet
   s_ep_dummy.K = zeros(RS.NJ,1); % hierdurch keine Bewegung und damit ...
   s_ep_dummy.Kn = zeros(RS.NJ,1); % ... sofortiger Abbruch
   ii_restab = 0; ii_restab_start = 0;
@@ -220,7 +221,7 @@ for robnr = 1:2
       nn = 90;
       x_test_ges = repmat(x_k',nn,1);
       x_test_ges(:,6) = linspace(-pi,pi,nn);
-      h_ges = NaN(nn,8); % Konsistent mit SerRob/invkin2
+      h_ges = NaN(nn,RS.idx_ik_length.hnpos); % Konsistent mit SerRob/invkin2
       q_jj = q0_ik_fix; % nehme immer den Wert von davor als Startwert. Dann weniger Konfigurationswechsel
       t0 = tic();
       for jj = 1:nn
@@ -308,7 +309,7 @@ for robnr = 1:2
       if any(abs(qs - q_dummy) > 1e-8)
         error('IK-Ergebnis hat sich bei Test verändert');
       end
-      hs = Stats_dummy.h(Stats_dummy.iter,2:end)';
+      hs = Stats_dummy.h(1+Stats_dummy.iter,2:end)';
       % Füge Datenpunkt zu Gesamt-Rasterung hinzu
       x_test_ges = [x_test_ges; xs']; %#ok<AGROW>
       h_ges = [h_ges; hs']; %#ok<AGROW>
@@ -316,7 +317,7 @@ for robnr = 1:2
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 7 8 9 10] % Schleife über verschiedene Zielkriterien
+      for ii = [2 4 6 7 8 9 10 11] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RS.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
@@ -357,9 +358,9 @@ for robnr = 1:2
             optimcrit_limits_hyp_deact = NaN;
           case 5 % P-Regler Jacobi-Konditionszahl
             wn_traj(RS.idx_iktraj_wnP.jac_cond) = 1; % funktioniert ordentlich
-          case 6 % PD-Regler Jacobi-Konditionszahl
-            wn_traj(RS.idx_iktraj_wnP.jac_cond) = 1;
-            wn_traj(RS.idx_iktraj_wnD.jac_cond) = 0.2;
+          case 6 % PD-Regler IKJacobi-Konditionszahl
+            wn_traj(RS.idx_iktraj_wnP.ikjac_cond) = 1;
+            wn_traj(RS.idx_iktraj_wnD.ikjac_cond) = 0.2;
           case 7 % PD-Regler EE-Grenze für phi_z (quadratisch gewichtet)
             wn_traj(RS.idx_iktraj_wnP.xlim_par) = 1;
             wn_traj(RS.idx_iktraj_wnD.xlim_par) = 0.5;
@@ -376,6 +377,9 @@ for robnr = 1:2
           case 10 % PD Regler Koll quadr
             wn_traj(RS.idx_iktraj_wnP.coll_par) = 1; % P quadr.
             wn_traj(RS.idx_iktraj_wnD.coll_par) = 0.5; % D quadr.
+          case 11 % PD-Regler Jacobi-Konditionszahl
+            wn_traj(RS.idx_iktraj_wnP.jac_cond) = 1;
+            wn_traj(RS.idx_iktraj_wnD.jac_cond) = 0.2;
         end
         if any(ii == [7 8]) && x_l(6) == 0
           continue;% keine Bewegung, wenn bereits in der Mitte
@@ -511,6 +515,10 @@ for robnr = 1:2
         end
         if any(abs(reserr_h_sum) > 1e-3)
           warning('Zielfunktion weicht absolut bei beiden Methoden ab. Aber kein Fehler, da eventuell auch Verzweigung der Lösung.');
+          % Wenn eine Lösung Null ist, muss das kein Fehler sein.
+%           if any(abs([h_traj_ii_sum;h_ep_ii_sum])==0)
+%             error('Eine Lösung genau Null, die andere nicht. Vermutlich Implementierungsfehler');
+%           end
         end
         if raise_error_h
           warning('Zielfunktion weicht bei beiden Methoden zu stark voneinander ab (relativer Fehler %1.1f%%)', reserr_h_rel*100);

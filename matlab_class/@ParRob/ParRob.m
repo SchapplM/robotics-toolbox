@@ -109,7 +109,7 @@ classdef ParRob < RobBase
       R.mdlname = mdlname;
       R.Type = 2; % Parallel
       [R.idx_ikpos_wn, R.idx_ikpos_hn, R.idx_iktraj_wnP, R.idx_iktraj_wnD, ...
-        R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index(R.Type);
+        R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index();
       R.I_EE = true(1,6); % Platzhalter. Wird in initialize überschrieben
       R.Leg = [];
       R.MDH = struct('sigma', []);

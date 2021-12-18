@@ -157,7 +157,7 @@ classdef SerRob < RobBase
         R.Type = 1; % hybride Struktur
       end
       [R.idx_ikpos_wn, R.idx_ikpos_hn, R.idx_iktraj_wnP, R.idx_iktraj_wnD, ...
-        R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index(R.Type);
+        R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index();
 
       R.MDH = Par_struct;
       % Fehlende Felder mit Standard-Werten beschreiben
@@ -663,7 +663,8 @@ classdef SerRob < RobBase
         ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
         ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
         ... % permanente Optimierung der Jacobi
-        'cond_thresh_ikjac', 1, ... 
+        'cond_thresh_ikjac', 1, ... % bezogen auf IK-Jacobi (Residuum-Gradient)
+        'cond_thresh_jac', 1, ...  % bezogen auf geometrische Jacobi (Roboter-FG)
         'normalize', true, ... % Normalisieren von Winkeln auf +/- 180°
         'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
         'lambda_min', 2e-4, ... % Untergrenze für Dämpfungsfaktor der Pseudo-Inversen
@@ -694,8 +695,10 @@ classdef SerRob < RobBase
         end
       end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
-      if s.wn(4) && (isempty(R.collchecks) || isempty(R.collbodies))
-        s.wn(4) = 0;
+      if (s.wn(R.idx_ikpos_wn.coll_hyp) || s.wn(R.idx_ikpos_wn.coll_par)) ...
+          && (isempty(R.collchecks) || isempty(R.collbodies))
+        s.wn(R.idx_ikpos_wn.coll_hyp) = 0;
+        s.wn(R.idx_ikpos_wn.coll_par) = 0;
         s.scale_coll = 0;
         s.avoid_collision_finish = false;
       end
@@ -753,7 +756,8 @@ classdef SerRob < RobBase
          ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
          ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
          ... % permanente Optimierung der Jacobi
-         'cond_thresh_jac', 1, ...
+        'cond_thresh_ikjac', 1, ... % bezogen auf IK-Jacobi (Aufgaben-FG)
+        'cond_thresh_jac', 1, ...  % bezogen auf geometrische Jacobi (Roboter-FG)
          'T_N_E', R.T_N_E, ...
          'K', ones(R.NQJ,1), ... % Verstärkung 1 am besten
          'wn', zeros(R.idx_ik_length.wntraj,1), ... % Gewichtung der Nebenbedingung
