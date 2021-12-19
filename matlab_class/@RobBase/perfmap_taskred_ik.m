@@ -117,12 +117,18 @@ I_nonmon = find([false;diff(s_tref) < 0]);
 for i = I_nonmon(:)'
   s_tref(i) = s_tref(i-1); % der vorherige muss i.O. belegt sein.
 end
+if any(diff(s_tref) < 0)
+  warning(['Ermittelte Bahnkoordinate ist nicht monoton steigend. ', ...
+    'Trajektorie ungeeignet für Aufteilung in Eckpunkte.']);
+  s_tref = (1:size(X_tref,1))'/size(X_tref,1);
+end
 if size(XL,1)==1 % kein Fortschritt bestimmbar
   s_tref = (1:size(X_tref,1))'/size(X_tref,1);
+  XL = X_tref([1 end],:);
 end
 if any(s_tref > size(XL,1)-1 +1e-10)
   warning(['Normalisierung der Bahnkoordinate nicht erfolgreich. max(s)=', ...
-    '%1.1f bei %d Punkten'], max(s_tref), size(X_tref,1));
+    '%1.1f bei %d Punkten'], max(s_tref), size(XL,1));
 end
 % Output of the normalized progress of the trajectory input
 s_ref = s_tref;
