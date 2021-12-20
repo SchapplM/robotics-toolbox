@@ -874,8 +874,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
           Tc_stack(:,4)', struct('collsearch', false));
         if any(colldet)
+          wn(:) = 0; % Deaktiviere alle anderen Nebenbedingungen
           wn(idx_wn.coll_hyp) = 1e3; % Starke Kollisionsvermeidung
-          wn(1:3) = 0; % Deaktiviere alle anderen Nebenbedingungen
           avoid_collision_finish = false; % Nur einmal versuchen
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
           Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen
