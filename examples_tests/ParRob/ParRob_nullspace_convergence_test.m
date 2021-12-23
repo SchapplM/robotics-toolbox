@@ -607,11 +607,11 @@ for robnr = 1:5
         % Speichere EE-Pose resultierend aus Gelenkwinkeln aus dem
         % Konvergenzverlauf.
         % Bei Traj.-IK keine Normalisierung der Euler-Winkel vornehmen
-        [X_ii, XD_ii] = RP.fkineEE2_traj(Q_ii, QD_ii);
-        X_ii(:,6) = denormalize_angle_traj(X_ii(:,6), XD_ii(:,6), Traj_t);
+        X_ii = RP.fkineEE2_traj(Q_ii, QD_ii);
+        X_ii(:,6) = denormalize_angle_traj(X_ii(:,6));
         warning('off', 'MATLAB:illConditionedMatrix'); % TODO: Auch Tra. mit Variante 2 bei NaN begrenzen
-        [X_ii2, XD_ii2] = RP.fkineEE2_traj(Q_ii2, QD_ii2);
-        X_ii2(:,6) = denormalize_angle_traj(X_ii2(:,6), XD_ii2(:,6), Traj_t);
+        X_ii2 = RP.fkineEE2_traj(Q_ii2, QD_ii2);
+        X_ii2(:,6) = denormalize_angle_traj(X_ii2(:,6));
         % Benutze bei Einzelpunkt-IK nur i.O.-Posen (keine Posen, bei denen
         % die Ketten nicht geschlossen sind).
         Stats_ep.X = RP.fkineEE2_traj(Stats_ep.Q);

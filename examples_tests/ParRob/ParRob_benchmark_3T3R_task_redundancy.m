@@ -728,7 +728,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     [XE_all(:,:,kk), XDE_all(:,:,kk), XDDE_all(:,:,kk)] = RP.fkineEE2_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
     test2_XEall = X_ist(1:n_iO,1:6) - XE_all(1:n_iO,:,kk);
     assert(all(abs(test2_XEall(:)) < 1e-10), 'Neuberechnung mit fkineEE2_traj falsch');
-    XE_all(:,6,kk) = denormalize_angle_traj(XE_all(:,6,kk), XDE_all(:,6,kk), t);
+    XE_all(:,6,kk) = denormalize_angle_traj(XE_all(:,6,kk));
     
     % Zielfunktionen für Position
     h1 = NaN(size(H1_all(:,:,kk))); h2=h1;
