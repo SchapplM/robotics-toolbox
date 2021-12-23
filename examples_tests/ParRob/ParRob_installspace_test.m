@@ -9,6 +9,7 @@ clc
 clear
 % close all
 
+usr_save_figures = false;
 usr_create_anim = false; % zum Aktivieren der Video-Animationen (dauert etwas)
 usr_test_class = true;
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
@@ -111,7 +112,7 @@ RP.collchecks_instspc = collchecks_instspc;
 
 % Roboter mit Objekten zeichnen
 s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6], 'only_bodies', true);
-figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+change_current_figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 view(3);
@@ -143,7 +144,7 @@ fprintf(['Positions-IK für 3T3R berechnet. ', ...
 %   Stats_3T3R.Q(Stats_3T3R.iter(i)+2:end,Ii) = repmat(...
 %     Stats_3T3R.Q(Stats_3T3R.iter(i)+1,Ii), size(Stats_3T3R.Q,1)-Stats_3T3R.iter(i)-1,1);
 % end
-figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+change_current_figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -166,17 +167,18 @@ end
 fprintf(['Positions-IK für 3T2R berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_3T2R.iter);
 
-figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+change_current_figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
 RP.plot( q_3T2R, x1, s_plot ); view([0, 90])
 title('Zielpose des Roboters (3T2R)');
-saveas(3, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_3T2R.fig'));
+if usr_save_figures
+  saveas(3, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_3T2R.fig'));
+end
 
 
-
-% Verfahrbewegung mit Bauraumeinhaltung (aufgabenredundant).
+% Verfahrbewegung mit Bauraumeinhaltung hyperbolisch (aufgabenredundant).
 % Bauraumverletzung in Zwischenphasen erlauben.
 t1 = tic();
 s_instspc = s_basic;
@@ -189,15 +191,44 @@ if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich i
   delta_q_ct = normalizeAngle(q1_instspc2-q1_instspc, 0);
   assert(all(abs(delta_q_ct) < 1e-2), 'Klassen-Implementierung ungleich (Bauraumeinhaltung)');
 end
-fprintf(['Positions-IK für Bauraumeinhaltung berechnet. ', ...
+fprintf(['Positions-IK für Bauraumeinhaltung (hyperbolisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_InstSpc.iter);
 
-figure(4);clf;set(4,'Name','Zielpose_Bauraumopt','NumberTitle','off');
+change_current_figure(4);clf;set(4,'Name','Zielpose_Bauraumopt','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RP.plot( q1_instspc, x1, s_plot ); view([0, 90])
 title('Zielpose des Roboters mit Bauraumeinhaltung');
-saveas(4, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt.fig'));
+if usr_save_figures
+  saveas(4, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt.fig'));
+end
+
+% Verfahrbewegung mit Bauraumeinhaltung quadratisch (aufgabenredundant).
+% Bauraumverletzung in Zwischenphasen erlauben.
+t1 = tic();
+s_instspcQ = s_basic;
+RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
+s_instspcQ.wn(RP.idx_ikpos_wn.instspc_par) = 1; % Bauraumeinhaltung aktiv
+[q1_instspcQ, Phi_instspcQ, Tcstack1_instspcQ, Stats_PosIK_InstSpcQ] = RP.invkin4(x1, q0, s_instspcQ);
+assert(all(abs(Phi_instspcQ)<1e-8), 'IK mit Bauraumeinhaltung quadratisch im Nullraum nicht lösbar');
+if usr_test_class % Prüfe, ob das Ergebnis mit Klassen-Implementierung gleich ist
+  [q1_instspcQ2, Phi_instspcQ2, Tcstack1_instspcQ2, Stats_InstSpcQ2] = RP.invkin3(x1, q0, s_instspcQ);
+  delta_q_ct = normalizeAngle(q1_instspcQ2-q1_instspcQ, 0);
+  assert(all(abs(delta_q_ct) < 1e-2), 'Klassen-Implementierung ungleich (Bauraumeinhaltung)');
+end
+fprintf(['Positions-IK für Bauraumeinhaltung (quadratisch) berechnet. ', ...
+  'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_InstSpcQ.iter);
+
+change_current_figure(5);clf;set(5,'Name','Zielpose_BauraumoptQ','NumberTitle','off');
+hold on; grid on;
+xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+RP.plot( q1_instspc, x1, s_plot ); view([0, 90])
+title('Zielpose des Roboters mit quadr. Bauraumeinhaltung');
+if usr_save_figures
+  saveas(5, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt_quadr.fig'));
+end
+
+
 
 % Bauraumprüfung für die einzelnen Posen
 [colldet,colldist] = check_collisionset_simplegeom_mex(RP.collbodies_instspc, ...
@@ -210,20 +241,27 @@ assert(all(colldist(4,:)<=0), ['Trotz Bauraumeinhaltungsstrategie gibt es ', ...
   'in Endpose eine Bauraumverletzung']);
 
 %% Debug-Plots für Positions-IK
+RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
 t1 = tic();
-Namen = {'3T3R', '3T2R', 'InstallSpaceOpt',};
+Namen = {'3T3R', '3T2R', 'InstallSpaceOpt_Hyp','InstallSpaceOpt_Quad'};
 for kk = 1:length(Namen)
-  if kk == 1
-    Q_kk = Stats_PosIK_3T3R.Q;
-    h_kk = NaN(size(Q_kk,1),7);
-  elseif kk == 2
-    Q_kk = Stats_PosIK_3T2R.Q;
-    h_kk = NaN(size(Q_kk,1),7);
-  elseif kk == 3
-    Q_kk = Stats_PosIK_InstSpc.Q;
-    h_kk = Stats_PosIK_InstSpc.h;
+  if kk == 1,     Stats_kk = Stats_PosIK_3T3R;
+  elseif kk == 2, Stats_kk = Stats_PosIK_3T2R;
+  elseif kk == 3, Stats_kk = Stats_PosIK_InstSpc;
+  elseif kk == 4, Stats_kk = Stats_PosIK_InstSpcQ;
   end
+  Q_kk = Stats_kk.Q;
   X1_kk = RP.fkineEE_traj(Q_kk);
+  % Detail-Ausgabe rekonstruieren
+  for i = 1:Stats_kk.iter+1
+    s_dummy = struct('wn', ones(RP.idx_ik_length.wnpos,1), 'K', zeros(RP.NJ,1), ...
+      'Kn', zeros(RP.NJ,1), 'n_max', 1, 'retry_limit', 0);
+    [q_i, Phi_i, ~, Stats_i] = RP.invkin4(X1_kk(i,:)', Q_kk(i,:)', s_dummy);
+    assert(all(abs(normalizeAngle(q_i-Q_kk(i,:)')) < 1e-10), 'Neuberechnung der Opt.-Krit. fehlgeschlagen');
+    Stats_kk.h(i,:) = Stats_i.h(Stats_i.iter+1,:);
+    Stats_kk.instspc_mindst(i,:) = Stats_i.instspc_mindst(Stats_i.iter+1,:);
+  end
+  h_kk = Stats_kk.h;
   JP_all_kk = NaN(size(Q_kk,1), size(Tcstack1_instspc,1)); % Menge aller Gelenkpositionen
   for i = 1:size(Q_kk,1)
     [~,JP_i] = RP.fkine_coll(Q_kk(i,:)');
@@ -249,30 +287,40 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Gelenkkoordinaten');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    if usr_save_figures
+      saveas(20, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_DebugQ_InstSpc.fig'));
+    end
   end
-  linkxaxes
   change_current_figure(21);
   if kk == 1
-    set(21, 'Name', 'PosIK_InstSpc', 'NumberTitle', 'off');
-    clf;
+    set(21, 'Name', 'PosIK_InstSpc', 'NumberTitle', 'off'); clf;
   end
-  subplot(2,1,1); hold on;
+  subplot(2,2,1); hold on;
   plot(max(colldist_kk,[],2)); % Maximum, da >0 der kritische Wert ist
   if kk == length(Namen)
     ylabel('Abstand Bauraumkörper (>0 ist Verletzung)'); grid on;
   end
-  subplot(2,1,2); hold on;
-  plot(h_kk(:,1+6));
+  subplot(2,2,2); hold on;
+  plot(h_kk(:,1+RP.idx_ikpos_hn.instspc_hyp));
   if kk == length(Namen)
-    ylabel('Zielfunktion'); grid on;
+    ylabel('Zielfunktion hyp.'); grid on;
+    set(gca, 'yscale', 'log');
+  end
+  subplot(2,2,3); hold on;
+  plot(h_kk(:,1+RP.idx_ikpos_hn.instspc_par));
+  if kk == length(Namen)
+    ylabel('Zielfunktion par.'); grid on;
   end
   if kk == length(Namen)
     sgtitle('Bauraumprüfung');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    if usr_save_figures
+      saveas(21, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_InstSpc.fig'));
+    end
   end
-  linkxaxes
-  saveas(21, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_InstSpc.fig'));
   change_current_figure(22);
   if kk == 1
     set(22, 'Name', 'PosIK_X', 'NumberTitle', 'off');
@@ -287,17 +335,19 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Plattform-Koordinaten (Beinkette 1)');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    if usr_save_figures
+      saveas(22, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_X.fig'));
+    end
   end
-  linkxaxes
-  saveas(22, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_X.fig'));
 end
 fprintf(['Debug-Bilder (Positions-IK) generiert. Dauer: %1.1fs. Gespeichert ', ...
   'nach %s\n'], toc(t1), resdir);
 
 %% Animation der PTP-Bewegungen mit und ohne Bauraumeinhaltung
 if usr_create_anim
-for k = 1:3
+for k = 1:4
   if k == 1
     Q_t_plot = Stats_PosIK_3T3R.Q(1:1+Stats_PosIK_3T3R.iter,:);
     filesuffix = 'no_InstallSpace_3T3R';
@@ -308,8 +358,12 @@ for k = 1:3
     plottitle = 'Inverse Kinematics (3T2R) without Installation Space Restriction';
   elseif k == 3
     Q_t_plot = Stats_PosIK_InstSpc.Q(1:1+Stats_PosIK_InstSpc.iter,:);
-    filesuffix = 'with_InstallSpace_final';
-    plottitle = 'Inverse Kinematics with Installation Space Restriction';
+    filesuffix = 'with_InstallSpace_final_hyp';
+    plottitle = 'Inverse Kinematics with Installation Space Restriction (Hyp)';
+  elseif k == 4
+    Q_t_plot = Stats_PosIK_InstSpcQ.Q(1:1+Stats_PosIK_InstSpc.iter,:);
+    filesuffix = 'with_InstallSpace_final_par';
+    plottitle = 'Inverse Kinematics with Installation Space Restriction (Par)';
   end
   X_t_plot = RP.fkineEE2_traj(Q_t_plot);
   t = (1:size(Q_t_plot,1))';
@@ -321,7 +375,7 @@ for k = 1:3
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
-  figure(9);clf;
+  change_current_figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
@@ -377,14 +431,14 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit 3T2R nicht erfolgreich berechnet'
 assert(any(dist_3T2R(:)>0), ['In 3T2R-Traj. muss die Bauraumgrenze ver', ...
   'letzt werden. Wurde manuell so eingestellt.']);
 
-% Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit PD-Regler, Variante 1)
+% Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit PD-Regler, hyperbolisch)
 % parroblib_create_template_functions({RP.mdlname},false,false);
 t1 = tic();
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 1]));
 s_traj_IS1 = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
 s_traj_IS1.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
-s_traj_IS1.wn(RP.idx_iktraj_wnP.instspc_hyp) = 1e-4; % P-Verstärkung Bauraumeinhaltung
-s_traj_IS1.wn(RP.idx_iktraj_wnD.instspc_hyp) = 1e-5; % D-Verstärkung Bauraumeinhaltung
+s_traj_IS1.wn(RP.idx_iktraj_wnP.instspc_hyp) = 1e-4; % P-Verstärkung Bauraumeinhaltung (hyperbolisch)
+s_traj_IS1.wn(RP.idx_iktraj_wnD.instspc_hyp) = 1e-5; % D-Verstärkung Bauraumeinhaltung (hyperbolisch)
 RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
 [Q_InstSpc1, QD_InstSpc1, QDD_InstSpc1, PHI, ~, ~, JP_InstSpc1, Stats_InstSpc1] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_IS1);
 if usr_test_class && all(~isnan(PHI(:))) % nur, wenn Traj. i.O., sonst numerische Abweichungen
@@ -393,36 +447,75 @@ if usr_test_class && all(~isnan(PHI(:))) % nur, wenn Traj. i.O., sonst numerisch
   delta_qDD_ct = QDD_InstSpc1_2-QDD_InstSpc1;
   assert(all(abs(delta_q_ct(:)) < 1e-3), 'Klassen-Implementierung Traj. ungleich (Bauraum Var. 1)');
 end
-fprintf('Trajektorien-IK mit starker Bauraumeinhaltung berechnet. Dauer: %1.1fs\n', toc(t1));
-assert(all(abs(PHI(:))<1e-8) && all(~isnan(PHI(:))), 'Trajektorie mit Bauraumeinhaltung Var. 1 nicht erfolgreich berechnet');
+fprintf('Trajektorien-IK mit hyperbolischer Bauraumeinhaltung berechnet. Dauer: %1.1fs\n', toc(t1));
+assert(all(abs(PHI(:))<1e-8) && all(~isnan(PHI(:))), 'Trajektorie mit Bauraumeinhaltung (hyp.) nicht erfolgreich berechnet');
 [coll_InstSpc1, dist_InstSpc1] = check_collisionset_simplegeom_mex(RP.collbodies_instspc, ...
   RP.collchecks_instspc, JP_InstSpc1, struct('collsearch', false));
-assert(all(dist_InstSpc1(:)<0), ['Trotz Bauraumeinhaltung (Var. 1) ', ...
+assert(all(dist_InstSpc1(:)<0), ['Trotz Bauraumeinhaltung (hyp) ', ...
+  'gibt es Bauraumverletzungen in Zwischenschritten']);
+
+% Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit PD-Regler, quadratisch)
+t1 = tic();
+RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 1]));
+s_traj_IS2 = struct('wn', zeros(RP.idx_ik_length.wntraj,1));
+s_traj_IS2.wn(RP.idx_iktraj_wnP.qDlim_par) = 0.7; % Zusätzliche Dämpfung gegen Schwingungen
+s_traj_IS2.wn(RP.idx_iktraj_wnP.instspc_hyp) = 1; % P-Verstärkung Bauraumeinhaltung (quadr.)
+s_traj_IS2.wn(RP.idx_iktraj_wnD.instspc_hyp) = 0.3; % D-Verstärkung Bauraumeinhaltung (quadr.)
+RP.update_EE_FG(logical([1 1 0 0 0 1]), logical([1 1 0 0 0 0]));
+[Q_InstSpc2, QD_InstSpc2, QDD_InstSpc2, PHI, ~, ~, JP_InstSpc2, Stats_InstSpc2] = RP.invkin2_traj(X,XD,XDD,T,q0,s_traj_IS2);
+if usr_test_class && all(~isnan(PHI(:))) % nur, wenn Traj. i.O., sonst numerische Abweichungen
+  [Q_InstSpc2_2, QD_InstSpc2_2, QDD_InstSpc2_2, PHI_2, ~, ~, JP_InstSpc12_2, Stats_InstSpc2_2] = RP.invkin_traj(X,XD,XDD,T,q0,s_traj_IS2);
+  delta_q_ct = normalizeAngle(Q_InstSpc2_2-Q_InstSpc2, 0);
+  delta_qDD_ct = QDD_InstSpc2_2-QDD_InstSpc2;
+  assert(all(abs(delta_q_ct(:)) < 1e-3), 'Klassen-Implementierung Traj. ungleich (Bauraum Var. 2)');
+end
+fprintf('Trajektorien-IK mit quadratischer Bauraumeinhaltung berechnet. Dauer: %1.1fs\n', toc(t1));
+assert(all(abs(PHI(:))<1e-8) && all(~isnan(PHI(:))), 'Trajektorie mit Bauraumeinhaltung (par.) nicht erfolgreich berechnet');
+[coll_InstSpc2, dist_InstSpc2] = check_collisionset_simplegeom_mex(RP.collbodies_instspc, ...
+  RP.collchecks_instspc, JP_InstSpc2, struct('collsearch', false));
+assert(all(dist_InstSpc1(:)<0), ['Trotz Bauraumeinhaltung (par) ', ...
   'gibt es Bauraumverletzungen in Zwischenschritten']);
 
 %% Debug-Plots für Trajektorien-IK
 t1 = tic();
-Namen = {'3T3R', '3T2R', 'InstallSpace1'};
+Namen = {'3T3R', '3T2R', 'InstallSpace_Hyp', 'InstallSpace_Par'};
 for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; JP_all_kk = JP_3T3R;
-    h_kk = NaN(size(Q_kk,1),1+7);
+    Stats_kk = Stats_3T3R;
   elseif kk == 2
     Q_kk = Q_3T2R; QD_kk = QD_3T2R; QDD_kk = QDD_3T2R; JP_all_kk = JP_3T2R;
-    h_kk = NaN(size(Q_kk,1),1+7);
+    Stats_kk = Stats_3T2R;
   elseif kk == 3
     Q_kk = Q_InstSpc1; QD_kk = QD_InstSpc1; QDD_kk = QDD_InstSpc1; JP_all_kk = JP_InstSpc1;
-    h_kk = Stats_InstSpc1.h;
+    Stats_kk = Stats_InstSpc1;
+  elseif kk == 4
+    Q_kk = Q_InstSpc2; QD_kk = QD_InstSpc2; QDD_kk = QDD_InstSpc2; JP_all_kk = JP_InstSpc2;
+    Stats_kk = Stats_InstSpc2;
   end
   [X1_kk, XD1_kk, XDD1_kk] = RP.fkineEE2_traj(Q_kk, QD_kk, QDD_kk);
-  X1_kk(:,4:6) = denormalize_angle_traj(X1_kk(:,4:6), XD1_kk(:,4:6), T);
+  X1_kk(:,4:6) = denormalize_angle_traj(X1_kk(:,4:6));
   [colldet_kk, colldist_kk] = check_collisionset_simplegeom_mex(RP.collbodies_instspc, ...
     RP.collchecks_instspc, JP_all_kk, struct('collsearch', false));
+  % Detail-Ausgabe rekonstruieren
+  Stats_kk.instspc_mindst = NaN(size(Q_kk,1),2); % Feld manuell hinzufügen
+  for i = 1:size(Q_kk,1)
+    s_dummy = struct('wn', ones(RP.idx_ik_length.wnpos,1), 'K', zeros(RP.NJ,1), ...
+      'Kn', zeros(RP.NJ,1), 'n_max', 1, 'retry_limit', 0);
+    [q_i, Phi_i, ~, Stats_i] = RP.invkin4(X1_kk(i,:)', Q_kk(i,:)', s_dummy);
+    assert(all(abs(normalizeAngle(q_i-Q_kk(i,:)')) < 1e-10), 'Neuberechnung der Opt.-Krit. fehlgeschlagen');
+    Stats_kk.instspc_mindst(i,:) = Stats_i.instspc_mindst(Stats_i.iter+1,:);
+    for f = fields(RP.idx_ikpos_hn)'
+      Stats_kk.h(i,1+RP.idx_iktraj_hn.(f{1})) = Stats_i.h(Stats_i.iter+1,1+RP.idx_ikpos_hn.(f{1}));
+    end
+  end
+  % Prüfe, ob das Nachrechnen erfolgreich war.
+  test_dist = Stats_kk.instspc_mindst(:,1)-max(colldist_kk,[],2);
+  assert(all(abs(test_dist) < 1e-10), 'Rekonstruktion der Abstände fehlgeschlagen');
   
   change_current_figure(40);
   if kk == 1
-    set(40, 'Name', 'TrajIK_Q', 'NumberTitle', 'off');
-    clf;
+    set(40, 'Name', 'TrajIK_Q', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -437,14 +530,15 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Gelenkkoordinaten');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    if usr_save_figures
+      saveas(40, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Q.fig'));
+    end
   end
-  linkxaxes
-  saveas(40, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Q.fig'));
   change_current_figure(41);
   if kk == 1
-    set(41, 'Name', 'TrajIK_QD', 'NumberTitle', 'off');
-    clf;
+    set(41, 'Name', 'TrajIK_QD', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -459,14 +553,15 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Gelenkgeschwindigkeiten');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+    if usr_save_figures
+      saveas(41, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QD.fig'));
+    end
   end
-  linkxaxes
-  saveas(41, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QD.fig'));
   change_current_figure(42);
   if kk == 1
-    set(42, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off');
-    clf;
+    set(42, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -481,13 +576,15 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Gelenkbeschleunigungen');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(42, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QDD.fig'));
+    if usr_save_figures
+      saveas(42, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QDD.fig'));
+    end
   end
   change_current_figure(43);
   if kk == 1
-    set(43, 'Name', 'TrajIK_Coll', 'NumberTitle', 'off');
+    set(43, 'Name', 'TrajIK_InstSpc', 'NumberTitle', 'off');
     clf;
   end
   subplot(2,1,1); hold on;
@@ -495,16 +592,24 @@ for kk = 1:length(Namen)
   if kk == length(Namen)
     ylabel('Abstand Bauraumkörper (>0 ist Verl.)'); grid on;
   end
-  subplot(2,1,2); hold on;
-  plot(T, h_kk(:,1+7));
+  subplot(2,2,3); hold on;
+  plot(T, Stats_kk.h(:,1+RP.idx_iktraj_hn.instspc_hyp));
   if kk == length(Namen)
-    ylabel('Zielfunktion (online)'); grid on;
+    ylabel('Zielfunktion (hyp)'); grid on;
+    set(gca, 'yscale', 'log');
+  end
+  subplot(2,2,4); hold on;
+  plot(T, Stats_kk.h(:,1+RP.idx_iktraj_hn.instspc_par));
+  if kk == length(Namen)
+    ylabel('Zielfunktion (par)'); grid on;
   end
   if kk == length(Namen)
     sgtitle('Kollisionsprüfung');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(43, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Bauraum.fig'));
+    if usr_save_figures
+      saveas(43, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Bauraum.fig'));
+    end
   end
   
   change_current_figure(44);
@@ -531,9 +636,11 @@ for kk = 1:length(Namen)
   end
   if kk == length(Namen)
     sgtitle('Plattform-Koordinaten (Beinkette 1)');
-    legend(Namen);
+    legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(44, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_X.fig'));
+    if usr_save_figures
+      saveas(44, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_X.fig'));
+    end
   end
 end
 fprintf(['Debug-Bilder für Trajektorien-IK generiert. Dauer: %1.1fs. ', ...
@@ -552,8 +659,12 @@ for k = 1:length(Namen)
     plottitle = 'Inverse Kinematics (3T2R) without Install Space Constraint';
   elseif k == 3
     Q_t_plot = Q_InstSpc1;
-    filesuffix = 'with_InstallSpaceOpt';
-    plottitle = 'Inverse Kinematics with Install Space Constraint';
+    filesuffix = 'with_InstallSpaceOpt_Hyp';
+    plottitle = 'Inverse Kinematics with Install Space Constraint (Hyperbolic)';
+  elseif k == 4
+    Q_t_plot = Q_InstSpc2;
+    filesuffix = 'with_InstallSpaceOpt_Par';
+    plottitle = 'Inverse Kinematics with Install Space Constraint (Parabolic)';
   end
   X_t_plot = RP.fkineEE2_traj(Q_t_plot);
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden
@@ -564,7 +675,7 @@ for k = 1:length(Namen)
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
-  figure(9);clf;
+  change_current_figure(9);clf;
   set(9, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird

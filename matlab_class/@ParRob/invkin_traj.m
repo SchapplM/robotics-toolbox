@@ -19,7 +19,7 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
-%   .wn [14x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [23x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %         (entspricht h(1), idx_hn.qlim_par)
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
@@ -53,6 +53,9 @@
 %    (20) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
 %         (entspricht h(12), idx_hn.coll_par)
 %    (21), wie 20, aber auf Geschwindigkeitsebene
+%    (22) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
+%         (entspricht h(13), idx_hn.instspc_par)
+%    (23) wie 22, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
 % Q
@@ -747,8 +750,9 @@ for k = 1:nt
           % Prüfe im Folgenden Schritt alle Kollisionen
           colldet(:) = true;
         end
-        h([7,11]) = 0;
-        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp])) && colldet_warn || any(wn([idx_wnP.coll_par idx_wnD.coll_par]))
+        h([idx_hn.coll_hyp idx_hn.coll_hyp]) = 0;
+        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp])) && colldet_warn || ...
+            any(wn([idx_wnP.coll_par idx_wnD.coll_par]))
           Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
           [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
@@ -806,7 +810,9 @@ for k = 1:nt
           end
         end
       end
-      if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 % Bauraumprüfung
+      h([idx_hn.instspc_hyp idx_hn.instspc_par]) = 0;
+      if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 || ... % Bauraumprüfung
+          wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
         Stats.mode(k) = bitset(Stats.mode(k),11);
         JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
         [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
@@ -833,26 +839,37 @@ for k = 1:nt
           end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
-        h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
-            -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-        if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
-          all(I_nochange)
-          h8drz = 0;
-        elseif ~isinf(h(idx_hn.instspc_hyp))
-          h8_test = invkin_optimcrit_limits3(mindist_all(2), ... % Wert bezogen auf Test-Pose
-              [-100.0, 0], -s.installspace_thresh);
-          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
-          h8drz = (h8_test-h(idx_hn.instspc_hyp))/xD_test(6);
-        else
-          h8drz = (mindist_all(2)-mindist_all(1));
-          if abs(h8drz) > 100*eps % Normiere auf Wert 1e3
-            h8drz = sign(h8drz) * 1e3; % wird weiter unten reduziert (für qDD)
+        if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0
+          h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
+              [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
+              -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+          if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+            all(I_nochange)
+            h8drz = 0;
+          elseif ~isinf(h(idx_hn.instspc_hyp))
+            h8_test = invkin_optimcrit_limits3(mindist_all(2), ... % Wert bezogen auf Test-Pose
+                [-100.0, 0], -s.installspace_thresh);
+            % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+            h8drz = (h8_test-h(idx_hn.instspc_hyp))/xD_test(6);
+          else
+            h8drz = (mindist_all(2)-mindist_all(1));
+            if abs(h8drz) > 100*eps % Normiere auf Wert 1e3
+              h8drz = sign(h8drz) * 1e3; % wird weiter unten reduziert (für qDD)
+            end
           end
+          h8dqa = h8drz * J_ax(end,:);
+          v_qaD = v_qaD - wn(idx_wnD.instspc_hyp)*h8dqa(:);
+          v_qaDD = v_qaDD - wn(idx_wnP.instspc_hyp)*h8dqa(:);
         end
-        h8dqa = h8drz * J_ax(end,:);
-        v_qaD = v_qaD - wn(idx_wnD.instspc_hyp)*h8dqa(:);
-        v_qaDD = v_qaDD - wn(idx_wnP.instspc_hyp)*h8dqa(:);
+        if wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
+          h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_all(1), [-100.0, 0]);
+          h13_test = invkin_optimcrit_limits1(mindist_all(2), [-100.0, 0]);
+          % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
+          h13drz = (h13_test-h(idx_hn.instspc_par))/xD_test(6);
+          h13dqa = h13drz * J_ax(end,:);
+          v_qaD = v_qaD - wn(idx_wnD.instspc_par)*h13dqa(:);
+          v_qaDD = v_qaDD - wn(idx_wnP.instspc_par)*h13dqa(:);
+        end
       end
       if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
         Stats.mode(k) = bitset(Stats.mode(k),12);
@@ -1086,7 +1103,8 @@ for k = 1:nt
           end
         end
       end
-      if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 % Bauraumprüfung
+      if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 || ...% Bauraumprüfung
+          wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
         Stats.mode(k) = bitset(Stats.mode(k),11);
         JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
         [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
@@ -1115,25 +1133,35 @@ for k = 1:nt
           end
         end
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
-        h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], -s.installspace_thresh);
-        if h(idx_hn.instspc_hyp) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
-          all(I_nochange)
-          h8dq = zeros(1,NJ);
-        elseif ~isinf(h(idx_hn.instspc_hyp))
-          h8_test = invkin_optimcrit_limits3(mindist_all(2), ...
+        if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 % Hyperbolisch
+          h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
               [-100.0, 0], -s.installspace_thresh);
-          h8dq = (h8_test-h(idx_hn.instspc_hyp))./(qD_test');
-        else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
-          % Indirekte Bestimmung über Abstand
-          h8dq = (mindist_all(2)-mindist_all(1))./(qD_test');
-          if max(abs(h8dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
-            h8dq = h8dq/max(abs(h8dq)) * 1e3; % wird weiter unten reduziert
+          if h(idx_hn.instspc_hyp) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+            all(I_nochange)
+            h8dq = zeros(1,NJ);
+          elseif ~isinf(h(idx_hn.instspc_hyp))
+            h8_test = invkin_optimcrit_limits3(mindist_all(2), ...
+                [-100.0, 0], -s.installspace_thresh);
+            h8dq = (h8_test-h(idx_hn.instspc_hyp))./(qD_test');
+          else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+            % Indirekte Bestimmung über Abstand
+            h8dq = (mindist_all(2)-mindist_all(1))./(qD_test');
+            if max(abs(h8dq)) > 100*eps % Normiere auf Wert 1e3 für größtes Gelenk
+              h8dq = h8dq/max(abs(h8dq)) * 1e3; % wird weiter unten reduziert
+            end
           end
+          h8dq(isnan(h8dq)) = 0;
+          v_qD = v_qD - wn(idx_wnD.instspc_hyp)*h8dq(:);
+          v_qDD = v_qDD - wn(idx_wnP.instspc_hyp)*h8dq(:);
         end
-        h8dq(isnan(h8dq)) = 0;
-        v_qD = v_qD - wn(idx_wnD.instspc_hyp)*h8dq(:);
-        v_qDD = v_qDD - wn(idx_wnP.instspc_hyp)*h8dq(:);
+        if wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0 % Quadratisch
+          h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_all(1), [-100.0, 0]);
+          h13_test = invkin_optimcrit_limits3(mindist_all(2), [-100.0, 0]);
+          h13dq = (h13_test-h(idx_hn.instspc_par))./(qD_test');
+          h13dq(isnan(h13dq)) = 0;
+          v_qD = v_qD - wn(idx_wnD.instspc_par)*h13dq(:);
+          v_qDD = v_qDD - wn(idx_wnP.instspc_par)*h13dq(:);
+        end
       end
       if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
         Stats.mode(k) = bitset(Stats.mode(k),12);
@@ -1509,11 +1537,13 @@ for k = 1:nt
   I_wn = [idx_wnP.qlim_par, idx_wnP.qlim_hyp,   idx_wnP.qDlim_par,...
           idx_wnP.qDlim_hyp,idx_wnP.ikjac_cond, idx_wnP.jac_cond,...
           idx_wnP.coll_hyp, idx_wnP.instspc_hyp,idx_wnP.xlim_par,...
-          idx_wnP.xlim_hyp, idx_wnP.xDlim_par,  idx_wnP.coll_par];
+          idx_wnP.xlim_hyp, idx_wnP.xDlim_par,  idx_wnP.coll_par, ...
+          idx_wnP.instspc_par];
   I_h =  [idx_hn.qlim_par,  idx_hn.qlim_hyp,    idx_hn.qDlim_par,...
           idx_hn.qDlim_hyp, idx_hn.ikjac_cond,  idx_hn.jac_cond,...
           idx_hn.coll_hyp,  idx_hn.instspc_hyp, idx_hn.xlim_par,...
-          idx_hn.xlim_hyp,  idx_hn.xDlim_par,   idx_hn.coll_par];
+          idx_hn.xlim_hyp,  idx_hn.xDlim_par,   idx_hn.coll_par, ...
+          idx_hn.instspc_par];
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   Stats.phi_zD(k,:) = xD_k_ist(6);
   %% Anfangswerte für Positionsberechnung in nächster Iteration
