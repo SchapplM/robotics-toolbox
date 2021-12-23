@@ -1158,7 +1158,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;0;wn(idx_wn.xlim_par);wn(idx_wn.xlim_hyp);0]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(:) = 0;
+        % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(idx_wn.qlim_hyp) = 1;
+        wn(idx_wn.xlim_par) = s.wn(idx_wn.xlim_par);
+        wn(idx_wn.xlim_hyp) = s.wn(idx_wn.xlim_hyp);
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -1172,8 +1176,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom_mex(Rob.collbodies, ...
           Rob.collchecks, JP, struct('collsearch', false));
         if any(colldet)
+          wn(:) = 0; % Deaktiviere alle anderen Nebenbedingungen
           wn(idx_wn.coll_hyp) = 1e3; % Starke Kollisionsvermeidung
-          wn(1:4) = 0; % Deaktiviere alle anderen Nebenbedingungen
           avoid_collision_finish = false; % Nur einmal versuchen
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
           Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen

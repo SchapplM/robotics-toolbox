@@ -78,7 +78,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin3(xE_soll, Q0, s)
 %$cgargs           'sigma', zeros(%NJ%,1),
 %$cgargs               'K', zeros(%NJ%,1),
 %$cgargs              'Kn', zeros(%NJ%,1),
-%$cgargs              'wn', zeros(9,1),
+%$cgargs              'wn', zeros(10,1),
 %$cgargs            'xlim', zeros(6,2),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'normalize', true,
@@ -364,7 +364,7 @@ condJ = NaN; condJik = NaN;
 Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, NJ), ...
   'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
   'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
-  'h', NaN(1+n_max,1+9), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
+  'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
   'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
   NaN, 'mode', uint32(zeros(n_max,1)), 'version', 8);
 Stats = Stats_default;
@@ -1269,7 +1269,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;0;wn(idx_wn.xlim_par);wn(idx_wn.xlim_hyp);0]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(:) = 0;
+        % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(idx_wn.qlim_hyp) = 1;
+        wn(idx_wn.xlim_par) = s.wn(idx_wn.xlim_par);
+        wn(idx_wn.xlim_hyp) = s.wn(idx_wn.xlim_hyp);
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -1283,8 +1287,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
           JP, struct('collsearch', false));
         if any(colldet)
+          wn(:) = 0; % Deaktiviere alle anderen Nebenbedingungen
           wn(idx_wn.coll_hyp) = 1e3; % Starke Kollisionsvermeidung
-          wn(1:4) = 0; % Deaktiviere alle anderen Nebenbedingungen
           avoid_collision_finish = false; % Nur einmal versuchen
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
           Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen
