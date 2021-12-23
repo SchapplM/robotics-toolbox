@@ -137,7 +137,7 @@ for f = fields(s_std)'
   end
 end
 debug = s.debug;
-I_EE = s.I_EE_Task;
+I_EE = Rob.I_EE_Task;
 mode_IK = s.mode_IK;
 taskred_rot = false;
 
@@ -276,7 +276,7 @@ collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
   wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
 end
-if isempty(s.collbodies_instspc.type) % Keine Kollisionskörper
+if isempty(Rob.collbodies_instspc.type) % Keine Kollisionskörper
   wn([idx_wnP.instspc_hyp idx_wnD.instspc_hyp]) = 0; % Deaktivierung der Bauraumprüfung
 end
 if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]))
@@ -355,7 +355,7 @@ xD_k_ist = NaN(6,1);
 Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
   'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
-h = zeros(12,1);
+h = zeros(idx_ik_length.hntraj,1);
 
 for k = 1:nt
   tic();
