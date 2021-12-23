@@ -141,6 +141,7 @@ Leg_NQJ = %Leg_NQJ%;
 NJ = %NJ%;
 NL = %NL%;
 NLEG = %NLEG%;
+I_qa = s.I_qa;
 
 %% Definitionen
 sigma_PKM = s.sigma;
@@ -313,7 +314,7 @@ collbodies_ns = s.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  s.wn([5,9]) = 0; % Deaktivierung der Kollisionsvermeidung
+  s.wn([idx_wn.coll_hyp,idx_wn.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
   scale_coll = 0;
   avoid_collision_finish = false;
 end
@@ -452,7 +453,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [~, Phi4_x_voll] = %PN%_constr4grad_x(xE_1,s_x);
         [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
         Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
-        condJ = cond(Jinv(s.I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+        condJ = cond(Jinv(I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
       if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Spline-Übergang
@@ -488,7 +489,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             [~,Phi4_x_voll_test] = %PN%_constr4grad_x(xE_1+xD_test,s_x);
             [~,Phi4_q_voll_test] = %PN%_constr4grad_q(q1+qD_test,s_q);
             Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
-            h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(s.I_qa,Rob_I_EE)), ...
+            h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(I_qa,Rob_I_EE)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h4dq = (h4_test-h(idx_hn.jac_cond))./qD_test';
             h4dq(isnan(h4dq)) = 0;
@@ -500,7 +501,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               Jinv_test_2 = Jinv + ...
                 Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
                 -Phi4_q_voll\Phi4D_x_voll;
-              h4_test_2 = cond(Jinv_test_2(s.I_qa,Rob_I_EE));
+              h4_test_2 = cond(Jinv_test_2(I_qa,Rob_I_EE));
               if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJ) < 1
                 error('Beide Ansaetze fuer Delta Jinv stimmen nicht ueberein');
               end
@@ -557,7 +558,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               xE_test = xE_1 + xD_test;
               [~, Phi4_x_voll_kkk] = %PN%_constr4grad_x(xE_test,s_x);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll_kkk;
-              h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(s.I_qa,Rob_I_EE)), ...
+              h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(I_qa,Rob_I_EE)), ...
                 1.5*s.cond_thresh_jac, s.cond_thresh_jac);
               h4dq(kkk) = (h4_kkk-h(idx_hn.jac_cond))/1e-6;
             end
@@ -1346,7 +1347,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_q_voll] = %PN%_constr4grad_q(q1,s_q);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
-      condJ = cond(Jinv(s.I_qa,Rob_I_EE));
+      condJ = cond(Jinv(I_qa,Rob_I_EE));
     else
       condJ = NaN;
     end
@@ -1355,7 +1356,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
   end
-  h([5 9]) = 0;
+  h([idx_hn.coll_hyp, idx_hn.coll_par]) = 0;
   if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Berechnung muss genauso sein wie oben
     colldet1 = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...
           Tc_stack_PKM(:,4)', struct('collsearch', true));

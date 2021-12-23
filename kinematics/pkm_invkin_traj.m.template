@@ -187,7 +187,7 @@ mode_IK = s.mode_IK;
 taskred_rot = false;
 debug = s.debug;
 wn = s.wn;
-if any(s.wn ~= 0) && sum(Rob_I_EE) > sum(s.I_EE_Task)
+if any(s.wn ~= 0) && sum(Rob_I_EE) > sum(I_EE)
   % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
   % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
   nsoptim = true;
@@ -195,7 +195,7 @@ else
   % Keine zusätzlichen Optimierungskriterien
   nsoptim = false;
 end
-if Rob_I_EE(6) && ~s.I_EE_Task(6)
+if Rob_I_EE(6) && ~I_EE(6)
   taskred_rot = true;
 end
 % Vermerke, ob die PKM strukturen 3T2R-FG hat. Dann wird auch die
@@ -213,10 +213,6 @@ else
   % Benutze vollständige Formel entsprechend Einstellungsparameter
   simplify_acc = s.simplify_acc;
 end
-% Grenze zum Umschalten zwischen Nullraumbewegung in Antriebs- oder
-% Gesamtkoordinaten. Ist die Konditionszahl schlechter, wird in Gesamt-
-% koordinaten gerechnet. In Antriebskoordinaten weniger Rechenaufwand.
-thresh_ns_qa = s.thresh_ns_qa;
 
 qlim = NaN(NJ,2);
 qDlim = NaN(NJ,2);
@@ -266,7 +262,6 @@ if ~all(isnan(s.xDlim(:)))
 else
   limits_xD_set = false;
 end
-
 enforce_qlim = s.enforce_qlim;
 enforce_qDlim = s.enforce_qDlim;
 enforce_xDlim = s.enforce_xDlim;
@@ -278,11 +273,8 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 % hyperbolisch gewichteten Abstand von den Grenzen.
 xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
-if ~any(wn ~= 0)
-  nsoptim = false; % Keine zusätzlichen Optimierungskriterien
-end
 
-[~, ~, idx_wnP, idx_wnD, idx_hn] = ik_optimcrit_index();
+[~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index();
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
@@ -322,6 +314,10 @@ if ~isnan(s.collision_thresh)
   collobjdist_thresh = s.collision_thresh;
 end
 
+% Grenze zum Umschalten zwischen Nullraumbewegung in Antriebs- oder
+% Gesamtkoordinaten. Ist die Konditionszahl schlechter, wird in Gesamt-
+% koordinaten gerechnet. In Antriebskoordinaten weniger Rechenaufwand.
+thresh_ns_qa = s.thresh_ns_qa;
 % Vergleiche FG der Aufgabe und FG des Roboters
 if ~taskred_rot % Bislang nur diese Redundanzart geprüft
   % Keine Redundanz vorliegend
@@ -526,8 +522,7 @@ s_3 = struct(...
 s_fkinecoll = struct(...
             'Leg_pkin_gen', s.Leg_pkin_gen,...
            'Leg_T_0_W_vec', s.Leg_T_0_W_vec);
-% Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
-% Eingabe nicht gesetzt
+I_qa = s.I_qa;
 
 nt = length(T);
 Q = NaN(nt, NJ);
@@ -538,8 +533,8 @@ Phi = NaN(nt, length(s.I_constr_t_red)+length(s.I_constr_r_red));
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-Jinv_ges = NaN(nt, sum(Rob_I_EE)* NJ);
-JinvD_ges = zeros(nt, sum(Rob_I_EE)* NJ);
+Jinv_ges = NaN(nt, sum(Rob_I_EE)*NJ);
+JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
@@ -547,21 +542,21 @@ JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(NJ,1);
-qaD_N_pre_alt = zeros(sum(s.I_qa),1);
+qaD_N_pre_alt = zeros(sum(I_qa),1);
 qD_N_pre_alt = zeros(NJ,1);
-qaDD_N_pre1 = zeros(sum(s.I_qa),1);
+qaDD_N_pre1 = zeros(sum(I_qa),1);
 qDD_N_pre = zeros(NJ,1);
 qDD_N_pre1 = zeros(NJ,1);
 qDD_N_pre_voll = zeros(NJ,1);
-J_ax = NaN(sum(Rob_I_EE), sum(s.I_qa));
+J_ax = NaN(sum(Rob_I_EE), sum(I_qa));
 q_k = qDk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(Phi,2),1); % für Kompilierbarkeit
 xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
-Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+12), ...
-  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'condJ', NaN(nt,2), ...
-  'phi_zD', NaN(nt,1), 'version', 5, 'mode', uint32(zeros(nt,1)));
+Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
+  'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
+  'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1), 'version', 5));
 h = zeros(12,1);
 
 for k = 1:nt
@@ -609,8 +604,8 @@ for k = 1:nt
     % Nehme vollständige ZB-Gradienten (2. Ausgabe) und wähle Komponenten
     % hier aus. Reduzierte ZB sind noch nicht vollständig implementiert für
     % Systeme mit Beinketten mit fünf Gelenken.
-    [Phi_q, Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
-    [Phi_x_tmp, Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
+    [Phi_q,    Phi_q_voll] = %PN%_constr3grad_q(q_k, x_k, s_3q);
+    [Phi_x_tmp,Phi_x_voll] = %PN%_constr3grad_x(q_k, x_k, s_3x);
     if ~dof_3T1R
       Phi_x=Phi_x_tmp(:,I_EE); % TODO: Schon in Funktion richtig machen.
     else % Bezieht sich in Funktion auf die PKM-FG, nicht Aufgaben-FG
@@ -675,7 +670,6 @@ for k = 1:nt
       else
         Phi_xD=Phi_xD_tmp(:,[true(1,3), ~taskred_rot]);
       end
-      
     end
   end
   % Danach getrennt die Zeitableitung von Jinv. Für den Differenzen-
@@ -726,7 +720,7 @@ for k = 1:nt
   
   % Bestimme relevante Konditionszahlen in jedem Fall
   condJik = cond(Phi_q); % Benötigt als Singularitätskennzahl
-  Jinv_ax = J_x_inv(s.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
+  Jinv_ax = J_x_inv(I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
   condJ = cond(Jinv_ax);
   if condJik > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),22);
@@ -746,7 +740,7 @@ for k = 1:nt
     % ist die Begrenzung der Koordinate phi_z besser möglich
     xD_k_ist = zeros(6,1);
     if condJ < 1e6 % Benutze PKM-Jacobi
-      xD_k_ist(Rob_I_EE) = Jinv_ax \ qD_k(s.I_qa);
+      xD_k_ist(Rob_I_EE) = Jinv_ax \ qD_k(I_qa);
     else % Benutze Jacobi der ersten Beinkette
       xD_k_ist(Rob_I_EE) = J_x_inv(1:Leg_NQJ(1),:) \ qD_k(1:Leg_NQJ(1));
     end
@@ -769,20 +763,20 @@ for k = 1:nt
     qD_test = J_x_inv * xD_test(Rob_I_EE); % Gelenkänderung der Nullraumbewegung
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
-    if condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE)
+    if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE)
       Stats.mode(k) = bitset(Stats.mode(k),3);
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
       % Jacobi-Matrix bezogen auf Antriebe und Plattform
-      J_ax = inv(J_x_inv(s.I_qa,:));
-      J_ax_3T3R = zeros(6,sum(s.I_qa));
+      J_ax = inv(J_x_inv(I_qa,:));
+      J_ax_3T3R = zeros(6,sum(I_qa));
       J_ax_3T3R(Rob_I_EE,:) = J_ax;
       % Jacobi-Matrix zur Umrechnung von Antrieben auf Gesamtgelenke
       J_q_qa = J_x_inv * J_ax; %#ok<MINV>
       % Nullraum-Projektor bezogen auf analytische Jacobi-Matrix ohne
       % letzte redundante Koordinate
-      Na = (eye(sum(s.I_qa)) - pinv(J_ax_3T3R(s.I_EE_Task,:))* J_ax_3T3R(s.I_EE_Task,:));
-      v_qaD = zeros(sum(s.I_qa), 1);
-      v_qaDD = zeros(sum(s.I_qa), 1);
+      Na = (eye(sum(I_qa)) - pinv(J_ax_3T3R(I_EE,:))* J_ax_3T3R(I_EE,:));
+      v_qaD = zeros(sum(I_qa), 1);
+      v_qaDD = zeros(sum(I_qa), 1);
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
@@ -851,14 +845,14 @@ for k = 1:nt
         [~,Phi_q_voll_test] = %PN%_constr3grad_q(q_k+qD_test, x_k+xD_test, s_3q);
         [~,Phi_x_voll_test] = %PN%_constr3grad_x(q_k+qD_test, x_k+xD_test, s_3x);
         J_x_inv_test_v3 = -Phi_q_voll_test\Phi_x_voll_test;
-        h6_test_v3 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v3(s.I_qa,:)), ...
+        h6_test_v3 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v3(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6drz_v3 = (h6_test_v3-h(idx_hn.jac_cond))/xD_test(6);
 
         if false && ... % Aus numerischen Gründen liefern alternative Modellierungen manchmal andere Ergebnisse (Rundungsfehler und Konditionsberechnung). TODO: Wirklich nur Numerik?
             s.debug && abs(h6_test_v3-h(idx_hn.jac_cond))>1e-10 && ... % Vergleich lohnt sich nur, wenn numerisch unterschiedlich
-            h(idx_hn.jac_cond) < condJ % funktioniert schlecht bei schlechter Kondition. TODO: Schwellwert zu niedrig.
+            condJ < 1e2 % funktioniert schlecht bei schlechter Kondition. TODO: Schwellwert zu niedrig.
           % Alternative 1 für Berechnung: Allgemeine Zwangsbedingungen.
           % Nicht benutzen, da nicht mit constr3-Ergebnissen von oben kombinierbar.
           [~,Phi_q_voll_v4] = %PN%_constr4grad_q(q_k,s_q);
@@ -866,7 +860,7 @@ for k = 1:nt
           [~,Phi_q_voll_test] = %PN%_constr4grad_q(q_k+qD_test,s_q);
           [~,Phi_x_voll_test] = %PN%_constr4grad_x(x_k_ist+xD_test,s_x);
           J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob_I_EE);
-          h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(s.I_qa,:)), ...
+          h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h6drz_v1 = (h6_test_v1-h(idx_hn.jac_cond))/xD_test(6);
@@ -877,7 +871,7 @@ for k = 1:nt
           J_x_inv_test_v2 = J_x_inv + ...
             Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4(:,Rob_I_EE) + ...
             -Phi_q_voll_v4\PhiD_x_voll_v4(:,Rob_I_EE);
-          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v2(s.I_qa,:)), ...
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v2(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v2 = (h6_test_v2-h(idx_hn.jac_cond))/xD_test(6);
 
@@ -890,7 +884,7 @@ for k = 1:nt
           J_x_inv_test_v4 = J_x_inv + ...
             Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob_I_EE) + ...
             -Phi_q_voll\PhiD_x_voll_test(:,Rob_I_EE);
-          h6_test_v4 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v4(s.I_qa,:)), ...
+          h6_test_v4 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v4(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v4 = (h6_test_v4-h(idx_hn.jac_cond))/xD_test(6);
 
@@ -1121,7 +1115,7 @@ for k = 1:nt
     % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
     % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
-    if (condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE) || debug) && ...
+    if (condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE) || debug) && ...
         condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       % (bezogen auf vollständige Koordinaten)
@@ -1178,7 +1172,7 @@ for k = 1:nt
         % (ist hier ausreichend genau).
         % Alternative 1: Jacobi-Matrix direkt berechnen
         J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob_I_EE);
-        h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(s.I_qa,:)), ...
+        h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         
         if s.debug && abs(h6_test_v1-h(idx_hn.jac_cond)) > 1e-12 && h(idx_hn.jac_cond) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
@@ -1192,7 +1186,7 @@ for k = 1:nt
           J_x_inv_test = J_x_inv + ...
             Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob_I_EE) + ...
             -Phi_q_voll\PhiD_x_voll_test(:,Rob_I_EE);
-          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(s.I_qa,:)), ...
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           abserr_12 = h6_test_v1 - h6_test_v2;
           relerr_12 = abserr_12/(h6_test_v1-h(idx_hn.jac_cond));
@@ -1260,7 +1254,7 @@ for k = 1:nt
               all(I_nochange)
               h7dq = zeros(1,NJ);
             elseif ~isinf(h(idx_hn.coll_hyp))
-              h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ... % zurückgegebene Distanz ist zuerst negativ
+              h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
                 [-5*collobjdist_thresh, 0], -collobjdist_thresh);
               h7dq = (h7_test-h(idx_hn.coll_hyp))./(qD_test');
             else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
@@ -1388,7 +1382,7 @@ for k = 1:nt
         v_qDD = v_qDD*1e6/max(abs(v_qDD));
       end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
-      if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE) || debug
+      if condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE) || debug
         qD_N_pre = N * v_qD;
         qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
         % Speichere den Altwert für den Differenzenquotienten
@@ -1396,7 +1390,7 @@ for k = 1:nt
         % Nullraum-Beschleunigung nach der Methode mit vollst. Gelenkraum
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
       end
-      if debug && condJ < thresh_ns_qa && sum(s.I_qa) == sum(Rob_I_EE) && ...
+      if debug && condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE) && ...
           any(abs(qDD_N_pre)>1e-6) && any(abs(qDD_N_pre_voll)>1e-6) % bei sehr kleinen Zahlen numerische Probleme für Test
         % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
         % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
@@ -1427,7 +1421,7 @@ for k = 1:nt
             'Koordinaten ist nicht gleichfoermig (bzgl. vollstaendige)']);
         end
         % Gleiche Prüfung bezogen auf Antriebe
-        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(s.I_qa);
+        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(I_qa);
         test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
         if ~any(isnan(test_qaDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
           ...  % Teste auf 1% genau. Lasse mehr Fehler zu, wenn schlecht konditioniert.
@@ -1438,22 +1432,22 @@ for k = 1:nt
         if cond(Phi_q) < 1e10
           % Die Alternative Berechnung lohnt sich nur zu testen, wenn die
           % IK-Jacobi nicht singulär ist (teilw. bei 3T1R der Fall)
-          xD_N_test1 = J_ax * qDD_N_pre_voll(s.I_qa); %#ok<MINV>
+          xD_N_test1 = J_ax * qDD_N_pre_voll(I_qa); %#ok<MINV>
         else
           xD_N_test1 = NaN(sum(Rob_I_EE),1);
         end
         xD_N_test1_3T3R = zeros(6,1); xD_N_test1_3T3R(Rob_I_EE) = xD_N_test1;
-        xD_N_test2 = J_ax * qDD_N_pre(s.I_qa);
+        xD_N_test2 = J_ax * qDD_N_pre(I_qa);
         xD_N_test2_3T3R = zeros(6,1); xD_N_test2_3T3R(Rob_I_EE) = xD_N_test2;
-        xD_nonns_abs = abs([xD_N_test1_3T3R(s.I_EE_Task);xD_N_test2_3T3R(s.I_EE_Task)]);
-        xD_nonns_rel = abs([xD_N_test1_3T3R(s.I_EE_Task)/max(abs(xD_N_test1_3T3R)); ...
-                        xD_N_test2(s.I_EE_Task)/max(abs(xD_N_test2))]);
+        xD_nonns_abs = abs([xD_N_test1_3T3R(I_EE);xD_N_test2_3T3R(I_EE)]);
+        xD_nonns_rel = abs([xD_N_test1_3T3R(I_EE)/max(abs(xD_N_test1_3T3R)); ...
+                        xD_N_test2(I_EE)/max(abs(xD_N_test2))]);
         if any(xD_nonns_abs>1e-6*(1+condJ/1e3) & xD_nonns_rel > 1e-9*(1+condJ/1e3))
           error(['Nullraumbewegung ist nicht korrekt. Fehler fuer xD: ', ...
             'abs %1.1e, rel %1.1e'], max(xD_nonns_abs), max(xD_nonns_rel));
         end
       end
-      if condJ >= thresh_ns_qa || sum(s.I_qa) ~= sum(Rob_I_EE)
+      if condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE)
         % Benutze die Methode mit vollständigem Gelenkraum (umständliches
         % if-else wegen debug-Abfrage).
         qDD_N_pre = qDD_N_pre_voll;
@@ -1491,10 +1485,10 @@ for k = 1:nt
     % Siehe Aufzeichnungen Schappler, 27.11.2021
     if condJ < 1e6
       % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
-      xDD_JDqD = - J_x_inv(s.I_qa,:) \ JD_x_inv(s.I_qa,:) / ...
-        J_x_inv(s.I_qa,:) * qD_k(s.I_qa);
-      xDD_k_T_ist = J_x_inv(s.I_qa,:) \ qDD_k_T(s.I_qa) + xDD_JDqD;
-      xDD_k_N_ist = J_x_inv(s.I_qa,:) \ qDD_N_pre(s.I_qa);
+      xDD_JDqD = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
+        J_x_inv(I_qa,:) * qD_k(I_qa);
+      xDD_k_T_ist = J_x_inv(I_qa,:) \ qDD_k_T(I_qa) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(I_qa,:) \ qDD_N_pre(I_qa);
     else
       % Benutze Jacobi-Matrix basierend auf erster Beinkette
       xDD_JDqD = - J_x_inv(1:Leg_NQJ(1),:) \ JD_x_inv(1:Leg_NQJ(1),:) / ...
@@ -1524,7 +1518,7 @@ for k = 1:nt
   if redundant && taskred_rot && limits_xD_set && enforce_xDlim
     qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
     if condJ < 1e6 % Benutze PKM-Jacobi
-      xD_pre= J_x_inv(s.I_qa,:) \ qD_pre(s.I_qa);
+      xD_pre= J_x_inv(I_qa,:) \ qD_pre(I_qa);
     else % Benutze erste Beinkette
       xD_pre= J_x_inv(1:Leg_NQJ(1),:) \ qD_pre(1:Leg_NQJ(1));
     end

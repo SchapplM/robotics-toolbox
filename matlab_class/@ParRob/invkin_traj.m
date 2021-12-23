@@ -21,37 +21,37 @@
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
 %   .wn [14x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
-%         (entspricht h(idx_hn.qlim_par))
+%         (entspricht h(1), idx_hn.qlim_par)
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
-%         (entspricht h(idx_hn.qlim_hyp))
+%         (entspricht h(2), idx_hn.qlim_hyp)
 %     (3) Quadratischer Abstand der Gelenkgeschwindigkeiten von ihrer Mitte
-%         (entspricht h(idx_hn.qDlim_par))
+%         (entspricht h(3), idx_hn.qDlim_par)
 %     (4) Hyperbolischer Abstand der Gelenkgeschwindigkeiten von ihren Grenzen
-%         (entspricht h(idx_hn.qDlim_hyp))
+%         (entspricht h(4), idx_hn.qDlim_hyp)
 %     (5) Konditionszahl der geometrischen Matrix der Inv. Kin.
-%         (entspricht h(idx_hn.ikjac_cond))
+%         (entspricht h(5), idx_hn.ikjac_cond)
 %     (6) Konditionszahl der PKM-Jacobi-Matrix (Antriebe zu Plattform)
-%         (entspricht h(idx_hn.jac_cond))
+%         (entspricht h(6), idx_hn.jac_cond)
 %     (7) Wie Eintrag 1, aber auf Geschwindigkeitsebene
 %     (8) Wie Eintrag 2, aber auf Geschwindigkeitsebene
 %     (9) Wie Eintrag 5, aber auf Geschwindigkeitsebene
 %    (10) Wie Eintrag 6, aber auf Geschwindigkeitsebene
 %    (11) Abstand der Kollisionskörper voneinander (hyperbolisch gewertet)
-%         (entspricht h(idx_hn.coll_hyp))
+%         (entspricht h(7), idx_hn.coll_hyp)
 %    (12), wie 11, aber auf Geschwindigkeitsebene
 %    (13) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
-%         (entspricht h(idx_hn.instspc_hyp))
+%         (entspricht h(8), idx_hn.instspc_hyp)
 %    (14) wie 13, aber auf Geschwindigkeitsebene
 %    (15) Abstand von phiz zu xlim (quadratisch gewertet)
-%         (entspricht h(idx_hn.xlim_par))
+%         (entspricht h(9), idx_hn.xlim_par)
 %    (16) wie 15, aber auf Beschleunigungsebene
 %    (17) Abstand von phiz zu xlim (hyperbolisch gewertet)
-%         (entspricht h(idx_hn.xlim_hyp))
+%         (entspricht h(10), idx_hn.xlim_hyp)
 %    (18) wie 17, aber auf Beschleunigungsebene
 %    (19) Abstand von phizD zu xDlim (quadratisch gewertet) als Dämpfung
-%         (entspricht h(idx_hn.xDlim_par))
+%         (entspricht h(11), idx_hn.xDlim_par)
 %    (20) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
-%         (entspricht h(idx_hn.coll_par))
+%         (entspricht h(12), idx_hn.coll_par)
 %    (21), wie 20, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
@@ -78,7 +78,7 @@
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
-%      Kriterien, siehe Beschreibung von Eingabe wn)
+%       Kriterien, siehe Beschreibung von Eingabe wn)
 %   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
 %   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
@@ -100,6 +100,10 @@
 function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 %% Initialisierung
+Rob_I_EE = Rob.I_EE;
+NJ = Rob.NJ;
+NLEG = Rob.NLEG;
+NL = Rob.NL;
 s_std = struct( ...
   'simplify_acc', false, ... % Berechnung der Beschleunigung vereinfachen
   'mode_IK', 3, ...  % 1=Seriell-IK, 2=PKM-IK, 3=beide
@@ -133,11 +137,11 @@ for f = fields(s_std)'
   end
 end
 debug = s.debug;
-I_EE = Rob.I_EE_Task;
+I_EE = s.I_EE_Task;
 mode_IK = s.mode_IK;
 taskred_rot = false;
 
-if any(s.wn ~= 0) && sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+if any(s.wn ~= 0) && sum(Rob_I_EE) > sum(I_EE)
   % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
   % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
   nsoptim = true;
@@ -145,12 +149,14 @@ else
   % Keine zusätzlichen Optimierungskriterien
   nsoptim = false;
 end
-if Rob.I_EE(6) && ~ Rob.I_EE_Task(6)
+if Rob_I_EE(6) && ~I_EE(6)
   taskred_rot = true;
 end
-if all(Rob.I_EE == [1 1 1 1 1 0]), dof_3T2R = true;
+% Vermerke, ob die PKM strukturen 3T2R-FG hat. Dann wird auch die
+% Modellierung für 3T2R-Aufgaben gewählt.
+if all(Rob_I_EE == [1 1 1 1 1 0]), dof_3T2R = true;
 else,                              dof_3T2R = false; end
-if all(Rob.I_EE == [1 1 1 0 0 1]), dof_3T1R = true;
+if all(Rob_I_EE == [1 1 1 0 0 1]), dof_3T1R = true;
 else,                              dof_3T1R = false; end
 
 if nargout == 6
@@ -168,8 +174,8 @@ end
 % ParRob/invkin2_traj sein. Auch konsistent mit SerRob/invkin2, falls von
 % dort übernommen
 s_pik = struct(...
-  'K', ones(Rob.NJ,1), ... % Verstärkung
-  'Kn', zeros(Rob.NJ,1), ... % Verstärkung ... hat keine Wirkung
+  'K', ones(NJ,1), ... % Verstärkung
+  'Kn', zeros(NJ,1), ... % Verstärkung ... hat keine Wirkung
   ... % keine Nullraum-Optim. bei IK-Berechnung auf Positionsebene
   ... % (Variable wn muss gar nicht belegt werden. Standardmäßig Null.)
   'normalize', false, ... % würde Sprung erzeugen
@@ -212,8 +218,8 @@ if ~all(isnan(qlim(:)))
   qmax = qlim(:,2);
 else
   limits_q_set = false;
-  qmin = -inf(Rob.NJ,1);
-  qmax =  inf(Rob.NJ,1);
+  qmin = -inf(NJ,1);
+  qmax =  inf(NJ,1);
 end
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
@@ -221,8 +227,8 @@ if ~all(isnan(qDlim(:)))
   qDmax = qDlim(:,2);
 else
   limits_qD_set = false;
-  qDmin = -inf(Rob.NJ,1);
-  qDmax =  inf(Rob.NJ,1);
+  qDmin = -inf(NJ,1);
+  qDmax =  inf(NJ,1);
 end
 if ~all(isnan(qDDlim(:)))
   limits_qDD_set = true;
@@ -230,8 +236,8 @@ if ~all(isnan(qDDlim(:)))
   qDDmax = qDDlim(:,2);
 else
   limits_qDD_set = false;
-  qDDmin = -inf(Rob.NJ,1);
-  qDDmax =  inf(Rob.NJ,1);
+  qDDmin = -inf(NJ,1);
+  qDDmax =  inf(NJ,1);
 end
 if ~all(isnan(s.xDDlim(:)))
   limits_xDD_set = true;
@@ -249,21 +255,30 @@ enforce_xDlim = s.enforce_xDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
-  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
-wn = [s.wn;zeros(21-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 
 idx_wnP = Rob.idx_iktraj_wnP;
 idx_wnD = Rob.idx_iktraj_wnD;
 idx_hn  = Rob.idx_iktraj_hn;
+idx_ik_length = Rob.idx_ik_length;
+
+wn = [s.wn;zeros(idx_ik_length.wntraj-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
+end
+if isempty(s.collbodies_instspc.type) % Keine Kollisionskörper
+  wn([idx_wnP.instspc_hyp idx_wnD.instspc_hyp]) = 0; % Deaktivierung der Bauraumprüfung
+end
 if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
@@ -304,17 +319,18 @@ else
   redundant = true;
 end
 % Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
-JD_x_inv = NaN(Rob.NJ,sum(Rob.I_EE));
-Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), Rob.NJ);
-Phi_q_voll_alt = zeros(6*Rob.NLEG, Rob.NJ);
+JD_x_inv = NaN(NJ,sum(Rob_I_EE));
+Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), NJ);
+Phi_q_voll_alt = zeros(6*NLEG, NJ);
 Phi_qD_voll = Phi_q_voll_alt;
 Phi_x_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), sum(I_EE));
-Phi_x_voll_alt = zeros(6*Rob.NLEG, 6);
+Phi_x_voll_alt = zeros(6*NLEG, 6);
 Phi_xD_voll = Phi_x_voll_alt;
-N = eye(Rob.NJ);
+N = eye(NJ);
+I_qa = Rob.I_qa;
 
 nt = length(T);
-Q = NaN(nt, Rob.NJ);
+Q = NaN(nt, NJ);
 QD = Q;
 QDD = Q;
 Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
@@ -322,20 +338,21 @@ Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
 % bezogen auf die FG der Plattform ohne Bezug zur Aufgabe.
-Jinv_ges = NaN(nt, sum(Rob.I_EE)*Rob.NJ);
-JinvD_ges = zeros(nt, sum(Rob.I_EE)*Rob.NJ);
+Jinv_ges = NaN(nt, sum(Rob_I_EE)*NJ);
+JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (1+Rob.NL-2+Rob.NLEG)*3);
+JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
+
 qk0 = q0;
-qDk0 = zeros(Rob.NJ,1);
-qaD_N_pre_alt = zeros(sum(Rob.I_qa),1);
-qD_N_pre_alt = zeros(Rob.NJ,1);
-qaDD_N_pre1 = zeros(sum(Rob.I_qa),1);
-qDD_N_pre1 = zeros(Rob.NJ,1);
+qDk0 = zeros(NJ,1);
+qaD_N_pre_alt = zeros(sum(I_qa),1);
+qD_N_pre_alt = zeros(NJ,1);
+qaDD_N_pre1 = zeros(sum(I_qa),1);
+qDD_N_pre1 = zeros(NJ,1);
 xD_k_ist = NaN(6,1);
-Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+Rob.idx_ik_length.hntraj), ...
+Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
   'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
 h = zeros(12,1);
@@ -401,7 +418,7 @@ for k = 1:nt
       % dingungen (wird für Dynamik benutzt).
       % TODO: Hier wird bei 2T1R auch die volle Matrix (mit Nullen) benutzt
       % (in dem Fall unnötig große Matrix zu invertieren).
-      J_x_inv = -Phi_q_voll \ Phi_x_voll(:,Rob.I_EE);
+      J_x_inv = -Phi_q_voll \ Phi_x_voll(:,Rob_I_EE);
     else %dof_3T2R; PKM mit strukturell nur 3T2R FG. Nehme die Jacobi mit reduzierten FG
       J_x_inv = -Phi_q \ Phi_x;
     end
@@ -469,8 +486,8 @@ for k = 1:nt
       % Zeitableitung der inversen Jacobi-Matrix konsistent mit obiger
       % Form. Wird für Berechnung der Coriolis-Kräfte benutzt. Bei Kräften
       % spielt die Aufgabenredundanz keine Rolle.
-      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll(:,Rob.I_EE))...
-        -Phi_xD_voll(:,Rob.I_EE));
+      JD_x_inv = Phi_q_voll\(Phi_qD_voll*(Phi_q_voll\Phi_x_voll(:,Rob_I_EE))...
+        -Phi_xD_voll(:,Rob_I_EE));
     else % alle anderen
       JD_x_inv = Phi_q\(Phi_qD*(Phi_q\Phi_x) - Phi_xD);
     end
@@ -492,24 +509,24 @@ for k = 1:nt
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
     if any(abs(PhiDD_test3) > max(1e-6, max(abs([qD_k;qDD_k_T]))/1e9)) % bei hohen Werten ist die Abweichung größer; feine IK-Toleranz notwendig.
-      error(['Beschleunigung qDD_k_T erfüllt die kinematischen Bedingungen ', ...
+      error(['Beschleunigung qDD_k_T erfuellt die kinematischen Bedingungen ', ...
         'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
     end
   end
   if nsoptim || redundant
     % Nullraum-Projektor für vollständige Gelenkkoordinaten. Muss auch für
     % Grenzkorrekturen weiter unten berechnet werden
-    N = (eye(Rob.NJ) - pinv(Phi_q)* Phi_q);
+    N = (eye(NJ) - pinv(Phi_q)* Phi_q);
   end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T
   qDD_N_min = qDDmin - qDD_k_T;
   qDD_N_max = qDDmax - qDD_k_T;
-  qDD_N_pre = zeros(Rob.NJ, 1);
+  qDD_N_pre = zeros(NJ, 1);
   
   % Bestimme relevante Konditionszahlen in jedem Fall
   condJik = cond(Phi_q); % Benötigt als Singularitätskennzahl
-  Jinv_ax = J_x_inv(Rob.I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
+  Jinv_ax = J_x_inv(I_qa,:); % Jacobi-Matrix Antriebe vs Plattform
   condJ = cond(Jinv_ax);
   if condJik > 1e6
     Stats.mode(k) = bitset(Stats.mode(k),22);
@@ -529,9 +546,9 @@ for k = 1:nt
     % ist die Begrenzung der Koordinate phi_z besser möglich
     xD_k_ist = zeros(6,1);
     if condJ < 1e6 % Benutze PKM-Jacobi
-      xD_k_ist(Rob.I_EE) = Jinv_ax \ qD_k(Rob.I_qa);
+      xD_k_ist(Rob_I_EE) = Jinv_ax \ qD_k(I_qa);
     else % Benutze Jacobi der ersten Beinkette
-      xD_k_ist(Rob.I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k(1:Rob.I2J_LEG(1));
+      xD_k_ist(Rob_I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k(1:Rob.I2J_LEG(1));
     end
     x_k_ist = x_k;
     if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
@@ -549,23 +566,23 @@ for k = 1:nt
     % klein wählen, damit numerische Rundungsfehler nicht zu stark sind.
     xD_test = [zeros(5,1);1e-6];
     % Benutze nur für die Jacobi-Matrix die red. Koordinaten (2T1R, 3T0R)
-    qD_test = J_x_inv * xD_test(Rob.I_EE); % Gelenkänderung der Nullraumbewegung
+    qD_test = J_x_inv * xD_test(Rob_I_EE); % Gelenkänderung der Nullraumbewegung
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
-    if condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE)
+    if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE)
       Stats.mode(k) = bitset(Stats.mode(k),3);
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
       % Jacobi-Matrix bezogen auf Antriebe und Plattform
-      J_ax = inv(J_x_inv(Rob.I_qa,:));
-      J_ax_3T3R = zeros(6,sum(Rob.I_qa));
-      J_ax_3T3R(Rob.I_EE,:) = J_ax;
+      J_ax = inv(J_x_inv(I_qa,:));
+      J_ax_3T3R = zeros(6,sum(I_qa));
+      J_ax_3T3R(Rob_I_EE,:) = J_ax;
       % Jacobi-Matrix zur Umrechnung von Antrieben auf Gesamtgelenke
       J_q_qa = J_x_inv * J_ax; %#ok<MINV>
       % Nullraum-Projektor bezogen auf analytische Jacobi-Matrix ohne
       % letzte redundante Koordinate
-      Na = (eye(sum(Rob.I_qa)) - pinv(J_ax_3T3R(Rob.I_EE_Task,:))* J_ax_3T3R(Rob.I_EE_Task,:));
-      v_qaD = zeros(sum(Rob.I_qa), 1);
-      v_qaDD = zeros(sum(Rob.I_qa), 1);
+      Na = (eye(sum(I_qa)) - pinv(J_ax_3T3R(I_EE,:))* J_ax_3T3R(I_EE,:));
+      v_qaD = zeros(sum(I_qa), 1);
+      v_qaDD = zeros(sum(I_qa), 1);
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
@@ -634,7 +651,7 @@ for k = 1:nt
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
         J_x_inv_test_v3 = -Phi_q_voll_test\Phi_x_voll_test;
-        h6_test_v3 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v3(Rob.I_qa,:)), ...
+        h6_test_v3 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v3(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6drz_v3 = (h6_test_v3-h(idx_hn.jac_cond))/xD_test(6);
@@ -648,8 +665,8 @@ for k = 1:nt
           [~,Phi_x_voll_v4] = Rob.constr4grad_x(x_k_ist);
           [~,Phi_q_voll_test] = Rob.constr4grad_q(q_k+qD_test);
           [~,Phi_x_voll_test] = Rob.constr4grad_x(x_k_ist+xD_test);
-          J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
-          h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+          J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob_I_EE);
+          h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
           h6drz_v1 = (h6_test_v1-h(idx_hn.jac_cond))/xD_test(6);
@@ -658,9 +675,9 @@ for k = 1:nt
           PhiD_q_voll_v4 = Phi_q_voll_test-Phi_q_voll_v4;
           PhiD_x_voll_v4 = Phi_x_voll_test-Phi_x_voll_v4;
           J_x_inv_test_v2 = J_x_inv + ...
-            Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4(:,Rob.I_EE) + ...
-            -Phi_q_voll_v4\PhiD_x_voll_v4(:,Rob.I_EE);
-          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v2(Rob.I_qa,:)), ...
+            Phi_q_voll_v4\PhiD_q_voll_v4/Phi_q_voll_v4*Phi_x_voll_v4(:,Rob_I_EE) + ...
+            -Phi_q_voll_v4\PhiD_x_voll_v4(:,Rob_I_EE);
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v2(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v2 = (h6_test_v2-h(idx_hn.jac_cond))/xD_test(6);
 
@@ -671,9 +688,9 @@ for k = 1:nt
           % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
           % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
           J_x_inv_test_v4 = J_x_inv + ...
-            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
-            -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
-          h6_test_v4 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v4(Rob.I_qa,:)), ...
+            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob_I_EE) + ...
+            -Phi_q_voll\PhiD_x_voll_test(:,Rob_I_EE);
+          h6_test_v4 = invkin_optimcrit_condsplineact(cond(J_x_inv_test_v4(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h6drz_v4 = (h6_test_v4-h(idx_hn.jac_cond))/xD_test(6);
 
@@ -818,7 +835,7 @@ for k = 1:nt
         % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut)
         h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_all(1), ... % Wert bezogen auf aktuelle Pose
             [-100.0, 0], ... % obere Grenze: Bei Überschreiten des Bauraums ist Wert inf
-            -s.installspace_thresh); % oberer Schwellwert: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+            -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
         if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange)
           h8drz = 0;
@@ -904,12 +921,12 @@ for k = 1:nt
     % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
     % Kondition der Antriebe schlecht ist. Kein if-else, damit debug geht.
-    if (condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug) && ...
+    if (condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE) || debug) && ...
         condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       % (bezogen auf vollständige Koordinaten)
-      v_qD = zeros(Rob.NJ, 1);
-      v_qDD = zeros(Rob.NJ, 1);
+      v_qD = zeros(NJ, 1);
+      v_qDD = zeros(NJ, 1);
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
         Stats.mode(k) = bitset(Stats.mode(k),4);
         [h(idx_hn.qlim_par), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
@@ -940,7 +957,7 @@ for k = 1:nt
         h5_test = invkin_optimcrit_condsplineact(cond(Phi_q_test), ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         if abs(h5_test-h(idx_hn.ikjac_cond)) < 1e-12
-          h5dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
+          h5dq = zeros(1,NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h5dq = (h5_test-h(idx_hn.ikjac_cond))./(qD_test');
           h5dq(isnan(h5dq)) = 0;
@@ -960,12 +977,12 @@ for k = 1:nt
         % Daraus mit Differenzenquotient das Differential annähern.
         % (ist hier ausreichend genau).
         % Alternative 1: Jacobi-Matrix direkt berechnen
-        J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob.I_EE);
-        h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+        J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob_I_EE);
+        h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         
         if debug && abs(h6_test_v1-h(idx_hn.jac_cond)) > 1e-12 && h(idx_hn.jac_cond) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
-            cond(Phi_q_voll) < 500 % IK sollte nicht singulär sein
+            cond(Phi_q_voll) < 500 && condJ < 1e3 % IK sollte nicht singulär sein
           % Teste zwei alternative Berechnungen (siehe oben bei Antriebskoord.)
           % Alternative 2: Über Jacobi-Matrix-Inkrement
           PhiD_q_voll_test = Phi_q_voll_test-Phi_q_voll;
@@ -973,9 +990,9 @@ for k = 1:nt
           % Inverse Jacobi-Matrix als Inkrement. Nutze Formel für Zeitableitung
           % einer inversen Matrix (ähnlich wie bei Zeitableitungen).
           J_x_inv_test = J_x_inv + ...
-            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob.I_EE) + ...
-            -Phi_q_voll\PhiD_x_voll_test(:,Rob.I_EE);
-          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(Rob.I_qa,:)), ...
+            Phi_q_voll\PhiD_q_voll_test/Phi_q_voll*Phi_x_voll(:,Rob_I_EE) + ...
+            -Phi_q_voll\PhiD_x_voll_test(:,Rob_I_EE);
+          h6_test_v2 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           abserr_12 = h6_test_v1 - h6_test_v2;
           relerr_12 = abserr_12/(h6_test_v1-h(idx_hn.jac_cond));
@@ -986,7 +1003,7 @@ for k = 1:nt
           end
         end
         if abs(h6_test_v1-h(idx_hn.jac_cond)) < 1e-12
-          h6dq = zeros(1,Rob.NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
+          h6dq = zeros(1,NJ); % Bei isotropen PKM kein Gradient möglich (aber Rundungsabweichungen)
         else
           h6dq = (h6_test_v1-h(idx_hn.jac_cond))./(qD_test');
           h6dq(isnan(h6dq)) = 0; % falls ein qD_test Null ist, nicht sofort abbrechen
@@ -1011,7 +1028,7 @@ for k = 1:nt
           % Prüfe im Folgenden Schritt alle Kollisionen
           colldet(:) = true;
         end
-        h([7,11]) = 0;
+        h([idx_hn.coll_hyp idx_hn.coll_par]) = 0;
         if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]) ~= 0) && colldet_warn || any(wn([idx_wnP.coll_par idx_wnD.coll_par]) ~= 0)
           Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
@@ -1034,14 +1051,14 @@ for k = 1:nt
           % Kollisions-Kriterium berechnen
           if colldet_warn
             h(idx_hn.coll_hyp) = invkin_optimcrit_limits3(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
-                [-5*collobjdist_thresh, 0], -collobjdist_thresh);
+              [-5*collobjdist_thresh, 0], -collobjdist_thresh);
           else
             h(idx_hn.coll_hyp) = 0;
           end
           if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]) ~= 0) % hyperbolisches Kriterium
             if h(idx_hn.coll_hyp) == 0 || ... % nichts tun. Noch im Toleranzbereich
               all(I_nochange)
-              h7dq = zeros(1,Rob.NJ);
+              h7dq = zeros(1,NJ);
             elseif ~isinf(h(idx_hn.coll_hyp))
               h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
                 [-5*collobjdist_thresh, 0], -collobjdist_thresh);
@@ -1102,7 +1119,7 @@ for k = 1:nt
             [-100.0, 0], -s.installspace_thresh);
         if h(idx_hn.instspc_hyp) == 0 || ... % nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
           all(I_nochange)
-          h8dq = zeros(1,Rob.NJ);
+          h8dq = zeros(1,NJ);
         elseif ~isinf(h(idx_hn.instspc_hyp))
           h8_test = invkin_optimcrit_limits3(mindist_all(2), ...
               [-100.0, 0], -s.installspace_thresh);
@@ -1171,7 +1188,7 @@ for k = 1:nt
         v_qDD = v_qDD*1e6/max(abs(v_qDD));
       end
       % Berechne die Nullraumbewegung im Gelenkraum aus den Gradienten
-      if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE) || debug
+      if condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE) || debug
         qD_N_pre = N * v_qD;
         qDD_N_pre1 = N*(qD_N_pre-qD_N_pre_alt)/dt;
         % Speichere den Altwert für den Differenzenquotienten
@@ -1179,7 +1196,7 @@ for k = 1:nt
         % Nullraum-Beschleunigung nach der Methode mit vollst. Gelenkraum
         qDD_N_pre_voll = qDD_N_pre1 + N * v_qDD;
       end
-      if debug && condJ < thresh_ns_qa && sum(Rob.I_qa) == sum(Rob.I_EE) && ...
+      if debug && condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE) && ...
           any(abs(qDD_N_pre)>1e-6) && any(abs(qDD_N_pre_voll)>1e-6) % bei sehr kleinen Zahlen numerische Probleme für Test
         % Prüfe, ob beide Methoden (q vs qa) das gleiche Ergebnis geben.
         % Die Richtung ist gleich, aber nicht der Betrag. Vermutlich wegen
@@ -1192,7 +1209,7 @@ for k = 1:nt
         % möglich. Liegt an unterschiedlichen Größen der Gradienten.
         if all(abs(qDD_N_pre_voll)>1e-6) && any(test_qDD_N_ratio < 0) && ...
             sum(wn~=0)==1 % Bei einem einzigen Kriterium sollte es gehen.
-          error('Die Richtung der Nullraumbewegung ist nicht gleich in beiden Koordinatenräumen');
+          error('Die Richtung der Nullraumbewegung ist nicht gleich in beiden Koordinatenraeumen');
         end
         % Prüfe, ob das Verhältnis der Nullraumbewegungen für alle Gelenke
         % gleich ist. Betrachte dafür nur Gelenke, die ungleich Null sind.
@@ -1206,37 +1223,37 @@ for k = 1:nt
         if ~any(isnan(test_qDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
           abs(diff(minmax2(test_qDD_N_ratio_rel(I_nonzero)'))) > 5e-2 % 5% genau (für kleine Zahlenwerte)
           disp(test_qDD_N_ratio_rel);
-          error(['Die Nullraumbewegung aus Antriebs- oder vollständigen ', ...
-            'Koordinaten ist nicht gleichförmig (bzgl. vollständige)']);
+          error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
+            'Koordinaten ist nicht gleichfoermig (bzgl. vollstaendige)']);
         end
         % Gleiche Prüfung bezogen auf Antriebe
-        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(Rob.I_qa);
+        test_qaDD_N_ratio = qaDD_N_pre1 ./ qDD_N_pre1(I_qa);
         test_qaDD_N_ratio_rel = 1-test_qaDD_N_ratio/test_qaDD_N_ratio(1);
         if ~any(isnan(test_qaDD_N_ratio)) && ... % bei exakt h=0 kommt sonst Fehler
           ...  % Teste auf 1% genau. Lasse mehr Fehler zu, wenn schlecht konditioniert.
           abs(diff(minmax2(test_qaDD_N_ratio_rel'))) > (1+condJ/1e3)*1e-2
-          error(['Die Nullraumbewegung aus Antriebs- oder vollständigen ', ...
-            'Koordinaten ist nicht gleichförmig (bzgl. Antriebe)']);
+          error(['Die Nullraumbewegung aus Antriebs- oder vollstaendigen ', ...
+            'Koordinaten ist nicht gleichfoermig (bzgl. Antriebe)']);
         end
         if cond(Phi_q) < 1e10
           % Die Alternative Berechnung lohnt sich nur zu testen, wenn die
           % IK-Jacobi nicht singulär ist (teilw. bei 3T1R der Fall)
-          xD_N_test1 = J_ax * qDD_N_pre_voll(Rob.I_qa); %#ok<MINV>
+          xD_N_test1 = J_ax * qDD_N_pre_voll(I_qa); %#ok<MINV>
         else
-          xD_N_test1 = NaN(sum(Rob.I_EE),1);
+          xD_N_test1 = NaN(sum(Rob_I_EE),1);
         end
-        xD_N_test1_3T3R = zeros(6,1); xD_N_test1_3T3R(Rob.I_EE) = xD_N_test1;
-        xD_N_test2 = J_ax * qDD_N_pre(Rob.I_qa); %#ok<MINV>
-        xD_N_test2_3T3R = zeros(6,1); xD_N_test2_3T3R(Rob.I_EE) = xD_N_test2;
-        xD_nonns_abs = abs([xD_N_test1_3T3R(Rob.I_EE_Task);xD_N_test2_3T3R(Rob.I_EE_Task)]);
-        xD_nonns_rel = abs([xD_N_test1_3T3R(Rob.I_EE_Task)/max(abs(xD_N_test1_3T3R)); ...
-                        xD_N_test2(Rob.I_EE_Task)/max(abs(xD_N_test2))]);
+        xD_N_test1_3T3R = zeros(6,1); xD_N_test1_3T3R(Rob_I_EE) = xD_N_test1;
+        xD_N_test2 = J_ax * qDD_N_pre(I_qa); %#ok<MINV>
+        xD_N_test2_3T3R = zeros(6,1); xD_N_test2_3T3R(Rob_I_EE) = xD_N_test2;
+        xD_nonns_abs = abs([xD_N_test1_3T3R(I_EE);xD_N_test2_3T3R(I_EE)]);
+        xD_nonns_rel = abs([xD_N_test1_3T3R(I_EE)/max(abs(xD_N_test1_3T3R)); ...
+                        xD_N_test2(I_EE)/max(abs(xD_N_test2))]);
         if any(xD_nonns_abs>1e-6*(1+condJ/1e3) & xD_nonns_rel > 1e-9*(1+condJ/1e3))
-          error(['Nullraumbewegung ist nicht korrekt. Fehler für xD: ', ...
+          error(['Nullraumbewegung ist nicht korrekt. Fehler fuer xD: ', ...
             'abs %1.1e, rel %1.1e'], max(xD_nonns_abs), max(xD_nonns_rel));
         end
       end
-      if condJ >= thresh_ns_qa || sum(Rob.I_qa) ~= sum(Rob.I_EE)
+      if condJ >= thresh_ns_qa || sum(I_qa) ~= sum(Rob_I_EE)
         % Benutze die Methode mit vollständigem Gelenkraum (umständliches
         % if-else wegen debug-Abfrage).
         qDD_N_pre = qDD_N_pre_voll;
@@ -1274,10 +1291,10 @@ for k = 1:nt
     % Siehe Aufzeichnungen Schappler, 27.11.2021
     if condJ < 1e6
       % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
-      xDD_JDqD = - J_x_inv(Rob.I_qa,:) \ JD_x_inv(Rob.I_qa,:) / ...
-        J_x_inv(Rob.I_qa,:) * qD_k(Rob.I_qa);
-      xDD_k_T_ist = J_x_inv(Rob.I_qa,:) \ qDD_k_T(Rob.I_qa) + xDD_JDqD;
-      xDD_k_N_ist = J_x_inv(Rob.I_qa,:) \ qDD_N_pre(Rob.I_qa);
+      xDD_JDqD = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
+        J_x_inv(I_qa,:) * qD_k(I_qa);
+      xDD_k_T_ist = J_x_inv(I_qa,:) \ qDD_k_T(I_qa) + xDD_JDqD;
+      xDD_k_N_ist = J_x_inv(I_qa,:) \ qDD_N_pre(I_qa);
     else
       % Benutze Jacobi-Matrix basierend auf erster Beinkette
       xDD_JDqD = - J_x_inv(1:Rob.I2J_LEG(1),:) \ JD_x_inv(1:Rob.I2J_LEG(1),:) / ...
@@ -1298,7 +1315,7 @@ for k = 1:nt
         delta_phizDD = phizDDmin - phizDD_k_N_ist; % Wert zu klein, muss größer werden
       end
       delta_xDD = [zeros(5,1); delta_phizDD];
-      delta_qDD = J_x_inv * delta_xDD(Rob.I_EE);
+      delta_qDD = J_x_inv * delta_xDD(Rob_I_EE);
       qDD_N_pre = qDD_N_pre + delta_qDD;
     end
   end
@@ -1307,7 +1324,7 @@ for k = 1:nt
   if redundant && taskred_rot && limits_xD_set && enforce_xDlim
     qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
     if condJ < 1e6 % Benutze PKM-Jacobi
-      xD_pre= J_x_inv(Rob.I_qa,:) \ qD_pre(Rob.I_qa);
+      xD_pre= J_x_inv(I_qa,:) \ qD_pre(I_qa);
     else % Benutze erste Beinkette
       xD_pre= J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_pre(1:Rob.I2J_LEG(1));
     end
@@ -1323,7 +1340,7 @@ for k = 1:nt
       end
       % Erzeuge die Nullraumbeschleunigung im Gelenkraum
       xDD_counterlim = [zeros(5,1); phizDD_counterlim];
-      delta_qDD = J_x_inv * xDD_counterlim(Rob.I_EE);
+      delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
       qDD_N_pre = qDD_N_pre + delta_qDD;
     end
   end
@@ -1489,7 +1506,6 @@ for k = 1:nt
       end
     end
   end
-  % TODO: Konsistente Reihenfolge in wn und h.
   I_wn = [idx_wnP.qlim_par, idx_wnP.qlim_hyp,   idx_wnP.qDlim_par,...
           idx_wnP.qDlim_hyp,idx_wnP.ikjac_cond, idx_wnP.jac_cond,...
           idx_wnP.coll_hyp, idx_wnP.instspc_hyp,idx_wnP.xlim_par,...
