@@ -588,6 +588,7 @@ for k = 1:nt
       v_qaDD = zeros(sum(I_qa), 1);
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
+      %% Antriebskoordinaten: Einhaltung Gelenkwinkelgrenzen
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
         Stats.mode(k) = bitset(Stats.mode(k),4);
         h(idx_hn.qlim_par) = invkin_optimcrit_limits1(q_k, qlim);
@@ -610,6 +611,7 @@ for k = 1:nt
         v_qaD = v_qaD - wn(idx_wnD.qlim_hyp)*h2dqa(:);
         v_qaDD = v_qaDD - wn(idx_wnP.qlim_hyp)*h2dqa(:);
       end
+      %% Antriebskoordinaten: Einhaltung Gelenkgeschwindigkeitsgrenzen
       if wn(idx_wnP.qDlim_par) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         Stats.mode(k) = bitset(Stats.mode(k),6);
         [h(idx_hn.qDlim_par), h3dq_diff] = invkin_optimcrit_limits1(qD_k, qDlim);
@@ -629,6 +631,7 @@ for k = 1:nt
         h4dqa =  h4drz * J_ax(end,:);
         v_qaDD = v_qaDD - wn(idx_wnP.qDlim_hyp)*h4dqa(:);
       end
+      %% Antriebskoordinaten: Singularitätsvermeidung (IK-Jacobi)
       if (wn(idx_wnP.ikjac_cond) ~= 0 || wn(idx_wnD.ikjac_cond) ~= 0) && condJik > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
@@ -643,6 +646,7 @@ for k = 1:nt
       else
         h(idx_hn.ikjac_cond) = 0;
       end
+      %% Antriebskoordinaten: Singularitätsvermeidung (PKM-Jacobi)
       if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
@@ -735,6 +739,7 @@ for k = 1:nt
       else
         h(idx_hn.jac_cond) = 0;
       end
+      %% Antriebskoordinaten: Kollisionsvermeidung
       if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
         colldet_warn = false;
@@ -810,6 +815,7 @@ for k = 1:nt
           end
         end
       end
+      %% Antriebskoordinaten: Einhaltung der Bauraumgrenzen
       h([idx_hn.instspc_hyp idx_hn.instspc_par]) = 0;
       if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 || ... % Bauraumprüfung
           wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
@@ -871,6 +877,7 @@ for k = 1:nt
           v_qaDD = v_qaDD - wn(idx_wnP.instspc_par)*h13dqa(:);
         end
       end
+      %% Antriebskoordinaten: Einhaltung der Grenzen der redundanten Koord.
       if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
         Stats.mode(k) = bitset(Stats.mode(k),12);
         h(idx_hn.xlim_par) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
@@ -911,6 +918,7 @@ for k = 1:nt
         h11dqa = h11drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaDD = v_qaDD - wn(idx_wnP.xDlim_par)*h11dqa(:);
       end
+      %% Antriebskoordinaten: Abschluss der Nullraumbewegung
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -944,6 +952,7 @@ for k = 1:nt
       % (bezogen auf vollständige Koordinaten)
       v_qD = zeros(NJ, 1);
       v_qDD = zeros(NJ, 1);
+      %% Gelenkkoordinaten: Einhaltung Gelenkwinkelgrenzen
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
         Stats.mode(k) = bitset(Stats.mode(k),4);
         [h(idx_hn.qlim_par), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
@@ -956,6 +965,7 @@ for k = 1:nt
         v_qD = v_qD - wn(idx_wnD.qlim_hyp)*h2dq(:);
         v_qDD = v_qDD - wn(idx_wnP.qlim_hyp)*h2dq(:);
       end
+      %% Gelenkkoordinaten: Einhaltung Gelenkgeschwindigkeitsgrenzen
       if wn(idx_wnP.qDlim_par) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         [h(idx_hn.qDlim_par), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
         Stats.mode(k) = bitset(Stats.mode(k),6);
@@ -966,6 +976,7 @@ for k = 1:nt
         [h(idx_hn.qDlim_hyp), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
         v_qDD = v_qDD - wn(idx_wnP.qDlim_hyp)*h4dq(:);
       end
+      %% Gelenkkoordinaten: Singularitätsvermeidung (IK-Jacobi)
       if (wn(idx_wnP.ikjac_cond) ~= 0 || wn(idx_wnD.ikjac_cond) ~= 0) && condJik > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
@@ -984,6 +995,7 @@ for k = 1:nt
       else
         h(idx_hn.ikjac_cond) = 0;
       end
+      %% Gelenkkoordinaten: Singularitätsvermeidung (PKM-Jacobi)
       if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
@@ -1030,6 +1042,7 @@ for k = 1:nt
       else
         h(idx_hn.jac_cond) = 0;
       end
+      %% Gelenkkoordinaten: Kollisionsvermeidung
       if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
         colldet_warn = false;
@@ -1103,6 +1116,7 @@ for k = 1:nt
           end
         end
       end
+      %% Gelenkkoordinaten: Einhaltung der Bauraumgrenzen
       if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 || ...% Bauraumprüfung
           wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
         Stats.mode(k) = bitset(Stats.mode(k),11);
@@ -1163,6 +1177,7 @@ for k = 1:nt
           v_qDD = v_qDD - wn(idx_wnP.instspc_par)*h13dq(:);
         end
       end
+      %% Gelenkkoordinaten: Einhaltung der Grenzen der redundanten Koord.
       if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
         Stats.mode(k) = bitset(Stats.mode(k),12);
         h(idx_hn.xlim_par) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
@@ -1202,6 +1217,7 @@ for k = 1:nt
         h11dq = (h11_test2-h11_test1)./(2*qD_test'); % Siehe [SchapplerOrt2021], Gl. 28
         v_qDD = v_qDD - wn(idx_wnP.xDlim_par)*h11dq(:);
       end
+      %% Gelenkkoordinaten: Abschluss der Nullraumbewegung
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -1288,7 +1304,7 @@ for k = 1:nt
       end
     end
   end
-  
+  %% Nullraumbewegung weiter nachverarbeiten
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
   % Grenzen erreicht werden. Sollte eigentlich nur hier gemacht werden,
   % wird aber zur Verbesserung der Robustheit auch zusätzlich noch unten

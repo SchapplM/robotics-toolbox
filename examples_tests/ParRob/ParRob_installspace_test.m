@@ -11,7 +11,9 @@ clear
 
 usr_save_figures = false;
 usr_create_anim = false; % zum Aktivieren der Video-Animationen (dauert etwas)
+usr_use_mex = true; % Zum Debuggen ohne Kompilieren
 usr_test_class = true;
+usr_debug_ik = true; % Für redundante Debug-Berechnungen in IK-Funktionen
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 resdir = fullfile(rob_path, 'examples_tests', 'results', 'InstallSpace');
 mkdirs(resdir);
@@ -23,7 +25,7 @@ if isempty(which('parroblib_path_init.m'))
 end
 RP = parroblib_create_robot_class('P3RRR1G1P1A1', 0.75, 0.25);
 parroblib_update_template_functions({'P3RRR1G1P1A1'});
-RP.fill_fcn_handles(true, true); % keine mex-Funktionen, einfache Rechnung
+RP.fill_fcn_handles(usr_use_mex, true);
 pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
 % Nachbearbeitung einiger Kinematikparameter
 pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.5;
@@ -125,6 +127,7 @@ view([0, 90])
 s_basic = struct('maxrelstep', 0.001, 'maxrelstep_ns', 0.001, ...
   'retry_limit', 0, 'wn', zeros(RP.idx_ik_length.wnpos,1));
 s_basic.wn(RP.idx_ikpos_wn.jac_cond) = 1; % Optimiere PKM-Konditionszahl
+s_basic.debug = usr_debug_ik;
 q0 = q;
 x0 = X;
 x1 = x0 + [0.3; -0.1; 0; zeros(3,1)]; % bewege den End-Effektor nach unten rechts (außerhalb des Bauraums)
