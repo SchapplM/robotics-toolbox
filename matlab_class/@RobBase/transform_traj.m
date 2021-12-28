@@ -58,7 +58,7 @@ if ~test_norot && ~test_rotx_xyz
     % Rotiere alle Orientierungsdarstellungen und Geschwindigkeiten
     T_W_Pi = R.x2t(X_W(i,:)');
     R_W_Pi = T_W_Pi(1:3,1:3);
-    R_0_Pi = R_W_0*R_W_Pi;
+    R_0_Pi = R_0_W*R_W_Pi;
     
     % Translation: r_0_Pi = R_0_W*(r_W_0_W + r_W_W_Pi);
     X_0(i,1:3) = R_0_W*(-R.T_W_0(1:3,4)+X_W(i,1:3)');
