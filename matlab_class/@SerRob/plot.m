@@ -49,6 +49,7 @@ hdl = [];
 s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ... % Linien gerade setzen oder entlang der MDH-Parameter
+             'T_W_0', Rob.T_W_0, ... % T_W_0 für Plot von PKM-Beinketten
              'ks', [1, Rob.NJ+2], ... % nur Basis- und EE-KS
              'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
              'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
@@ -72,8 +73,16 @@ for f = fields(s_std)'
     s.(f{1}) = s_std.(f{1});
   end
 end
+% Transformationsmatrizen zu allen Körper-KS bestimmen (Basis-KS)
+T_c_0 = Rob.fkine(qJ);
+% Umrechnen in das Welt-Koordinatensystem. Benutze nicht das in der
+% Roboterklasse eingespeicherte, sondern ein extern vorgegebenes. Dadurch
+% für PKM einfachere Implementierung für Darstellung der Beinketten
+T_c_W = NaN(size(T_c_0));
+for i = 1:size(T_c_W,3)
+  T_c_W(:,:,i) = s.T_W_0 * T_c_0(:,:,i);
+end
 
-[~,T_c_W] = Rob.fkine(qJ);
 v = Rob.MDH.v;
 
 % Bestimme Gelenkvariablen. Bei hybriden Robotern unterschiedlich zu den
@@ -331,9 +340,25 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
           % Transformation zu Anfangs- und Endlage des Schubgelenkes
           T_qmin = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
           T_qmax = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
-
+          if abs(Rob.qlim(i,1)) < abs(Rob.qlim(i,2))
+            % Untere Grenze ist betragsmäßig kleiner als obere Grenze.
+            % Normaler Fall mit positiven Koordinaten. Wähle qmin als nahen
+            % und qmax als fernen Punkt von Führungsschiene/Hubzylinder
+            T_qdist = T_qmax;
+            T_qprox = T_qmin;
+          else
+            % Negative Koordinaten. Untere Grenze hat betragsgrößeren (aber
+            % negativen) Wert und ist deshalb weiter vom vorherigen Gelenk
+            % weg. Intuitiver ist das Vertauschen der beiden Grenzen für
+            % Plot.
+            T_qdist = T_qmin;
+            T_qprox = T_qmax;
+          end
+          % Debug:
+%           trplot(T_qmin, 'frame', sprintf('qmin%d', i), 'rgb', 'length', 0.2);
+%           trplot(T_qmax, 'frame', sprintf('qmax%d', i), 'rgb', 'length', 0.2);
           if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
-            % Zeichne Linearführung als Quader
+            % Zeichne Linearführung als Quader. TODO: Benutze T_qprox/T_qdist
             cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2-r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
             cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
             cubpar_a = rotation3dToEulerAngles(T_qmin(1:3,1:3))'; % Orientierung des Quaders
@@ -387,13 +412,13 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
               warning('Ser.DesPar.joint_offset noch nicht für diesen Fall implementiert');
             end
             % Großer Zylinder, muss so lang sein wie maximaler Hub.
-            T_grozylstart = T_qmin * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
-            hdl_link_im1(end+1) = drawCylinder([T_grozylstart(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+            T_grozylstart = T_qprox * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            hdl_link_im1(end+1) = drawCylinder([T_grozylstart(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
               'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 1 0], ...
               'EdgeAlpha', 0.1);  %#ok<AGROW>
             % Kleinerer Zylinder, der herauskommt (aber so lang ist, wie
             % der maximale Hub)
-            T_klezylstart = T2 * transl([0;0;-(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+            T_klezylstart = T2 * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
             hdl_link_i(end+1) = drawCylinder([T_klezylstart(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/3], ...
               'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 0 0], ...
               'EdgeAlpha', 0.1);  %#ok<AGROW>
@@ -407,7 +432,7 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
               else
                 % Keine senkrechte Verbindung (Zylinder fängt woanders an)
                 if Rob.qlim(i,2) < 0 % Großer Zylinder liegt komplett "links" (von x-Achse schauend)
-                  hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_qmin(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                  hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
                     'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                     'EdgeAlpha', 0.1);  %#ok<AGROW>
                 else % Großer Zylinder liegt komplett "rechts"

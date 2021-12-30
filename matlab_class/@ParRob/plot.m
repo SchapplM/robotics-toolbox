@@ -72,8 +72,7 @@ for iLeg = 1:Rob.NLEG
   
   % Basis-KS der Beinkette temporär modifizieren, damit die
   % Basis-Transformation der PKM hier berücksichtigt werden kann.
-  T_0_0i_old = Rob.Leg(iLeg).T_W_0;
-  Rob.Leg(iLeg).T_W_0 = T_W_0 * T_0_0i_old;
+  s_ser.T_W_0 = T_W_0 * Rob.Leg(iLeg).T_W_0;
   Rob.Leg(iLeg).plot(qs, s_ser);
   % Umbenennung der gezeichneten 3D-Körper (Ziel: "Leg1_Link2").
   for c = get(gca, 'children')'
@@ -86,7 +85,6 @@ for iLeg = 1:Rob.NLEG
       set(c, 'DisplayName', sprintf('Leg_%d_%s', iLeg, tokens{1}));
     end
   end
-  Rob.Leg(iLeg).T_W_0 = T_0_0i_old;
 end
 
 % Koordinatensysteme der Beine
