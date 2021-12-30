@@ -107,7 +107,7 @@ Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
 out3_ind1 = 3; % Zeilenzähler für obige Variable (drei Zeilen stehen schon)
 
 if nargout == 4
-  Stats = struct('Q', NaN(1+s.n_max, Rob.NJ), 'PHI', NaN(1+s.n_max, Rob.I2constr_red(end)), ...
+  Stats = struct('Q', NaN(1+s.n_max, Rob.NJ), 'PHI', NaN(1+s.n_max, Rob.I2constr(end)), ...
     'iter', repmat(s.n_max,1,Rob.NLEG), 'retry_number', zeros(1,Rob.NLEG), ...
     'condJ', NaN(1+s.n_max,2*Rob.NLEG), 'lambda', NaN(s.n_max,2*Rob.NLEG));
 end
@@ -131,13 +131,13 @@ for i = 1:Rob.NLEG
   s.I_EE = s_par.Leg_I_EE_Task(i,:);
 
   % Initialisierung: Startwerte der IK
-  if i == 1 || all(~isnan(Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i))))
+  I_nan = any( isnan(Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:)) );
+  if i == 1 || all(~I_nan)
     Q0_i = Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:);
   else
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
     % Zusätzlich danach alle gegebenen Anfangswerte prüfen (sofern nicht NaN).
-    I_nan = any( isnan(Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),:)) );
     Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),~I_nan)];
   end
   
