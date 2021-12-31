@@ -180,9 +180,10 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
         % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
         % auf dem Quader befestigt ist.
         r_W_Gi = r_W_Oi;
-      elseif s.straight
+      elseif s.straight && Rob.MDH.a(i) ~= 0
         % Bei schräger Verbindung muss das Gelenk direkt im Gelenk-KS
-        % gezeichnet werden
+        % gezeichnet werden. Bei sowieso gerade Verbindung ignorieren.
+        % Dann sieht die nächste Option besser aus
         r_W_Gi = r_W_Oi;
       else
         % Bei der normalen Kinematik-Skizze wird das Schubgelenk auch in
