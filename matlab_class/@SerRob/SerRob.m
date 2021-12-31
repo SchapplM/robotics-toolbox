@@ -696,11 +696,17 @@ classdef SerRob < RobBase
       end
       % Deaktiviere Kollisionsvermeidung, wenn keine Körper definiert sind.
       if (s.wn(R.idx_ikpos_wn.coll_hyp) || s.wn(R.idx_ikpos_wn.coll_par)) ...
-          && (isempty(R.collchecks) || isempty(R.collbodies))
+          && (isempty(R.collchecks) || isempty(R.collbodies.type))
         s.wn(R.idx_ikpos_wn.coll_hyp) = 0;
         s.wn(R.idx_ikpos_wn.coll_par) = 0;
         s.scale_coll = 0;
         s.avoid_collision_finish = false;
+      end
+      % Deaktiviere Bauraumeinhaltung, wenn keine Körper definiert sind
+      if (s.wn(R.idx_ikpos_wn.instspc_hyp) || s.wn(R.idx_ikpos_wn.instspc_par)) ...
+          && (isempty(R.collchecks_instspc) || isempty(R.collbodies_instspc.type))
+        s.wn(R.idx_ikpos_wn.instspc_hyp) = 0;
+        s.wn(R.idx_ikpos_wn.instspc_par) = 0;
       end
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3

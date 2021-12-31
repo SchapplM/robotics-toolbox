@@ -152,7 +152,7 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
   avoid_collision_finish = false;
 end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
-  s.wn(idx_wn.instspc_hyp) = 0; % Deaktivierung der Bauraumprüfung
+  s.wn([idx_wn.instspc_hyp,idx_wn.instspc_par]) = 0; % Deaktivierung der Bauraumprüfung
 end
 if scale_coll || any(s.wn([idx_wn.coll_hyp,idx_wn.coll_par])) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.

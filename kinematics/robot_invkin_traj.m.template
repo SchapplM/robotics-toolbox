@@ -258,7 +258,7 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
   wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
 end
 if isempty(s.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
-  wn([idx_wnP.instspc_hyp,idx_wnD.instspc_hyp]) = 0; % Deaktivierung der Bauraumprüfung
+  wn([idx_wnP.instspc_hyp,idx_wnD.instspc_hyp,idx_wnP.instspc_par,idx_wnD.instspc_par]) = 0; % Deaktivierung der Bauraumprüfung
 end
 if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.

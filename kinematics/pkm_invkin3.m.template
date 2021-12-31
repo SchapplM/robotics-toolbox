@@ -323,7 +323,7 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
   avoid_collision_finish = false;
 end
 if isempty(s.collbodies_instspc.type) % Keine Kollisionskörper
-  s.wn(idx_wn.instspc_hyp) = 0; % Deaktivierung der Bauraumprüfung
+  s.wn([idx_wn.instspc_hyp,idx_wn.instspc_par]) = 0; % Deaktivierung der Bauraumprüfung
 end
 wn = s.wn;
 if scale_coll || wn(idx_wn.coll_hyp) || wn(idx_wn.coll_par) || avoid_collision_finish
