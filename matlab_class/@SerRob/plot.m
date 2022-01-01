@@ -180,7 +180,7 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
         % Abstand a gibt. Dann sieht es so aus, als ob das folgende Segment
         % auf dem Quader befestigt ist.
         r_W_Gi = r_W_Oi;
-      elseif s.straight && Rob.MDH.a(i) ~= 0
+      elseif s.straight && (Rob.MDH.a(i) ~= 0 || any(r_W_Gi_offsetkorr))
         % Bei schräger Verbindung muss das Gelenk direkt im Gelenk-KS
         % gezeichnet werden. Bei sowieso gerade Verbindung ignorieren.
         % Dann sieht die nächste Option besser aus
