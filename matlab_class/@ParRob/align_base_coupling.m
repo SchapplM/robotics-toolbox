@@ -155,8 +155,9 @@ elseif method > 4 && method <= 8 % Paarweise angeordnet
       Rob.Leg(k_leg).update_base();
     end
   end
-elseif method == 9
-  % Methode 9: Alle Gelenkachsen parallel angeordnet
+elseif any(method == [9 10])
+  % Methode 9: Alle Gelenkachsen parallel angeordnet (in der Ebene)
+  % Methode 10: parallel senkrecht zur Ebene
   n_base_par = 1;
   r_0A = param(1);
   for i = 1:NLEG
@@ -170,6 +171,9 @@ elseif method == 9
       phi_0_Ai_ges(:,i) = [0*sym('pi')/180;0*sym('pi')/180;sym('pi')/2];
     else
       phi_0_Ai_ges(:,i) = [pi/2;0*pi/180; pi/2];
+    end
+    if method == 10 % genauso ausgerichtet wie das Basis-KS
+      phi_0_Ai_ges(:) = 0;
     end
     
     if Rob.issym

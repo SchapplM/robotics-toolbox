@@ -61,6 +61,11 @@ else
       basecoupling_equiv = 4;
     case 9
       basecoupling_equiv = [4,8];
+    case 10
+      % Beide Methoden haben senkrechte Gestellgelenke
+      basecoupling_equiv = 1; % TODO: Prüfen, ob das stimmt
+    otherwise
+      error('Fall %s nicht definiert', res{5});
   end
   % Code für die eigentlich gesuchte Darstellung vorne und hinten anstellen
   % (zuerst suchen und einstellen, wenn nichts gefunden wurde).

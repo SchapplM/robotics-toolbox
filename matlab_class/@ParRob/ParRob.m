@@ -508,6 +508,11 @@ classdef ParRob < RobBase
           G_q = R.constr3grad_q(q, xE, platform_frame);
           G_x = R.constr3grad_x(q, xE, platform_frame);
           Jinv_num_voll = -G_q \ G_x;
+        elseif all(R.I_EE == [1 1 1 1 1 0])
+          % 3T2R-PKM: Spezielle Modellierung
+          G_q = R.constr2grad_q(q, xE, platform_frame);
+          G_x = R.constr2grad_x(q, xE, platform_frame);
+          Jinv_num_voll = -G_q \ G_x;
         else
           % Normalfall: Reduzierte ZB (z.B. bei 2T1R).
           G_q = R.constr4grad_q(q);
