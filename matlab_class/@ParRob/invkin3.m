@@ -17,7 +17,7 @@
 % s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 %   Auswahl der Einstellungen:	
-%   .wn [9x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Matrix der Inv. Kin.
@@ -27,6 +27,7 @@
 %     (7) Abstand von phiz zu xlim (quadratisch gewertet)
 %     (8) Abstand von phiz zu xlim (hyperbolisch gewertet)
 %     (9) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
+%    (10) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (quadratisch)
 % 
 % Ausgabe:
 % q [Nx1]
@@ -70,17 +71,23 @@
 function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, Q0, s_in)
 
 %% Initialisierung
+% Variablen so initialisieren, dass Code gleich mit Vorlagen-Funktion
+Rob_I_EE = Rob.I_EE;
+NJ = Rob.NJ;
+NL = Rob.NL;
+NLEG = Rob.NLEG;
+I_qa = Rob.I_qa;
 assert(isreal(xE_soll) && all(size(xE_soll) == [6 1]), ...
   'ParRob/invkin3: xE_soll muss 6x1 sein');
-assert(isreal(Q0) && all(size(Q0,1) == [Rob.NJ]), ...
-  'ParRob/invkin3: Q0 muss %dxn sein', Rob.NJ);
+assert(isreal(Q0) && all(size(Q0,1) == [NJ]), ...
+  'ParRob/invkin3: Q0 muss %dxn sein', NJ);
 
 %% Definitionen
 % Variablen zum Speichern der Zwischenergebnisse
 sigma_PKM = Rob.MDH.sigma; % Marker für Dreh-/Schubgelenk
 s = struct(...
-  'K', ones(Rob.NJ,1), ... % Verstärkung Aufgabenbewegung
-  'Kn', ones(Rob.NJ,1), ... % Verstärkung Nullraumbewegung
+  'K', ones(NJ,1), ... % Verstärkung Aufgabenbewegung
+  'Kn', ones(NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(Rob.idx_ik_length.wnpos,1), ... % Gewichtung der Nebenbedingung
   'xlim', Rob.xlim, ... % Begrenzung der Endeffektor-Koordinaten
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
@@ -127,7 +134,7 @@ K = s.K;
 Kn = s.Kn; 
 n_min = s.n_min;
 n_max = s.n_max;
-s.wn = [s.wn;zeros(9-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
+s.wn = [s.wn;zeros(Rob.idx_ik_length.wnpos-length(s.wn),1)]; % Fülle mit Nullen auf, falls altes Eingabeformat
 wn = s.wn;
 condlimDLS = s.condlimDLS;
 lambda_min = s.lambda_min;
@@ -145,7 +152,7 @@ avoid_collision_finish = s.avoid_collision_finish;
 success = false;
 
 nsoptim = false;
-if sum(Rob.I_EE) > sum(Rob.I_EE_Task)
+if sum(Rob_I_EE) > sum(Rob.I_EE_Task)
   % Nullraumoptimierung nur möglich, falls FG da sind. TODO: Das
   % berücksichtigt noch nicht den Fall von 3T3R-PKM in 3T0R-Aufgaben.
   if any(wn ~= 0)
@@ -156,15 +163,16 @@ else
   finish_in_limits = false; % Alle Nullraumbewegungen nicht möglich
 end
 % Prüfe, ob der Fall von 1FG-Aufgabenredundanz vorliegt.
-if sum(Rob.I_EE) - sum(Rob.I_EE_Task) == 1 && ~Rob.I_EE_Task(end)
+if sum(Rob_I_EE) - sum(Rob.I_EE_Task) == 1 && ~Rob.I_EE_Task(end)
   taskred_rotsym = true;
 else
   taskred_rotsym = false;
 end
-
-qlim = NaN(Rob.NJ,2);
+idx_wn = Rob.idx_ikpos_wn;
+idx_hn = Rob.idx_ikpos_hn;
+qlim = NaN(NJ,2);
 J1 = 1;
-for i = 1:Rob.NLEG
+for i = 1:NLEG
   J2 = J1+Rob.Leg(i).NQJ-1;
   qlim(J1:J2,:) = Rob.Leg(i).qlim;
   J1 = J2+1;
@@ -176,8 +184,8 @@ if all(~isnan(qlim(:)))
   limits_set = true;
 else
   % Grenzen sind nicht wirksam
-  qmin = -Inf(Rob.NJ,1);
-  qmax =  Inf(Rob.NJ,1);
+  qmin = -Inf(NJ,1);
+  qmax =  Inf(NJ,1);
   retry_limit = size(Q0,2)-1; % keine zufällige Neubestimmung möglich.
   finish_in_limits = false;
 end
@@ -191,23 +199,26 @@ delta_qlim = qmax - qmin;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(delta_qlim,1,2).*...
-  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,Rob.NJ,1);
+  repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h8 = [s.xlim(:,1) s.xlim(:,2)]*0.8; % vorläufig auf 80% der Grenzen in xlim
+xlim_thr_h8 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+  repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
+if any(isnan(s.xlim(6,:))) % Kriterium nicht bestimmbar
+  s.wn([idx_wn.xlim_par, idx_wn.xlim_hyp]) = 0;
+end
 I_constr_t_red = Rob.I_constr_t_red;
 I_constr_r_red = Rob.I_constr_r_red;
 % Variablen für Dämpfung der Inkremente
-delta_q_alt = zeros(Rob.NJ,1); % Altwert für Tiefpassfilter
+delta_q_alt = zeros(NJ,1); % Altwert für Tiefpassfilter
+delta_q_N_alt = zeros(NJ,1); % Altwert für Nullraum-Tiefpassfilter
+damping_active = false; % Standardmäßig noch nicht aktiviert
+q0 = Q0(:,1);
 Phi_alt = zeros(length(Rob.I_constr_red),1); % Altwert für Tiefpassfilter
 delta_Phi_alt = Phi_alt;
-delta_q_N_alt = zeros(Rob.NJ,1); % Altwert für Nullraum-Tiefpassfilter
-damping_active = false; % Standardmäßig noch nicht aktiviert
-N = NaN(Rob.NJ,Rob.NJ); % Nullraum-Projektor
+N = NaN(NJ,NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
-h3dq = zeros(1,Rob.NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq; h9dq = h3dq;
-idx_wn = Rob.idx_ikpos_wn;
-idx_hn = Rob.idx_ikpos_hn;
+h3dq = zeros(1,NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq; h9dq = h3dq; h10dq = h3dq;
 h = zeros(Rob.idx_ik_length.hnpos,1); h_alt = inf(Rob.idx_ik_length.hnpos,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
@@ -215,6 +226,15 @@ bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Ba
 collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
+if isempty(collbodies_ns.type) % Keine Kollisionskörper
+  s.wn([idx_wn.coll_hyp,idx_wn.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
+  scale_coll = 0;
+  avoid_collision_finish = false;
+end
+if isempty(Rob.collbodies_instspc.type) % Keine Kollisionskörper
+  s.wn(idx_wn.instspc_hyp) = 0; % Deaktivierung der Bauraumprüfung
+end
+wn = s.wn;
 if scale_coll || wn(idx_wn.coll_hyp) || wn(idx_wn.coll_par) || avoid_collision_finish
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
@@ -246,21 +266,20 @@ end
 I_collcheck_nochange_all = false(1,size(Rob.collchecks,1));
 I_instspccheck_nochange = false(1,size(Rob.collchecks_instspc,1));
 
-q0 = Q0(:,1);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((NL-1+NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJ = NaN; condJik = NaN;
 
-Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, Rob.NJ), ...
-  'PHI', NaN(1+n_max, 6*Rob.NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
+Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, NJ), ...
+  'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
   'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
   'h', NaN(1+n_max,1+Rob.idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
-  'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, ...
-  'h_coll_thresh', NaN, 'mode', uint32(zeros(n_max,1)));
+  'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
+  NaN, 'mode', uint32(zeros(n_max,1)));
 Stats = Stats_default;
 
 %% Iterative Berechnung der inversen Kinematik
@@ -319,10 +338,38 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         ... % Annahme: Schädlich für Konvergenz. Nur, falls Stagnation 
         ... % nicht durch Gelenkgrenzen (scale_lim) verursacht wurde.
         (rejcount == 0 || rejcount~=0 && scale == 0)
-      N = (eye(Rob.NJ) - pinv(Jik)* Jik); % Nullraum-Projektor
+      N = (eye(NJ) - pinv(Jik)* Jik); % Nullraum-Projektor
+      % Berechne Inkremente für alle Gelenkwinkel um Nullraumbewegungen mit
+      % Differenzenquotienten zu bestimmen. Notwendig, wenn Nullraumbewe-
+      % gung durchgeführt wird, wenn die Zwangsbedingungen nicht erfüllt
+      % sind.
+      qD_test_all = NaN(NJ,NJ);
+      I_qD_test_all = false(NJ,1); % Indizes relevanter Gelenke
+      scale_qD_test_all = NaN(NJ,1);
+      for kkk = 1:NJ
+        qD_test = zeros(NJ,1);
+        qD_test(kkk) = 1e-6; % kleines Inkrement
+        % Nullraumbewegung mit diesem Inkrement. Isolierte Bewegung
+        % Eines Gelenks bei dieser Kennzahl nicht möglich. In Null-
+        % raumbewegung findet auch Bewegung des anderen Kollisions-
+        % objektes statt. TODO: Saubere Herleitung fehlt noch.
+        qD_test_N = N*qD_test;
+        if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
+        I_qD_test_all(kkk) = true; % erst jetzt Gelenk für Differenzenquotient unten benutzen
+        % Normierung größtes Element auf 1e-6.
+        scale_qD_test_all(kkk) = 1e-6 / qD_test_N(kkk);
+        qD_test_N = qD_test_N * scale_qD_test_all(kkk);
+        qD_test_all(:,kkk) = qD_test_N;
+         % Ignoriere den Rest. Es sind sowieso immer alle gleich. Der
+         % Ansatz dient hauptsächlich dazu, Gelenke ohne Einfluss
+         % auszusortieren.
+        break;
+      end
+
       % Berechne Gradienten der zusätzlichen Optimierungskriterien
       h(:) = 0;
-      v = zeros(Rob.NJ, 1);
+      v = zeros(NJ, 1);
+      %% Einhaltung der Gelenkwinkel-Grenzen
       if wn(idx_wn.qlim_par) ~= 0
         Stats.mode(jj) = bitset(Stats.mode(jj),4);
         [h(idx_hn.qlim_par), h1dq] = invkin_optimcrit_limits1(q1, qlim);
@@ -333,21 +380,22 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(idx_hn.qlim_hyp), h2dq] = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2);
         v = v - wn(idx_wn.qlim_hyp)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
-      Jinv = NaN(Rob.NJ, 6);
+      %% Singularitätsvermeidung Jacobi-Matrix (IK- und PKM-Jacobi)
+      Jinv = NaN(NJ, 6);
       % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
       % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
       % kräftig, wenn Zwangsbedingungen grob verletzt sind. Dafür wird
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(idx_wn.jac_cond) || any(wn(3:9)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
+      if wn(idx_wn.jac_cond) || any(wn(3:end)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
         [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
         [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
         Jinv = -Phi4_q_voll\Phi4_x_voll;
-        condJ = cond(Jinv(Rob.I_qa,Rob.I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
+        condJ = cond(Jinv(I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
       if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Spline-Übergang
@@ -383,7 +431,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
             Jinv_test = -Phi4_q_voll_test\Phi4_x_voll_test;
-            h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(Rob.I_qa,Rob.I_EE)), ...
+            h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(I_qa,Rob_I_EE)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h4dq = (h4_test-h(idx_hn.jac_cond))./qD_test';
             h4dq(isnan(h4dq)) = 0;
@@ -395,9 +443,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               Jinv_test_2 = Jinv + ...
                 Phi4_q_voll\Phi4D_q_voll/Phi4_q_voll*Phi4_x_voll + ...
                 -Phi4_q_voll\Phi4D_x_voll;
-              h4_test_2 = cond(Jinv_test_2(Rob.I_qa,Rob.I_EE));
+              h4_test_2 = cond(Jinv_test_2(I_qa,Rob_I_EE));
               if abs(h4_test_2 - h4_test)/h4_test > 1e-6 && abs(h4_test_2-condJ) < 1
-                error('Beide Ansätze für Delta Jinv stimmen nicht überein');
+                error('Beide Ansaetze fuer Delta Jinv stimmen nicht ueberein');
               end
             end
           else
@@ -413,37 +461,30 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Gelenkkoordinate.
           if wn(idx_wn.ikjac_cond) && condJik > s.cond_thresh_ikjac % Kennzahl bezogen auf Jacobi-Matrix der inversen Kinematik
             Stats.mode(jj) = bitset(Stats.mode(jj),8);
-            for kkk = 1:Rob.NJ
-              % Inkrement in einem Gelenkwinkel. Keine Vorwegnahme der
-              % Nullraumbewegung (mit N-Mult.) notwendig (wie bei Kollision)
-              qD_test = zeros(Rob.NJ,1);
-              qD_test(kkk) = 1e-6; % kleines Inkrement
-%               qD_test_N = N*qD_test;
-%               qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk); % Normierung auf 1e-6
-%               q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
-              q_test = q1 + qD_test; % Test-Konfiguration mit Inkrement
+            h3dq_all = NaN(NJ,NJ);
+            for kkk = 1:NJ % Alternativ: find(I_qD_test_all)'
+              if ~I_qD_test_all(kkk), continue; end % zur Vereinheitlichung mit Mex-Funktion
+              q_test = q1 + qD_test_all(:,kkk); % Test-Konfiguration mit Inkrement
               Jik_kkk=Rob.constr3grad_q(q_test, xE_soll); % Berechnung identisch mit oben
               h3_kkk = invkin_optimcrit_condsplineact(cond(Jik_kkk), ...
                 1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
               % Skaliere mit Gelenkzahl des Roboters (TODO: Mathematische
               % Begründung fehlt. Empirisch ermittelt. Ziel: var1=var2).
-              h3dq(kkk) = Rob.NJ * (h3_kkk-h(idx_hn.ikjac_cond))/1e-6;
+              h3dq_all(kkk,:) = NJ * (h3_kkk-h(idx_hn.ikjac_cond))./qD_test_all(:,kkk)';
             end
+            h3dq = mean(h3dq_all(I_qD_test_all,:),1);
           end
           if wn(idx_wn.jac_cond) && condJ < 1e10 && condJ > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
-            for kkk = 1:Rob.NJ
-              qD_test = zeros(Rob.NJ,1);
-              qD_test(kkk) = 1e-6; % kleines Inkrement
-              % Nullraumbewegung mit diesem Inkrement. Inkrementelle Bewegung 
+            h4dq_all = NaN(NJ,NJ);
+            for kkk = 1:NJ
+              if ~I_qD_test_all(kkk), continue; end
+              % Nullraumbewegung mit Inkrement. Inkrementelle Bewegung 
               % eines Gelenks erzeugt später Bewegung aller Gelenke.
               % Dadurch wird auch nur die phiz-Rotation durchgeführt. Hier
               % erfolgt eine Mittelwertbildung über alle Gelenke, da die
               % kinematischen Ketten nicht geschlossen sind
-              qD_test_N = N*qD_test;
-              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
-              qD_test_N = qD_test_N * 1e-6 / qD_test_N(kkk); % Normierung auf 1e-6
-              q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
+              q_test = q1 + qD_test_all(:,kkk); % Test-Konfiguration mit Inkrement
               % Geometrische Matrizen mit Inkrement bestimmen. Auch für
               % Phi_dx. 
               [~, Phi4_q_voll_kkk] = Rob.constr4grad_q(q_test);
@@ -451,21 +492,22 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               % raumprojektion durchgeführt wurde, auch wenn qD_test einer
               % anderen Beinkette angehört
               xD_test = zeros(6,1); % 3T3R-Formulierung. Eintragung z.B. bei 2T1R nur relevante FG
-              xD_test(Rob.I_EE) = Jinv(1:6,Rob.I_EE) \ qD_test_N(1:6);
+              xD_test(Rob_I_EE) = Jinv(1:Rob.I2J_LEG(1),Rob_I_EE) \ qD_test_all(1:Rob.I2J_LEG(1),kkk);
               xE_test = xE_1 + xD_test;
               [~, Phi4_x_voll_kkk] = Rob.constr4grad_x(xE_test);
               Jinv_kkk = -Phi4_q_voll_kkk\Phi4_x_voll_kkk;
-              h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(Rob.I_qa,Rob.I_EE)), ...
+              h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(I_qa,Rob_I_EE)), ...
                 1.5*s.cond_thresh_jac, s.cond_thresh_jac);
-              h4dq(kkk) = (h4_kkk-h(idx_hn.jac_cond))/1e-6;
+              h4dq_all(kkk,:) = (h4_kkk-h(idx_hn.jac_cond))./qD_test_all(:,kkk)';
             end
+            h4dq = mean(h4dq_all(I_qD_test_all,:),1);
           end
           if s.debug
             h3dq_var2 = h3dq;
             h4dq_var2 = h4dq;
           end
         end
-        if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym
+        if s.debug && taskred_rotsym
           % Prüfe, ob die Berechnung des Gradienten mit beiden Ansätzen gleich ist.
           qN3_var1 = N * h3dq_var1';
           qN3_var2 = N * h3dq_var2';
@@ -477,16 +519,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               any(abs(qN4_var1)>1e-4 & abs(test_qN4-1)>0.1 ) || ...  
               any(abs(qN3_var1)>1e-4) && all(sign(qN3_var1)==-sign(qN3_var2)) || ...
               any(abs(qN4_var1)>1e-4) && all(sign(qN4_var1)==-sign(qN4_var2))
-            warning(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 3 ', ...
-              'oder 4 (Sing.) stimmen nicht überein. Phi=%1.1e. ratio h3: %1.1e...%1.1e, ratio h4: %1.1e...%1.1e'], ...
+            error(['jj=%d. Beide Varianten der Gradientenbildung fuer Kriterium 3 ', ...
+              'oder 4 (Sing.) stimmen nicht ueberein. Phi=%1.1e. ratio h3: %1.1e...%1.1e, ratio h4: %1.1e...%1.1e'], ...
                 jj, max(abs(Phi)), min(test_qN3), max(test_qN3), min(test_qN4), max(test_qN4));
-          else
-            fprintf('jj=%d. Gradientenbildung i.O.\n', jj);
           end
         end
         if wn(idx_wn.ikjac_cond), v = v - wn(idx_wn.ikjac_cond)*h3dq'; end
         if wn(idx_wn.jac_cond), v = v - wn(idx_wn.jac_cond)*h4dq'; end
       end
+      %% Kollisionsvermeidung
       if wn(idx_wn.coll_hyp) || wn(idx_wn.coll_par) % Kollisionsprüfung
         % Direkte Kinematik aller Beinketten (Datenformat für Kollision)
         [~, JP] = Rob.fkine_coll(q1);
@@ -583,25 +624,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           if ~(all(abs(Phi)<1e-6) && taskred_rotsym) || s.debug % Variante 2
             % Bestimme Nullraumbewegung durch Differenzenquotient für jede
             % Gelenkkoordinate.
-            JP_test = [JP; NaN(Rob.NJ, size(JP,2))];
-            scale_Inochange = NaN(Rob.NJ,1); % Merke die Skalierung für unten
-            qD_test_all = NaN(Rob.NJ,Rob.NJ);
-            I_qD = false(Rob.NJ,1); % Indizes relevanter Gelenke
-            for kkk = 1:Rob.NJ
-              qD_test = zeros(Rob.NJ,1);
-              qD_test(kkk) = 1e-6; % kleines Inkrement
-              % Nullraumbewegung mit diesem Inkrement. Isolierte Bewegung
-              % Eines Gelenks bei dieser Kennzahl nicht möglich. In Null-
-              % raumbewegung findet auch Bewegung des anderen Kollisions-
-              % objektes statt. TODO: Saubere Herleitung fehlt noch.
-              qD_test_N = N*qD_test;
-              if abs(qD_test_N(kkk)) < 1e-10, continue; end % Gelenk hat keinen Einfluss auf Nullraum
-              I_qD(kkk) = true; % erst jetzt Gelenk für Differenzenquotient unten benutzen
-              % Normierung größtes Element auf 1e-6.
-              scale_Inochange(kkk) = 1e-6 / max(abs(qD_test_N));
-              qD_test_N = qD_test_N * scale_Inochange(kkk);
-              qD_test_all(:,kkk) = qD_test_N;
-              q_test = q1 + qD_test_N; % Test-Konfiguration mit Inkrement
+            JP_test = [JP; NaN(NJ, size(JP,2))];
+            for kkk = 1:NJ
+              if ~I_qD_test_all(kkk), continue; end
+              q_test = q1 + qD_test_all(:,kkk); % Test-Konfiguration mit Inkrement
               % Bestimme die Veränderung der Gelenkpositionen
               [~, JP_test(1+kkk,:)] = Rob.fkine_coll(q_test);
             end
@@ -610,11 +636,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               Rob.collbodies, Rob.collchecks(colldet,:), JP_test, struct('collsearch', false));
             % Prüfe, welche Kollisionsprüfungen sich nicht verändern.
             % Bestimme die Änderung für jedes einzelne Inkrement
-            cdtdiff=repmat(colldist_test(1,:),Rob.NJ,1)-colldist_test(2:end,:);
+            cdtdiff=repmat(colldist_test(1,:),NJ,1)-colldist_test(2:end,:);
             % Benutze die Skalierungen, damit ein absolut großes Inkrement
             % nicht numerisches Rauschen verstärkt und den Schwellwert
             % damit überschreitet.
-            I_collcheck_nochange_voll2 = abs(cdtdiff) < 1e-12*repmat(1./scale_Inochange, 1, size(cdtdiff,2));
+            I_collcheck_nochange_voll2 = abs(cdtdiff) < 1e-12*repmat(1./scale_qD_test_all, 1, size(cdtdiff,2));
             % Berücksichtige nur Kollisionsprüfungen, die jetzt von min.
             % einem Gelenk beeinflusst werden.
             I_collcheck_nochange = any(I_collcheck_nochange_voll2);
@@ -639,22 +665,24 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               elseif ~isinf(h(idx_hn.coll_hyp))
                 % Differenzenquotient für jedes Inkrement getrennt und dann Mittelwert.
                 % Damit stimmt das Ergebnis mit Variante 1 überein. Ohne nicht.
-                h5dq_all = NaN(Rob.NJ,Rob.NJ);
-                for kkk = 1:Rob.NJ
+                h5dq_all = NaN(NJ,NJ);
+                for kkk = 1:NJ
+                  if ~I_qD_test_all(kkk), continue; end
                   h5_test = invkin_optimcrit_limits3(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
                     [-5*collobjdist_thresh, 0], -collobjdist_thresh);
                   h5dq_all(kkk,:) = (h5_test-h(idx_hn.coll_hyp))./(qD_test_all(:,kkk)');
                 end
-                h5dq = mean(h5dq_all(I_qD,:));
+                h5dq = mean(h5dq_all(I_qD_test_all,:),1);
               else % Kollision so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
                 % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
-                h5dq_all = NaN(Rob.NJ,Rob.NJ);
-                for kkk = 1:Rob.NJ
+                h5dq_all = NaN(NJ,NJ);
+                for kkk = 1:NJ
+                  if ~I_qD_test_all(kkk), continue; end
                   % Muss stetiges Kriterium sein, damit es nicht zu Dauer-
                   % schwingungen kommt. Wähle relativ großen Wert als Faktor
                   h5dq_all(kkk,:) = 1e3*(-mincolldist_test(1+kkk)-(-mincolldist_test(1)))./(qD_test_all(:,kkk)');
                 end
-                h5dq = mean(h5dq_all(I_qD,:));
+                h5dq = mean(h5dq_all(I_qD_test_all,:),1);
                 currcolldepth = -mincolldist_test(1);
                 if all(abs(Phi) < 1e-3)
                   bestcolldepth = min(bestcolldepth,currcolldepth);
@@ -664,13 +692,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h(idx_hn.coll_par) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
               [-10*maxcolldepth, 0]);
             if wn(idx_wn.coll_par) && ~all(I_collcheck_nochange) % quadratisches Kriterium
-              h9dq_all = NaN(Rob.NJ,Rob.NJ);
-              for kkk = 1:Rob.NJ
+              h9dq_all = NaN(NJ,NJ);
+              for kkk = 1:NJ
+                if ~I_qD_test_all(kkk), continue; end
                 h9_test = invkin_optimcrit_limits1(-mincolldist_test(1+kkk), ... % zurückgegebene Distanz ist zuerst negativ
                   [-10*maxcolldepth, 0]);
                 h9dq_all(kkk,:) = (h9_test-h(idx_hn.coll_par))./(qD_test_all(:,kkk)');
               end
-              h9dq = mean(h9dq_all);
+              h9dq = mean(h9dq_all(I_qD_test_all,:),1);
             else
               h9dq(:) = 0;
             end
@@ -696,8 +725,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 any(abs(qN9_var1)>1e-4 & abs(test_qN9-1)>0.1 ) || ...  
                 any(abs(qN5_var1)>1e-4) && all(sign(qN5_var1)==-sign(qN5_var2)) || ...
                 any(abs(qN9_var1)>1e-4) && all(sign(qN9_var1)==-sign(qN9_var2))
-              error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 5 ', ...
-                'oder 9 (Koll.) stimmen nicht überein. Phi=%1.1e. ratio h5: %1.1e...%1.1e, ratio h9: %1.1e...%1.1e'], ...
+              error(['jj=%d. Beide Varianten der Gradientenbildung fuer Kriterium 5 ', ...
+                'oder 9 (Koll.) stimmen nicht ueberein. Phi=%1.1e. ratio h5: %1.1e...%1.1e, ratio h9: %1.1e...%1.1e'], ...
                 jj, max(abs(Phi)), min(test_qN5(1)), max(test_qN5(1)), min(test_qN9(1)), max(test_qN9(1)));
             end
           end
@@ -709,7 +738,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
         end
       end
-      if wn(idx_wn.instspc_hyp) % Bauraumprüfung
+      %% Einhaltung der Bauraum-Grenzen
+      h([idx_hn.instspc_par, idx_hn.instspc_hyp]) = 0;
+      if wn(idx_wn.instspc_hyp) || wn(idx_wn.instspc_par) % Bauraumprüfung
         Stats.mode(jj) = bitset(Stats.mode(jj),11);
         % Direkte Kinematik aller Beinketten (Datenformat für Kollision)
         [~, JP] = Rob.fkine_coll(q1);
@@ -751,36 +782,49 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           % Bauraum-Kriterium berechnen: Negativer Wert ist im Bauraum (gut),
           % positiver ist außerhalb (schlecht). Größter positiver Wert
           % maßgeblich
-          h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
-            -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
-          h6_test = invkin_optimcrit_limits3(mindist_h_all(2), ... % Wert bezogen auf Test-Pose
-            [-100.0, 0], -s.installspace_thresh);
-          if ~isinf(h(idx_hn.instspc_hyp))
-            h6dq = (h6_test-h(idx_hn.instspc_hyp))./qD_test';
-          else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
-            % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
-            h6dq = 1e3*(mindist_h_all(2)-mindist_h_all(1))./qD_test';
-            currinstspcdist = mindist_h_all(1);
-            if all(abs(Phi) < 1e-3)
-              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+          if wn(idx_wn.instspc_hyp)
+            h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
+              [-100.0, 0], ... % obere Grenze: Bei Schwelle zur Bauraumverletzung ist Wert inf
+              -s.installspace_thresh); % obere Grenze: z.B. ab 100mm Nähe zum Rand Kriterium aktiv
+            h6_test = invkin_optimcrit_limits3(mindist_h_all(2), ... % Wert bezogen auf Test-Pose
+              [-100.0, 0], -s.installspace_thresh);
+            if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+                all(I_instspccheck_nochange)
+              h6dq(:) = 0;
+            elseif ~isinf(h(idx_hn.instspc_hyp))
+              h6dq = (h6_test-h(idx_hn.instspc_hyp))./qD_test';
+            else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient bestimmbar.
+              % Indirekte Bestimmung über die Verkleinerung des (positiven) Abstands
+              h6dq = 1e3*(mindist_h_all(2)-mindist_h_all(1))./qD_test';
+              currinstspcdist = mindist_h_all(1);
+              if all(abs(Phi) < 1e-3)
+                bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+              end
+            end
+            h6dq(isnan(h6dq)) = 0; % Falls ein qD_test exakt Null ist
+            if s.debug
+              h6dq_var1 = h6dq;
             end
           end
-          h6dq(isnan(h6dq)) = 0; % Falls ein qD_test exakt Null ist
-          if s.debug
-            h6dq_var1 = h6dq;
+          if wn(idx_wn.instspc_par)
+            h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_h_all(1), ...
+              [-100.0, 0]);
+            h10_test = invkin_optimcrit_limits1(mindist_h_all(2), [-100, 0]);
+            h10dq = (h10_test-h(idx_hn.instspc_par))./qD_test';
+            h10dq(isnan(h6dq)) = 0; % Falls ein qD_test exakt Null ist
+            if s.debug
+              h10dq_var1 = h10dq;
+            end
           end
         end % Kein if-else, sondern neues if mit inverser Bedingung (wegen Debug)
         if ~all(abs(Phi)<1e-6) && taskred_rotsym || s.debug % Variante 2
           % Bestimme Nullraumbewegung durch Differenzenquotient für jede
           % Gelenkkoordinate.
-          JP_test = [JP; NaN(Rob.NJ, size(JP,2))];
-          for kkk = 1:Rob.NJ
-            q_test = q1; % ausgehend von aktueller Konfiguration
-            % Im Gegensatz zur Kollisions-Kennzahl ist keine Anpassung
-            % bezüglich Nullraumbewegung notwendig (keine Wechselwirkung
-            % zwischen verschiedenen Beinketten)
-            q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
+          JP_test = [JP; NaN(NJ, size(JP,2))];
+          for kkk = 1:NJ
+            if ~I_qD_test_all(kkk), continue; end
+            q_test = q1 + qD_test_all(:,kkk); % Test-Konfiguration mit Inkrement
+            % Bestimme die Veränderung der Gelenkpositionen
             [~, JP_test(1+kkk,:)] = Rob.fkine_coll(q_test);
           end
           % Bauraumprüfung für alle Gelenkpositionen auf einmal.
@@ -799,43 +843,77 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               mindist_h_all = max([mindist_i,mindist_h_all],[],2);
             end
           end
-          h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
-            [-100.0, 0], -s.installspace_thresh);
-          if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
-            all(I_instspccheck_nochange)
-            h6dq(:) = 0;
-          elseif ~isinf(h(idx_hn.instspc_hyp))
-            for kkk = 1:Rob.NJ
-              h6_test = invkin_optimcrit_limits3(mindist_h_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
-                [-100.0, 0], -s.installspace_thresh);
-              h6dq(kkk) = (h6_test-h(idx_hn.instspc_hyp))/1e-6; % Differenzenquotient bzgl. Inkrement
+          if wn(idx_wn.instspc_hyp)
+            h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all(1), ... % Wert bezogen auf aktuelle Pose
+              [-100.0, 0], -s.installspace_thresh);
+            if h(idx_hn.instspc_hyp) == 0 || ...% nichts unternehmen (im Bauraum, mit Sicherheitsabstand)
+              all(I_instspccheck_nochange)
+              h6dq(:) = 0;
+            elseif ~isinf(h(idx_hn.instspc_hyp))
+              h6dq_all = NaN(NJ,NJ);
+              for kkk = 1:NJ
+                if ~I_qD_test_all(kkk), continue; end
+                h6_test = invkin_optimcrit_limits3(mindist_h_all(1+kkk), ... % Wert bezogen auf Test-Pose dieses Gelenks
+                  [-100.0, 0], -s.installspace_thresh);
+                h6dq_all(kkk,:) = (h6_test-h(idx_hn.instspc_hyp))./(qD_test_all(:,kkk)'); % Differenzenquotient bzgl. Inkrement
+              end
+              h6dq = mean(h6dq_all(I_qD_test_all,:),1);
+            else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
+              % Indirekte Bestimmung über Abstand
+              h6dq_all = NaN(NJ,NJ);
+              for kkk = 1:NJ
+                if ~I_qD_test_all(kkk), continue; end
+                % Skaliere mit Gelenkzahl des Roboters (TODO: Mathematische
+                % Begründung fehlt. Empirisch ermittelt. Ziel: var1=var2).
+                h6dq_all(kkk,:) = NJ * 1e3*(mindist_h_all(1+kkk)-mindist_h_all(1))./(qD_test_all(:,kkk)');
+              end
+              h6dq = mean(h6dq_all(I_qD_test_all,:),1);
+              currinstspcdist = mindist_h_all(1);
+              if all(abs(Phi) < 1e-3)
+                bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+              end
             end
-          else % Verletzung so groß, dass Wert inf ist. Dann kein Gradient aus h bestimmbar.
-            % Indirekte Bestimmung über Abstand
-            for kkk = 1:Rob.NJ
-              % Skaliere mit Gelenkzahl des Roboters (TODO: Mathematische
-              % Begründung fehlt. Empirisch ermittelt. Ziel: var1=var2).
-              h6dq(kkk) = Rob.NJ * 1e3*(mindist_h_all(1+kkk)-mindist_h_all(1))/1e-6';
-            end
-            currinstspcdist = mindist_h_all(1);
-            if all(abs(Phi) < 1e-3)
-              bestinstspcdist = min(bestinstspcdist,currinstspcdist);
+            if s.debug
+              h6dq_var2 = h6dq;
             end
           end
-          if s.debug
-            h6dq_var2 = h6dq;
+          if wn(idx_wn.instspc_par)
+            h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_h_all(1), [-100.0, 0]);
+            h10dq_all = NaN(NJ,NJ);
+            for kkk = 1:NJ
+              if ~I_qD_test_all(kkk), continue; end
+              h10_test = invkin_optimcrit_limits1(mindist_h_all(1+kkk), [-100.0, 0]);
+              h10dq_all(kkk,:) = (h10_test-h(idx_hn.instspc_par))./(qD_test_all(:,kkk)'); % Differenzenquotient bzgl. Inkrement
+            end
+            h10dq = mean(h10dq_all(I_qD_test_all,:),1);
+            if s.debug
+              h10dq_var2 = h10dq;
+            end
           end
         end
-        if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym
+        if s.debug && taskred_rotsym
           % Prüfe, ob die Berechnung des Gradienten mit beiden Ansätzen gleich ist.
-          qN6_var1 = N * h6dq_var1';
-          qN6_var2 = N * h6dq_var2';
-          test_qN6 = qN6_var1 ./ qN6_var2;
-          if any(abs(qN6_var1)>1e-4) && (any(abs(test_qN6-1)>0.1) || ...  % max. 10% Abweichung
-              all(sign(qN6_var1)==-sign(qN6_var2))) % Bewegung darf nicht entgegengesetzt sein.
-            error(['jj=%d. Beide Varianten der Gradientenbildung für Kriterium 6 ', ...
-              '(Bauraum) stimmen nicht überein. Phi=%1.1e. ratio h6: %1.1e...%1.1e'], ...
-                jj, max(abs(Phi)), min(test_qN6), max(test_qN6));
+          if wn(idx_wn.instspc_hyp)
+            qN6_var1 = N * h6dq_var1';
+            qN6_var2 = N * h6dq_var2';
+            test_qN6 = qN6_var1 ./ qN6_var2;
+            if any(abs(qN6_var1)>1e-4) && (any(abs(test_qN6-1)>0.1) || ...  % max. 10% Abweichung
+                all(sign(qN6_var1)==-sign(qN6_var2))) % Bewegung darf nicht entgegengesetzt sein.
+              error(['jj=%d. Beide Varianten der Gradientenbildung fuer Kriterium 6 ', ...
+                '(Bauraum) stimmen nicht ueberein. Phi=%1.1e. ratio h6: %1.1e...%1.1e'], ...
+                  jj, max(abs(Phi)), min(test_qN6), max(test_qN6));
+            end
+          end
+          if wn(idx_wn.instspc_par)
+            qN10_var1 = N * h10dq_var1';
+            qN10_var2 = N * h10dq_var2';
+            test_qN10 = qN10_var1 ./ qN10_var2;
+            if any(abs(qN10_var1)>1e-4) && (any(abs(test_qN10-1)>0.1) || ...  % max. 10% Abweichung
+                all(sign(qN10_var1)==-sign(qN10_var2))) % Bewegung darf nicht entgegengesetzt sein.
+              error(['jj=%d. Beide Varianten der Gradientenbildung fuer Kriterium 10 ', ...
+                '(par. Bauraum) stimmen nicht ueberein. Phi=%1.1e. ratio h10: %1.1e...%1.1e'], ...
+                  jj, max(abs(Phi)), min(test_qN10), max(test_qN10));
+            end
           end
         end
         if nargout == 4
@@ -850,8 +928,14 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
           Stats.instspc_mindst(jj,:) = [mindist_all, mindist_h_all(1)];
         end
-        v = v - wn(idx_wn.instspc_hyp)*h6dq';
+        if wn(idx_wn.instspc_hyp)
+          v = v - wn(idx_wn.instspc_hyp)*h6dq';
+        end
+        if wn(idx_wn.instspc_par)
+          v = v - wn(idx_wn.instspc_par)*h10dq';
+        end
       end
+      %% Einhaltung der Grenzen der redundanten Koordinate
       if wn(idx_wn.xlim_par) ~= 0 || wn(idx_wn.xlim_hyp) ~= 0 % Jacobi-Matrizen für wn(idx_wn.xlim_par) und/oder wn(idx_wn.xlim_hyp)
         xD_test_limred = [zeros(5,1);1e-6];
         qD_test = Jinv * xD_test_limred;
@@ -1151,7 +1235,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % optimiere nur noch die Grenzen (und nicht z.B. Konditionszahl)
         finish_in_limits = false; % Modus ist damit aktiviert
         nsoptim = true;
-        wn = [0;1;0;0;0;0;wn(idx_wn.xlim_par);wn(idx_wn.xlim_hyp);0]; % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(:) = 0;
+        % Nutze nur die hyperbolische Funktion des Abstands (und limred, falls vorher aktiv)
+        wn(idx_wn.qlim_hyp) = 1;
+        wn(idx_wn.xlim_par) = s.wn(idx_wn.xlim_par);
+        wn(idx_wn.xlim_hyp) = s.wn(idx_wn.xlim_hyp);
         % Mache diese Optimierung nicht mehr zu Ende, sondern höre auf, 
         % wenn die Grenzen erreicht sind.
         break_when_in_limits = true;
@@ -1165,8 +1253,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         colldet = check_collisionset_simplegeom_mex(Rob.collbodies, ...
           Rob.collchecks, JP, struct('collsearch', false));
         if any(colldet)
+          wn(:) = 0; % Deaktiviere alle anderen Nebenbedingungen
           wn(idx_wn.coll_hyp) = 1e3; % Starke Kollisionsvermeidung
-          wn(1:4) = 0; % Deaktiviere alle anderen Nebenbedingungen
           avoid_collision_finish = false; % Nur einmal versuchen
           success = false; % Bereits gesetzten Wert wieder zurücknehmen
           Kn = s.Kn; % Änderungen an Standard-Werten zurücksetzen
@@ -1202,7 +1290,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   if rr < size(Q0,2) % versuche eine weitere der vorgegebenen Konfigurationen
     q0 = Q0(:,rr+1);
   else % benutze eine zufällige Konfiguration
-    q0 = qmin_norm + rand(Rob.NJ,1).*(qmax_norm-qmin_norm); 
+    q0 = qmin_norm + rand(NJ,1).*(qmax_norm-qmin_norm); 
   end
 end
 if nargout >= 3 || nargout >= 4 && (wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0)
@@ -1229,7 +1317,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
     if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
-      condJ = cond(Jinv(Rob.I_qa,Rob.I_EE));
+      condJ = cond(Jinv(I_qa,Rob_I_EE));
     else
       condJ = NaN;
     end
@@ -1267,7 +1355,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       end
     end
   end
-  if wn(idx_wn.instspc_hyp) ~= 0 % Berechnung muss genauso sein wie oben
+  if wn(idx_wn.instspc_hyp) ~= 0 || wn(idx_wn.instspc_par) ~= 0 % Berechnung muss genauso sein wie oben
     [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
       Rob.collchecks_instspc, Tc_stack_PKM(:,4)', struct('collsearch', false));
     mindist_h_all = -inf;
@@ -1284,8 +1372,14 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
       mindist_i = min(absdist(1,I));
       mindist_all = max([mindist_i,mindist_all]);
     end
-    h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all, ...
-      [-100.0, 0], -s.installspace_thresh);
+    if wn(idx_wn.instspc_hyp) ~= 0
+      h(idx_hn.instspc_hyp) = invkin_optimcrit_limits3(mindist_h_all, ...
+        [-100.0, 0], -s.installspace_thresh);
+    end
+    if wn(idx_wn.instspc_par) ~= 0
+      h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_h_all, ...
+        [-100.0, 0]);
+    end
     Stats.instspc_mindst(Stats.iter+1,:) = [mindist_all,mindist_h_all(1)];
     % Trage den Wert ein, ab dem eine Bauraumverletzung vorliegt
     Stats.h_instspc_thresh = invkin_optimcrit_limits3(0, ...

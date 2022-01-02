@@ -11,7 +11,8 @@ clc
 clear
 close all
 
-usr_create_anim = true; % zum Aktivieren der Video-Animationen (dauert etwas)
+usr_create_anim = false; % zum Aktivieren der Video-Animationen (dauert etwas)
+usr_save_figures = false;
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 resdir = fullfile(rob_path, 'examples_tests', 'results', 'InstallSpace');
 mkdirs(resdir);
@@ -131,10 +132,110 @@ RS.plot( q1_InstSpc, s_plot );
 view([0, 90]); % 2D-Ansicht von oben
 title('Zielpose des Roboters mit Bauraumeinhaltung');
 assert(all(abs(Phi_InstSpc)<1e-8), 'IK mit Bauraumeinhaltung im Nullraum nicht lösbar');
+assert(Stats_InstSpc.instspc_mindst(Stats_InstSpc.iter+1,1) < 0, ...
+  'IK mit Bauraum-Einhaltung (hyp.) verletzt trotzdem den Bauraum');
+
+% Verfahrbewegung mit Bauraumeinhaltung, Kriterium 2 (aufgabenredundant).
+% RS.fill_fcn_handles(false)
+s_instspcQ = s_basic;
+s_instspcQ.I_EE = logical([1 1 0 0 0 0]);
+s_instspcQ.wn(RS.idx_ikpos_wn.instspc_par) = 1; % Quadratische Bauraumeinhaltung aktiv
+[q1_InstSpcQ, Phi_InstSpcQ, Tcstack1_InstSpcQ, Stats_InstSpcQ] = RS.invkin2(RS.x2tr(x1), q0, s_instspcQ);
+figure(5);clf;set(5,'Name','Zielpose_BauraumOptQuad','NumberTitle','off');
+hold on; grid on;
+xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
+RS.plot( q1_InstSpcQ, s_plot );
+view([0, 90]); % 2D-Ansicht von oben
+title('Zielpose des Roboters mit quadr. Bauraumeinhaltung');
+assert(all(abs(Phi_InstSpcQ)<1e-8), 'IK mit Bauraumeinhaltung im Nullraum nicht lösbar');
+assert(Stats_InstSpcQ.instspc_mindst(Stats_InstSpcQ.iter+1,1) < 0, ...
+  'IK mit Bauraum-Einhaltung (quad.) verletzt trotzdem den Bauraum');
+
+%% Debug-Plots für PTP-Bewegungen
+% Zeitverläufe plotten
+Namen = {'3T3R', '3T2R', 'InstSpc_Hyp', 'InstSpc_Par'};
+for kk = 1:length(Namen)
+  if kk == 1
+    Stats_k = Stats_3T3R;
+    filesuffix = 'no_installspace_3T3R';
+  elseif kk == 2
+    Stats_k = Stats_3T2R;
+    filesuffix = 'no_installspace_3T2R';
+  elseif kk == 3
+    Stats_k = Stats_InstSpc;
+    filesuffix = 'with_installspace';
+  elseif kk == 4
+    Stats_k = Stats_InstSpcQ;
+    filesuffix = 'with_installspace_parabolic';
+  end
+  Q_k = Stats_k.Q(1:Stats_k.iter+1,:);
+  X_k = RS.fkineEE2_traj(Q_k);
+  X_k(:,6) = denormalize_angle_traj(X_k(:,6));
+  % Detail-Ausgabe rekonstruieren
+  for i = 1:Stats_k.iter+1
+    s_dummy = struct('wn', ones(RS.idx_ik_length.wnpos,1), 'K', zeros(RS.NJ,1), ...
+      'Kn', zeros(RS.NJ,1), 'n_max', 1, 'retry_limit', 0, 'I_EE', logical([1 1 0 0 0 0]));
+    [q_i, Phi_i, ~, Stats_i] = RS.invkin2(RS.x2tr(X_k(i,:)'), Q_k(i,:)', s_dummy);
+    assert(all(abs(Phi_i) < 1e-10), 'Neuberechnung der Opt.-Krit. fehlgeschlagen');
+    assert(all(abs(q_i-Q_k(i,:)') < 1e-10), 'Neuberechnung der Opt.-Krit. fehlgeschlagen');
+    Stats_k.h(i,:) = Stats_i.h(Stats_i.iter+1,:);
+    Stats_k.instspc_mindst(i,:) = Stats_i.instspc_mindst(Stats_i.iter+1,:);
+  end
+
+  change_current_figure(50); if kk == 1, clf; end
+  % EE-Winkel
+  subplot(2,2,1); hold on;
+  plot(X_k(:,6)); ylabel('phi z'); grid on;
+  for i = 1:RS.NJ
+    % Gelenkposition
+    subplot(2,2,i+1); hold on;
+    plot(Q_k(:,i));
+    ylabel(sprintf('q %d', i)); grid on;
+  end
+  if kk == length(Namen)
+    sgtitle('Roboterbewegung');
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+  end
+  if usr_save_figures && kk == length(Namen)
+    saveas(50, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Joint.fig'));
+  end
+  
+  change_current_figure(51); if kk == 1, clf; end
+  subplot(2,2,1); hold on;
+  plot(Stats_k.instspc_mindst(:,1));
+  if kk == length(Namen)
+    ylabel('instspc_mindst (alle); >0 draußen', 'interpreter', 'none'); grid on;
+  end
+  subplot(2,2,2); hold on;
+  plot(Stats_k.instspc_mindst(:,2));
+  if kk == length(Namen)
+    ylabel('instspc_mindst (beeinflussbar)', 'interpreter', 'none'); grid on;
+  end
+  subplot(2,2,3); hold on;
+  plot(Stats_k.h(:,1+RS.idx_ikpos_hn.instspc_hyp));
+  if kk == length(Namen)
+    set(gca, 'yscale', 'log');
+    ylabel('h(instspc_hyp)', 'interpreter', 'none'); grid on;
+  end
+  subplot(2,2,4); hold on;
+  plot(Stats_k.h(:,1+RS.idx_ikpos_hn.instspc_par));
+  if kk == length(Namen)
+    ylabel('h(instspc_par)', 'interpreter', 'none'); grid on;
+  end
+  if kk == length(Namen)
+    sgtitle('Bauraumprüfung');
+    legend(Namen, 'interpreter', 'none');
+    linkxaxes
+  end
+  if usr_save_figures && kk == length(Namen)
+    saveas(51, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Criterion.fig'));
+  end
+end
 
 %% Animation der PTP-Bewegungen mit und ohne Bauraumeinhaltung
 if usr_create_anim
-for k = 1:3
+for k = 1:4
   if k == 1
     Q_t_plot = Stats_3T3R.Q(1:1+Stats_3T3R.iter,:);
     filesuffix = 'no_installspace_3T3R';
@@ -147,6 +248,10 @@ for k = 1:3
     Q_t_plot = Stats_InstSpc.Q(1:1+Stats_InstSpc.iter,:);
     filesuffix = 'with_installspace';
     plottitle = 'Inverse Kinematics with InstallSpace Optimization';
+  elseif k == 4
+    Q_t_plot = Stats_InstSpcQ.Q(1:1+Stats_InstSpc.iter,:);
+    filesuffix = 'with_installspace_parabolic';
+    plottitle = 'Inverse Kinematics with Parabolic InstallSpace Optimization';
   end
   t = (1:size(Q_t_plot,1))';
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden
@@ -200,7 +305,7 @@ assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit P-Bauraumeinhaltung nicht erfolgr
   RS.collchecks_instspc, JP_ISP, struct('collsearch', false));
 [X_ISP, XD_ISP, XDD_ISP] = RS.fkineEE2_traj(Q_ISP, QD_ISP, QDD_ISP);
 
-% Mit 3T2R (Aufgabenredundanz, Bauraumeinhaltung mit PD-Regler)
+% Mit 3T2R (Aufgabenredundanz, hyperbolische Bauraumeinhaltung mit PD-Regler)
 s_traj_InstSpcPD = s_traj_3T2R;
 s_traj_InstSpcPD.wn(RS.idx_iktraj_wnP.instspc_hyp) = 1e-5; % P-Verstärkung Bauraumeinhaltung
 s_traj_InstSpcPD.wn(RS.idx_iktraj_wnD.instspc_hyp) = 4e-6; % D-Verstärkung Bauraumeinhaltung
@@ -212,8 +317,21 @@ s_traj_InstSpcPD.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.5; % Zusätzliche Dämpfung
 assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Bauraumeinhaltung nicht erfolgreich berechnet');
 assert(all(dist_ISPD(:)<0), 'Trajektorie mit PD-Bauraumeinhaltung hält den Bauraum nicht ein');
 
-% Zeitverläufe plotten
-Namen = {'3T3R', '3T2R', 'ISP', 'ISPD'};
+% Mit 3T2R (Aufgabenredundanz, quadratische Bauraumeinhaltung mit PD-Regler)
+s_traj_InstSpcQPD = s_traj_3T2R;
+s_traj_InstSpcQPD.wn(RS.idx_iktraj_wnP.instspc_par) = 1; % P-Verstärkung Bauraumeinhaltung
+s_traj_InstSpcQPD.wn(RS.idx_iktraj_wnD.instspc_par) = 0.2; % D-Verstärkung Bauraumeinhaltung
+s_traj_InstSpcQPD.wn(RS.idx_iktraj_wnP.qDlim_par) = 0.5; % Zusätzliche Dämpfung gegen Schwingungen
+[Q_ISQPD, QD_ISQPD, QDD_ISQPD, PHI, JP_ISQPD, Stats_ISQPD] = RS.invkin2_traj(X,XD,XDD,T,q0,s_traj_InstSpcQPD);
+[coll_ISQPD, dist_ISQPD] = check_collisionset_simplegeom(RS.collbodies_instspc, ...
+  RS.collchecks_instspc, JP_ISPD, struct('collsearch', false));
+[X_ISQPD, XD_ISQPD, XDD_ISQPD] = RS.fkineEE2_traj(Q_ISQPD, QD_ISQPD, QDD_ISQPD);
+assert(all(abs(PHI(:))<1e-8), 'Trajektorie mit PD-Bauraumeinhaltung (quadr.) nicht erfolgreich berechnet');
+assert(all(dist_ISQPD(:)<0), 'Trajektorie mit PD-Bauraumeinhaltung (quadr.) hält den Bauraum nicht ein');
+
+
+%% Zeitverläufe für Trajektorien-IK plotten
+Namen = {'3T3R', '3T2R', 'ISP', 'ISPD', 'ISPDQ'};
 for kk = 1:length(Namen)
   if kk == 1
     Q_kk = Q_3T3R; QD_kk = QD_3T3R; QDD_kk = QDD_3T3R; CD_kk = dist_3T3R;
@@ -231,6 +349,10 @@ for kk = 1:length(Namen)
     Q_kk = Q_ISPD; QD_kk = QD_ISPD; QDD_kk = QDD_ISPD; CD_kk = dist_ISPD;
     X_kk = X_ISPD; XD_kk = XD_ISPD; XDD_kk = XDD_ISPD;
     h_kk = Stats_ISPD.h; condJ = Stats_ISPD.condJ;
+  elseif kk == 5
+    Q_kk = Q_ISQPD; QD_kk = QD_ISQPD; QDD_kk = QDD_ISQPD; CD_kk = dist_ISQPD;
+    X_kk = X_ISQPD; XD_kk = XD_ISQPD; XDD_kk = XDD_ISQPD;
+    h_kk = Stats_ISQPD.h; condJ = Stats_ISQPD.condJ;
   end
   change_current_figure(20); if kk == 1, clf; end
   % EE-Winkel
@@ -261,8 +383,9 @@ for kk = 1:length(Namen)
     legend(Namen);
     linkxaxes
   end
-  saveas(20, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Joint.fig'));
-
+  if usr_save_figures && kk == length(Namen)
+    saveas(20, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Joint.fig'));
+  end
   change_current_figure(21); if kk == 1, clf; end
   subplot(2,2,1); hold on;
   plot(T, max(CD_kk,[],2)); % positive Werte sind schlecht (im Gegensatz zur Kollision)
@@ -272,9 +395,14 @@ for kk = 1:length(Namen)
   subplot(2,2,2); hold on;
   plot(T, h_kk(:,1+RS.idx_iktraj_hn.instspc_hyp));
   if kk == length(Namen)
-    ylabel('Zielfunktion'); grid on;
+    ylabel('Zielfunktion hyp.'); grid on;
   end
   subplot(2,2,3); hold on;
+  plot(T, h_kk(:,1+RS.idx_iktraj_hn.instspc_par));
+  if kk == length(Namen)
+    ylabel('Zielfunktion quad.'); grid on;
+  end
+  subplot(2,2,4); hold on;
   plot(T, condJ(:,1));
   if kk == length(Namen)
     ylabel('Konditionszahl'); grid on;
@@ -285,7 +413,9 @@ for kk = 1:length(Namen)
     xlim([0,T(end)]);
     linkxaxes
   end
-  saveas(21, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Criterion.fig'));
+  if usr_save_figures && kk == length(Namen)
+    saveas(21, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Criterion.fig'));
+  end
 end
 
 %% Animation der Trajektorien-Bewegungen mit und ohne Bauraumeinhaltung
@@ -305,15 +435,19 @@ for k = 1:length(Namen)
     plottitle = 'Trajectory Inverse Kinematics with P-Controller InstallSpace Optimization';
   elseif k == 4
     Q_t_plot = Q_ISPD;
-    filesuffix = 'with_installspace_PD';
-    plottitle = 'Trajectory Inverse Kinematics with PD-Controller InstallSpace Optimization';
+    filesuffix = 'with_installspaceHyp_PD';
+    plottitle = 'Trajectory Inverse Kinematics with PD-Controller InstallSpace Optimization (Hyp)';
+  elseif k == 5
+    Q_t_plot = Q_ISQPD;
+    filesuffix = 'with_installspaceQuad_PD';
+    plottitle = 'Trajectory Inverse Kinematics with PD-Controller InstallSpace Optimization (Par)';
   end
   t = (1:size(Q_t_plot,1))';
   maxduration_animation = 5; % Dauer des mp4-Videos in Sekunden
   t_Vid = (0:1/30*(t(end)/maxduration_animation):t(end))';
   I_anim = knnsearch( t , t_Vid );
 
-  anim_filename = fullfile(resdir, sprintf('Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
+  anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
   figure(9);clf;
@@ -411,7 +545,7 @@ assert(all(dist_sm(:)<0), 'Nullraumbewegung auf der Stelle mit PD-Bauraumeinhalt
 if usr_create_anim
 t_Vid = (0:1/30*(T_dummy(end)/maxduration_animation):T_dummy(end))';
 I_anim = knnsearch( T_dummy , t_Vid );
-anim_filename = fullfile(resdir, sprintf('Nullspace_InstallSpace_Test_SelfMotion'));
+anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_SelfMotion'));
 s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
 s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
 figure(9);clf;

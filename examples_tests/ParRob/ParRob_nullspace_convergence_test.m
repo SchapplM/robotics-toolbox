@@ -286,7 +286,7 @@ for robnr = 1:5
   % Einstellungen für Dummy-Berechnung ohne Änderung der Gelenkwinkel.
   s_ep_dummy = s_ep;
   s_ep_dummy.retry_limit = 0;
-  s_ep_dummy.wn = ones(9,1); % hierdurch werden die Kriterien berechnet
+  s_ep_dummy.wn = ones(RP.idx_ik_length.wnpos,1); % hierdurch werden die Kriterien berechnet
   s_ep_dummy.K = zeros(RP.NJ,1); % hierdurch keine Bewegung und damit ...
   s_ep_dummy.Kn = zeros(RP.NJ,1); % ... sofortiger Abbruch
   ii_restab = 0; ii_restab_start = 0;
