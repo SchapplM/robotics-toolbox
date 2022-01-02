@@ -12,7 +12,7 @@
 %   * PKM-Basis
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
-%   * Kein Plattform-KS
+%   * Plattform-KS
 % JointPos_all
 %   gestapelte Positionen aller Gelenke der PKM (als Zeilenvektor)
 %   (Letzte Spalte von Tc_stack_PKM)
@@ -22,7 +22,7 @@
 
 function [Tc_stack_PKM, JointPos_all] = fkine_coll(Rob, q)
 
-Tc_stack_PKM = NaN((Rob.NL-1+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((Rob.NL+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
@@ -42,5 +42,12 @@ for i = 1:Rob.NLEG
   Tc_stack_PKM(out3_ind1+(1:3*Rob.Leg(i).NL),:) = Tc_stack_0;
   out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
 end
-
+% Plattform-KS aus den Daten der ersten Beinkette eintragen
+T_0_E1 = [Tc_stack_PKM(3+(3*Rob.Leg(1).NL-2:3*Rob.Leg(1).NL),:); [0 0 0 1]];
+R_P_B1 = eulxyz2r(Rob.phi_P_B_all(:,1));
+r_P_P_B1 = Rob.r_P_B_all(:,1);
+T_P_B1 = [[R_P_B1, r_P_P_B1]; [0 0 0 1]];
+T_0_P_via1 = T_0_E1 * invtr(T_P_B1);
+Tc_stack_PKM(end-2:end,:) = T_0_P_via1(1:3,:);
+% Positionen in separate Ausgabe extrahieren
 JointPos_all = Tc_stack_PKM(:,4)';

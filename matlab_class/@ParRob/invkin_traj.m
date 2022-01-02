@@ -77,7 +77,7 @@
 %   * PKM-Basis
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
-%   * Kein Plattform-KS
+%   * Plattform-KS
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
@@ -346,7 +346,7 @@ JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
+JointPos_all = NaN(nt, (NL+NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(NJ,1);

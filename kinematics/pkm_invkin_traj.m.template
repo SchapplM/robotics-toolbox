@@ -77,7 +77,7 @@
 %   * PKM-Basis
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
-%   * Kein Plattform-KS
+%   * Plattform-KS
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
@@ -523,6 +523,8 @@ s_3 = struct(...
          'Leg_phiconv_W_0', s.Leg_phiconv_W_0);
 % Struktur für %PN%_fkine_coll
 s_fkinecoll = struct(...
+             'r_P_B_all', s.r_P_B_all,...
+             'phi_P_B_all', s.phi_P_B_all,...
             'Leg_pkin_gen', s.Leg_pkin_gen,...
            'Leg_T_0_W_vec', s.Leg_T_0_W_vec);
 I_qa = s.I_qa;
@@ -541,7 +543,7 @@ JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (1+NL-2+NLEG)*3);
+JointPos_all = NaN(nt, (NL+NLEG)*3);
 
 qk0 = q0;
 qDk0 = zeros(NJ,1);
@@ -559,7 +561,7 @@ xD_k_ist = NaN(6,1);
 dt = 0; % Initialisierung, wird überschrieben.
 Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)), 'version', 5);
+  'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)), 'version', 6);
 h = zeros(idx_ik_length.hntraj,1);
 
 for k = 1:nt
