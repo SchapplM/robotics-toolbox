@@ -27,10 +27,13 @@
 %     *  3 Kapsel (7 Parameter: Punkt 1, Punkt 2, Radius)
 %          (erfordert vollständiges Körper-KS. Aktuell nicht möglich)
 %     *  4 Kugel (4 Parameter: Mittelpunkt, Radius)
+%          (erfordert vollständiges Körper-KS. Aktuell nicht möglich)
 %     *  5 Zylinder als schräge DH-Verbindung (1 Parameter: Radius)
 %     *  6 Kapsel als schräge DH-Verbindung (1 Parameter: Radius)
 %     *  7 Zylinder als gewinkelte DH-Verbindung (entlang a- und d-Parameter)
+%          (Platzhalter; nicht implementiert)
 %     *  8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
+%          (Platzhalter; nicht implementiert)
 %     *  9 Punkt am DH-KS-Ursprung (0 Parameter)
 %     * 10 Quader im Basis-KS. Entspricht einem Störobjekt in der Umgebung
 %          (Im Gegensatz zu 1 sind keine vollständigen Körper-KS notwendig)
@@ -44,6 +47,7 @@
 %          Kollisionsobjekt an der Roboterbasis entsprechen
 %     * 15 Kugel im Basis-KS (4 Parameter) (im Gegensatz zu 4). Kann einem
 %          Kollisionsobjekt an der Roboterbasis entsprechen
+%     * 16 Kugel im Körper-KS (1 Parameter)
 %   params [M x 10 double]
 %     Parameter für die Kollisionskörper. Je nachdem wie viele Parameter
 %     die obigen Kollisionsgeometrien haben, werden Spalten mit NaN aufgefüllt
@@ -106,10 +110,10 @@ function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, S
       collcase = uint8(3); % Punkt+Zylinder
     elseif any(cb.type(cc(i,1)) == [9,14]) && cb.type(cc(i,2)) == 13
       collcase = uint8(4); % Punkt+Kapsel
-    elseif any(cb.type(cc(i,1)) == [6,13]) && cb.type(cc(i,2)) == 15
-      collcase = uint8(5); % Kapsel+Kugel (Basis-KS)
-    elseif any(cb.type(cc(i,2)) == [6,13]) && cb.type(cc(i,1)) == 15
-      collcase = uint8(6); % Kugel+Kapsel (Basis-KS)
+    elseif any(cb.type(cc(i,1)) == [6,13]) && any(cb.type(cc(i,2)) == [16,15])
+      collcase = uint8(5); % Kapsel+Kugel (egal ob in Basis- oder Körper-KS)
+    elseif any(cb.type(cc(i,2)) == [6,13]) && any(cb.type(cc(i,1)) == [16,15])
+      collcase = uint8(6); % Kugel+Kapsel (egal ob in Basis- oder Körper-KS)
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
     end
@@ -294,6 +298,11 @@ function [aabbdata, cb_param] = get_cbparam(type, b_idx_pt, JP_i, b_param)
       r = b_param(4); % Radius
       aabbdata = [c-[1,1,1]*r;c+[1,1,1]*r]; % unten links und oben rechts zum Aufspannen der Box
       cb_param = b_param(1:4);
+    case 16 % Kugel in KS-Ursprung
+      c = JP_i(1,3*(b_idx_pt(1,1)-1)+1:3*b_idx_pt(1,1)); % bezogen auf Basis-KS
+      r = b_param(1); % Radius
+      aabbdata = [c-[1,1,1]*r;c+[1,1,1]*r]; % unten links und oben rechts zum Aufspannen der Box
+      cb_param = [c,r];
     otherwise
       error('Fall %d fuer Kollisionskoerper nicht definiert', type);
   end
