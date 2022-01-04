@@ -119,63 +119,82 @@ drawnow;
 pause(1);
 
 %% Beginne Animation
-% Nehme aktuelle Grenzen des Plots als Grundlage und erweitere die Grenzen
-% schon jetzt, falls der Roboter sich heraus bewegt.
-xminmax = get(gca, 'xlim');
-yminmax = get(gca, 'ylim');
-zminmax = get(gca, 'zlim');
-% Prüfe Bereich des Plots
-for i=1:size(Q,1)
-  if isa(Rob, 'ParRob')
-    [~,Tc_W] = Rob.fkine(Q(i,:)', X(i,:)');
-    xminmax_i = minmax2(squeeze(Tc_W(1,4,:))');
-    yminmax_i = minmax2(squeeze(Tc_W(2,4,:))');
-    zminmax_i = minmax2(squeeze(Tc_W(3,4,:))');
-  elseif isa(Rob, 'SerRob')
-    [~,Tc_W] = Rob.fkine(Q(i,:)');
-    [~,Tc_WE] = Rob.fkineEE(Q(i,:)');
-    xminmax_i = minmax2([squeeze(Tc_W(1,4,:))',Tc_WE(1,4)]);
-    yminmax_i = minmax2([squeeze(Tc_W(2,4,:))',Tc_WE(2,4)]);
-    zminmax_i = minmax2([squeeze(Tc_W(3,4,:))',Tc_WE(3,4)]);
-  else
-    error('Klasse nicht definiert');
-  end
-  xminmax = minmax2([xminmax_i, xminmax]);
-  yminmax = minmax2([yminmax_i, yminmax]);
-  zminmax = minmax2([zminmax_i, zminmax]);
-end
-% Grenzen um 10% der Spannweite aufweiten
-xw = abs(xminmax(2)-xminmax(1));
-xminmax(1) = xminmax(1)-0.05*xw;
-xminmax(2) = xminmax(2)+0.05*xw;
-yw = abs(yminmax(2)-yminmax(1));
-yminmax(1) = yminmax(1)-0.05*yw;
-yminmax(2) = yminmax(2)+0.05*yw;
-zw = abs(zminmax(2)-zminmax(1));
-% Grenzen größer Null setzen (gleich Null bei planaren Systemen)
-if xw < 1e-3
-  xminmax = [-0.2, 0.2]+mean(xminmax);
-end
-if yw < 1e-3
-  yminmax = [-0.2, 0.2]+mean(yminmax);
-end
-if zw < 1e-3
-  zminmax = [-0.2, 0.2]+mean(zminmax);
-end
-% Achsgrenzen setzen
-xminmax(1) = xminmax(1)-0.05*xw;
-xminmax(2) = xminmax(2)+0.05*xw;
-yminmax(1) = yminmax(1)-0.05*yw;
-yminmax(2) = yminmax(2)+0.05*yw;
-zminmax(1) = zminmax(1)-0.05*zw;
-zminmax(2) = zminmax(2)+0.05*zw;
-
-xlim(xminmax);ylim(yminmax);zlim(zminmax);
 % Kind-Objekte des Figures merken, die bis jetzt vorliegen (z.B.
 % eingezeichnete Trajektorien). Diese sollen bei der Animation erhalten
 % bleiben.
 children_keeplist = get(gca, 'children');
+% Nehme aktuelle Grenzen des Plots als Grundlage und erweitere die Grenzen
+% schon jetzt, falls der Roboter sich heraus bewegt.
+xyzminmax = [get(gca, 'xlim'); get(gca, 'ylim'); get(gca, 'zlim')];
+% Zeichne den Roboter in der Startpose. Damit können basisfeste Objekte am
+% Roboter, wie bspw. Führungsschienen von Schubgelenken bereits hier die
+% Begrenzung der Achsen beeinflussen. Nehme nicht einfach direkt die
+% Plot-Grenzen hiernach, da bei automatischer Einstellung der Grenzen diese
+% oft zu groß sind.
+if isa(Rob, 'ParRob'),     Rob.plot(Q(1,:)',X(1,:)',s_plot);
+elseif isa(Rob, 'SerRob'), Rob.plot(Q(1,:)',s_plot);
+else, error('Klasse nicht definiert');
+end
+baseobjectsxyz = repmat(Rob.T_W_0(1:3,4),1,2);
+for c = get(gca, 'children')'
+  % Größe von Basis-Objekten bestimmen
+  if isfield(get(c), 'DisplayName') && ~isempty(get(c, 'DisplayName'))
+    if contains(get(c, 'DisplayName'), 'Link_0')
+      for ixyz = 1:3
+        xdata = get(c, [char(119+ixyz),'Data']);
+        baseobjectsxyz(ixyz,:) = minmax2([xdata(:)', baseobjectsxyz(ixyz,:)]);
+      end
+    end
+  end
+  % Objekt wieder löschen (Plot diente nur zur Bestimmung der Größe).
+  % Bezieht sich nur auf die Objekte aus dem obigen Plot-Befehl
+  inkeeplist = false;
+  for ckl = children_keeplist'
+    if c == ckl, inkeeplist = true; end
+  end
+  if inkeeplist == false, delete(c); end
+end
+xyzminmax = minmax2([xyzminmax, baseobjectsxyz]);
 
+% Prüfe Bereich des Plots
+for i=1:size(Q,1)
+  if isa(Rob, 'ParRob')
+    [~,Tc_W] = Rob.fkine(Q(i,:)', X(i,:)');
+    xyzminmax_i = [minmax2(squeeze(Tc_W(1,4,:))');
+                   minmax2(squeeze(Tc_W(2,4,:))');
+                   minmax2(squeeze(Tc_W(3,4,:))')];
+  elseif isa(Rob, 'SerRob')
+    [~,Tc_W] = Rob.fkine(Q(i,:)');
+    [~,Tc_WE] = Rob.fkineEE(Q(i,:)');
+    xyzminmax_i = [minmax2([squeeze(Tc_W(1,4,:))',Tc_WE(1,4)]);
+                   minmax2([squeeze(Tc_W(2,4,:))',Tc_WE(2,4)]);
+                   minmax2([squeeze(Tc_W(3,4,:))',Tc_WE(3,4)])];
+  else
+    error('Klasse nicht definiert');
+  end
+  xyzminmax = minmax2([xyzminmax_i, xyzminmax]);
+end
+% Grenzen um 10% der Spannweite aufweiten (nur x und y)
+xyzw = abs(xyzminmax(:,2)-xyzminmax(:,1));
+for i_xyz = 1:2
+  xyzminmax(i_xyz,1) = xyzminmax(1,1)-0.05*xyzw(i_xyz);
+  xyzminmax(i_xyz,2) = xyzminmax(1,2)+0.05*xyzw(i_xyz);
+end
+xyzw = abs(xyzminmax(:,2)-xyzminmax(:,1)); % Spannweite hat sich geändert
+% Grenzen größer Null setzen (gleich Null bei planaren Systemen)
+for i_xyz = 1:3
+  if xyzw(i_xyz) < 1e-3
+    xyzminmax(i_xyz,:) = [-0.2, 0.2]+mean(xyzminmax(i_xyz,:));
+  end
+end
+% Achsgrenzen setzen (nochmal mit 10% mehr Spannweite)
+for i_xyz = 1:3
+  xyzminmax(i_xyz,1) = xyzminmax(i_xyz,1)-0.05*xyzw(i_xyz);
+  xyzminmax(i_xyz,2) = xyzminmax(i_xyz,2)+0.05*xyzw(i_xyz);
+end
+
+xlim(xyzminmax(1,:));ylim(xyzminmax(2,:));zlim(xyzminmax(3,:));
+[view1_save,view2_save] = view();
 if video_in_frameloop
   v = VideoWriter(s_anim.avi_name, 'Uncompressed AVI');
   open(v)
@@ -185,22 +204,20 @@ i_break = NaN;
 for i=1:size(Q,1)
   % Plot-Elemente des vorherigen Zeitpunktes entfernen, nur zu behaltende
   % Elemente nicht löschen.
-  if i > 1
-    for c = get(gca, 'children')'
-      inkeeplist = false;
-      for ckl = children_keeplist'
-        if c == ckl
-          inkeeplist = true;
-        end
-      end
-      if inkeeplist == false
-        delete(c);
+  for c = get(gca, 'children')'
+    inkeeplist = false;
+    for ckl = children_keeplist'
+      if c == ckl
+        inkeeplist = true;
       end
     end
-    hold on;
-    xlim(xminmax);ylim(yminmax);zlim(zminmax);
-    view(view1_save,view2_save);
+    if inkeeplist == false
+      delete(c);
+    end
   end
+  hold on;
+  xlim(xyzminmax(1,:));ylim(xyzminmax(2,:));zlim(xyzminmax(3,:));
+  view(view1_save,view2_save);
   q = Q(i,:)';
   if any(isnan(q))
     warning('Stoppe Animation bei Zeitschritt %d/%d. q wird NaN.', i, size(Q,1)); 
@@ -214,8 +231,8 @@ for i=1:size(Q,1)
   else
     error('Klasse nicht definiert');
   end
-
-  xlim(xminmax);ylim(yminmax);zlim(zminmax);
+  % Zurücksetzen der Achsbegrenzungen auf den ersten Wert
+  xlim(xyzminmax(1,:));ylim(xyzminmax(2,:));zlim(xyzminmax(3,:));
   
   grid on;
   if ~isempty(s_anim.gif_name) || video_in_frameloop
@@ -264,9 +281,6 @@ for i=1:size(Q,1)
     print(tmpimage_png,'-dpng','-r300','-opengl');
 %     % Befehl exportgraphics geht nicht (schneidet Ränder variabel ab)
 %     % exportgraphics(gcf,fullfile(tdir,sprintf('frame_%05d.png',i)),'Resolution',300);
-  end
-  if i == 1
-    [view1_save,view2_save] = view();
   end
   drawnow();
 end
