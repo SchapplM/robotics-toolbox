@@ -6,8 +6,20 @@
 %   Roboter-Klasse
 % method
 %   Nummer der Methode (siehe Quelltext)
+%   1-3: Kreisförmig. Gelenk-Achse Normal (1), Tangential (2), Radial (3)
+%   4-6: Paarweise. Gelenk-Achse Normal (4), Tangential (5), Radial (6)
+%   7: Nicht implementiert (TODO: Passend zur Kinematik bei n-FG-Ketten für
+%      n-FG-PKM
+%   8: Alle Gelenkachsen parallel und in Plattform-Ebene (für 3T2R)
 % param
 %   Parameter für diese Methode (siehe Quelltext)
+%   Alle Methoden:
+%     1: Radius
+%   Methoden 4-6:
+%     1: Abstand von der Mitte zur Linie zwischen den Gelenkpaaren
+%     2: Abstand der Gelenke eines Paares
+%   Methode 8:
+%     2: Winkel der Gelenkachsen gegen die x-Achse der Plattform
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Universität Hannover
@@ -101,16 +113,21 @@ elseif method > 3 && method <= 6
   end
 elseif method == 8
   % Methode 8: Alle Gelenkachsen parallel angeordnet
-  n_pf_par = 1;
-  r_PB = param(1); 
+  n_pf_par = 2;
+  r_PB = param(1);
+  psi_offset = param(2);
   for i = 1:NLEG
     if Rob.issym
       beta_i = 2*sym('pi')/NLEG*(i-1);
     else
       beta_i = 2*pi/NLEG*(i-1);
     end
+    % Kreisförmig außen an Plattform
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
-    phi_P_Bi = [0; pi/2; 0];
+    % Zunächst y-Drehung mit pi/2 so, dass Gelenkachse in die Ebene zeigt
+    % und die xB-Achse nach unten. Dann Offset-Drehung um xB-Achse zur Ver-
+    % drehung der Gelenkachse in der Ebene
+    phi_P_Bi = r2eulxyz(roty(pi/2)*rotx(psi_offset));
     phi_P_B_all(:,i) =  phi_P_Bi;
   end   
 else
