@@ -221,7 +221,7 @@ end
 hdl_plf = [];
 if any(s.mode == 4)
   if any(Rob.DesPar.platform_method == [1 2 3 8])
-    h = Rob.DesPar.platform_par(2); % Dicke der Kreisscheibe
+    h = Rob.DesPar.platform_par(end); % Dicke der Kreisscheibe
     if h > 0
       rh_W_P1o = Tc_Pges_W(:,:,end-1)*[0;0;+h/2;1]; % Nutze Trafo zum Plattform-KS
       rh_W_P1u = Tc_Pges_W(:,:,end-1)*[0;0;-h/2;1];
@@ -230,7 +230,7 @@ if any(s.mode == 4)
         'FaceColor', [0.7 0.7 0.7], 'edgeColor', 'k', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.3);
     end
   elseif any(Rob.DesPar.platform_method == [4 5 6])
-    h = Rob.DesPar.platform_par(3); % Dicke der Polygon-Platte
+    h = Rob.DesPar.platform_par(end); % Dicke der Polygon-Platte
     % Polygon-Punkte zusammenstellen und zeichnen
     if h > 0
       hdl_plf = NaN(2,1);
