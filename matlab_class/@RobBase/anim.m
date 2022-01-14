@@ -253,8 +253,8 @@ for i=1:size(Q,1)
       res_1 = size(f.cdata);
     else
       if any(size(f.cdata)~=res_1)
-        warning('Auflösung des aktuellen Bildes (%d x %d) passt nicht zu der des ersten (%d x %d)', ...
-          res_1(1), res_1(1), f.cdata(1), f.cdata(2));
+        warning(['Auflösung des aktuellen Bildes (%d x %d) passt nicht zu ', ...
+          'der des ersten (%d x %d)'], f.cdata(1), f.cdata(2), res_1(1), res_1(1));
         % Wahrscheinlich Durch Benutzer händisch verändert oder Fehler
         i_break = i-1;
         break;
