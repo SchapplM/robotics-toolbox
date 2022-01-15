@@ -328,10 +328,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   % Fehlermaß für Startwerte
   if dof_2T2R == false
-    Phi_voll = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    [Phi_voll,Tc_stack] = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
   else % dof_2T2R == true
     Phi_t = %RN%_constr3_trans(q0, Tr0E_soll, pkin, T_N_E, I_EElink, dof_2T2R_xzproj);
-    [Phi_voll_temp, ~] = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
+    [Phi_voll_temp, Tc_stack] = %RN%_constr2(q0, Tr0E_soll, pkin, T_N_E, phiconv_W_E, I_EElink, reci);
     Phi_r = Phi_voll_temp(4:6,:); % Für 2T2R nur der rotatorische Teil relevant
     Phi_voll = [Phi_t;Phi_r]; % Residuum für 2T2R zusammenstellen
   end
