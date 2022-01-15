@@ -66,6 +66,11 @@ classdef SerRob < RobBase
     mdlname_var % Name des Robotermodells dieser Variante des allgemeinen Modells
     CADstruct % Struktur mit Daten zu CAD-Modellen
     islegchain % Marker, ob diese serielle Kette eine PKM-Beinkette ist
+    I_constr_red % Indizes des reduzierten Residuums der IK (bezogen auf alle Einträge)
+    I_constr_t_red % Indizes der translatorischen Einträge im reduzierten IK-Residuum
+    I_constr_r_red % ... Indizes der rotatorischen Einträge im reduzierten IK-Residuum
+    I_constr_t % Indizes der translatorischen Einträge im vollständigen IK-Residuum
+    I_constr_r % Indizes der rotatorischen Einträge im vollständigen IK-Residuum
     collbodies % Struktur mit Ersatzkörpern zur Kollisionserkennung
     collchecks % Liste von zu prüfenden Kollisionen in `collbodies`
     collbodies_instspc % Struktur mit Ersatzkörpern zur Bauraumprüfung
@@ -1184,6 +1189,29 @@ classdef SerRob < RobBase
       %   Wird nicht beachtet, da einmalig bei Initialisierung gesetzt
       % I_EE_Task [1x6] logical; Belegung der EE-FG der Aufgabe
       R.I_EE_Task = I_EE_Task;
+      % Indizes für die IK-Residuen aufstellen. Siehe auch SerRob/invkin2
+      % Vollständige Einträge immer gleich
+      R.I_constr_t = 1:3;
+      R.I_constr_r = 4:6;
+      if all(I_EE_Task == [1 1 1 1 1 1]) % 3T3R
+        R.I_constr_red = 1:6;
+        R.I_constr_t_red = R.I_constr_t;
+        R.I_constr_r_red = R.I_constr_r;
+      elseif all(I_EE_Task == [1 1 1 1 1 0]) % 3T2R
+        R.I_constr_red = [1 2 3 5 6];
+        R.I_constr_t_red = [1 2 3];
+        R.I_constr_r_red = [4 5];
+      elseif all(I_EE_Task == [1 1 0 1 1 0]) % 2T2R
+        R.I_constr_red = [1 2 5 6];
+        R.I_constr_t_red = [1 2];
+        R.I_constr_r_red = [3 4];
+      elseif all(I_EE_Task == [1 1 0 1 1 1]) % 2T3R
+        R.I_constr_red = [1 2 4 5 6];
+        R.I_constr_t_red = [1 2];
+        R.I_constr_r_red = [3 4 5];
+      else
+        error('Case not defined');
+      end
     end
     function update_base(R, r_W_0, phi_W_0, phiconv_W_0)
       % Aktualisiere die Transformationsmatrix T_W_0 für die Basis

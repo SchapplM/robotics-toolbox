@@ -1,0 +1,114 @@
+% Ableitung der kinematischen Zwangsbedingungen nach den Gelenkwinkeln
+% Die Zwangsbedingungen geben die Abweichung zwischen einer Soll-Pose in
+% EE-Koordinaten und der Ist-Pose aus gegebenen Gelenk-Koordinaten an.
+% Variante 3:
+% * 2T2R-Aufgaben
+% * Projektion der Z-Achse des aktuellen Endeffektor-KS und des Ziel-KS 
+%   ergibt durch zweidimensionalen Abstand das translatorische Residuum
+%
+% Eingabe:
+% q
+%   Gelenkkoordinaten des Roboters
+% XZ_Modus [1x1 logical] (optional)
+%   true: Benutze die Projektion auf die XZ-Ebene statt die XY-Ebene
+%
+% Ausgabe:
+% dPhit_dq [3xN]
+%   Matrix mit Ableitungen der 3 translatorischen Zwangsbedingungskomponenten
+%   (in den Zeilen) nach den N Gelenkwinkeln (in den Spalten)
+
+% Quellen:
+% [SchapplerBluJob2022] Schappler, M. et al.: Geometric Model for Serial-
+% Chain Robot Inverse Kinematics in the Case of Two Translational DoF with
+% Spatial Rotation and Task Redundancy, Submitted to ARK 2022 
+% [Blum2021] Blum, T.: Inverse Kinematik aufgabenredundanter Roboter für
+% Aufgaben mit zwei translatorischen und zwei rotatorischen Freiheits-
+% graden, Masterarbeit M-03/2021-1013
+% [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
+% Redundancy for 3T2R Robot Tasks using Two Sets of Reciprocal Euler
+% Angles, Proc. of the 15th IFToMM World Congress, 2019
+
+% Tobias Blum, Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2021
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
+
+function dPhit_dq = constr3grad_tq(Rob, q, XZ_Modus)
+
+assert(isreal(q) && all(size(q) == [Rob.NQJ 1]), ...
+  'SerRob/constr3grad_tq: q muss %dx1 sein', Rob.NQJ);
+
+%% Allgemein
+T_0_E = Rob.fkineEE(q);
+
+% Rotationsmatrix aus Transformationsmatrix zusammenstellen
+R_0_E = T_0_E(1:3,1:3);
+
+% Translationsvektor aus Transformationsmatrix zusammenstellen
+r_0E = T_0_E(1:3,4);
+
+% Einheitsvektor der z-Achse aus Rotationsmatrix bestimmen
+e_z_OE = R_0_E(:,3);
+
+%% Beginn Gradientenbestimmung
+
+if XZ_Modus == false
+  lambda_E_apostr = (-r_0E(3))/e_z_OE(3);
+else % XZ_Modus == true
+  lambda_E_apostr = (-r_0E(2))/e_z_OE(2);   
+end
+
+%% Gleichung für den Gradienten d0_r_0E'dq
+% d0_r_0E'dq = d0_r_OE_dq + dlambda_E'dq*0_ez_E + lambda_E'*d0_ez_Edq
+d0_r_OE_dq = Rob.jacobit(q);
+
+% Rotatorischen Teil der Jacobi-Matrix bestimmen
+R_N_E = Rob.T_N_E(1:3,1:3); % Siehe Text vor [SchapplerTapOrt2019]/(32)
+
+% Ableitung der Rotationsmatrix R_0_E nach q
+% Term III aus [SchapplerTapOrt2019]/(31)
+b11=R_N_E(1,1);b12=R_N_E(1,2);b13=R_N_E(1,3);
+b21=R_N_E(2,1);b22=R_N_E(2,2);b23=R_N_E(2,3);
+b31=R_N_E(3,1);b32=R_N_E(3,2);b33=R_N_E(3,3);
+dPidRb1 = [b11 0 0 b21 0 0 b31 0 0; 0 b11 0 0 b21 0 0 b31 0; 0 0 b11 0 0 b21 0 0 b31; b12 0 0 b22 0 0 b32 0 0; 0 b12 0 0 b22 0 0 b32 0; 0 0 b12 0 0 b22 0 0 b32; b13 0 0 b23 0 0 b33 0 0; 0 b13 0 0 b23 0 0 b33 0; 0 0 b13 0 0 b23 0 0 b33;];
+dRb_0N_dq = Rob.jacobiR(q);
+% [SchapplerTapOrt2019]/(32) für III in [SchapplerTapOrt2019]/(31) einsetzen
+dRb_0E_dq = dPidRb1 * dRb_0N_dq;
+
+% Fertigstellung von dlambda_E'dq
+if XZ_Modus == false
+  f1 = - r_0E(3);
+  f2 = e_z_OE(3);
+  df1dq = -d0_r_OE_dq(3,:); % letzte Zeile (Z) der Jacobi-Trans
+  df2dq = dRb_0E_dq(9,:); % letzte Zeile (Z) der Jacobi-R-OE 
+else % XZ_Modus == true
+  f1 = - r_0E(2);
+  f2 = e_z_OE(2);
+  df1dq = -d0_r_OE_dq(2,:); % letzte Zeile (Z) der Jacobi-Trans
+  df2dq = dRb_0E_dq(8,:); % letzte Zeile (Z) der Jacobi-R-OE 
+end
+
+dlambda_E_apostrdq = (f2*df1dq - f1*df2dq)/(f2^2);
+
+%% d0_ez_Edq
+% Entspricht den letzten 3 Zeilen der Jacobi-Rot
+d0_ez_Edq = dRb_0E_dq(7:9,:);
+
+%% Fertigstellen des Gradienten d0_r_0E'dq
+% d0_r_0E'dq = d0_r_OE_dq + dlambda_E'dq*0_ez_E               + lambda_E'*d0_ez_Edq
+% d0_r_0E'dq = d0_r_OE_dq + matr_lambda_e_1 + matr_lambda_e_2 + lambda_E'*d0_ez_Edq
+
+% dlambda_E'dq*0_ez_E elementweise mit Produktweise ableiten, um damit 
+% die Dimension [3x6] für die anschließende Addition zu erhalten
+
+matr_lambda_e_1 = [lambda_E_apostr*d0_ez_Edq(1,:); ...
+                   lambda_E_apostr*d0_ez_Edq(2,:); ...
+                   lambda_E_apostr*d0_ez_Edq(3,:)];
+
+matr_lambda_e_2 = [dlambda_E_apostrdq*e_z_OE(1,:); ...
+                   dlambda_E_apostrdq*e_z_OE(2,:); ...
+                   dlambda_E_apostrdq*e_z_OE(3,:)];
+
+% Ergebnis - Gradient d0_r_0E'dq
+d0_r_0E_apostrdq = ... % [SchapplerBluJob2022], Gl. 8
+ d0_r_OE_dq + matr_lambda_e_1 + matr_lambda_e_2;
+
+dPhit_dq = d0_r_0E_apostrdq;
