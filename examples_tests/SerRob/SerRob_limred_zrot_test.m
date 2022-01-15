@@ -607,15 +607,15 @@ for Robot_Data = Robots
         name_method = sprintf('3T2R-IK mit wn(:)=0');
         name_method_save1 = name_method;
       case 2
-        % wn(15:16)=1: hyp. für qD und qDD
+        % wn(17:18)=1: hyp. für qD und qDD
         s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
         s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
-        name_method = sprintf('3T2R-IK mit wn(15:16)=1');
+        name_method = sprintf('3T2R-IK mit xlim_hyp PD=1');
         name_method_save2 = name_method;
       case 3
-        % wn(17)=1: quadr. für qD
+        % wn(19)=1: quadr. Dämpfung für qD
         s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
-        name_method = sprintf('3T2R-IK mit wn(17)=1');
+        name_method = sprintf('3T2R-IK mit wnP.xDlim_par=1');
         name_method_save3 = name_method;
       case 4
         % wn(15:17)=1: Einfluss von fehlendem wn(13:14) testen
@@ -679,9 +679,9 @@ for Robot_Data = Robots
       end
     end
     % Auswertung für den Plot: h(8) bis h(10)
-    h8_k(:,k) = Stats_Traj_k.h(:,9);
-    h9_k(:,k) = Stats_Traj_k.h(:,10);
-    h10_k(:,k) = Stats_Traj_k.h(:,11);
+    h8_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xlim_par);
+    h9_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xlim_hyp);
+    h10_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xDlim_par);
     % Auswertung für den Plot: phizD
     phizD_traj(:,k) = Stats_Traj_k.phi_zD(:,1);
   end
