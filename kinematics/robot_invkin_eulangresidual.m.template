@@ -146,7 +146,7 @@ finish_in_limits = s.finish_in_limits;
 break_when_in_limits = false;
 avoid_collision_finish = s.avoid_collision_finish;
 n_Phi_t = sum(s.I_EE(1:3)); % Anzahl der translatorischen Zwangsbedingungen
-[idx_wn, idx_hn, ~, ~, ~, idx_ik_length] = ik_optimcrit_index();
+[idx_wn, idx_hn, ~, ~, ~, idx_ik_length] = ik_optimcrit_index(0);
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;

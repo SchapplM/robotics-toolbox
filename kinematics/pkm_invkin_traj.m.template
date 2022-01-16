@@ -277,7 +277,7 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 
-[~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index();
+[~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index(2);
 
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
