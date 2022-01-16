@@ -30,7 +30,7 @@ serroblib_update_template_functions({SName}, false);
 % if mexerr
 %   error('Fehler beim Kompilieren');
 % end
-RS.fill_fcn_handles(true); % kompilierte Funktionen nehmen (schneller)
+RS.fill_fcn_handles(true, true); % kompilierte Funktionen nehmen (schneller)
 %% Definition der Kollisionskörper
 collbodies = struct( ...
         'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)

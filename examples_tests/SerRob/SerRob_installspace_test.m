@@ -35,7 +35,7 @@ serroblib_update_template_functions({SName});
 % err = err | matlabfcn2mex({'S3RRR1_invkin_eulangresidual'});
 % err = err | matlabfcn2mex({'S3RRR1_invkin_traj'});
 % assert(~err, 'Kompilieren nicht erfolgreich');
-RS.fill_fcn_handles(true); % true: kompilierte Funktionen nehmen (schneller)
+RS.fill_fcn_handles(true, true); % true: kompilierte Funktionen nehmen (schneller)
 
 %% Definition der Kollisionskörper für Bauraumprüfung
 % Reine Prüfung von Punkten in den Gelenken reicht aus für Plausibilität
