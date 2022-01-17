@@ -45,7 +45,7 @@ for i = 1:length(PNames_Akt)
 end
 PNames_Akt = PNames_Akt(I_autogen);
 
-PKM_selection = {'P3PRRRR8G1P3A1', 'P3PRRRR4G1P2A1', 'P3PRRRR6G4P1A1'};
+PKM_selection = {'P3PRRRR8G1P2A1', 'P3PRRRR4G1P2A1', 'P3PRRRR6G4P1A1'};
 % Schleife über alle möglichen Strukturen
 for PKMName = PKM_selection
   % Prüfe, ob genannte PKM überhaupt in gefilterter Liste enthalten ist
@@ -54,6 +54,7 @@ for PKMName = PKM_selection
   end
   %% Klasse für PKM erstellen
   % PKM laden (aus Bibliothek)
+  parroblib_update_template_functions(PKMName(1));
   RP = parroblib_create_robot_class(PKMName{1}, 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
   % Kinematik-Parameter belegen
@@ -69,11 +70,12 @@ for PKMName = PKM_selection
   if strcmp(RP.mdlname, 'P3PRRRR1G1P3A1')
     pkin(1) = 0.0;
     pkin(2) = 0.4;
-  elseif strcmp(RP.mdlname, 'P3PRRRR8G1P3A1')
-    pkin(strcmp(RP.Leg(1).pkin_names, 'theta1')) = 0;
-    pkin(strcmp(RP.Leg(1).pkin_names, 'alpha2')) = 0;
+  elseif strcmp(RP.mdlname, 'P3PRRRR8G1P2A1')
+    pkin(strcmp(RP.Leg(1).pkin_names, 'theta1')) = pi/2;
+    pkin(strcmp(RP.Leg(1).pkin_names, 'alpha2')) = pi/2;
     pkin(strcmp(RP.Leg(1).pkin_names, 'd2')) = 0.0;
     pkin(strcmp(RP.Leg(1).pkin_names, 'a2')) = 0.0;
+    pkin(strcmp(RP.Leg(1).pkin_names, 'd4')) = 0.0;
     pkin(strcmp(RP.Leg(1).pkin_names, 'a4')) = 0.5;
   elseif strcmp(RP.mdlname, 'P3PRRRR4G1P2A1')
     pkin(strcmp(RP.Leg(1).pkin_names, 'theta1')) = pi/2;
@@ -94,6 +96,10 @@ for PKMName = PKM_selection
   end
   for i = 1:RP.NLEG
     RP.Leg(i).update_mdh(pkin);
+  end
+  for i = 1:RP.NLEG % Grenzen festlegen (damit Neuversuche der IK möglich)
+    RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
+    RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = repmat([-4, 4], sum(RP.Leg(i).MDH.sigma==1), 1);
   end
   if rank(RP.Leg(1).jacobig(rand(RP.Leg(1).NJ,1))) < RP.Leg(1).NJ
     error('Mit aktueller Parametrierung hat die Beinkette einen Rangverlust');
@@ -118,12 +124,12 @@ for PKMName = PKM_selection
   % IK mit zwei Methoden testen. Sehr genau berechnen, damit die Prüfung
   % rotatorischer FG und der Jacobi-Matrizen im nächsten Abschnitt auch
   % sehr genau ist.
-  [q, Phi_test1] = RP.invkin_ser(X0_t0, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
+  [q, Phi_test1, ~, Stats] = RP.invkin_ser(X0_t0, q0, struct('Phit_tol', 1e-13, 'Phir_tol', 1e-13));
 
   Phi1=RP.constr1(q, X0_t0);
   if any(abs(Phi1) > 1e-6) || any(isnan(Phi1))
     warning('ZB in Startpose ungleich Null');
-    q = q0;
+    q = q0; % Nur zum Zeichnen nicht sofort abbrechen
   end
 
   %% Anfangs-Konfiguration zeichnen
@@ -138,8 +144,7 @@ for PKMName = PKM_selection
 
   %% Teste Jacobi-Matrizen
   if any(abs(Phi1) > 1e-6) || any(isnan(Phi1))
-    % Folgende Rechnungen ergeben keinen Sinn
-    return
+    error('Fall darf nicht auftreten. IK muss lösbar sein');
   end
   
   G_q  = RP.constr1grad_q(q, X0_t0);
