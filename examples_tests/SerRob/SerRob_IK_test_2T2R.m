@@ -31,7 +31,7 @@ Robots = {{'S6RRRRRR10V2', 'S6RRRRRR10V2_KUKA1'}};
 % Einstellungen
 usr_plot = false;
 use_mex_functions = true; % mit mex geht es etwas schneller, dafür ist debuggen schwieriger
-minimal_test = true; % Nur sehr wenige zufällige Winkel testen (geht schneller)
+minimal_test = false; % Nur sehr wenige zufällige Winkel testen (geht schneller)
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
 % Implementierung davon richtig ist
 r_W_E = [0.1;0.1;0.1];
@@ -44,7 +44,7 @@ for Robot_Data = Robots
    
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
-  serroblib_update_template_functions({SName}, false, false);
+  serroblib_update_template_functions({SName});
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
   % Grenzen festlegen (für Zusatz-Optimierung)
@@ -205,11 +205,9 @@ for Robot_Data = Robots
   end
   %% Test 2: Gradient der kinematischen Zwangsbedingungen
   fprintf('%s: Test 2: Gradient der kinematischen Zwangsbedingungen testen\n', SName);  
-  n_iO2 = 0;
-  n_iO6 = 0;
-  n_iF2 = 0;
-  n_iF6 = 0;
-  for i_phiconv = uint8([2 6])
+  for i_phiconv = uint8([2 6]) % Prüfe für xyz und yxz
+    n_niO = 0;
+    n_iO = 0;
     eulstr = euler_angle_properties(i_phiconv);
     RS.phiconv_W_E = i_phiconv;
 
@@ -269,28 +267,21 @@ for Robot_Data = Robots
         I_abserr = abs(test1)  > 8e10*eps(1+max(abs(Phi_1))); % Absoluter Fehler über Toleranz
         if any( I_relerr & I_abserr ) % Fehler bei Überschreitung von absolutem und relativem Fehler
 %           error('%s: Zwangsbedingungs-Ableitung nach q stimmt nicht mit Zwangsbedingungen überein (Var. 1; Delta q%d)', PName, id);
-          warning('%s: %d/%d: Deltaq%d: Zwangsbedingungs-Ableitung stimmt nicht mit Zwangsbedingungen überein', SName, i, size(TSS.Q,1), id);
-          if i_phiconv == 2
-            n_iF2 = n_iF2 + 1;
-          elseif i_phiconv == 6
-            n_iF6 = n_iF6 + 1;
-          end
+          warning(['%s: %d/%d: Deltaq%d: Zwangsbedingungs-Ableitung stimmt ', ...
+            'nicht mit Zwangsbedingungen überein'], SName, i, size(TSS.Q,1), id);
+          n_niO = n_niO + 1;
         else
           % fprintf('%d/%d: Gelenkverschiebung Nr. %d: Zwangsbedingungen erfolgreich getestet\n', i, size(TSS.Q,1), id);
-          if i_phiconv == 2
-            n_iO2 = n_iO2 + 1;
-          elseif i_phiconv == 6
-            n_iO6 = n_iO6 + 1;
-          end
+          n_iO = n_iO + 1;
         end
       end
     end
-  end
-  % Statistik
-  fprintf('%d/%d verschobene Gelenkkoordinaten waren erfolgreich bei phiconv = 2\n', size(TSS.Q,1)*size(TSS.Q,2)-n_iF2, n_iO2);
-  fprintf('%d/%d verschobene Gelenkkoordinaten waren erfolgreich bei phiconv = 6\n', size(TSS.Q,1)*size(TSS.Q,2)-n_iF6, n_iO6);
-  if any([n_iO2,n_iO6] < size(TSS.Q,1)*size(TSS.Q,1))
-    error('Es gab eine Abweichung beim Residuum');
+    % Statistik
+    fprintf(['%d/%d verschobene Gelenkkoordinaten waren erfolgreich bei ', ...
+      '%s-Euler-Winkeln\n'], n_iO, n_iO+n_niO, eulstr);
+    if n_niO > 0
+      error('Es gab eine Abweichung beim Residuum');
+    end
   end
 
   %% Test 3: Klassen-Funktionen gegen Funktions-Vorlagen testen
