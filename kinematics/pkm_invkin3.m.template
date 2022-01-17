@@ -248,7 +248,7 @@ if sum(Rob_I_EE) - sum(s.I_EE_Task) == 1 && ~s.I_EE_Task(end)
 else
   taskred_rotsym = false;
 end
-[idx_wn, idx_hn, ~, ~, ~, idx_ik_length] = ik_optimcrit_index();
+[idx_wn, idx_hn, ~, ~, ~, idx_ik_length] = ik_optimcrit_index(2);
 qlim = NaN(NJ,2);
 J1 = 1;
 for i = 1:NLEG

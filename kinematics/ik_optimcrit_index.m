@@ -1,6 +1,10 @@
 % Indizes für die Variablen für Kriterien der Nullraumbewegung.
 % Dient zur Vermeidung hart kodierter Indizes im Quelltext
 % 
+% Eingabe:
+% Type
+%   Typ des Roboters. 0/1=SerRob, 2=ParRob
+% 
 % Ausgabe:
 % idx_ikpos_wn
 %   Gewichtungsfaktoren in der Einzelpunkt-IK (Eingabe-Variable `wn`)
@@ -27,10 +31,14 @@
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [idx_ikpos_wn, idx_ikpos_hn, idx_iktraj_wnP, idx_iktraj_wnD, ...
-  idx_iktraj_hn, idx_ik_length] = ik_optimcrit_index()
+  idx_iktraj_hn, idx_ik_length] = ik_optimcrit_index(Type)
 idx_ik_length = struct('wnpos', NaN, 'wntraj', NaN, 'hnpos', NaN, 'hntraj', NaN);
 % Anzahl der Elemente in indiziertem Vektor
-idx_ik_length.wnpos = 10;
+if Type < 2 % SerRob
+  idx_ik_length.wnpos = 12;
+else % ParRob
+  idx_ik_length.wnpos = 10;
+end
 idx_ikpos_wn = struct( ...
   'qlim_par', 1, ...
   'qlim_hyp', 2, ...
@@ -42,6 +50,11 @@ idx_ikpos_wn = struct( ...
   'xlim_hyp', 8, ...
   'coll_par', 9, ...
   'instspc_par', 10);
+if Type < 2 % SerRob
+  % Für ParRob noch nicht implementiert, für SerRob nur in PTP-IK.
+  idx_ikpos_wn.xlim_trans_par = 11;
+  idx_ikpos_wn.xlim_trans_hyp = 12;
+end
 % Gleiche Reihenfolge in Ausgabe-Variable h
 idx_ik_length.hnpos = idx_ik_length.wnpos;
 idx_ikpos_hn = idx_ikpos_wn;

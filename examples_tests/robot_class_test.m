@@ -21,6 +21,7 @@ ParRob_transformations_test; close all;
 %% Serielle Roboter
 SerRob_constraints_test; close all;
 SerRob_IK_test; close all;
+SerRob_IK_test_2T2R; close all;
 SerRob_class_example_SCARA; close all;
 SerRob_class_example_Palettierer; close all;
 SerRob_class_example_LBR; close all;

@@ -143,21 +143,34 @@ for robnr = 1:2
 
   % Zuordnung zwischen Nebenbedingungen der Einzelpunkt- und Traj.-IK
   % Reihenfolge: Siehe RS.idx_ikpos_wn.
+  I_wn_ep = 1:RS.idx_ik_length.wnpos;
   I_wn_traj = zeros(RS.idx_ik_length.wnpos,1);
   i=0;
   for f = fields(RS.idx_ikpos_wn)'
     i=i+1;
+    % Es können unterschiedliche Kriterien definiert sein bei PTP- und
+    % Traj.-IK.
+    if ~isfield(RS.idx_iktraj_wnP, f{1})
+      I_wn_ep(RS.idx_ikpos_wn.(f{1})) = 0;
+      continue;
+    end
     I_wn_traj(i) = RS.idx_iktraj_wnP.(f{1});
   end
+  % Einträge entfernen, die nicht in beiden IK-Methoden implementiert sind
+  I_wn_ep = I_wn_ep(I_wn_ep~=0);
+  I_wn_traj = I_wn_traj(I_wn_traj~=0);
+  assert(length(I_wn_ep)==length(I_wn_traj));
   I_stats_traj = zeros(RS.idx_ik_length.hnpos,1);
   i=0;
   for f = fields(RS.idx_ikpos_hn)'
     i=i+1;
+    if ~isfield(RS.idx_iktraj_hn, f{1}), continue; end
     I_stats_traj(i) = RS.idx_iktraj_hn.(f{1});
   end
-  I_wn_ep = 1:RS.idx_ik_length.wnpos;
+  I_stats_traj = I_stats_traj(I_stats_traj~=0);
+  I_stats_ep = I_wn_ep;
   % Namen der Optimierungskriterien der IK (für Diagramme)
-  hnames = fields(RS.idx_ikpos_hn)';
+  hnames = intersect(fields(RS.idx_ikpos_hn)',fields(RS.idx_iktraj_hn)');
   
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
@@ -388,7 +401,7 @@ for robnr = 1:2
         RS.I_EE_Task = I_EE_red;
 
         % IK mit Einzelpunkt-Verfahren berechnen
-        for f = fields(RS.idx_ikpos_wn)'
+        for f = intersect(fields(RS.idx_ikpos_wn)',fields(RS.idx_iktraj_wnP)')
           s_ep_ii.wn(RS.idx_ikpos_wn.(f{1}))=wn_traj(RS.idx_iktraj_wnP.(f{1}));
         end
         s_ep_ii.wn(I_wn_ep) = wn_traj(I_wn_traj);
@@ -622,7 +635,7 @@ for robnr = 1:2
           change_current_figure(2);clf;set(2,'Name','h','NumberTitle','off');
           for i = 1:length(I_wn_ep)
             subplot(3,3,i); hold on;
-            plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
+            plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_stats_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
             ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i))), 'interpreter', 'none'); grid on;
             xlabel('Fortschritt in %');
@@ -675,7 +688,7 @@ for robnr = 1:2
           change_current_figure(20);clf;set(20,'Name','h_x6','NumberTitle','off');
           for jj = 1:length(I_wn_ep)
             subplot(3,3,jj); hold on; grid on;
-            plot(x_test_ges(:,6)*180/pi, h_ges(:,I_wn_ep(jj)));
+            plot(x_test_ges(:,6)*180/pi, h_ges(:,I_stats_ep(jj)));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj}), 'interpreter', 'none'); grid on;
             xlabel('x6 in deg');
           end
@@ -686,9 +699,9 @@ for robnr = 1:2
             hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_stats_traj(jj)), 'r+-');
             hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+I_wn_ep(jj)), 'gx-');
             
-            hdl0=plot(180/pi*xs(6), hs(I_wn_ep(jj)), 'cs', 'MarkerSize', 16);
+            hdl0=plot(180/pi*xs(6), hs(1+I_stats_ep(jj)), 'cs', 'MarkerSize', 16);
             hdl1=plot(x_traj_ii(6)*180/pi, h_traj_ii(end,1+I_stats_traj(jj)), 'r^', 'MarkerSize', 16);
-            hdl2=plot(x_ep_ii(6)*180/pi, h_ep_ii(1+I_wn_ep(jj)), 'gv', 'MarkerSize', 16);
+            hdl2=plot(x_ep_ii(6)*180/pi, h_ep_ii(1+I_stats_ep(jj)), 'gv', 'MarkerSize', 16);
 %             plot([xs(6);x_traj_ii(6)]*180/pi, [hs(jj);h_traj_ii(end,1+I_wn_traj(jj))], 'r-');
 %             plot([xs(6);x_ep_ii(6)]*180/pi, [hs(jj);h_ep_ii(1+jj)], 'g-');
           end

@@ -249,7 +249,7 @@ else
   % Nullraumbewegungen genutzt.
   redundant = true;
 end
-[~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index();
+[~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index(0);
 % Definitionen für die Kollisionsprüfung
 collbodies_ns = s.collbodies;
 maxcolldepth = 0;
