@@ -880,28 +880,14 @@ for k = 1:nt
       %% Antriebskoordinaten: Einhaltung der Grenzen der redundanten Koord.
       if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
         Stats.mode(k) = bitset(Stats.mode(k),12);
-        h(idx_hn.xlim_par) = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
-        h9_test = invkin_optimcrit_limits1(x_k_ist(6)+1e-6, s.xlim(6,1:2));
-        h9drz = (h9_test-h(idx_hn.xlim_par))/1e-6; % 1e-6 ist xD_test(6)
+        [h(idx_hn.xlim_par), h9drz] = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
         h9dqa = h9drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaD  = v_qaD  - wn(idx_wnD.xlim_par)*h9dqa(:);
         v_qaDD = v_qaDD - wn(idx_wnP.xlim_par)*h9dqa(:);
       end
       if wn(idx_wnP.xlim_hyp) ~= 0 || wn(idx_wnD.xlim_hyp) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
         Stats.mode(k) = bitset(Stats.mode(k),13);
-        h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
-        h10_test = invkin_optimcrit_limits2(x_k_ist(6)+1e-6, s.xlim(6,1:2), xlim_thr_h10(6,:));
-        if isinf(h(idx_hn.xlim_hyp)) || isinf(h10_test)
-          if x_k_ist(6) <= s.xlim(6,1) + 1e-6
-            h10drz = -1e10;
-          elseif x_k_ist(6) >= s.xlim(6,2) - 1e-6
-            h10drz = +1e10;
-          else
-            error('Fall sollte eigentlich nicht vorkommen');
-          end
-        else
-          h10drz = (h10_test-h(idx_hn.xlim_hyp))/1e-6;
-        end
+        [h(idx_hn.xlim_hyp), h10drz] = invkin_optimcrit_limits2(x_k_ist(6), s.xlim(6,1:2), xlim_thr_h10(6,:));
         h10dqa = h10drz*J_ax(end,:); % Siehe [SchapplerOrt2021], Gl. 29
         v_qaD  = v_qaD  - wn(idx_wnD.xlim_hyp)*h10dqa(:);
         v_qaDD = v_qaDD - wn(idx_wnP.xlim_hyp)*h10dqa(:);

@@ -659,29 +659,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       if wn(idx_wn.xlim_par) ~= 0 && all(abs(Phi)<1e-3) % quadratische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(idx_hn.xlim_par) = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
-        % Kriterium für Inkrement berechnen. TODO: Müsste auch symbolisch gehen!
-        h7_test = invkin_optimcrit_limits1(-delta_phi_z(3)+1e-6, s.xlim(6,1:2));
-        h7drz = (h7_test-h(idx_hn.xlim_par))/1e-6;
+        [h(idx_hn.xlim_par), h7drz] = invkin_optimcrit_limits1(-delta_phi_z(3), s.xlim(6,1:2));
         h7dq = h7drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
         v = v - wn(idx_wn.xlim_par)*h7dq';
       end
       if wn(idx_wn.xlim_hyp) ~= 0 && all(abs(Phi)<1e-3) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
-        h(idx_hn.xlim_hyp) = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
-        % Kriterium für Inkrement berechnen. TODO: Müsste auch symbolisch gehen!
-        h8_test = invkin_optimcrit_limits2(-delta_phi_z(3)+1e-6, s.xlim(6,1:2), xlim_thr_h8(6,:));   
-        if isinf(h(idx_hn.xlim_hyp)) || isinf(h8_test)
-          if -delta_phi_z(3) <= s.xlim(6,1) + 1e-6
-            h8drz = -1e10;
-          elseif -delta_phi_z(3) >= s.xlim(6,2) - 1e-6
-            h8drz = 1e10;
-          else
-            error('Dieser Fall sollte eigentlich nicht vorkommen');
-          end
-        else
-          h8drz = (h8_test-h(idx_hn.xlim_hyp))/1e-6;
-        end
+        [h(idx_hn.xlim_hyp), h8drz] = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
         h8dq = h8drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
         v = v - wn(idx_wn.xlim_hyp)*h8dq';
       end
