@@ -155,7 +155,7 @@ for NNN = RobotNames
         raiseerr = false;
         % Neue Koordinaten q1 durch Verschiebung in einer Komponente
         dq = zeros(length(q0),1);
-        dq(id) = 1e-4;
+        dq(id) = 1e-6;
         q1 = q0+dq;
 
         % Zwangsbedingungen für verschobene Koordinaten q1 berechnen
@@ -261,7 +261,7 @@ for NNN = RobotNames
       for id = find(RP.I_EE)
         % Neue Koordinaten x1 durch Verschiebung in einer Komponente
         dx = zeros(6,1);
-        dx(id) = 1e-4;
+        dx(id) = 1e-6;
         x1 = x0+dx;
 
         % Zwangsbedingungen für verschobene Koordinaten x1 berechnen
