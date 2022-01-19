@@ -111,7 +111,7 @@ for DynParMode = 2:4
     % Suche erste gültige Aktuierung in der Datenbank (ist für Dynamik
     % egal; es wird nur die Plattform-Dynamik betrachtet ohne Projektion in
     % die Antriebskoordinaten).
-    IIa = find(contains(PNames_Akt, PNames_Kin{ii}),1,'first');
+    IIa = find(contains(PNames_Akt, [PNames_Kin{ii},'A']),1,'first');
     PName = PNames_Akt{IIa};
     fprintf('Untersuche PKM %s\n', PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));

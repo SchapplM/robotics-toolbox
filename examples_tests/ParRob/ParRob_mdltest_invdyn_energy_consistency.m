@@ -64,7 +64,7 @@ for i_FG = 1:size(EEFG_Ges,1)
   robot_list_fail = {};
   EE_FG = EEFG_Ges(i_FG,:);
   fprintf('Untersuche Energiekonsistenz für %dT%dR-PKM\n', sum(EE_FG(1:3)), sum(EE_FG(4:6)));
-  [PNames_Kin, ~] = parroblib_filter_robots(EE_FG, 6);
+  [PNames_Kin, PNames_Akt] = parroblib_filter_robots(EE_FG, 6);
   if isempty(PNames_Kin)
     continue % Es gibt keine PKM mit diesen FG.
   end
@@ -91,7 +91,10 @@ for i_FG = 1:size(EEFG_Ges,1)
     warning('Suchfilter hat keine Ergebnisse gebracht. Überspringe FG');
   end
   for ii = III
-    PName = [PNames_Kin{ii},'A1']; % Nehme nur die erste Aktuierung (ist egal)
+    % Nehme die erste vorhandene Aktuierung zu dieser Kinematik. Muss nicht
+    % "A1" sein. Daher Suche in Liste.
+    IIa = find(contains(PNames_Akt, [PNames_Kin{ii},'A']),1,'first');
+    PName = PNames_Akt{IIa};
     fprintf('Untersuche PKM %d/%d: %s\n', ii, length(PNames_Kin), PName);
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
 
