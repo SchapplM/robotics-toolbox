@@ -115,6 +115,11 @@ elseif method == 8
   % Methode 8: Alle Gelenkachsen parallel angeordnet
   n_pf_par = 2;
   r_PB = param(1);
+  if length(param) == 1 % Geänderte Implementierung, Abwärtskompatibilität
+    param = [param; 0];
+    warning(['Eingabeparameter param muss für Methode P8 2x1 sein. ', ...
+      'Zweiter, fehlender Eintrag auf 0 gesetzt.']);
+  end
   psi_offset = param(2);
   for i = 1:NLEG
     if Rob.issym
