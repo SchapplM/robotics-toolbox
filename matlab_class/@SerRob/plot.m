@@ -132,6 +132,13 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
     
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
     r_W_Oi = T_c_W(1:3,4,i+1);
+    % Anpassung des Gelenk-Offset für einen Sonderfall des Plottens von
+    % Schubgelenken (siehe Bedingungen unten)
+    if Rob.MDH.a(i) == 0 && Rob.DesPar.joint_offset(i) == 0 && Rob.MDH.sigma(i) == 1 
+      joint_offset_i = gh/2;
+    else
+      joint_offset_i = Rob.DesPar.joint_offset(i);
+    end
     % Gelenk so verschieben, dass es bei d-Verschiebung (z-Achse) in der
     % Mitte zwischen den benachbarten KS liegt (damit die Gelenke weniger
     % direkt ineinander liegen)
@@ -141,7 +148,7 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
       d = q_JV(i) + Rob.MDH.offset(i);
       % Zusätzlicher Offset aus Entwurfsparametern: Schubachse wird mit
       % einem Segment verlängert. Dadurch Verschiebung der Schiene.
-      r_W_Gi_offsetkorr = T_c_W(1:3,1:3,i+1)*[0;0;Rob.DesPar.joint_offset(i)];
+      r_W_Gi_offsetkorr = T_c_W(1:3,1:3,i+1)*[0;0;joint_offset_i];
     elseif Rob.MDH.sigma(i) == 2 % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
       d = Rob.MDH.d(i);
     else
