@@ -11,6 +11,12 @@ this_repo_path = fullfile(fileparts(which('robotics_toolbox_path_init.m')));
 addpath(fullfile(this_repo_path, 'examples_tests', 'SerRob'));
 addpath(fullfile(this_repo_path, 'examples_tests', 'ParRob'));
 
+% Debug:
+% Setze neu erstellte Bilder auf Unsichtbar. Muss manuell rückgängig
+% gemacht werden (mit `set(0, 'DefaultFigureVisible', 'on')`.
+% Bilder werden gezeigt mit make_figures_visible.
+% set(0, 'DefaultFigureVisible', 'off');
+
 %% Kompiliere Abhängigkeiten
 mex_script_dependencies('ParRob', true);
 matlabfcn2mex({'check_collisionset_simplegeom'});

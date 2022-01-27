@@ -8,7 +8,8 @@
 
 clear
 clc
-
+usr_figure_invisible = true; % Bilder unsichtbar erstellen und nur speichern (wegen Fokus-Klau)
+usr_create_animation = false;
 if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
@@ -383,7 +384,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     assert(all(size(Phi2_red)==[30,1]), 'Ausgabe 1 von constr2 muss 30x1 sein');
     assert(all(size(Phi2_voll)==[30,1]), 'Ausgabe 2 von constr2 muss 30x1 sein');
     %% Roboter zeichnen
-    figure(fignum+1);clf;
+    change_current_figure(fignum+1, usr_figure_invisible);clf;
     hold on; grid on;
     xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
     view(3);
@@ -538,7 +539,7 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     end
       
     Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
-    figure(fignum+2);clf;
+    change_current_figure(fignum+2, usr_figure_invisible);clf;
     for i = 1:RP.NLEG
       for j = 1:RP.Leg(1).NJ
         subplot(RP.NLEG,6, sprc2no(RP.NLEG, 6, i, j)); hold all;
@@ -558,12 +559,13 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     fprintf(['Rob %d-%d (%s): Prüfung der Trajektorie abgeschlossen (Dauer: ', ...
       '%1.2f). Erstelle Animation.\n'], LeadingNr, BeinNr, RP.mdlname, toc(t1));
     %% Animation
+    if usr_create_animation
     rob_path = fileparts(which('robotics_toolbox_path_init.m'));
     resdir = fullfile(rob_path, 'examples_tests', 'results');
     mkdirs(resdir);
     s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_asym_test_%s.gif',RP.mdlname)));
-    figure(fignum+3);clf;
-    set(fignum+3,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
+    fhdl = change_current_figure(fignum+3, usr_figure_invisible);clf;
+    set(fhdl,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
     hold on;
     plot3(X(:,1), X(:,2), X(:,3));
     grid on;
@@ -571,5 +573,6 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     view(3);
     title(RP.mdlname, 'interpreter', 'none');
     RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
+    end
   end
 end

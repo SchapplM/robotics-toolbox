@@ -305,8 +305,8 @@ for robnr = 1:2
         ResStat_Start.Grenzen(ii_restab_start) = 0;
         warning('Startpose für Punkt %d / Ori. %d verletzt Grenzen', k, l);
         continue; % Die Grenzen müssen beim Start eingehalten werden (sonst destabiliseren die Korrekturterme die IK)
-        change_current_figure(999);clf;
-        set(999,'Name','Rob_Debug','NumberTitle','off');
+        fhdl=change_current_figure(999);clf;
+        set(fhdl,'Name','Rob_Debug','NumberTitle','off');
         title(sprintf('Startpose Punkt %d / Ori. %d', k, l));
         hold on; grid on; view(3);
         xlabel('x in m');ylabel('y in m');zlabel('z in m');
@@ -585,7 +585,7 @@ for robnr = 1:2
           progr_ep = (0:1:Stats_ep.iter)'/(Stats_ep.iter);
           progr_traj = Traj_t/Traj_t(end);
           % Bild: Gelenkpositionen
-          change_current_figure(1);clf;set(1,'Name','q','NumberTitle','off');
+          fhdl=change_current_figure(1);clf;set(fhdl,'Name','q','NumberTitle','off');
           for i = 1:RS.NJ
             subplot(2,3,i); hold on;
             plot(100*progr_ep, Stats_ep.Q_norm(1:Stats_ep.iter+1,i));
@@ -597,12 +597,12 @@ for robnr = 1:2
           legend({'EP', 'Traj'});
           sgtitle('Gelenkwinkel');
           if usr_save_figures
-            saveas(1, fullfile(respath, [filename_pre,'Gelenke.fig']));
-            saveas(1, fullfile(respath, [filename_pre,'Gelenke.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenke.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenke.png']));
           end
           
           % Bild: Gelenk-Geschwindigkeiten
-          change_current_figure(11);clf;set(11,'Name','qD','NumberTitle','off');
+          fhdl=change_current_figure(11);clf;set(fhdl,'Name','qD','NumberTitle','off');
           for i = 1:RS.NJ
             subplot(2,3,i); hold on;
             plot(100*progr_traj, QD_ii_norm(:,i));
@@ -612,12 +612,12 @@ for robnr = 1:2
           linkxaxes
           sgtitle('Gelenkgeschwindigkeiten (Traj.-IK)');
           if usr_save_figures
-            saveas(11, fullfile(respath, [filename_pre,'Gelenkgeschwindigkeit.fig']));
-            saveas(11, fullfile(respath, [filename_pre,'Gelenkgeschwindigkeit.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenkgeschwindigkeit.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenkgeschwindigkeit.png']));
           end
           
           % Bild: Gelenk-Beschleunigungen
-          change_current_figure(12);clf;set(12,'Name','qDD','NumberTitle','off');
+          fhdl=change_current_figure(12);clf;set(fhdl,'Name','qDD','NumberTitle','off');
           for i = 1:RS.NJ
             subplot(2,3,i); hold on;
             plot(100*progr_traj, QDD_ii_norm(:,i));
@@ -627,12 +627,12 @@ for robnr = 1:2
           linkxaxes
           sgtitle('Gelenkbeschleunigungen (Traj.-IK)');
           if usr_save_figures
-            saveas(12, fullfile(respath, [filename_pre,'Gelenkbeschleunigung.fig']));
-            saveas(12, fullfile(respath, [filename_pre,'Gelenkbeschleunigung.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenkbeschleunigung.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Gelenkbeschleunigung.png']));
           end
           
           % Bild: Zielkriterien (Zeitverlauf)
-          change_current_figure(2);clf;set(2,'Name','h','NumberTitle','off');
+          fhdl=change_current_figure(2);clf;set(fhdl,'Name','h','NumberTitle','off');
           for i = 1:length(I_wn_ep)
             subplot(3,3,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_stats_ep(i)));
@@ -644,12 +644,12 @@ for robnr = 1:2
           legend({'EP', 'Traj'});
           sgtitle('Zielfunktionen der IK');
           if usr_save_figures
-            saveas(2, fullfile(respath, [filename_pre,'Zielfunktion.fig']));
-            saveas(2, fullfile(respath, [filename_pre,'Zielfunktion.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Zielfunktion.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Zielfunktion.png']));
           end
 
           % Bild: Redundante Koordinate
-          change_current_figure(25);clf; hold on; grid on;
+          fhdl=change_current_figure(25);clf; hold on; grid on;
           plot(100*progr_ep, 180/pi*Stats_ep.X(1:Stats_ep.iter+1,6));
           plot(100*progr_traj, 180/pi*X_ii(:,6));
           if any(wn_traj(13:16))
@@ -659,17 +659,17 @@ for robnr = 1:2
           xlabel('Fortschritt in %');
           ylabel('Redundante Koordinate x6 in deg');
           sgtitle('Redundante Koordinate x6');
-          set(25,'Name','x6','NumberTitle','off');
+          set(fhdl,'Name','x6','NumberTitle','off');
           if usr_save_figures
-            saveas(25, fullfile(respath, [filename_pre,'RedKoordX.fig']));
-            saveas(25, fullfile(respath, [filename_pre,'RedKoordX.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'RedKoordX.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'RedKoordX.png']));
           end
         end
         
         % Bild: Roboter
         if usr_plot_robot || (raise_error_h&&usr_plot_on_err)
-          change_current_figure(100);clf;
-          set(100,'Name','Rob','NumberTitle','off');
+          fhdl=change_current_figure(100);clf;
+          set(fhdl,'Name','Rob','NumberTitle','off');
           title(sprintf('Roboter in Punkt %d', k));
           hold on;grid on;
           xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
@@ -678,14 +678,14 @@ for robnr = 1:2
           RS.plot( qs, s_plot );
           plot3(XL(:,1), XL(:,2), XL(:,3), 'k+');
           if usr_save_figures
-            saveas(100, fullfile(respath, [filename_pre,'Robot.fig']));
-            saveas(100, fullfile(respath, [filename_pre,'Robot.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Robot.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Robot.png']));
           end
         end
 
         % In Zielfunktions-Bild eintragen
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
-          change_current_figure(20);clf;set(20,'Name','h_x6','NumberTitle','off');
+          fhdl=change_current_figure(20);clf;set(fhdl,'Name','h_x6','NumberTitle','off');
           for jj = 1:length(I_wn_ep)
             subplot(3,3,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,I_stats_ep(jj)));
@@ -709,17 +709,17 @@ for robnr = 1:2
             'Einzel Erg.', 'Traj Dbg.', 'Einzel Dbg.'});
           linkxaxes
           if usr_save_figures
-            saveas(20, fullfile(respath, [filename_pre,'Ortskurve_Ziel_RedKoord.fig']));
-            saveas(20, fullfile(respath, [filename_pre,'Ortskurve_Ziel_RedKoord.png']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Ortskurve_Ziel_RedKoord.fig']));
+            saveas(fhdl, fullfile(respath, [filename_pre,'Ortskurve_Ziel_RedKoord.png']));
           end
         end
         
         % Animation: Bewegung von Start zu Ziel
         if usr_save_anim
           for iii = 1:2 % Für beide Methoden Animation erzeugen
-            change_current_figure(200);clf;hold all;
-            if strcmp(get(200, 'windowstyle'), 'docked'), set(200, 'windowstyle', 'normal'); end
-            set(200, 'name', 'Anim', ...
+            fhdl=change_current_figure(200);clf;hold all;
+            if strcmp(get(fhdl, 'windowstyle'), 'docked'), set(200, 'windowstyle', 'normal'); end
+            set(fhdl, 'name', 'Anim', ...
               'color','w', 'NumberTitle', 'off', 'units','normalized',...
               'outerposition',[0 0 1 1]); % Vollbild
             view(3); axis auto; hold on; grid on;

@@ -199,9 +199,9 @@ for PKMName = PKM_selection
   Traj_0.X(:,4) = 0;
   %% Roboter in Startpose mit Beispieltrajektorie plotten
   % Roboter wurde vorher schon gezeichnet. Es fehlt nur die Trajektorie
-  figure(1);
+  fhdl=figure(1);
   plot3(Traj_W.X(:,1), Traj_W.X(:,2), Traj_W.X(:,3), 'r--');
-  saveas(1, fullfile(resdir, sprintf('3T0R_PUU_Test_%s_Roboter.fig', PKMName{1})));
+  saveas(fhdl, fullfile(resdir, sprintf('3T0R_PUU_Test_%s_Roboter.fig', PKMName{1})));
   %% Inverse Kinematik berechnen
   iksettings = struct('Phit_tol', 1e-8, 'Phir_tol', 1e-8);
   [Q, QD, QDD, Phi] = RP.invkin2_traj(Traj_0.X,Traj_0.XD,Traj_0.XDD,T,q0, iksettings);
@@ -220,7 +220,7 @@ for PKMName = PKM_selection
     end
   end
   %% Zeitverlauf der Trajektorie plotten
-  figure(4);clf;
+  fhdl=figure(4);clf;
   subplot(3,2,sprc2no(3,2,1,1)); hold on;
   sgtitle('Zeitverlauf Bewegung');
   plot(T, Traj_0.X(:,RP.I_EE));
@@ -257,12 +257,12 @@ for PKMName = PKM_selection
   grid on;
   ylabel('\Phi_{rot}');
   title('Zwangsbed. rot.');
-  saveas(4, fullfile(resdir, sprintf('3T0R_PUU_Test_%s_Zeitverlauf.fig', PKMName{1})));
+  saveas(fhdl, fullfile(resdir, sprintf('3T0R_PUU_Test_%s_Zeitverlauf.fig', PKMName{1})));
   %% Animation
   mkdirs(resdir);
   s_anim = struct( 'mp4_name', fullfile(resdir, sprintf('3T0R_PUU_Test_%s_anim.mp4', PKMName{1})));
-  figure(9);clf;
-  set(9,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
+  fhdl = figure(9);clf;
+  set(fhdl,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
   hold on;
   plot3(Traj_W.X(:,1), Traj_W.X(:,2), Traj_W.X(:,3));
   grid on;

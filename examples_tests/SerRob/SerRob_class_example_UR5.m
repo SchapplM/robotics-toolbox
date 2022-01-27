@@ -253,8 +253,8 @@ end
 %% Animation
 s_anim = struct( 'mp4_name', fullfile(resdir,'UR5_Traj.mp4')); % als mp4 speichern
 s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'mode', 2); % alle KS zeichnen, als Strich-Modell.
-figure(10);clf;
-set(10,'units','normalized','outerposition',[0 0 1 1], 'color','w'); % Vollbild
+fhdl=figure(10);clf;
+set(fhdl,'units','normalized','outerposition',[0 0 1 1], 'color','w'); % Vollbild
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));
 grid on;

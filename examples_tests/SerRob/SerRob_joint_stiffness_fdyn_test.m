@@ -196,8 +196,8 @@ for kk = 1:4
   I_anim = knnsearch( Tges_kk , t_Vid ); % Berechne Indizes in Traj.-Zeitstempeln
   s_anim = struct('mp4_name', fullfile(resdir, sprintf('SerRob_IndRob_fdyn_springtorque_start%d.mp4',kk)));
   s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 0, 'mode', 1);
-  change_current_figure(100+kk);clf;
-  set(100+kk,'units','normalized','outerposition',[0 0 1 1],'color','w');
+  fhdl=change_current_figure(100+kk);clf;
+  set(fhdl,'units','normalized','outerposition',[0 0 1 1],'color','w');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);

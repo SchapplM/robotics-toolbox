@@ -71,7 +71,7 @@ RS.collchecks_instspc = collchecks;
 % Roboter mit Objekten zeichnen
 q0 = pi/180*[30;-60;30];
 s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
-figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+fhdl=figure(1);clf;set(fhdl,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 RS.plot(q0, s_plot);
@@ -98,7 +98,7 @@ s_basic = struct('maxrelstep', 0.001, 'retry_limit', 0, 'wn', zeros(RS.idx_ik_le
 s_3T3R = s_basic;
 s_3T3R.I_EE = logical([1 1 0 0 0 1]);
 [q_3T3R, Phi, ~, Stats_3T3R] = RS.invkin2(RS.x2tr(x1), q0, s_3T3R);
-figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+fhdl=figure(2);clf;set(fhdl,'Name','Zielpose_3T3R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -111,7 +111,7 @@ assert(all(abs(Phi)<1e-8), 'IK mit 3T3R nicht lösbar');
 s_3T2R = s_basic;
 s_3T2R.I_EE = logical([1 1 0 0 0 0]);
 [q_3T2R, Phi, ~, Stats_3T2R] = RS.invkin2(RS.x2tr(x1), q0, s_3T2R);
-figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+fhdl=figure(3);clf;set(fhdl,'Name','Zielpose_3T2R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -125,7 +125,7 @@ s_instspc = s_basic;
 s_instspc.I_EE = logical([1 1 0 0 0 0]);
 s_instspc.wn(RS.idx_ikpos_wn.instspc_hyp) = 1; % Bauraumeinhaltung aktiv
 [q1_InstSpc, Phi_InstSpc, Tcstack1_InstSpc, Stats_InstSpc] = RS.invkin2(RS.x2tr(x1), q0, s_instspc);
-figure(4);clf;set(4,'Name','Zielpose_BauraumOpt','NumberTitle','off');
+fhdl=figure(4);clf;set(fhdl,'Name','Zielpose_BauraumOpt','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_InstSpc, s_plot );
@@ -141,7 +141,7 @@ s_instspcQ = s_basic;
 s_instspcQ.I_EE = logical([1 1 0 0 0 0]);
 s_instspcQ.wn(RS.idx_ikpos_wn.instspc_par) = 1; % Quadratische Bauraumeinhaltung aktiv
 [q1_InstSpcQ, Phi_InstSpcQ, Tcstack1_InstSpcQ, Stats_InstSpcQ] = RS.invkin2(RS.x2tr(x1), q0, s_instspcQ);
-figure(5);clf;set(5,'Name','Zielpose_BauraumOptQuad','NumberTitle','off');
+fhdl=figure(5);clf;set(fhdl,'Name','Zielpose_BauraumOptQuad','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_InstSpcQ, s_plot );
@@ -198,7 +198,7 @@ for kk = 1:length(Namen)
     linkxaxes
   end
   if usr_save_figures && kk == length(Namen)
-    saveas(50, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Joint.fig'));
+    saveas(fhdl, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Joint.fig'));
   end
   
   change_current_figure(51); if kk == 1, clf; end
@@ -229,7 +229,7 @@ for kk = 1:length(Namen)
     linkxaxes
   end
   if usr_save_figures && kk == length(Namen)
-    saveas(51, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Criterion.fig'));
+    saveas(fhdl, fullfile(resdir, 'SerRob_InstallSpace_Test_PTP_Criterion.fig'));
   end
 end
 
@@ -262,8 +262,8 @@ for k = 1:4
   anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RS.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);
@@ -384,7 +384,7 @@ for kk = 1:length(Namen)
     linkxaxes
   end
   if usr_save_figures && kk == length(Namen)
-    saveas(20, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Joint.fig'));
+    saveas(fhdl, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Joint.fig'));
   end
   change_current_figure(21); if kk == 1, clf; end
   subplot(2,2,1); hold on;
@@ -414,7 +414,7 @@ for kk = 1:length(Namen)
     linkxaxes
   end
   if usr_save_figures && kk == length(Namen)
-    saveas(21, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Criterion.fig'));
+    saveas(fhdl, fullfile(resdir, 'SerRob_InstallSpace_Test_Traj_Criterion.fig'));
   end
 end
 
@@ -450,8 +450,8 @@ for k = 1:length(Namen)
   anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   plot3(X(:,1), X(:,2), X(:,3), 'b-');
@@ -493,7 +493,7 @@ RS.fill_fcn_handles(true); % Debuggen der Funktion S3RRR1_invkin_traj
 [X_sm, XD_sm, XDD_sm] = RS.fkineEE2_traj(Q_sm, QD_sm, QDD_sm);
 
 % Ergebnis zeichnen
-figure(600);clf;set(600,'Name','Zeitverlauf_OhneTraj','NumberTitle','off');
+fhdl=figure(600);clf;set(fhdl,'Name','Zeitverlauf_OhneTraj','NumberTitle','off');
 subplot(3,3,1);
 plot(T_dummy, Q_sm);
 ylabel('q'); grid on;
@@ -532,7 +532,7 @@ plot(X_sm(end,6), Stats_sm.h(end,1+RS.idx_iktraj_hn.instspc_hyp), 'rx');
 xlabel('phi z');
 ylabel('h7 = installspace'); grid on;
 
-figure(8);clf;set(8,'Name','Zielpose_OhneTraj','NumberTitle','off');
+fhdl=figure(8);clf;set(fhdl,'Name','Zielpose_OhneTraj','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( Q_sm(end,:)', s_plot );
@@ -548,8 +548,8 @@ I_anim = knnsearch( T_dummy , t_Vid );
 anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_InstallSpace_Test_SelfMotion'));
 s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
 s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 1, 'mode', [1 6]);
-figure(9);clf;
-set(9, 'name', sprintf('Anim'), ...
+fhdl=figure(9);clf;
+set(fhdl, 'name', sprintf('Anim'), ...
   'color','w', 'NumberTitle', 'off', 'units','normalized',...
   'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
 hold on; grid on;

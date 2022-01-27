@@ -25,7 +25,6 @@ for testcase = 1:5
     % 3xPRRR  S4PRRR2
     RobTitles{testcase} = 'Isoglide3-T3 ([Gogu2008] S.154)';
     RS1 = serroblib_create_robot_class('S4PRRR2'); RS2 = RS1;
-    RS1.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
     % Einzelne Beinketten setzen
@@ -67,9 +66,7 @@ for testcase = 1:5
     %% Isoglide4-T3R1; [Gogu2008] S.156
     RobTitles{testcase} = 'Isoglide4-T3R1 ([Gogu2008] S.156)';
     RS1 = serroblib_create_robot_class('S4PRRR1');
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S5PRRRR2');
-    RS2.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
     % Einzelne Beinketten setzen
@@ -112,7 +109,6 @@ for testcase = 1:5
     %% Isoglide4-T3R1; [Gogu2008] S.158
     RobTitles{testcase} = 'Isoglide4-T3R1 ([Gogu2008] S.158)';
     RS1 = serroblib_create_robot_class('S5PRRRR2');
-    RS1.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
     % Einzelne Beinketten setzen
@@ -154,11 +150,8 @@ for testcase = 1:5
     %% Isoglide4-T3R1; [Gogu2008] S.159
     RobTitles{testcase} = 'Isoglide4-T3R1 ([Gogu2008] S.159)';
     RS1 = serroblib_create_robot_class('S4PRRR1');
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S5PRRRR2');
-    RS2.fill_fcn_handles(false);
     RS3 = serroblib_create_robot_class('S6PRRRRR6');
-    RS3.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
     % Einzelne Beinketten setzen
@@ -199,9 +192,7 @@ for testcase = 1:5
     %% Isoglide4-T3R1; [Gogu2008] S.160
     RobTitles{testcase} = 'Isoglide4-T3R1 ([Gogu2008] S.160)';
     RS1 = serroblib_create_robot_class('S4PRRR1');
-    RS1.fill_fcn_handles(false);
     RS2 = serroblib_create_robot_class('S6PRRRRR6');
-    RS2.fill_fcn_handles(false);
     % ParRob-Klasse für PKM erstellen
     RP = ParRob('TestPKM3FG');
     % Einzelne Beinketten setzen
@@ -247,7 +238,7 @@ for testcase = 1:5
     RP.Leg(i).qlim(RP.Leg(i).MDH.sigma==1,:) = repmat([-1, 1]*3, sum(RP.Leg(i).MDH.sigma==1), 1);
   end
   fprintf('Untersuche %dT%dR-PKM %s.\n', sum(I_EE(1:3)), sum(I_EE(4:6)), RobTitles{testcase});
-  serroblib_update_template_functions({RS1.mdlname, RS2.mdlname});
+  serroblib_update_template_functions(unique({RP.Leg.mdlname}));
 %   for i = 1:2
 %     if i == 2 && strcmp(RP.Leg(i).mdlname, RP.Leg(1).mdlname), continue; end
 %     serroblib_create_template_functions({RP.Leg(i).mdlname}, false);
@@ -289,8 +280,8 @@ for testcase = 1:5
       end
       test_phi = phi(I_constr_red) - Phi_i_ges(Stats.iter(i),:)';
       assert(all(abs(test_phi) < 1e-6), 'Neuberechnung von constr4 ist falsch');
-      change_current_figure(2345+i);clf;
-      set(2345+i, 'NumberTitle', 'off', 'Name', sprintf('IK_Debug_Leg%d', i));
+      fhdl=change_current_figure(2345+i);clf;
+      set(fhdl, 'NumberTitle', 'off', 'Name', sprintf('IK_Debug_Leg%d', i));
       subplot(2,3,1);
       plot(Stats.condJ(1:Stats.iter(i),1));
       xlabel('Iterationen'); grid on;

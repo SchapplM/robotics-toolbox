@@ -252,8 +252,8 @@ for i = 1:RP.NLEG
   legtxt={legtxt{:}, sprintf('xE from Leg %d', i)};
 end
 legtxt={legtxt{:}, 'xE desired'};
-figure(6);clf;
-set(6, 'Name', 'Test_LegFkine', 'NumberTitle', 'off');
+fhdl = figure(6);clf;
+set(fhdl, 'Name', 'Test_LegFkine', 'NumberTitle', 'off');
 for i = 1:6 % Alle 6 EE-Koordinaten (x)
   subplot(3,2,i); hold on
   linhdl1=plot(T, X_ist(:,i:6:end));
@@ -272,8 +272,8 @@ linkxaxes
 
 
 %% Zeitverlauf der Trajektorie plotten
-figure(4);clf;
-set(4, 'Name', 'PKM_Traj_Overview', 'NumberTitle', 'off');
+fhdl = figure(4);clf;
+set(fhdl, 'Name', 'PKM_Traj_Overview', 'NumberTitle', 'off');
 subplot(3,2,sprc2no(3,2,1,1)); hold on;
 plot(T, X(:,RP.I_EE));set(gca, 'ColorOrderIndex', 1)
 % plot([0;T(end)],[X(RP.I_EE)';X(RP.I_EE)'],'o--')

@@ -184,8 +184,8 @@ xlabel('x in m');ylabel('y in m');zlabel('z in m');
 %% Animation des bewegten Roboters
 s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_hybBKplanar.gif'));
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
-figure(6);clf;hold all;
-set(6,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
+fhdl=figure(6);clf;hold all;
+set(fhdl,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
 view([0,90]);
 axis auto
 hold on;grid on;

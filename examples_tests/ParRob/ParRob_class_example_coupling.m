@@ -279,8 +279,8 @@ for base_Coup = 1:9
     end
     %% Roboter in Startpose plotten
     if base_Coup == 1 || plat_Coup == 1
-      figure(base_Coup*10+plat_Coup); clf; hold on; grid on;% Bild der Entwurfsparameter
-      set(base_Coup*10+plat_Coup, 'name', sprintf('G%dP%d', base_Coup, plat_Coup), 'numbertitle', 'off');
+      fhdl=figure(base_Coup*10+plat_Coup); clf; hold on; grid on;% Bild der Entwurfsparameter
+      set(fhdl, 'name', sprintf('G%dP%d', base_Coup, plat_Coup), 'numbertitle', 'off');
       xlabel('x in m');ylabel('y in m');zlabel('z in m'); view(3);
       s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG-1], 'straight', 1, 'mode', 4);
       RP.plot( q, X, s_plot );

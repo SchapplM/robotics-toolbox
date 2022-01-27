@@ -390,8 +390,8 @@ for Robot_Data = Robots
         % Bild: Optimierungskritierum mit den verschiedenen Ansätzen und
         % Implementierungen. Aussage des Bildes: Welches Verfahren führt
         % zum besten Optimierungskriterium.
-        change_current_figure(1);clf;
-        set(1, 'Name', sprintf('%s_Optim_NB',SName), 'NumberTitle', 'off');
+        fhdl = change_current_figure(1);clf;
+        set(fhdl, 'Name', sprintf('%s_Optim_NB',SName), 'NumberTitle', 'off');
         subplot(2,1,1); hold on
         title(sprintf('%s: Optimierung der Nebenbedingung',SName));
         plot(K_zopt(:,1), 'rs'); plot(K_zopt(:,4), 'r+');
@@ -416,8 +416,8 @@ for Robot_Data = Robots
         end
 
         % Bild: Verschiedene Gelenkwinkel
-        change_current_figure(2);clf;
-        set(2, 'Name', sprintf('%s_q',SName), 'NumberTitle', 'off');
+        fhdl = change_current_figure(2);clf;
+        set(fhdl, 'Name', sprintf('%s_q',SName), 'NumberTitle', 'off');
         for j = 1:min(RS.NQJ,6)
           subplot(3,2,j); hold on
           if j == 1

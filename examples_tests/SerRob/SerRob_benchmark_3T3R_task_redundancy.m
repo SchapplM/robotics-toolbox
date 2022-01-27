@@ -257,8 +257,8 @@ for robnr = 2
   %% Plot: Zielfunktion für die Eckpunkte mit verschiedenen IK-Einstellungen
   if eckpunkte_berechnen
     Index_p = 1:size(XL,1);
-    change_current_figure(100*robnr+1);clf;
-    set(100*robnr+1, 'Name', sprintf('Rob%d_Zielf_Einzelpunkte', robnr), 'NumberTitle', 'off');
+    fhdl = change_current_figure(100*robnr+1);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_Zielf_Einzelpunkte', robnr), 'NumberTitle', 'off');
     sgtitle('Zielfunktionen für Eckpunkte');
     subplot(2,2,1); hold on;
     plot(Index_p, h1_go, 'c:');
@@ -293,7 +293,7 @@ for robnr = 2
     ylim([log10(0.9*min(h2_go(:))), log10(1.5*max(h2(:)))]);
     legend([hdl1(1), hdl2, hdl3], {'Ohne AR, 2°-Schritte.', 'Ohne AR, bester', 'Mit Aufgabenredundenz'});
     if save_results
-      saveas(100*robnr+1, fullfile(respath,sprintf( ...
+      saveas(fhdl, fullfile(respath,sprintf( ...
         'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RS.mdlname)));
     end
   end
@@ -342,8 +342,8 @@ for robnr = 2
   end
 
   %% Roboter in Startpose plotten
-  change_current_figure(100*robnr+2);clf;
-  set(100*robnr+2, 'Name', sprintf('Rob%d_Skizze', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+2);clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Skizze', robnr), 'NumberTitle', 'off');
   title(sprintf('Rob %d - %s', robnr, RS.mdlname));
   hold on;grid on;
   xlabel('x in m');ylabel('y in m');zlabel('z in m');
@@ -520,8 +520,8 @@ for robnr = 2
     % Integriere die Geschwindigkeit zur Position
     Q_int = cumtrapz(t, QD) + repmat(Q(1,:),n,1);
     % Vergleiche die Verläufe graphisch
-    change_current_figure(100*robnr+40+kk);clf;
-    set(100*robnr+40+kk, 'Name', sprintf('Rob%d_Kons_q_M%d', robnr, kk), 'NumberTitle', 'off');
+    fhdl = change_current_figure(100*robnr+40+kk);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_Kons_q_M%d', robnr, kk), 'NumberTitle', 'off');
     sgtitle(sprintf('Konsistenz q-int(qD), qD-int(qDD). M%d (%s)', kk, Namen_Methoden{kk}));
     for i = 1:RS.NJ
       % Gelenkposition
@@ -551,7 +551,7 @@ for robnr = 2
     end
     linkxaxes
     if save_results
-      saveas(100*robnr+40+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
+      saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
     end
     % Vergleiche die Verläufe rechnerisch
     corrQ = diag(corr(Q, Q_int));
@@ -570,8 +570,8 @@ for robnr = 2
     X_int = cumtrapz(t, XD) + repmat(X(1,:),n,1);
     % Vergleiche die Verläufe graphisch
     continue % Auswertungsbild für X nur selten benötigt. TODO: Automatischer Test der Konsistenz
-    change_current_figure(100*robnr+50+kk);clf;
-    set(100*robnr+50+kk, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
+    fhdl = change_current_figure(100*robnr+50+kk);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
     sgtitle(sprintf('Konsistenz x-int(xD), xD-int(xDD). M%d (%s)', kk, Namen_Methoden{kk}));
     for i = 1:6
       % EE-Position
@@ -599,13 +599,13 @@ for robnr = 2
     end
     linkxaxes
     if save_results
-      saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+      saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
     end
   end
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
-  change_current_figure(100*robnr+20); clf;
-  set(100*robnr+20, 'Name', sprintf('Rob%d_Zielf_q', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+20); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_q', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen (Position)');
   subplot(2,2,1); hold on;
   hdl={};
@@ -627,10 +627,10 @@ for robnr = 2
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
   if save_results
-    saveas(100*robnr+20, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
   end
-  change_current_figure(100*robnr+21); clf;
-  set(100*robnr+21, 'Name', sprintf('Rob%d_Zielf_qD', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+21); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_qD', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen (Geschwindigkeit)');
   subplot(2,2,1); hold on;
   hdl={};
@@ -652,31 +652,31 @@ for robnr = 2
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
   if save_results
-    saveas(100*robnr+21, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
   end
-  change_current_figure(100*robnr+22); clf;
-  set(100*robnr+22, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+22); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
   hdl=plot(t, Hcond_all);
   leghdl=line_format_publication(hdl, format_mlines);
   legend(leghdl, Namen_Methoden);
   title('Konditionszahl (mögliche Opt. Zielf.)');
   ylabel('Konditionszahl'); grid on;
   if save_results
-    saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
   end
-  change_current_figure(100*robnr+23); clf;
-  set(100*robnr+23, 'Name', sprintf('Rob%d_Zielf_sum', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+23); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_sum', robnr), 'NumberTitle', 'off');
   hdl=plot(t, Hsum_all);
   leghdl=line_format_publication(hdl, format_mlines);
   legend(leghdl, Namen_Methoden);
   title('Gew. Summe der Zielfunktionen (je Opt.)');
   ylabel('Summe Zielfunktionen'); grid on;
   if save_results
-    saveas(100*robnr+23, fullfile(respath,sprintf('Rob%d_Zielf_sum', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_sum', robnr)));
   end
   %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
-  change_current_figure(100*robnr+24); clf;
-  set(100*robnr+24, 'Name', sprintf('Rob%d_Gelenke', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+24); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Gelenke', robnr), 'NumberTitle', 'off');
   sgtitle('Gelenkverläufe');
   hdl = NaN(3,RS.NJ,length(Namen_Methoden));
   for kk = 1:length(Namen_Methoden)
@@ -706,7 +706,7 @@ for robnr = 2
   end
   linkxaxes
   if save_results
-    saveas(100*robnr+24, fullfile(respath,sprintf('Rob%d_Gelenke', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Gelenke', robnr)));
   end
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:RS.NJ
@@ -717,8 +717,8 @@ for robnr = 2
   legend(leghdl, Namen_Methoden);
   
   %% Trajektorie: Vergleich EE-Bewegung nach verschiedenen Methoden
-  change_current_figure(100*robnr+25); clf;
-  set(100*robnr+25, 'Name', sprintf('Rob%d_EE', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+25); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_EE', robnr), 'NumberTitle', 'off');
   sgtitle('EE-Verläufe');
   hdl = NaN(3,RS.NJ,length(Namen_Methoden));
   for kk = 1:length(Namen_Methoden)
@@ -748,7 +748,7 @@ for robnr = 2
   end
   linkxaxes
   if save_results
-    saveas(100*robnr+25, fullfile(respath,sprintf('Rob%d_EE', robnr)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_EE', robnr)));
   end
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:6
@@ -762,11 +762,11 @@ for robnr = 2
   
   %% Prüfe, ob die Rechnung Unabhängigkeit von der Abtastzeit der Trajektorie
   dt_array = [5e-4, 1e-3, 2e-3];
-  change_current_figure(100*robnr+60); clf;
-  set(100*robnr+60, 'Name', sprintf('Rob%d_Abtastzeit_q', robnr), 'NumberTitle', 'off');
+  fhdl1 = change_current_figure(100*robnr+60); clf;
+  set(fhdl1, 'Name', sprintf('Rob%d_Abtastzeit_q', robnr), 'NumberTitle', 'off');
   sgtitle('Gelenkverläufe nach Abtastzeit');
-  change_current_figure(100*robnr+61); clf;
-  set(100*robnr+61, 'Name', sprintf('Rob%d_Abtastzeit_x', robnr), 'NumberTitle', 'off');
+  fhdl2 = change_current_figure(100*robnr+61); clf;
+  set(fhdl2, 'Name', sprintf('Rob%d_Abtastzeit_x', robnr), 'NumberTitle', 'off');
   sgtitle('EE-Verläufe nach Abtastzeit');
   hdlq = NaN(3,RS.NJ,length(dt_array));
   hdlx = NaN(3,RS.NJ,length(dt_array));
@@ -780,7 +780,7 @@ for robnr = 2
     [Q_t_ii, QD_t_ii, QDD_t_ii, Phi_t_ii] = RS.invkin2_traj(X_ii,XD_ii,XDD_ii,t_ii,qs,s_kk);
     fprintf('Trajektorien-IK für Abtastzeit %1.1fms berechnet (%d Bahnpunkte). Dauer: %1.1fs\n', ...
       1e3*dt, length(t_ii), toc(t1));
-    change_current_figure(100*robnr+60);
+    change_current_figure(fhdl1);
     for i = 1:RS.NJ
       % Gelenkposition
       subplot(3,RS.NJ,sprc2no(3,RS.NJ, 1, i));
@@ -801,7 +801,7 @@ for robnr = 2
       if ii == 1, ylabel(sprintf('qDD %d', i)); grid on; end
     end
     linkxaxes
-    change_current_figure(100*robnr+61);
+    change_current_figure(fhdl2);
     for i = 1:6
       % Position
       subplot(3,6,sprc2no(3,6, 1, i));
@@ -833,13 +833,13 @@ for robnr = 2
   legend(squeeze(hdlx(j,k,:)), lstrs);
   linkxaxes
   if save_results
-    saveas(100*robnr+60, fullfile(respath,sprintf('Rob%d_dt_Vergl_q', robnr)));
-    saveas(100*robnr+61, fullfile(respath,sprintf('Rob%d_dt_Vergl_x', robnr)));
+    saveas(fhdl1, fullfile(respath,sprintf('Rob%d_dt_Vergl_q', robnr)));
+    saveas(fhdl2, fullfile(respath,sprintf('Rob%d_dt_Vergl_x', robnr)));
   end
   %% Debug: Vergleich mit und ohne simplify_acc
   if debug_plot
-  change_current_figure(100*robnr+70); clf; %#ok<UNRCH>
-  set(100*robnr+70, 'Name', sprintf('Rob%d_simplify_acc', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+70); clf; %#ok<UNRCH>
+  set(fhdl, 'Name', sprintf('Rob%d_simplify_acc', robnr), 'NumberTitle', 'off');
   sgtitle('Vergleich Ergebnisse mit Option simplify acc');
   hdl = NaN(3,RS.NJ,length(Namen_Methoden));
   iihdl = 0;

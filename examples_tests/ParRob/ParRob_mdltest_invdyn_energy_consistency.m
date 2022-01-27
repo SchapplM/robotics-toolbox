@@ -931,7 +931,7 @@ for i_FG = 1:size(EEFG_Ges,1)
 
       if usr_plot_figures
         %% Plot: Energie
-        change_current_figure(3);clf;
+        fhdl=change_current_figure(3);clf;
         kompleg = {'Plattform'};
         for ileg = 1:RP.NLEG
           kompleg = {kompleg{:}, sprintf('Beinkette %d', ileg)}; %#ok<CCAT>
@@ -965,14 +965,14 @@ for i_FG = 1:size(EEFG_Ges,1)
         grid on; ylabel('Anteil Dissipation an Leistungsfluss in Prozent');
         linkxaxes
         sgtitle(sprintf('%s: Energie', PName));
-        set(3, 'Name', 'Energie', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Energie', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Energie_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
         %% Plot: Gelenke
-        change_current_figure(4);clf;
+        fhdl=change_current_figure(4);clf;
         for ileg = 1:RP.NLEG
           subplot(RP.NLEG,2,sprc2no(RP.NLEG,2,ileg,1));
           plot(Tges, Q_ges(:,RP.I1J_LEG(ileg):RP.I2J_LEG(ileg)));
@@ -986,14 +986,14 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         linkxaxes
         sgtitle(sprintf('%s: Gelenke', PName));
-        set(4, 'Name', 'Beingelenk-Kinematik', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Beingelenk-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Gelenke_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
         %% Plot: Gelenke: Konsistenz
-        change_current_figure(5);clf;
+        fhdl=change_current_figure(5);clf;
         for i = 1:RP.NJ
           legnum = find(i>=RP.I1J_LEG, 1, 'last');
           legjointnum = i-(RP.I1J_LEG(legnum)-1);
@@ -1005,13 +1005,13 @@ for i_FG = 1:size(EEFG_Ges,1)
           if i == length(q), legend([hdl1;hdl3], {'q','int(qD)'}); end
         end
         sgtitle(sprintf('%s: Gelenke Konsistenz q', PName));
-        set(5, 'Name', 'Gelenk-Kons.-q', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Gelenk-Kons.-q', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Gelenke_Konsistenz_q_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
-        change_current_figure(6);clf;
+        fhdl=change_current_figure(6);clf;
         for i = 1:RP.NJ
           legnum = find(i>=RP.I1J_LEG, 1, 'last');
           legjointnum = i-(RP.I1J_LEG(legnum)-1);
@@ -1024,15 +1024,15 @@ for i_FG = 1:size(EEFG_Ges,1)
           if i == length(qD), legend([hdl1;hdl2;hdl3], {'qD','diff(q)', 'int(qDD)'}); end
         end
         sgtitle(sprintf('%s: Gelenke Konsistenz qD', PName));
-        set(6, 'Name', 'Gelenk-Kons.-qD', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Gelenk-Kons.-qD', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Gelenke_Konsistenz_qD_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
 
         %% Plot: Plattform
-        change_current_figure(7);clf;
+        fhdl=change_current_figure(7);clf;
         subplot(2,2,1);
         xpos_leg = {'rx', 'ry', 'rz', 'phix', 'phiy', 'phiz'};
         plot(Tges, XP_ges(:,RP.I_EE));
@@ -1053,15 +1053,15 @@ for i_FG = 1:size(EEFG_Ges,1)
         legend(Facc_leg(RP.I_EE));
         linkxaxes
         sgtitle(sprintf('%s: Plattform', PName));
-        set(7, 'Name', 'Plattform-Kinematik', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Plattform-Kinematik', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Plattform_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
         
         %% Plot: Diverses
-        change_current_figure(8);clf;
+        fhdl=change_current_figure(8);clf;
         subplot(2,1,1); hold on;
         title('Singularitäts-Kennzahlen');
         plot(Tges, SingDet(:,1:2));
@@ -1086,11 +1086,11 @@ for i_FG = 1:size(EEFG_Ges,1)
         end
         linkxaxes
         sgtitle(sprintf('%s: Validierung/Test', PName));
-        set(8, 'Name', 'Testen', 'NumberTitle', 'off');
+        set(fhdl, 'Name', 'Testen', 'NumberTitle', 'off');
         if usr_save_figures
           name = fullfile(respath_rob, sprintf('%s_Test_dt%dus_Jac%d', PName, 1e6*dt, jm));
           export_fig([name, '.png']);
-          saveas(gcf, [name, '.fig']);
+          saveas(fhdl, [name, '.fig']);
         end
       end
       save(fullfile(respath_rob, sprintf('%s_Test_dt%dus_Jac%d_data.mat', PName, 1e6*dt, jm)));
@@ -1109,8 +1109,8 @@ for i_FG = 1:size(EEFG_Ges,1)
         i_diff = ceil(i_end_vis / 25);
         s_anim = struct( 'gif_name', fullfile(respath_rob, sprintf('%s_energy_test_dt%dus.gif', PName, 1e6*dt)));
         s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-        change_current_figure(10);clf;hold all;
-        set(10, 'name', 'Anim', ...
+        fhdl=change_current_figure(10);clf;hold all;
+        set(fhdl, 'name', 'Anim', ...
           'color','w', 'NumberTitle', 'off', 'units','normalized',...
           'outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
         view(3);

@@ -50,6 +50,7 @@ end
 %% Definitionen, Benutzereingaben
 short_traj = false; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen
 usr_create_anim = false; % Zum Erstellen von Animationen der Trajektorien
+usr_figure_invisible = true; % Bilder unsichtbar erstellen und nur speichern (wegen Fokus-Klau)
 eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
 test_class_methods = false; % Zusätzlich zweite Implementierung rechnen. Aufgrund numerischer Abweichung aber oft falsch-positive Fehler
 debug_plot = false;
@@ -298,7 +299,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   % Debug: Zeichne Eckpunkte
   if debug_plot
-    change_current_figure(1);clf; hold all; view(3);
+    change_current_figure(1, usr_figure_invisible);clf; hold all; view(3);
     plot3(1e3*X0(1), 1e3*X0(2), 1e3*X0(3), 'g^');
     plot3(1e3*X1(1), 1e3*X1(2), 1e3*X1(3), 'mv');
     plot3(1e3*XL(:,1), 1e3*XL(:,2), 1e3*XL(:,3), 'r-');
@@ -414,8 +415,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Plot: Zielfunktion für die Eckpunkte mit verschiedenen IK-Einstellungen
   if eckpunkte_berechnen
     Index_p = 1:size(XL,1);
-    change_current_figure(100*robnr+1);clf;
-    set(100*robnr+1, 'Name', sprintf('Rob%d_Zielf_Einzelpunkte', robnr), 'NumberTitle', 'off');
+    fhdl=change_current_figure(100*robnr+1, usr_figure_invisible);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_Zielf_Einzelpunkte', robnr), 'NumberTitle', 'off');
     sgtitle('Zielfunktionen für Eckpunkte');
     subplot(2,2,1); hold on;
     plot(Index_p, h1_go, 'c:');
@@ -449,7 +450,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     xlabel('Eckpunkt lfd Nr');
     ylim([log10(0.9*min(h2_go(:))), log10(1.5*max(h2(:)))]);
     legend([hdl1(1), hdl2, hdl3], {'Glob. Opt., 2°-Schritte.', 'Glob. Opt., bester', 'Mit Aufgabenredundanz'});
-    saveas(100*robnr+1, fullfile(respath,sprintf( ...
+    saveas(fhdl, fullfile(respath,sprintf( ...
       'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RP.mdlname)));
   end
   %% Zeitverlauf der Trajektorie generieren
@@ -502,8 +503,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
 
   %% Roboter in Startpose plotten
-  change_current_figure(100*robnr+2);clf;
-  set(100*robnr+2, 'Name', sprintf('Rob%d_Skizze', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+2, usr_figure_invisible);clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Skizze', robnr), 'NumberTitle', 'off');
   title(sprintf('Rob %d - %s', robnr, RP.mdlname));
   hold on;grid on;
   xlabel('x in m');ylabel('y in m');zlabel('z in m');
@@ -711,7 +712,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
           end
           test_R = R_0_E_Legs\R_0_E-eye(3);
           if any(abs(test_R(:)) > 1e-3)
-            change_current_figure(978);clf;
+            change_current_figure(978, usr_figure_invisible);clf;
             hold on; grid on; view(3);
             xlabel('x in m');ylabel('y in m');zlabel('z in m');
             s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
@@ -787,8 +788,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     % Differenziere die Geschwindigkeit zur Beschleunigung
     QD_diff = [diff(QD)./repmat(diff(t),1,size(QDD,2));NaN(1,size(QDD,2))];
     % Vergleiche die Verläufe graphisch: Position
-    change_current_figure(100*robnr+40+kk);clf;
-    set(100*robnr+40+kk, 'Name', sprintf('Rob%d_M%d_Kons_q_qD', robnr, kk), 'NumberTitle', 'off');
+    fhdl = change_current_figure(100*robnr+40+kk, usr_figure_invisible);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_M%d_Kons_q_qD', robnr, kk), 'NumberTitle', 'off');
     sgtitle(sprintf('Konsistenz q-int(qD) M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -806,10 +807,10 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       end
     end
     linkxaxes
-    saveas(100*robnr+40+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_q', robnr, kk)));
     % Vergleiche die Verläufe graphisch: Geschwindigkeit
-    change_current_figure(100*robnr+50+kk);clf;
-    set(100*robnr+50+kk, 'Name', sprintf('Rob%d_M%d_Kons_qD_qDD', robnr, kk), 'NumberTitle', 'off')
+    fhdl = change_current_figure(100*robnr+50+kk, usr_figure_invisible);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_M%d_Kons_qD_qDD', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Konsistenz qD-int(qDD) M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -827,10 +828,10 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       end
     end
     linkxaxes
-    saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qD', robnr, kk)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qD', robnr, kk)));
     % Vergleiche die Verläufe graphisch: Beschleunigung
-    change_current_figure(100*robnr+60+kk);clf;
-    set(100*robnr+60+kk, 'Name', sprintf('Rob%d_M%d_Kons_qDD', robnr, kk), 'NumberTitle', 'off')
+    fhdl = change_current_figure(100*robnr+60+kk, usr_figure_invisible);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_M%d_Kons_qDD', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Konsistenz diff(qD)-qDD M%d (%s)', kk, Namen_Methoden{kk}));
     ii = 0;
     for i = 1:RP.NLEG
@@ -847,7 +848,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       end
     end
     linkxaxes
-    saveas(100*robnr+50+kk, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qDD', robnr, kk)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qDD', robnr, kk)));
   end
   %% Trajektorie: Bild für einzelne Beine
   fprintf('Zeichne Bilder für Zusammenfassung von einzelnen Beinketten (Trajektorien-IK)\n');
@@ -861,8 +862,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     H1_t = H1_all(:,:,kk);
     H2_t = H2_all(:,:,kk);
     % Zeichnen
-    change_current_figure(100*robnr+10+kk);clf;
-    set(100*robnr+10+kk, 'Name', sprintf('Rob%d_M%d_Beine', robnr, kk), 'NumberTitle', 'off')
+    fhdl = change_current_figure(100*robnr+10+kk, usr_figure_invisible);clf;
+    set(fhdl, 'Name', sprintf('Rob%d_M%d_Beine', robnr, kk), 'NumberTitle', 'off')
     sgtitle(sprintf('Trajektorie Q (Beine); %s', Name));
     axhdl = NaN(5,RP.NLEG);
     for i = 1:RP.NLEG
@@ -900,15 +901,15 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
     linkxaxes
     remove_inner_labels(axhdl,'x')
-    saveas(100*robnr+10+kk, fullfile(respath,sprintf( ...
+    saveas(fhdl, fullfile(respath,sprintf( ...
     'Rob%d_M%d_%s_Trajektorie_Beine_%s.fig',robnr, kk, RP.mdlname, Name)));
   end
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
   fprintf('Zeichne Bilder für Zielfunktionen (Trajektorien-IK)\n');
   % Zielfunktionen bezogen auf Positions-Grenzen
-  change_current_figure(100*robnr+20); clf;
-  set(100*robnr+20, 'Name', sprintf('Rob%d_Zielf_q', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+20, usr_figure_invisible); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_q', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen (Position)');
   H1_PKM_all = reshape(H1_all(:,1,:), n, length(Namen_Methoden));
   H2_PKM_all = reshape(H2_all(:,1,:), n, length(Namen_Methoden));
@@ -927,14 +928,14 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   subplot(2,2,4); hold on;
   hdl{4}=plot(t, log10(H2_PKM_all));
   ylabel('Log.-Zielfkt 2'); grid on;
-  saveas(100*robnr+20, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
+  saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_Pos', robnr)));
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
   
   % Zielfunktionen bezogen auf Geschwindigkeits-Grenzen
-  change_current_figure(100*robnr+21); clf;
-  set(100*robnr+21, 'Name', sprintf('Rob%d_Zielf_qD', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+21, usr_figure_invisible); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_qD', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen (Geschwindigkeit)');
   H1D_PKM_all = reshape(H1D_all(:,1,:), n, length(Namen_Methoden));
   H2D_PKM_all = reshape(H2D_all(:,1,:), n, length(Namen_Methoden));
@@ -953,14 +954,14 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   subplot(2,2,4); hold on;
   hdl{4}=plot(t, log10(H2D_PKM_all));
   ylabel('Log.-Zielfkt 2'); grid on;
-  saveas(100*robnr+21, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
+  saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_Geschw', robnr)));
   % Linien nachträglich neu formatieren (bessere Lesbarkeit)
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
   legend(leghdl, Namen_Methoden);
   
   % Zielfunktionen bezogen auf Konditionszahl
-  change_current_figure(100*robnr+22); clf;
-  set(100*robnr+22, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+22, usr_figure_invisible); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_cond', robnr), 'NumberTitle', 'off');
   subplot(2,1,1); hold on;
   Hcond_IKJac_all = reshape(Hcond_all(:,1,:), n, length(Namen_Methoden));
   hdl=plot(t, Hcond_IKJac_all);
@@ -975,10 +976,10 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   grid on; ylabel('cond(J)', 'interpreter', 'none');
   sgtitle('Konditionszahl (mögliche Opt. Zielf.)');
   linkxaxes
-  saveas(100*robnr+22, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
+  saveas(fhdl, fullfile(respath,sprintf('Rob%d_Zielf_cond', robnr)));
   %% Trajektorie: Bild für Plattformbewegung
-  change_current_figure(100*robnr+24);clf;
-  set(100*robnr+24, 'Name', sprintf('Rob%d_TrajX', robnr), 'NumberTitle', 'off')
+  fhdl = change_current_figure(100*robnr+24, usr_figure_invisible);clf;
+  set(fhdl, 'Name', sprintf('Rob%d_TrajX', robnr), 'NumberTitle', 'off')
   sgtitle('Trajektorie X (Details)');
   for i = 1:6
     subplot(3,2,i); hold on
@@ -996,12 +997,12 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   linkxaxes
 
-  saveas(100*robnr+24, fullfile(respath,sprintf( ...
+  saveas(fhdl, fullfile(respath,sprintf( ...
     'Rob%d_%s_TrajX.fig',robnr, RP.mdlname)));
 
   % Bild für Drehung der redundanten Koordinate
-  change_current_figure(100*robnr+25); clf;
-  set(100*robnr+25, 'Name', sprintf('Rob%d_phiz', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+25, usr_figure_invisible); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_phiz', robnr), 'NumberTitle', 'off');
   sgtitle(sprintf('Redundante Koordinate'));
   hdl = NaN(length(Namen_Methoden),3); leghdl = hdl;
   subplot(1,3,1); hold on;
@@ -1024,15 +1025,15 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   legend(leghdl(:,3), Namen_Methoden);
   linkxaxes
-  saveas(100*robnr+25, fullfile(respath,sprintf( ...
+  saveas(fhdl, fullfile(respath,sprintf( ...
     'Rob%d_%s_Traj_phiz.fig',robnr, RP.mdlname)));
   %% Trajektorie: Vergleich Gelenkverlauf nach verschiedenen Methoden
   for Dtype = 1:3
-    change_current_figure(100*robnr+70+Dtype); clf;
+    fhdl = change_current_figure(100*robnr+70+Dtype, usr_figure_invisible); clf;
     if     Dtype == 1, Dstring = ''; %#ok<ALIGN>
     elseif Dtype == 2, Dstring = 'D';
     elseif Dtype == 3, Dstring = 'DD'; end
-    set(100*robnr+70+Dtype, 'Name', sprintf('Rob%d_Q%s', robnr, Dstring), 'NumberTitle', 'off');
+    set(fhdl, 'Name', sprintf('Rob%d_Q%s', robnr, Dstring), 'NumberTitle', 'off');
     sgtitle(sprintf('Q %s', Dstring));
     hdl = NaN(RP.NLEG,RP.Leg(1).NJ,length(Namen_Methoden));
     axhdl = NaN(RP.NLEG,RP.Leg(1).NJ);
@@ -1073,7 +1074,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
     remove_inner_labels(axhdl,1);
     legend(leghdl, Namen_Methoden);
-    saveas(100*robnr+70+Dtype, fullfile(respath,sprintf('Rob%d_Q%s', robnr, Dstring)));
+    saveas(fhdl, fullfile(respath,sprintf('Rob%d_Q%s', robnr, Dstring)));
   end
   %% Ergebniss speichern
   save(fullfile(respath,sprintf('Rob%d_%s_result.mat',robnr,RP.mdlname)));
@@ -1103,8 +1104,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   %% Trajektorie mit verschiedene z Komponente auswerten
   hdl={};
-  change_current_figure(100*robnr+28); clf;
-  set(100*robnr+28, 'Name', sprintf('Rob%d_Zielf_z', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+28, usr_figure_invisible); clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Zielf_z', robnr), 'NumberTitle', 'off');
   sgtitle('Zielfunktionen bei verschiedenen zE-Drehungen');
   
   subplot(2,2,1); hold on;
@@ -1139,8 +1140,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
 
   % Alle Gelenkwinkel vergleichen
-  change_current_figure(100*robnr+29);clf;
-  set(100*robnr+29, 'Name', sprintf('Rob%d_Gelenkw_vgl', robnr), 'NumberTitle', 'off');
+  fhdl = change_current_figure(100*robnr+29, usr_figure_invisible);clf;
+  set(fhdl, 'Name', sprintf('Rob%d_Gelenkw_vgl', robnr), 'NumberTitle', 'off');
   sgtitle('Gelenkwinkel bei verschiedenen zE-Drehungen');
   ii = 0;
   for i = 1:RP.NLEG
@@ -1177,8 +1178,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     s_anim = struct( 'gif_name', [anim_filename,'.gif'], ...
                      'mp4_name', [anim_filename,'.mp4'] );
     s_plot = struct( 'ks_legs', [], 'straight', 0);
-    change_current_figure(100*robnr+30+kk);clf;hold all;
-    set(100*robnr+30+kk, 'name', sprintf('Rob%d_Anim_M%d', robnr, kk), ...
+    fhdl = change_current_figure(100*robnr+30+kk, usr_figure_invisible);clf;hold all;
+    set(fhdl, 'name', sprintf('Rob%d_Anim_M%d', robnr, kk), ...
       'color','w', 'NumberTitle', 'off', 'units','normalized',...
       'outerposition',[0 0 1 1]); % Vollbild, damit GIF größer wird
     view(3);

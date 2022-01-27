@@ -184,7 +184,7 @@ RP.collchecks = collchecks;
 % Roboter mit Objekten zeichnen
 s_plot = struct( 'ks_legs', [], 'straight', 0, 'mode', 5, 'only_bodies', true);
 if usr_create_plots
-  figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+  fhdl=figure(1);clf;set(fhdl,'Name','Startpose','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
@@ -224,7 +224,7 @@ assert(any(colldet_3T3R(:)), ['Es sollte eine Kollision am Ende der ', ...
 %     Stats_3T3R.Q(Stats_3T3R.iter(i)+1,Ii), size(Stats_3T3R.Q,1)-Stats_3T3R.iter(i)-1,1);
 % end
 if usr_create_plots
-  figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+  fhdl=figure(2);clf;set(fhdl,'Name','Zielpose_3T3R','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
   trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -260,13 +260,13 @@ assert(any(colldet_3T2R(:)), ['Es sollte eine Kollision am Ende der ', ...
 fprintf(['Positions-IK für 3T2R berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_3T2R.iter);
 if usr_create_plots
-  figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+  fhdl=figure(3);clf;set(fhdl,'Name','Zielpose_3T2R','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
   trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
   RP.plot( q_3T2R, x1, s_plot );
   title('Zielpose des Roboters (3T2R)');
-  saveas(3, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_3T2R.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_3T2R.fig'));
 end
 % Verfahrbewegung mit Kollisionsvermeidung (aufgabenredundant). Kollisionen
 % in Zwischenphasen erlauben.
@@ -284,12 +284,12 @@ end
 fprintf(['Positions-IK für finale Kollisionsvermeidung (hyperbolisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollAvoid.iter);
 if usr_create_plots
-  figure(4);clf;set(4,'Name','Zielpose_KollVermFinal','NumberTitle','off');
+  fhdl=figure(4);clf;set(fhdl,'Name','Zielpose_KollVermFinal','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
   RP.plot( q1_cav, x1, s_plot );
   title('Zielpose des Roboters mit finaler Kollisionsvermeidung');
-  saveas(4, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinal.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinal.fig'));
 end
 % Zweite Implementierung mit quadratischer Abstandsfunktion, die den
 % Abstand global minimieren soll, statt nur die Kollision zu vermeiden
@@ -307,12 +307,12 @@ end
 fprintf(['Positions-IK für finale Kollisionsvermeidung (quadratisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollAvoid2.iter);
 if usr_create_plots
-  figure(5);clf;set(5,'Name','Zielpose_KollVermFinalQuadr','NumberTitle','off');
+  fhdl=figure(5);clf;set(fhdl,'Name','Zielpose_KollVermFinalQuadr','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
   RP.plot( q1_cav, x1, s_plot );
   title('Zielpose des Roboters mit finaler Kollisionsvermeidung (quadr.)');
-  saveas(5, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinalQuadr.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermFinalQuadr.fig'));
 end
 % Verfahrbewegung mit Kollisionsvermeidung (aufgabenredundant). Kollisionen
 % in Zwischenphasen verbieten.
@@ -332,14 +332,14 @@ Stats_PosIK_CollStop = Stats_CollStop2; % Debug. TODO: Weg, wenn tpl aktualisier
 fprintf(['Positions-IK für strikte Kollisionsvermeidung berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_CollStop.iter);
 if usr_create_plots
-  figure(6);clf;set(6,'Name','Zielpose_KollVermStreng','NumberTitle','off');
+  fhdl=figure(6);clf;set(fhdl,'Name','Zielpose_KollVermStreng','NumberTitle','off');
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
   trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
   trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.3);
   RP.plot( q1_cst, x1, s_plot );
   title('Zielpose des Roboters mit strikter Kollisionsvermeidung');
-  saveas(6, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermStreng.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Zielpose_KollVermStreng.fig'));
 end
 % Kollisionsprüfung für Endposen beider Verfahren
 [colldet,colldist] = check_collisionset_simplegeom_mex(RP.collbodies, RP.collchecks, ...
@@ -399,9 +399,9 @@ for kk = 1:length(Namen)
   [colldet_kk, colldist_kk] = check_collisionset_simplegeom_mex(RP.collbodies, ...
     RP.collchecks, JP_all_kk, struct('collsearch', false));
   
-  change_current_figure(20);
+  fhdl=change_current_figure(20);
   if kk == 1
-    set(20, 'Name', 'PosIK_Q', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'PosIK_Q', 'NumberTitle', 'off');
     clf;
   end
   ii = 0;
@@ -420,9 +420,9 @@ for kk = 1:length(Namen)
     legend(Namen);
   end
   linkxaxes
-  change_current_figure(21);
+  fhdl=change_current_figure(21);
   if kk == 1
-    set(21, 'Name', 'PosIK_Coll', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'PosIK_Coll', 'NumberTitle', 'off');
     clf;
   end
   subplot(3,1,1); hold on;
@@ -444,11 +444,11 @@ for kk = 1:length(Namen)
     sgtitle('Kollisionsprüfung');
     legend(Namen);
     linkxaxes
-    saveas(21, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_EinzelPose_Debug_Koll.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_EinzelPose_Debug_Koll.fig'));
   end
-  change_current_figure(22);
+  fhdl=change_current_figure(22);
   if kk == 1
-    set(22, 'Name', 'PosIK_X', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'PosIK_X', 'NumberTitle', 'off');
     clf;
   end
   for i = 1:6
@@ -462,7 +462,7 @@ for kk = 1:length(Namen)
     sgtitle('Plattform-Koordinaten (Beinkette 1)');
     legend(Namen);
     linkxaxes
-    saveas(22, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_EinzelPose_Debug_X.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_EinzelPose_Debug_X.fig'));
   end
 end
 fprintf(['Debug-Bilder (Positions-IK) generiert. Dauer: %1.1fs. Gespeichert ', ...
@@ -497,8 +497,8 @@ for k = 1:4
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_Collision_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 0, 'mode', 5, 'only_bodies', true);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);
@@ -747,9 +747,9 @@ for kk = 1:length(Namen)
   test_hcoll = h_coll_post - h_kk(:,1+[7 12]);
 %   assert(all(abs(test_hcoll) < 1e-6), 'Nachträglich berechnete Kollisions-Kennzahl stimmt nicht');
   
-  change_current_figure(40);
+  fhdl=change_current_figure(40);
   if kk == 1
-    set(40, 'Name', 'TrajIK_Q', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_Q', 'NumberTitle', 'off');
     clf;
   end
   ii = 0;
@@ -767,11 +767,11 @@ for kk = 1:length(Namen)
     sgtitle('Gelenkkoordinaten');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(40, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Q.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Q.fig'));
   end
-  change_current_figure(41);
+  fhdl=change_current_figure(41);
   if kk == 1
-    set(41, 'Name', 'TrajIK_QD', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_QD', 'NumberTitle', 'off');
     clf;
   end
   ii = 0;
@@ -789,11 +789,11 @@ for kk = 1:length(Namen)
     sgtitle('Gelenkgeschwindigkeiten');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(41, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QD.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QD.fig'));
   end
-  change_current_figure(42);
+  fhdl=change_current_figure(42);
   if kk == 1
-    set(42, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off');
     clf;
   end
   ii = 0;
@@ -811,11 +811,11 @@ for kk = 1:length(Namen)
     sgtitle('Gelenkbeschleunigungen');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(42, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QDD.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_QDD.fig'));
   end
-  change_current_figure(43);
+  fhdl=change_current_figure(43);
   if kk == 1
-    set(43, 'Name', 'TrajIK_Coll', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_Coll', 'NumberTitle', 'off');
     clf;
   end
   subplot(2,2,1); hold on;
@@ -842,12 +842,12 @@ for kk = 1:length(Namen)
     sgtitle('Kollisionsprüfung');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(43, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Koll.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Koll.fig'));
   end
   
-  change_current_figure(44);
+  fhdl=change_current_figure(44);
   if kk == 1
-    set(44, 'Name', 'TrajIK_X', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_X', 'NumberTitle', 'off');
     clf;
   end
   for i = 1:6
@@ -871,13 +871,13 @@ for kk = 1:length(Namen)
     sgtitle('Plattform-Koordinaten (Beinkette 1)');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(44, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_X.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_X.fig'));
   end
   fprintf('Debug-Plots für Trajektorie %d/%d gezeichnet.\n', kk, length(Namen));
 
-  change_current_figure(45);
+  fhdl=change_current_figure(45);
   if kk == 1
-    set(45, 'Name', 'TrajIK_Cond', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_Cond', 'NumberTitle', 'off');
     clf;
   end
   subplot(2,1,1); hold on;
@@ -894,7 +894,7 @@ for kk = 1:length(Namen)
     sgtitle('Konditionszahlen (Singularitätsvermeidung)');
     legend(Namen, 'interpreter', 'none');
     linkxaxes
-    saveas(45, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Cond.fig'));
+    saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_Collision_Test_Traj_Debug_Cond.fig'));
   end
 end
 fprintf(['Debug-Bilder für Trajektorien-IK generiert. Dauer: %1.1fs. ', ...
@@ -937,8 +937,8 @@ for k = 1:length(Namen)
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_Collision_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 0, 'mode', 5, 'only_bodies', true);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);

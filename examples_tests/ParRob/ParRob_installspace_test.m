@@ -114,7 +114,7 @@ RP.collchecks_instspc = collchecks_instspc;
 
 % Roboter mit Objekten zeichnen
 s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6], 'only_bodies', true);
-change_current_figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+fhdl=change_current_figure(1);clf;set(fhdl,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 view(3);
@@ -147,7 +147,7 @@ fprintf(['Positions-IK für 3T3R berechnet. ', ...
 %   Stats_3T3R.Q(Stats_3T3R.iter(i)+2:end,Ii) = repmat(...
 %     Stats_3T3R.Q(Stats_3T3R.iter(i)+1,Ii), size(Stats_3T3R.Q,1)-Stats_3T3R.iter(i)-1,1);
 % end
-change_current_figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+fhdl=change_current_figure(2);clf;set(fhdl,'Name','Zielpose_3T3R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -170,14 +170,14 @@ end
 fprintf(['Positions-IK für 3T2R berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_3T2R.iter);
 
-change_current_figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+fhdl=change_current_figure(3);clf;set(fhdl,'Name','Zielpose_3T2R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RP.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
 RP.plot( q_3T2R, x1, s_plot ); view([0, 90])
 title('Zielpose des Roboters (3T2R)');
 if usr_save_figures
-  saveas(3, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_3T2R.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_3T2R.fig'));
 end
 
 
@@ -197,13 +197,13 @@ end
 fprintf(['Positions-IK für Bauraumeinhaltung (hyperbolisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_InstSpc.iter);
 
-change_current_figure(4);clf;set(4,'Name','Zielpose_Bauraumopt','NumberTitle','off');
+fhdl=change_current_figure(4);clf;set(fhdl,'Name','Zielpose_Bauraumopt','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RP.plot( q1_instspc, x1, s_plot ); view([0, 90])
 title('Zielpose des Roboters mit Bauraumeinhaltung');
 if usr_save_figures
-  saveas(4, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt.fig'));
 end
 
 % Verfahrbewegung mit Bauraumeinhaltung quadratisch (aufgabenredundant).
@@ -222,13 +222,13 @@ end
 fprintf(['Positions-IK für Bauraumeinhaltung (quadratisch) berechnet. ', ...
   'Dauer: %1.1fs. Schritte: %d\n'], toc(t1), Stats_PosIK_InstSpcQ.iter);
 
-change_current_figure(5);clf;set(5,'Name','Zielpose_BauraumoptQ','NumberTitle','off');
+fhdl=change_current_figure(5);clf;set(fhdl,'Name','Zielpose_BauraumoptQ','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RP.plot( q1_instspc, x1, s_plot ); view([0, 90])
 title('Zielpose des Roboters mit quadr. Bauraumeinhaltung');
 if usr_save_figures
-  saveas(5, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt_quadr.fig'));
+  saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Zielpose_Bauraumopt_quadr.fig'));
 end
 
 
@@ -272,9 +272,9 @@ for kk = 1:length(Namen)
   end
   [colldet_kk, colldist_kk] = check_collisionset_simplegeom_mex(RP.collbodies_instspc, ...
   RP.collchecks_instspc, JP_all_kk, struct('collsearch', false));
-  change_current_figure(20);
+  fhdl=change_current_figure(20);
   if kk == 1
-    set(20, 'Name', 'PosIK_Q', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'PosIK_Q', 'NumberTitle', 'off');
     clf;
   end
   ii = 0;
@@ -293,12 +293,12 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(20, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_DebugQ_InstSpc.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_DebugQ_InstSpc.fig'));
     end
   end
-  change_current_figure(21);
+  fhdl=change_current_figure(21);
   if kk == 1
-    set(21, 'Name', 'PosIK_InstSpc', 'NumberTitle', 'off'); clf;
+    set(fhdl, 'Name', 'PosIK_InstSpc', 'NumberTitle', 'off'); clf;
   end
   subplot(2,2,1); hold on;
   plot(max(colldist_kk,[],2)); % Maximum, da >0 der kritische Wert ist
@@ -321,12 +321,12 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(21, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_InstSpc.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_InstSpc.fig'));
     end
   end
-  change_current_figure(22);
+  fhdl=change_current_figure(22);
   if kk == 1
-    set(22, 'Name', 'PosIK_X', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'PosIK_X', 'NumberTitle', 'off');
     clf;
   end
   for i = 1:6
@@ -341,7 +341,7 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(22, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_X.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_EinzelPose_Debug_X.fig'));
     end
   end
 end
@@ -378,8 +378,8 @@ for k = 1:4
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
-  change_current_figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=change_current_figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);
@@ -516,9 +516,9 @@ for kk = 1:length(Namen)
   test_dist = Stats_kk.instspc_mindst(:,1)-max(colldist_kk,[],2);
   assert(all(abs(test_dist) < 1e-10), 'Rekonstruktion der Abstände fehlgeschlagen');
   
-  change_current_figure(40);
+  fhdl=change_current_figure(40);
   if kk == 1
-    set(40, 'Name', 'TrajIK_Q', 'NumberTitle', 'off'); clf;
+    set(fhdl, 'Name', 'TrajIK_Q', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -536,12 +536,12 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(40, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Q.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Q.fig'));
     end
   end
-  change_current_figure(41);
+  fhdl=change_current_figure(41);
   if kk == 1
-    set(41, 'Name', 'TrajIK_QD', 'NumberTitle', 'off'); clf;
+    set(fhdl, 'Name', 'TrajIK_QD', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -559,12 +559,12 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(41, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QD.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QD.fig'));
     end
   end
-  change_current_figure(42);
+  fhdl=change_current_figure(42);
   if kk == 1
-    set(42, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off'); clf;
+    set(fhdl, 'Name', 'TrajIK_QDD', 'NumberTitle', 'off'); clf;
   end
   ii = 0;
   for i = 1:RP.NLEG
@@ -582,12 +582,12 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(42, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QDD.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_QDD.fig'));
     end
   end
-  change_current_figure(43);
+  fhdl=change_current_figure(43);
   if kk == 1
-    set(43, 'Name', 'TrajIK_InstSpc', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_InstSpc', 'NumberTitle', 'off');
     clf;
   end
   subplot(2,1,1); hold on;
@@ -611,13 +611,13 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(43, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Bauraum.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_Bauraum.fig'));
     end
   end
   
-  change_current_figure(44);
+  fhdl=change_current_figure(44);
   if kk == 1
-    set(44, 'Name', 'TrajIK_X', 'NumberTitle', 'off');
+    set(fhdl, 'Name', 'TrajIK_X', 'NumberTitle', 'off');
     clf;
   end
   for i = 1:6
@@ -642,7 +642,7 @@ for kk = 1:length(Namen)
     legend(Namen, 'interpreter', 'none');
     linkxaxes
     if usr_save_figures
-      saveas(44, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_X.fig'));
+      saveas(fhdl, fullfile(resdir, 'ParRob_Nullspace_InstallSpace_Test_Traj_Debug_X.fig'));
     end
   end
 end
@@ -678,8 +678,8 @@ for k = 1:length(Namen)
   anim_filename = fullfile(resdir, sprintf('ParRob_Nullspace_InstallSpace_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks_legs', [], 'straight', 1, 'mode', [1 6]);
-  change_current_figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=change_current_figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RP.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);

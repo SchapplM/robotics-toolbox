@@ -334,8 +334,8 @@ for robnr = 1:3
   resdir = fullfile(rob_path, 'examples_tests', 'results');
   mkdirs(resdir);
   s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_PassivBK_%s.gif',RP.mdlname)));
-  figure(2);clf;
-  set(2,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
+  fhdl=figure(2);clf;
+  set(fhdl,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
   hold on;
   plot3(X(:,1), X(:,2), X(:,3));
   grid on;

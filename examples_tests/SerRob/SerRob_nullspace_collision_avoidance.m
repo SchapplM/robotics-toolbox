@@ -80,7 +80,7 @@ RS.collchecks = collchecks;
 % Roboter mit Objekten zeichnen
 q0 = RS.qref+[0;-25;-25;0;-50;0]*pi/180;
 s_plot = struct( 'ks', [1:RS.NJ, RS.NJ+2], 'straight', 0, 'mode', 5, 'only_bodies', true);
-figure(1);clf;set(1,'Name','Startpose','NumberTitle','off');
+fhdl=figure(1);clf;set(fhdl,'Name','Startpose','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 view(3);
@@ -98,7 +98,7 @@ s_3T3R.I_EE = logical([1 1 1 1 1 1]);
 [q_3T3R, Phi, ~, Stats_3T3R] = RS.invkin2(RS.x2tr(x1), q0, s_3T3R);
 assert(all(abs(Phi)<1e-8), 'IK mit 3T3R nicht lösbar');
 
-figure(2);clf;set(2,'Name','Zielpose_3T3R','NumberTitle','off');
+fhdl=figure(2);clf;set(fhdl,'Name','Zielpose_3T3R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -111,7 +111,7 @@ s_3T2R.I_EE = logical([1 1 1 1 1 0]);
 [q_3T2R, Phi, ~, Stats_3T2R] = RS.invkin2(RS.x2tr(x1), q0, s_3T2R);
 assert(all(abs(Phi)<1e-8), 'IK mit 3T2R (ohne Nebenbedingungen) nicht lösbar');
 
-figure(3);clf;set(3,'Name','Zielpose_3T2R','NumberTitle','off');
+fhdl=figure(3);clf;set(fhdl,'Name','Zielpose_3T2R','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -126,7 +126,7 @@ s_collav.wn(RS.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung aktiv
 [q1_cav, Phi_cav, Tcstack1_cav, Stats_CollAvoid] = RS.invkin2(RS.x2tr(x1), q0, s_collav);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung im Nullraum nicht lösbar');
 
-figure(4);clf;set(4,'Name','Zielpose_KollVermFinalHyp','NumberTitle','off');
+fhdl=figure(4);clf;set(fhdl,'Name','Zielpose_KollVermFinalHyp','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_cav, s_plot );
@@ -140,7 +140,7 @@ s_collav2.wn(RS.idx_ikpos_wn.coll_par) = 1; % Kollisionsvermeidung aktiv
 [q1_cav2, Phi_cav2, Tcstack1_cav2, Stats_CollAvoid2] = RS.invkin2(RS.x2tr(x1), q0, s_collav2);
 assert(all(abs(Phi_cav)<1e-8), 'IK mit Kollisionsvermeidung 2 im Nullraum nicht lösbar');
 
-figure(5);clf;set(5,'Name','Zielpose_KollVermFinalQuad','NumberTitle','off');
+fhdl=figure(5);clf;set(fhdl,'Name','Zielpose_KollVermFinalQuad','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 RS.plot( q1_cav2, s_plot );
@@ -169,7 +169,7 @@ s_collstop.wn(RS.idx_ikpos_wn.coll_hyp) = 1; % Kollisionsvermeidung aktiv
 [q1_cst, Phi_cst, Tcstack1_cst, Stats_CollStop] = RS.invkin2(RS.x2tr(x1), q0, s_collstop);
 assert(all(abs(Phi_cst)<1e-8), 'IK mit absoluter Kollisionsvermeidung nicht lösbar');
 
-figure(6);clf;set(6,'Name','Zielpose_KollVermStreng','NumberTitle','off');
+fhdl=figure(6);clf;set(fhdl,'Name','Zielpose_KollVermStreng','NumberTitle','off');
 hold on; grid on;
 xlabel('x in m'); ylabel('y in m'); zlabel('z in m'); view(3);
 trplot(RS.x2t(x0), 'frame', 'S', 'rgb', 'length', 0.2);
@@ -204,8 +204,8 @@ for kk = 1:length(Namen)
   elseif kk == 5
     Stats = Stats_CollStop;
   end
-  change_current_figure(20);
-  if kk == 1, clf; set(20, 'Name', 'PTP_Q', 'NumberTitle', 'Off'); end
+  fhdl=change_current_figure(20);
+  if kk == 1, clf; set(fhdl, 'Name', 'PTP_Q', 'NumberTitle', 'Off'); end
   for i = 1:6
     subplot(2,6,sprc2no(2,6,1,i)); hold on;
     plot(Stats.Q(:,i)); ylabel(sprintf('q %d', i)); grid on;
@@ -227,8 +227,8 @@ for kk = 1:length(Namen)
   [colldet, colldist] = check_collisionset_simplegeom(RS.collbodies, ...
     RS.collchecks, JP_all, struct('collsearch', false));
   
-  change_current_figure(21);
-  if kk == 1, clf; hold on; set(21, 'Name', 'PTP_Coll', 'NumberTitle', 'Off'); grid on; end
+  fhdl=change_current_figure(21);
+  if kk == 1, clf; hold on; set(fhdl, 'Name', 'PTP_Coll', 'NumberTitle', 'Off'); grid on; end
   plot(min(colldist,[],2)); % 'r-', , 'LineWidth', 3
   if kk == length(Namen)
     sgtitle('Kollisionsverlauf');
@@ -236,8 +236,8 @@ for kk = 1:length(Namen)
     legend(Namen);
   end
   
-  change_current_figure(22);
-  if kk == 1, clf; set(22, 'Name', 'PTP_Coll_All', 'NumberTitle', 'Off'); end
+  fhdl=change_current_figure(22);
+  if kk == 1, clf; set(fhdl, 'Name', 'PTP_Coll_All', 'NumberTitle', 'Off'); end
   subplot(2,3,kk); hold on; grid on;
   plot(colldist);
   plot(min(colldist,[],2), 'r--', 'LineWidth', 3);
@@ -248,8 +248,8 @@ for kk = 1:length(Namen)
     linkxaxes;
   end
   
-  change_current_figure(23);
-  if kk == 1, clf; set(23, 'Name', 'PTP_Phi', 'NumberTitle', 'Off'); end
+  fhdl=change_current_figure(23);
+  if kk == 1, clf; set(fhdl, 'Name', 'PTP_Phi', 'NumberTitle', 'Off'); end
   for i = 1:6
     subplot(2,3,i); hold on;
     plot(Stats.PHI(:,i)); ylabel(sprintf('Phi %d', i)); grid on;
@@ -293,8 +293,8 @@ for k = 1:5
   anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_Collision_Test_PTP_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 0, 'mode', 5, 'only_bodies', true);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   trplot(RS.x2t(x1), 'frame', 'D', 'rgb', 'length', 0.2);
@@ -387,8 +387,8 @@ for kk = 1:length(Namen)
     Q_kk = Q_CAPDq; QD_kk = QD_CAPDq; QDD_kk = QDD_CAPDq; CD_kk = dist_CAPDq;
     h_kk = Stats_CAPDq.h;
   end
-  change_current_figure(30);
-  if kk == 1, clf; set(30, 'Name', 'Traj_Q', 'NumberTitle', 'off'); end
+  fhdl=change_current_figure(30);
+  if kk == 1, clf; set(fhdl, 'Name', 'Traj_Q', 'NumberTitle', 'off'); end
   for i = 1:RS.NJ
     % Gelenkposition
     subplot(3,RS.NJ,sprc2no(3, RS.NJ, 1, i));
@@ -411,8 +411,8 @@ for kk = 1:length(Namen)
     legend(Namen);
     linkxaxes;
   end
-  change_current_figure(31);
-  if kk == 1, clf; set(31, 'Name', 'Traj_Coll', 'NumberTitle', 'off'); end
+  fhdl=change_current_figure(31);
+  if kk == 1, clf; set(fhdl, 'Name', 'Traj_Coll', 'NumberTitle', 'off'); end
   subplot(2,1,1); hold on;
   plot(T, min(CD_kk,[],2));
   if kk == length(Namen)
@@ -467,8 +467,8 @@ for k = 1:length(Namen)
   anim_filename = fullfile(resdir, sprintf('SerRob_Nullspace_Collision_Test_Traj_%s', filesuffix));
   s_anim = struct( 'mp4_name', [anim_filename,'.mp4'] );
   s_plot = struct( 'ks', [1, RS.NJ+2], 'straight', 0, 'mode', 5, 'only_bodies', true);
-  figure(9);clf;
-  set(9, 'name', sprintf('Anim'), ...
+  fhdl=figure(9);clf;
+  set(fhdl, 'name', sprintf('Anim'), ...
     'color','w', 'NumberTitle', 'off', 'units','normalized',...
     'outerposition',[0 0 1 1]); % Vollbild, damit Video größer wird
   plot3(X(:,1), X(:,2), X(:,3), 'b-');

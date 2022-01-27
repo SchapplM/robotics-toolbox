@@ -563,7 +563,7 @@ for Robot_Data = Robots
       txt = ['Punkt Nr. ',num2str(pkt)];
       sgtitle(txt);
       txt2 = ['limred_3T2R_EP_Verlauf_',num2str(pkt)];
-      saveas(gcf, [txt2, '.png'])
+      saveas(f3, [txt2, '.png'])
     end
   end
   %% Trajektorien-IK | Initialisierung und Berechnung

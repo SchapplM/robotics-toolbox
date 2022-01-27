@@ -110,7 +110,7 @@ end
 
 %% Roboter in Startpose plotten
 if ~usr_nofigures
-  figure(1);clf;set(1, 'Name', 'Startpose', 'NumberTitle', 'off');
+  fhdl=figure(1);clf;set(fhdl, 'Name', 'Startpose', 'NumberTitle', 'off');
   hold on;grid on;
   xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
   view(3);
@@ -347,7 +347,7 @@ fprintf('Inverse Dynamik berechnet. Dauer: %1.1fs\n', toc(t1));
 
 %% Ergebnisse plotten: Zeitverlauf der Plattform-Trajektorie
 if ~usr_nofigures
-  figure(8);clf;set(8, 'Name', 'Plattform', 'NumberTitle', 'off');
+  fhdl=figure(8);clf;set(fhdl, 'Name', 'Plattform', 'NumberTitle', 'off');
   for k = 1:6
     subplot(4,6,sprc2no(4,6,1,k));hold on;
     plot(T, X_t(:,k));
@@ -380,7 +380,7 @@ end
 %% Ergebnisse plotten: Zeitverlauf der Antriebsgelenke
 II_qa = find(RP.I_qa);
 if ~usr_nofigures
-  figure(7);clf;set(7, 'Name', 'Antriebsgelenke', 'NumberTitle', 'off');
+  fhdl=figure(7);clf;set(fhdl, 'Name', 'Antriebsgelenke', 'NumberTitle', 'off');
   for k = 1:6
     subplot(4,6,sprc2no(4,6,1,k));hold on;
     plot(T, Q_t(:,II_qa(k)));
@@ -409,7 +409,7 @@ if ~usr_nofigures
 end
 %% Ergebnisse plotten: Zeitverlauf weiterer Kenndaten der PKM
 if ~usr_nofigures
-  figure(4);clf;set(4, 'Name', 'Diagnose', 'NumberTitle', 'off');
+  fhdl=figure(4);clf;set(fhdl, 'Name', 'Diagnose', 'NumberTitle', 'off');
   subplot(2,3,sprc2no(2,3,1,1)); hold on;
   plot(T, log10(abs(Det_t(:,1:4))));
   plot(T, log10(abs(Det_t(:,5))), '--');
@@ -458,7 +458,7 @@ if ~usr_nofigures
 end
 %% Ergebnisse plotten: Zeitverlauf der Schnittkräfte
 if ~usr_nofigures
-  figure(10);clf;set(10, 'Name', 'Schnittkräfte_Koppelpunkte', 'NumberTitle', 'off');
+  fhdl=figure(10);clf;set(fhdl, 'Name', 'Schnittkräfte_Koppelpunkte', 'NumberTitle', 'off');
   for j = 1:RP.NLEG
     subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,1,j)); hold on;
     plot(T, FA_t(:, (j-1)*8+1:(j*8)-5))
@@ -496,11 +496,11 @@ if ~usr_nofigures
       ksstr = 'i';
     end
     for fm = [0 1]
-      figure(11+fm+ks);clf;
+      fhdl=figure(11+fm+ks);clf;
       if fm == 0
-        set(11+fm+ks, 'Name', sprintf('Schnittkräfte_Beine_KS%s',ksstr), 'NumberTitle', 'off');
+        set(fhdl, 'Name', sprintf('Schnittkräfte_Beine_KS%s',ksstr), 'NumberTitle', 'off');
       else
-        set(11+fm+ks, 'Name', sprintf('Schnittmoment_Beine_KS%s',ksstr), 'NumberTitle', 'off');
+        set(fhdl, 'Name', sprintf('Schnittmoment_Beine_KS%s',ksstr), 'NumberTitle', 'off');
       end
       sphdl=NaN(RP.Leg(1).NL, RP.NLEG);
       for k = 1:RP.NLEG % Beine in den Spalten des Bildes
@@ -549,8 +549,8 @@ end
 if ~usr_nofigures
   s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_6UPS.gif'));
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
-  figure(5);clf;hold all;set(5, 'Name', 'Animation', 'NumberTitle', 'off');
-  set(5, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);
+  fhdl=figure(5);clf;hold all;set(fhdl, 'Name', 'Animation', 'NumberTitle', 'off');
+  set(fhdl, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);
   view(3);
   axis auto
   hold on;grid on;

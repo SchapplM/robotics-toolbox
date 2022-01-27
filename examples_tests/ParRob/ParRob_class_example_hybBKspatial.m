@@ -187,8 +187,8 @@ linkxaxes
 %% Animation des bewegten Roboters
 s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_class_example_hybBKspatial.gif'));
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
-figure(6);clf;hold all;
-set(6,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
+fhdl=figure(6);clf;hold all;
+set(fhdl,'units','normalized','outerposition',[0 0 1 1]); % Vollbild
 view(3);
 axis auto
 hold on;grid on;
