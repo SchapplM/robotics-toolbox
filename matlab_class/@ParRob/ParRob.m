@@ -285,8 +285,12 @@ classdef ParRob < RobBase
       % Tc_stack_PKM: Gestapelte Transformationsmatrizen der PKM.
       % JointPos_all: Gestapelte Positionen aller Gelenke der PKM
       Leg_pkin_gen = cat(2,R.Leg.pkin_gen)';
+      Leg_T_N_E_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
       Leg_T_0_W_vec = zeros(6,R.NLEG);% 1:3 Euler-Winkel, 4:6 Position
       for i = 1:R.NLEG
+        T_N_E = R.Leg(i).T_N_E;
+        Leg_T_N_E_vec(1:3,i) = r2eulxyz(T_N_E(1:3,1:3));
+        Leg_T_N_E_vec(4:6,i) = T_N_E(1:3,4);
         T_0_W = R.Leg(i).T_0_W;
         Leg_T_0_W_vec(1:3,i) = r2eulxyz(T_0_W(1:3,1:3));
         Leg_T_0_W_vec(4:6,i) = T_0_W(1:3,4);
@@ -295,6 +299,7 @@ classdef ParRob < RobBase
         'r_P_B_all', R.r_P_B_all,...
         'phi_P_B_all', R.phi_P_B_all,...
         'Leg_pkin_gen', Leg_pkin_gen,...
+        'Leg_T_N_E_vec', Leg_T_N_E_vec, ...
         'Leg_T_0_W_vec', Leg_T_0_W_vec);
       [Tc_stack_PKM, JointPos_all] = R.fkincollfcnhdl(q, s);
     end

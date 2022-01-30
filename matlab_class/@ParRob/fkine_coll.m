@@ -43,7 +43,9 @@ for i = 1:Rob.NLEG
   out3_ind1 = out3_ind1 + 3*Rob.Leg(i).NL;
 end
 % Plattform-KS aus den Daten der ersten Beinkette eintragen
-T_0_E1 = [Tc_stack_PKM(3+(3*Rob.Leg(1).NL-2:3*Rob.Leg(1).NL),:); [0 0 0 1]];
+T_0_N1 = [Tc_stack_PKM(3+(3*Rob.Leg(1).NL-2:3*Rob.Leg(1).NL),:); [0 0 0 1]];
+T_0_E1 = T_0_N1 * Rob.Leg(1).T_N_E;
+% Bei einigen 2T1R-PKM zusätzliche Trafo N-E für Beinkette
 R_P_B1 = eulxyz2r(Rob.phi_P_B_all(:,1));
 r_P_P_B1 = Rob.r_P_B_all(:,1);
 T_P_B1 = [[R_P_B1, r_P_P_B1]; [0 0 0 1]];

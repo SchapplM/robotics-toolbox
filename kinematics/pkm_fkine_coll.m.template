@@ -35,6 +35,7 @@ function [Tc_stack_PKM, JointPos_all] = %PN%_fkine_coll(q, s)
 %$cgargs       'r_P_B_all', zeros(3,%NLEG%),
 %$cgargs     'phi_P_B_all', zeros(3,%NLEG%),
 %$cgargs    'Leg_pkin_gen', zeros(%NLEG%,%NKP%),
+%$cgargs   'Leg_T_N_E_vec', zeros(6,%NLEG%),
 %$cgargs   'Leg_T_0_W_vec', zeros(6,%NLEG%))}
 assert(all(size(q) == [%NJ% 1]), 'q muss NJ% x 1 sein');
 
@@ -68,7 +69,10 @@ for iLeg = 1:NLEG
   out3_ind1 = out3_ind1 + 3*Leg_NL(iLeg);
 end
 % Plattform-KS aus den Daten der ersten Beinkette eintragen
-T_0_E1 = [Tc_stack_PKM(3+(3*Leg_NL(1)-2:3*Leg_NL(1)),:); [0 0 0 1]];
+T_0_N1 = [Tc_stack_PKM(3+(3*Leg_NL(1)-2:3*Leg_NL(1)),:); [0 0 0 1]];
+% Bei einigen 2T1R-PKM zusätzliche Trafo N-E für Beinkette
+T_N1_E1 = [eulxyz2r(s.Leg_T_N_E_vec(1:3,1)),s.Leg_T_N_E_vec(4:6,1);[0 0 0 1]];
+T_0_E1 = T_0_N1 * T_N1_E1;
 R_P_B1 = eulxyz2r(s.phi_P_B_all(:,1));
 r_P_P_B1 = s.r_P_B_all(:,1);
 T_P_B1 = [[R_P_B1, r_P_P_B1]; [0 0 0 1]];
