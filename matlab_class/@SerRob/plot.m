@@ -135,7 +135,7 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
     % Anpassung des Gelenk-Offset für einen Sonderfall des Plottens von
     % Schubgelenken (siehe Bedingungen unten)
     if Rob.MDH.a(i) == 0 && Rob.DesPar.joint_offset(i) == 0 && Rob.MDH.sigma(i) == 1 
-      joint_offset_i = gh/2;
+      joint_offset_i = gh/2 * sign(q_JV(i)); % Vorzeichen, damit auf Seite zum vorherigen Gelenk
     else
       joint_offset_i = Rob.DesPar.joint_offset(i);
     end
