@@ -85,8 +85,7 @@ for j = 1:2 % muss nur für 5FG-Beinketten gemacht werden
   eul_WE = r2eul(R_W_EE',RP.phiconv_W_E);
   RP.Leg(j).update_EE([], eul_WE);
 end
-I_EE_Legs = [RP.Leg(1).I_EE;RP.Leg(2).I_EE;RP.Leg(3).I_EE;RP.Leg(4).I_EE;RP.Leg(5).I_EE];
-RP.update_EE_FG(I_EE,I_EE_Task,I_EE_Legs);
+RP.update_EE_FG(I_EE,I_EE_Task);
 %% PKM testen
 % Definition der Test-Pose. Wähle ungleich Null, damit es keine
 % Singularität ist (gibt dann Rangverlust)
@@ -102,11 +101,11 @@ if any(isnan([phi;q]))
 end
 figure(1);clf;
 hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+xlabel('x in m');ylabel('y in m');zlabel('z in m');
 view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X_E, s_plot );
-return
+
 % Entferne den Eintrag der Z-Komponente der ZB für die zweite Beinkette
 % Dieser Eintrag ist nicht relevant für die Kinematik
 % TODO: Erneute Anpassung der Zwangsbedingungs-Funktionen. Entfernung
@@ -170,7 +169,7 @@ end
 %% PKM zeichnen
 figure(1);clf;
 hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+xlabel('x in m');ylabel('y in m');zlabel('z in m');
 view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I2L_LEG], 'straight', 0);
 RP.plot( q, X_E, s_plot );
@@ -199,7 +198,7 @@ k=k+1; XE(k,:) = XE(k-1,:) + [0,0,0, -r1,0,0];
 %% Roboter in Startpose mit Beispieltrajektorie plotten
 figure(2);clf;
 hold on;grid on;
-xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+xlabel('x in m');ylabel('y in m');zlabel('z in m');
 view(3);
 s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], ...
                  'ks_platform', RP.NLEG+[1,2], ...
@@ -312,19 +311,18 @@ plot(T([1 end]), iksettings.Phir_tol*[1;1], 'r--');
 plot(T([1 end]),-iksettings.Phir_tol*[1;1], 'r--');
 grid on;
 ylabel('\Phi_{rot}');
-
+drawnow()
 %% Animation
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 resdir = fullfile(rob_path, 'examples_tests', 'results');
 mkdirs(resdir);
 s_anim = struct('gif_name', fullfile(resdir, 'ParRob_class_example_Gogu_3T2R_animation.gif'));
-figure(9);clf;
+fhdl = figure(9);clf;
+set(fhdl, 'Name', 'Anim', 'NumberTitle', 'off');
 hold on;
 plot3(X(:,1), X(:,2), X(:,3));
 grid on;
-xlabel('x [m]');
-ylabel('y [m]');
-zlabel('z [m]');
+xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
 view(3);
 title('Animation der kartesischen Trajektorie');
 RP.anim( Q(1:20:length(T),:), X(1:20:length(T),:), s_anim, s_plot);
