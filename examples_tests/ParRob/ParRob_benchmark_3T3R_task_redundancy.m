@@ -69,7 +69,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
                   'r', '+', ':', 6};
 %% Klasse für PKM erstellen (basierend auf serieller Beinkette)
 % Robotermodell aus PKM-Bibliothek laden.
-for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
+for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
   if robnr == 1
     RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
@@ -112,9 +112,12 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       RP.Leg(i).update_mdh(pkin_gen);
     end
   elseif robnr == 5
+    % 3T1R-PKM benutzen. Funktioniert noch nicht richtig.
     % Parameter aus Maßsynthese
-    RP = parroblib_create_robot_class('P4RRRRR5V1G1P1A1', 0.6399, 0.2316);
-    pkin_gen = [-0.4235   -0.4619   -0.5137         0   -0.4207    0.1396         0]';
+    RP = parroblib_create_robot_class('P4RPRRR8V1G2P1A1', 1, 0.5);
+    pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
+    % Nachbearbeitung einiger Kinematikparameter
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a5')) = 0.3;
     for i = 1:RP.NLEG
       RP.Leg(i).update_mdh(pkin_gen);
     end
@@ -162,15 +165,96 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   RP.xDlim = [NaN(5,2); [-pi, pi]]; % 180°/s max. für EE-Drehung (sehr schnell)
   RP.xDDlim = RP.xDlim / 0.200; % Max. Geschw. in 200ms aufbauen
-  %% Startpose bestimmen
+  %% Trajektorie definieren
   % Mittelstellung im Arbeitsraum
   X0 = [ [0.00;0.00;0.6]; [0;0;0]*pi/180 ];
   if all(I_EE_full == [1 1 0 0 0 1]), X0(3) = 0; end
+  % Würfel-Trajektorie (Kantenlänge 300mm
+  d1=0.15; h1=0.15;
+  X1 = X0+[-d1/2,d1/2,h1/2,0,0,0]'; % Start so, dass Würfel genau mittig ist
+  k=1; XL = X1';
+  k=k+1; XL(k,:) = XL(k-1,:) + [ d1,0,0, 0,0,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,-d1,0  0,0, pi/4];
+  k=k+1; XL(k,:) = XL(k-1,:) + [-d1,0,0, 0,0,-pi/4];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, pi/4,0, 0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/4,0,0];
+  if ~short_traj
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,d1,0,  0,pi/4,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, 0,-pi/4,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [ d1,0,0, pi/6,-pi/6,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [ 0,0,h1, pi/6,-pi/6,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [ 0,0,-h1, -pi/6,pi/3,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,-d1,0  -pi/6,pi/6,0];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/4,pi/4,-pi/3];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, pi/2,-pi/6,-pi/3];
+  k=k+1; XL(k,:) = XL(k-1,:) + [-d1,0,0, pi/12,-pi/6,pi/2];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,d1,0,  -pi/4,0,-pi/6];
+  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/12,pi/12,pi/3];
+  end
+  % Reduziere alle Schwenkwinkel gegenüber der Vorlage
+  XL(:,4:6) = 0.1*XL(:,4:6);
+  if ~all(RP.I_EE == [1 1 1 1 1 1])
+    XL(:, ~RP.I_EE) = 0; XL = unique(XL, 'rows');
+  end
+  % Zeitverlauf der Trajektorie generieren
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.20, 0.010, 2e-3, 0);
+  % Debug: Trajektorie reduzieren
+%   if short_traj
+%     n = 200;
+%   else
+    n = length(t);
+%   end
+  % II = length(t)-n+1:1:length(t);
+  II = 1:n;
+  t = t(II);
+  X_t = X_t(II,:);
+  XD_t = XD_t(II,:);
+  XDD_t = XDD_t(II,:);
+  %% Debug: Maßsynthese
+  % Hiermit können Kinematik-Parameter für die PKM per Optimierung bestimmt
+  % werden. Die Parameter werden oben in die Initialisierung hart kodiert
+  % eingetragen. Dadurch entsteht keine Abhängigkeit zur Maßsynthese-Toolbox
+  if false
+    Set = cds_settings_defaults(struct('DoF', RP.I_EE)); %#ok<UNRCH> 
+    Traj = struct('XE', XL, 'X', X_t, 'XD', XD_t, 'XDD', XDD_t, 't', ...
+      t, 'IE', IL);
+    Set.optimization.objective = 'condition';
+    Set.optimization.optname = 'ParRob_benchmark_taskred';
+    Set.task.pointing_task = false; % Muss auch mit 3T1R-Traj. funktionieren
+    Set.optimization.basepos_limits = zeros(3,2);
+    Set.optimization.rotate_base = false;
+    Set.optimization.ee_rotation = true;
+    Set.structures.whitelist = {RP.mdlname};
+    cds_start(Set, Traj);
+    d1 = load(fullfile(Set.optimization.resdir, Set.optimization.optname, ...
+      sprintf('Rob1_%s_Endergebnis.mat', RP.mdlname)));
+    d1.RobotOptRes.Structure.varnames
+    d2 = load(fullfile(Set.optimization.resdir, Set.optimization.optname, ...
+      sprintf('Rob1_%s_Details.mat', RP.mdlname)));
+    d2.RobotOptDetails.R.Leg(1).pkin
+    d2.RobotOptDetails.R.DesPar.base_par
+    d2.RobotOptDetails.R.DesPar.platform_par
+  end
+
+  %% Startpose bestimmen
   q0 = 0.5+rand(RP.NJ,1); % Startwerte für numerische IK (zwischen 0.5 und 1.5 rad)
   q0(RP.MDH.sigma==1) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
-  % Inverse Kinematik auf zwei Arten berechnen
-  [qs, Phis, ~, Stats] = RP.invkin_ser(X0, q0, struct('retry_on_limitviol',true));
-  if any(abs(Phis) > 1e-6)
+  % Inverse Kinematik für Startpunkt bereits mit Optimierung berechnen.
+  % Sonst bei 3T1R-PKM Start in Singularität
+  RP.update_EE_FG(I_EE_full, I_EE_red);
+  if robnr == 5
+    wn = zeros(RP.idx_ik_length.wnpos,1);
+    wn(RP.idx_ikpos_wn.ikjac_cond) = 1; 
+    [qs, Phi, ~, Stats] = RP.invkin3(X0, q0, struct('retry_on_limitviol',true, ...
+      'wn', wn));
+    % Anpassung der Anfangspose und der Trajektorie
+    X0 = RP.fkineEE_traj(qs')';
+    X_t(:,6) = X_t(:,6) - (X_t(1,6) - X0(6));
+    XL(:,6) = XL(:,6) - (XL(1,6) - X0(6));
+  else
+    [qs, Phi, ~, Stats] = RP.invkin_ser(X0, q0, struct('retry_on_limitviol',true));
+  end
+  if any(abs(Phi) > 1e-6)
     error('Inverse Kinematik (für jedes Bein einzeln) konnte in Startpose nicht berechnet werden');
   end
   if any(qs(RP.MDH.sigma==1) < 0)
@@ -270,33 +354,6 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     'retry_limit', 0, ...
     'maxrelstep', 0.25); % Grenzen sind nicht so breit; nehme größere max. Schrittweite
   s.wn(RP.idx_ikpos_wn.qlim_hyp) = 1;
-  % Würfel-Trajektorie (Kantenlänge 300mm
-  d1=0.15; h1=0.15;
-  X1 = X0+[-d1/2,d1/2,h1/2,0,0,0]'; % Start so, dass Würfel genau mittig ist
-  k=1; XL = X1';
-  k=k+1; XL(k,:) = XL(k-1,:) + [ d1,0,0, 0,0,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,-d1,0  0,0, pi/4];
-  k=k+1; XL(k,:) = XL(k-1,:) + [-d1,0,0, 0,0,-pi/4];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, pi/4,0, 0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/4,0,0];
-  if ~short_traj
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,d1,0,  0,pi/4,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, 0,-pi/4,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [ d1,0,0, pi/6,-pi/6,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [ 0,0,h1, pi/6,-pi/6,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [ 0,0,-h1, -pi/6,pi/3,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,-d1,0  -pi/6,pi/6,0];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/4,pi/4,-pi/3];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0,-h1, pi/2,-pi/6,-pi/3];
-  k=k+1; XL(k,:) = XL(k-1,:) + [-d1,0,0, pi/12,-pi/6,pi/2];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,d1,0,  -pi/4,0,-pi/6];
-  k=k+1; XL(k,:) = XL(k-1,:) + [0,0, h1, -pi/12,pi/12,pi/3];
-  end
-  % Reduziere alle Schwenkwinkel gegenüber der Vorlage
-  XL(:,4:6) = 0.1*XL(:,4:6);
-  if ~all(RP.I_EE == [1 1 1 1 1 1])
-    XL(:, ~RP.I_EE) = 0; XL = unique(XL, 'rows');
-  end
   % Debug: Zeichne Eckpunkte
   if debug_plot
     change_current_figure(1, usr_figure_invisible);clf; hold all; view(3);
@@ -453,20 +510,6 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     saveas(fhdl, fullfile(respath,sprintf( ...
       'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RP.mdlname)));
   end
-  %% Zeitverlauf der Trajektorie generieren
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, 2e-3, 0);
-  % Debug: Trajektorie reduzieren
-%   if short_traj
-%     n = 200;
-%   else
-    n = length(t);
-%   end
-  % II = length(t)-n+1:1:length(t);
-  II = 1:n;
-  t = t(II);
-  X_t = X_t(II,:);
-  XD_t = XD_t(II,:);
-  XDD_t = XDD_t(II,:);
   
   %% Inverse Kinematik zum Startpunkt der Trajektorie
   % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert
