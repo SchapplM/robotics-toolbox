@@ -265,11 +265,12 @@ for i=1:size(Q,1)
   % Create a colormap for the first frame. For the rest of the frames,
   % use the same colormap
   if ~isempty(s_anim.gif_name) % schreibe GIF-Bild
+    mov = uint8(zeros(size(f.cdata, 1), size(f.cdata, 2), 1, 1));
+    [mov(:,:, 1, 1), map] = rgb2ind(f.cdata, 256, 'nodither');
     if i == 1 % Initialisierung
-      mov = uint8(zeros(size(f.cdata, 1), size(f.cdata, 2), 1, size(Q,1)));
-      [mov(:,:,1, i), map] = rgb2ind(f.cdata, 256, 'nodither');
+      imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
     else
-      mov(:,:,1, i) = rgb2ind(f.cdata, map, 'nodither');
+      imwrite(mov, map, s_anim.gif_name, 'DelayTime', 0, 'WriteMode','append'); % Vermeide riesige temporäre Variablen
     end
   end
   if video_in_frameloop
@@ -284,15 +285,7 @@ for i=1:size(Q,1)
   end
   drawnow();
 end
-
-% Verkürzen des Videos bei Fehler
-if ~isempty(s_anim.gif_name) && ~isnan(i_break)
-  mov = mov(:,:,1,1:i_break);
-end
 %% Create GIF and AVI files
-if ~isempty(s_anim.gif_name)
-  imwrite(mov,map,s_anim.gif_name, 'DelayTime', 0, 'LoopCount', inf)
-end
 if video_in_frameloop
    close(v);
 end
