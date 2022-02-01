@@ -69,7 +69,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
                   'r', '+', ':', 6};
 %% Klasse für PKM erstellen (basierend auf serieller Beinkette)
 % Robotermodell aus PKM-Bibliothek laden.
-for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
+for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
   if robnr == 1
     RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
@@ -111,13 +111,17 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     for i = 1:RP.NLEG
       RP.Leg(i).update_mdh(pkin_gen);
     end
-  elseif robnr == 5
-    % 3T1R-PKM benutzen. Funktioniert noch nicht richtig.
+  elseif robnr == 5 % 3T1R-PKM mit Drehgelenken
     % Parameter aus Maßsynthese
-    RP = parroblib_create_robot_class('P4RPRRR8V1G2P1A1', 1, 0.5);
+    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', 0.64, 0.23);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
-    % Nachbearbeitung einiger Kinematikparameter
-    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a5')) = 0.3;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d1')) = 0.0;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = -0.42;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d2')) = -0.42;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a3')) = -0.46;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d3')) = 0.14;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a5')) = -0.51;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d5')) = 0.0;
     for i = 1:RP.NLEG
       RP.Leg(i).update_mdh(pkin_gen);
     end
@@ -239,10 +243,10 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Startpose bestimmen
   q0 = 0.5+rand(RP.NJ,1); % Startwerte für numerische IK (zwischen 0.5 und 1.5 rad)
   q0(RP.MDH.sigma==1) = 0.5; % mit Schubaktor größer Null anfangen (damit Konfiguration nicht umklappt)
-  % Inverse Kinematik für Startpunkt bereits mit Optimierung berechnen.
-  % Sonst bei 3T1R-PKM Start in Singularität
-  RP.update_EE_FG(I_EE_full, I_EE_red);
   if robnr == 5
+    % Inverse Kinematik für Startpunkt bereits mit Optimierung berechnen.
+    % Vermeidet eine Singularität direkt beim Start.
+    RP.update_EE_FG(I_EE_full, I_EE_red); %#ok<UNRCH> 
     wn = zeros(RP.idx_ik_length.wnpos,1);
     wn(RP.idx_ikpos_wn.ikjac_cond) = 1; 
     [qs, Phi, ~, Stats] = RP.invkin3(X0, q0, struct('retry_on_limitviol',true, ...
@@ -252,6 +256,7 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     X_t(:,6) = X_t(:,6) - (X_t(1,6) - X0(6));
     XL(:,6) = XL(:,6) - (XL(1,6) - X0(6));
   else
+    RP.update_EE_FG(I_EE_full, I_EE_full);
     [qs, Phi, ~, Stats] = RP.invkin_ser(X0, q0, struct('retry_on_limitviol',true));
   end
   if any(abs(Phi) > 1e-6)
@@ -1170,7 +1175,9 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   plot(t, h2_z_all, 'c:');
   plot(t, min(h2_z_all,[],2), 'r--');
   hdl{3}=plot(t, H2_PKM_all);
-  ylim([0.8*min(H2_PKM_all(:)), 2.5*max(H2_PKM_all(:))]);
+  if ~any(isinf(H2_PKM_all(:))) && ~all(isnan(H2_PKM_all(:))) % Sonst Fehler bei ylim
+    ylim([0.8*min(H2_PKM_all(:)), 2.5*max(H2_PKM_all(:))]);
+  end
   title('Optimierungs-Zielfunktion 2');
   ylabel('Zielfkt 2'); grid on;
   
@@ -1178,7 +1185,9 @@ for robnr = 1:4 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   plot(t, log10(h2_z_all), 'c:');
   plot(t, log10(min(h2_z_all,[],2)), 'r--');
   hdl{4}=plot(t, log10(H2_PKM_all));
-  ylim([log10(0.8*min(H2_PKM_all(:))), log10(2.5*max(H2_PKM_all(:)))]);
+  if ~any(isinf(H2_PKM_all(:))) && ~all(isnan(H2_PKM_all(:)))  % Sonst Fehler bei ylim
+    ylim([log10(0.8*min(H2_PKM_all(:))), log10(2.5*max(H2_PKM_all(:)))]);
+  end
   ylabel('Log.-Zielfkt 2'); grid on;
   for k = 1:4, leghdl=line_format_publication(hdl{k}, format_mlines); end
 

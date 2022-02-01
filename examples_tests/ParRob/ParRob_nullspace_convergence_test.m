@@ -94,8 +94,15 @@ for robnr = 1:5
     end
   elseif robnr == 5 % 3T1R-PKM mit Drehgelenken
     % Parameter aus Maßsynthese
-    RP = parroblib_create_robot_class('P4RRRRR5V1G1P1A1', 0.6399, 0.2316);
-    pkin_gen = [-0.4235   -0.4619   -0.5137         0   -0.4207    0.1396         0]';
+    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', 0.64, 0.23);
+    pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d1')) = 0.0;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = -0.42;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d2')) = -0.42;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a3')) = -0.46;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d3')) = 0.14;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'a5')) = -0.51;
+    pkin_gen(strcmp(RP.Leg(1).pkin_names,'d5')) = 0.0;
     for i = 1:RP.NLEG
       RP.Leg(i).update_mdh(pkin_gen);
     end
@@ -421,7 +428,7 @@ for robnr = 1:5
         title(sprintf('Startpose Punkt %d / Ori. %d', k, l));
         hold on; grid on; view(3);
         xlabel('x in m');ylabel('y in m');zlabel('z in m');
-        s_plot = struct( 'straight', 0, 'mode', 4);
+        s_plot = struct( 'straight', 1, 'mode', 4);
         % Debugge von Kollisionskörpern:
         % s_plot.mode = 5; s_plot.only_bodies =  true;
         RP.plot( qs, xs, s_plot );
@@ -1024,7 +1031,7 @@ for robnr = 1:5
     ResStat_Filt = ResStat(ResStat.IK_Fall==ii,:);
     Nullspace_Error_ratio = sum(ResStat_Filt.Error~=0)/size(ResStat_Filt,1);
     if ~all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.25 || ...% TODO: Kann kleiner gewählt werden, wenn Parameter getuned sind.
-        all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.4 % 3T1R funktioniert noch nicht gut.
+        all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.6 % 3T1R funktioniert noch nicht gut.
       warning(['Für Fall %d wird in %1.1f%% der Untersuchungen nicht die ', ...
         '(lokal) optimale Lösung im Nullraum gefunden'], ii, 100*Nullspace_Error_ratio);
       raiseerr = true;

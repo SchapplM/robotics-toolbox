@@ -20,7 +20,7 @@ clc
 
 % Beispielsysteme
 % Entsprechen 6UPS, 4xSCARA, 3T1R-PKM, 3RRR, 3RPR
-RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P4RRRRR5V1G1P1A1', 'P3RRR1', 'P3RPR1'};
+RobotNames = {'P6RRPRRR14', 'P4RRRP1', 'P4RRRRR5V1G2P1A1', 'P3RRR1', 'P3RPR1'};
 
 % Einstellungen
 use_mex_functions = true; % mit mex geht es etwas schneller
