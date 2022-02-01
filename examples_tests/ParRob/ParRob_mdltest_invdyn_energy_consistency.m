@@ -151,8 +151,12 @@ for i_FG = 1:size(EEFG_Ges,1)
       [q_test, Phi]=RP.invkin_ser(Traj_0.X(1,:)', q0);
       [Q_test, ~, ~, PHI, Jinv_ges] = RP.invkin_traj(Traj_0.X, Traj_0.XD, Traj_0.XDD, Traj_0.t, q0);
       Jinv1 = reshape(Jinv_ges(1,:), RP.NJ, sum(RP.I_EE));
+      % Prüfe, ob die Plattform-Koordinaten belegt sind und bei reduzierten
+      % PKM-FG die anderen räumlichen FG nicht.
+      xP_test_param = RP.xE2xP_traj(Traj_0.X(1,:))';
       if all(abs(Phi)<1e-6) && ~any(isnan(Phi)) && all(abs(PHI(:))<1e-6) ...
-          && ~any(isnan(PHI(:))) && cond(Jinv1) < 1e6
+          && ~any(isnan(PHI(:))) && cond(Jinv1) < 1e6 && ...
+          (all(abs(xP_test_param(~RP.I_EE)) < 1e-7) || all(EE_FG == [1 1 1 1 1 0]))
         fprintf('IK erfolgreich mit abgespeicherten Parametern gelöst\n');
         params_success = true; % Parameter für erfolgreiche IK geladen.
       else
