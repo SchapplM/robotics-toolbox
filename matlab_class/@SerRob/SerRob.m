@@ -128,7 +128,6 @@ classdef SerRob < RobBase
     jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     dynparconvfcnhdl% Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
     fkintrajfcnhdl  % Funktions-Handle zum Aufruf der direkten Kinematik als Trajektorie
-    all_fcn_hdl     % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen
   end
 
   methods

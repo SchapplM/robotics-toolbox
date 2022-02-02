@@ -36,6 +36,9 @@ classdef RobBase < matlab.mixin.Copyable
     idx_iktraj_hn % Indizes für Zielkriterien-Ausgabe in Trajektorien-IK
     idx_ik_length % Maximale Indizes in den vorherigen Strukturen
   end
+  properties (Access = protected)
+    all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
+  end
 
   methods
     function R=RobBase() % Konstruktor

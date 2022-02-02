@@ -99,7 +99,6 @@ classdef ParRob < RobBase
       invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
       invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
       invkin3fcnhdl % Funktions-Handle für IK (zu pkm_invkin3_tpl.m.template)
-      all_fcn_hdl % Cell-Array mit allen Funktions-Handles des Roboters sowie den Dateinamen der Matlab-Funktionen und deren Verfügbarkeit
       extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
   methods
