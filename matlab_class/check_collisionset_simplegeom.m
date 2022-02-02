@@ -114,6 +114,8 @@ function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, S
       collcase = uint8(5); % Kapsel+Kugel (egal ob in Basis- oder Körper-KS)
     elseif any(cb.type(cc(i,2)) == [6,13]) && any(cb.type(cc(i,1)) == [16,15])
       collcase = uint8(6); % Kugel+Kapsel (egal ob in Basis- oder Körper-KS)
+    elseif any(cb.type(cc(i,2)) == [15,16]) && any(cb.type(cc(i,1)) == [15,16])
+      collcase = uint8(7); % Kugel+Kugel (egal ob in Basis- oder Körper-KS)
     else
       error('Fall %d vs %d nicht definiert', cb.type(cc(i,1)), cb.type(cc(i,2)));
     end
@@ -172,6 +174,8 @@ function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, S
           pkol = flipud(pkol); %  In Funktion erst Kugel, dann Kapsel
         case 6 % Kugel+Kapsel
           [di, coll_geom, pkol, d_min] = collision_capsule_sphere(b2_cbparam, b1_cbparam);
+        case 7 % Kugel+Kugel
+          [di, coll_geom, pkol, d_min] = collision_sphere_sphere(b1_cbparam, b2_cbparam);
         otherwise
           error('Fall nicht definiert. Dieser Fehler darf gar nicht auftreten');
       end
