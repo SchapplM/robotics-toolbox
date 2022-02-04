@@ -8,8 +8,10 @@
 %        gleichzeitig beziehen können)
 %   * 0: Basis-KS (Inertial-KS des Roboters)
 %   * A: Basis-Koppel-KS der einzelnen Beinketten (auch als "0i" bezeichnet)
-%   * B: Plattform-Koppel-KS der Beinketten. Orientierung abhängig von
+%   * B: Plattform-Koppel-KS für die Beinketten. Orientierung abhängig von
 %        gewählter Anordnung der Koppelgelenk-Orientierung.
+%   * C: Plattform-Koppelgelenk-KS auf Seite der Beinkette. Bei erfüllten
+%        Zwangsbedingungen gilt Ci=Bi.
 %   * P: Plattform-KS des Roboters, an dem der Endeffektor befestigt ist.
 %        Es werden nur parallele Roboter betrachtet, bei denen die
 %        Plattform am Ende aller Beinketten sitzt (also ohne zusätzliches
@@ -466,6 +468,7 @@ classdef ParRob < RobBase
         R.phiconv_W_0 = phiconv_W_0;
       end
       R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
+      R.T_0_W = invtr(R.T_W_0);
     end
     function [Jinv_qaD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE, platform_frame)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Endeffektorkoord.

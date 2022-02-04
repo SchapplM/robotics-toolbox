@@ -102,7 +102,7 @@ for iLeg = 1:Rob.NLEG
       name = sprintf('A%d', iLeg);
     elseif j == NLL+1
       % Virtuelles EE-KS der Beinkette
-      name = sprintf('E%d', iLeg);
+      name = sprintf('C%d', iLeg);
     else
       % Sonstige Körper-KS der Beinkette
       name = sprintf('%d,%d', iLeg, j-1);
