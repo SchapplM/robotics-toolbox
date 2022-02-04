@@ -110,3 +110,5 @@ R.DynPar = struct('mges',   NaN(NL_symPKM,1), ... % Massen
                   'ipv_n1s', [], ...  % Inertialparameter-Vektor für numerische Berechnung der Schnittkräfte
                   'mpv_sym', [], ...  % Minimalparameter-Dynamikvektor für symbolische Berechnung
                   'mode', 2); % Standard-Modus: Inertialparameter
+% Platzhalter für weitere Strukturvariablen setzen
+R.r_P_B_all = NaN(3, NLEG);

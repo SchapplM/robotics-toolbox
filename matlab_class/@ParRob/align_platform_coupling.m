@@ -8,8 +8,8 @@
 %   Nummer der Methode (siehe Quelltext)
 %   1-3: Kreisförmig. Gelenk-Achse Normal (1), Tangential (2), Radial (3)
 %   4-6: Paarweise. Gelenk-Achse Normal (4), Tangential (5), Radial (6)
-%   7: Nicht implementiert (TODO: Passend zur Kinematik bei n-FG-Ketten für
-%      n-FG-PKM
+%   7: Passend zur Kinematik bei 4-FG-Ketten für 3T0R-PKM. (Falls es nur
+%      eine Möglichkeit für die Orientierung der Beinkette gibt)
 %   8: Alle Gelenkachsen parallel und in Plattform-Ebene (für 3T2R)
 % param
 %   Parameter für diese Methode (siehe Quelltext)
@@ -110,6 +110,42 @@ elseif method > 3 && method <= 6
       Rob.Leg(j+2*(i-1)).update_EE();
       phi_P_B_all(:,j+2*(i-1)) =  phi_P_Bi;
     end
+  end
+elseif method == 7
+  % Methode 7: Gelenkachse so, wie es aufgrund der Kinematik der Beinketten
+  % möglich ist
+  if any(isnan(Rob.xref))
+    % Werte können so noch nicht belegt werden
+    return
+  end
+  n_pf_par = 1;
+  r_PB = param(1);
+  % Position der Plattform-Koppelgenke muss kreisförmig vorgegeben werden
+  for i = 1:NLEG
+    beta_i = 2*pi/NLEG*(i-1);
+    r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
+  end
+  Rob.r_P_B_all = r_P_P_Bi_ges; % Für diese Methode schon hier notwendig
+  % Bestimme IK so, dass nur die Position der Koppelpunkte erfüllt sein
+  % muss. Die Orientierung ergibt sich dadurch automatisch so, wie es
+  % für die Kinematik möglich ist.
+  [qref, Phiref] = Rob.invkin_ser(Rob.xref, cat(1,Rob.Leg.qref), [], ...
+    struct('Leg_I_EE_Task', repmat(logical([1 1 1 0 0 0]), Rob.NLEG, 1), ...
+    'EE_reference', false, ... % Bezug auf Koppelpunkte
+    'abort_firstlegerror', true, ... % Alle Beinketten müssen i.O. sein.
+    'I1constr_red', 1:3:(3*Rob.NLEG-2), ... % manuelle Vorgabe, um ...
+    'I2constr_red', 3:3:3*Rob.NLEG)); % ... Klasse zu überschreiben
+  if any(isnan(Phiref)) && any(abs(Phiref)>1e-6)
+    % Wenn IK nicht lösbar, ist diese Methode nicht durchführbar
+    return
+  end
+  % Bestimme die Ausrichtung des Koppelgelenks
+  for i = 1:Rob.NLEG
+    [~,T_0_Ci] = Rob.Leg(i).fkineEE(qref(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
+    T_0_E = Rob.x2t(Rob.xref);
+    T_P_Ci = Rob.T_P_E * invtr(T_0_E) * T_0_Ci; % Annahme: Ci=Bi
+    phi_P_Bi = r2eulxyz(T_P_Ci(1:3,1:3));
+    phi_P_B_all(:,i) = phi_P_Bi;
   end
 elseif method == 8
   % Methode 8: Alle Gelenkachsen parallel angeordnet

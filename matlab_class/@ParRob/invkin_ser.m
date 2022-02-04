@@ -60,7 +60,10 @@ s_ser_std = struct( ...
 s_par = struct( ...
   'Leg_I_EE_Task', cat(1,Rob.Leg.I_EE_Task), ...
   'I_EE_Task', Rob.I_EE_Task, ...
+  'I1constr_red', Rob.I1constr_red, ... % Durch Überschreiben temporär ...
+  'I2constr_red', Rob.I2constr_red, ... % ... auch anderer IK-Modus möglich
   'debug', false, ...
+  'EE_reference', true, ... % Bezug der IK auf den PKM-Endeffektor und nicht den Koppelpunkt
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
@@ -113,8 +116,7 @@ if nargout == 4
 end
 %% Berechnung der Beinketten-IK
 % Ansatz: IK der Beinkette zum Endeffektor der PKM
-Phi_ser = NaN(Rob.I2constr_red(end),1);
-Phi = Phi_ser;
+Phi = NaN(s_par.I2constr_red(end),1);
 q = Q0(:,1);
 r_P_P_B_ges = Rob.r_P_B_all;
 if ~s_par.platform_frame
@@ -146,9 +148,17 @@ for i = 1:Rob.NLEG
   r_P_P_Bi = r_P_P_B_ges(:,i); % Vektor von Koppelpunkt zum Plattform-KS
   T_P_Bi = [eulxyz2r(Rob.phi_P_B_all(:,i)), r_P_P_Bi; [0 0 0 1]];% (P)^T_(Bi)
   T_0i_0 = Rob.Leg(i).T_0_W;
-  T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
-  s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
-  
+  if s_par.EE_reference
+    % Bezug der IK auf den PKM-Endeffektor. Erlaubt bei 3T2R-Koordinaten
+    % die Aufgabenredundanz bezüglich der ersten Beinkette
+    T_0i_E = T_0i_0 * T_0_E; % Transformation vom Basis-KS der Beinkette zum EE
+    s.T_N_E = Rob.Leg(i).T_N_E * invtr(T_P_Bi) * T_P_E; % Anpassung der EE-Transformation der Beinkette für IK
+  else
+    % Bezug auf Beinketten-Koppelpunkt. Erlaubt bei 3T0R-Koordinaten die
+    % reine Erreichung der Koppelpunkt-Position bei willkürlicher Rotation.
+    T_0i_E = T_0i_0 * T_0_E * invtr(T_P_E) * T_P_Bi;
+    s.T_N_E = Rob.Leg(i).T_N_E;
+  end
   if isfield(s, 'K') && length(s.K) ~= Rob.Leg(i).NJ % passt für Eingabe der K mit Dimension [RP.NJ,1]
     s.K = K(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
   end
@@ -181,7 +191,7 @@ for i = 1:Rob.NLEG
   end
   % Ergebnisse für dieses Bein abspeichern
   q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)) = q_i;
-  Phi_ser(Rob.I1constr_red(i):Rob.I2constr_red(i)) = Phi_i;
+  Phi(s_par.I1constr_red(i):s_par.I2constr_red(i)) = Phi_i;
   if nargout >= 3
     T_0_0i = Rob.Leg(i).T_W_0;
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
@@ -204,7 +214,6 @@ end
 % Plattform-KS eintragen
 T_0_P = T_0_E * invtr(T_P_E);
 Tc_stack_PKM(end-2:end,:) = T_0_P(1:3,:);
-Phi = Phi_ser;
 if ~s_par.debug
   return
 end
@@ -226,8 +235,8 @@ else
   end
 end
 % Probe: Stimmen die Zwangsbedingungen?
-if all(abs(Phi_ser) < 1e-7) && any(abs(Phi_test)>1e-6)
+if all(abs(Phi) < 1e-7) && any(abs(Phi_test)>1e-6)
   warning(['Fehler: ZB stimmen nicht überein. invkin_ser: %1.2e. ', ...
     'constr: %1.2e. Wahrscheinlichste Ursache: EE-KS der Beinkette ', ...
-    'ist falsch gedreht.'], max(abs(Phi_ser)), max(abs(Phi_test)));
+    'ist falsch gedreht.'], max(abs(Phi)), max(abs(Phi_test)));
 end

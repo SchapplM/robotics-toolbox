@@ -46,6 +46,7 @@
 classdef ParRob < RobBase
 
   properties (Access = public)
+      xref % Referenz-Pose der Plattform (xP, im Basis-KS)
       NLEG % Anzahl der Beinketten
       I1J_LEG % Start-Indizes der Gelenkwinkel der einzelnen Beine in allen Gelenkwinkeln
       I2J_LEG % End-Indizes er Gelenkwinkel ...
@@ -112,6 +113,7 @@ classdef ParRob < RobBase
       [R.idx_ikpos_wn, R.idx_ikpos_hn, R.idx_iktraj_wnP, R.idx_iktraj_wnD, ...
         R.idx_iktraj_hn, R.idx_ik_length] = ik_optimcrit_index(R.Type);
       R.I_EE = true(1,6); % Platzhalter. Wird in initialize überschrieben
+      R.xref = NaN(6,1);
       R.Leg = [];
       R.MDH = struct('sigma', []);
       R.phiconv_P_E = uint8(2); % Euler-XYZ

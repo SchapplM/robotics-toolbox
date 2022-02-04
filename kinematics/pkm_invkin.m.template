@@ -151,8 +151,7 @@ Leg_T_N_E_vec = s_par.Leg_T_N_E_vec;% 6 x NLEG
 Leg_T_0_W_vec = s_par.Leg_T_0_W_vec;
 Leg_pkin_gen = s_par.Leg_pkin_gen;%(%NLEG%,%NKP%)
 
-Phi_ser = NaN(I2constr_red(end),1);
-Phi = Phi_ser;
+Phi = NaN(I2constr_red(end),1);
 q = Q0(:,1);
 
 r_P_P_B_ges = r_P_B_all;
@@ -236,7 +235,7 @@ for i = 1:NLEG
   end
   % Ergebnisse für dieses Bein abspeichern
   q(I1J_LEG(i):I2J_LEG(i)) = q_i;
-  Phi_ser(I1constr_red(i):I2constr_red(i)) = Phi_i;
+  Phi(I1constr_red(i):I2constr_red(i)) = Phi_i;
   if nargout >= 3
     T_0_0i = invtr(T_0i_0);
     % Umrechnung auf PKM-Basis-KS. Nehme nur die KS, die auch einem Körper
@@ -259,4 +258,3 @@ end
 % Plattform-KS eintragen
 T_0_P = T_0_E * invtr(T_P_E);
 Tc_stack_PKM(end-2:end,:) = T_0_P(1:3,:);
-Phi = Phi_ser;
