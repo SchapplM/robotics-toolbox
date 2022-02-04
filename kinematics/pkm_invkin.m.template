@@ -252,7 +252,7 @@ for i = 1:NLEG
     out3_ind1 = out3_ind1 + 3*(Leg_NQJ(i)+1);
   end
   if s_par.abort_firstlegerror && (any(any(isnan(Phi_i))) || ...
-      any(Phi_i > max([s_ser.Phit_tol; s_ser.Phir_tol]))) % TODO: Unterscheidung transl./rot. ZB.
+      any(abs(Phi_i) > max([s_ser.Phit_tol; s_ser.Phir_tol]))) % TODO: Unterscheidung transl./rot. ZB.
     break; % Erste Beinkette funktioniert nicht. Restliche sind egal. Abbruch
   end
 end
