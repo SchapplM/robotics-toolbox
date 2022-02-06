@@ -448,7 +448,7 @@ for DynParMode = 2:4
       % Prüfe absoluten und relativen Fehler
       test_JinvDPs = JinvDP_fulls(:,RP.I_EE) - JinvD_Pstest_full(:,RP.I_EE);
       test_JinvDPs_rel = test_JinvDPs ./ JinvDP_fulls(:,RP.I_EE);
-      I_err = abs(test_JinvDPs_rel) > 5e-2 & abs(test_JinvDPs) > 1e-8;
+      I_err = abs(test_JinvDPs_rel) > 5e-2 & abs(test_JinvDPs) > 1e-6;
       if any(I_err(:))
         disp(test_JinvDPs);
         error(['Selbst bestimmte Jacobi-Matrix-Zeitableitung bezogen auf ', ...
@@ -515,31 +515,32 @@ for DynParMode = 2:4
         warning('Massenmatrix stimmt nicht. Max Fehler %1.1e.', max(abs(test_M(:))));
         fail = true;
       end
-      if any(abs(test_C(:)) > 1e-6)
+      if any(abs(test_C) > 1e-6) && any(abs(test_C./Cx1) > 1e-3)
         warning('Coriolis-Terme stimmen nicht. Max Fehler %1.1e.', max(abs(test_C(:))));
         fail = true;
       end
-      if any(abs(test_G(:)) > 1e-6)
+      if any(abs(test_G) > 1e-6)
         warning('Gravitations-Terme stimmen nicht. Max Fehler %1.1e.', max(abs(test_G(:))));
         fail = true;
       end
-      if any(abs(test_GC1(:)) > 1e-6)
+      if any(abs(test_GC1) > 1e-6)
         warning('Summe aus Grav. und Coriolis nach sym. Methode stimmt nicht. Max Fehler %1.1e.', max(abs(test_GC1(:))));
         fail = true;
       end
-      if any(abs(test_F(:)) > 1e-6) || any(abs(test_F_sum(:)) > 1e-6)
+      if any(abs(test_F) > 1e-6) && any(abs(test_F./Fx1)>1e-3) || ...
+          any(abs(test_F_sum) > 1e-6) && any(abs(test_F_sum./Fx2)>1e-3)
         warning('Inversdynamik-Terme (gesamt) stimmen nicht. Max Fehler %1.1e / %1.1e.', max(abs(test_F(:))), max(abs(test_F_sum)));
         fail = true;
       end
-      if any(abs(test_FG(:)) > 1e-6)
+      if any(abs(test_FG) > 1e-6)
         warning('Gravitations-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FG(:))));
         fail = true;
       end
-      if any(abs(test_FGC(:)) > 1e-6)
+      if any(abs(test_FGC) > 1e-6) && any(abs(test_FGC./FGCx1) > 1e-3)
         warning('Gravitations- und Coriolis-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FGC(:))));
         fail = true;
       end
-      if any(abs(test_FC(:)) > 1e-6)
+      if any(abs(test_FC) > 1e-6) && any(abs(test_FC./(FGCx1-FGx1)) > 1e-6)
         warning('Coriolis-Terme (einzelne Komponenten aus Summenfunktion) stimmen nicht. Max Fehler %1.1e.', max(abs(test_FC(:))));
         fail = true;
       end

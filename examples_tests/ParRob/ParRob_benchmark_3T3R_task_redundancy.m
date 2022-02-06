@@ -484,7 +484,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     plot(Index_p, h1_go, 'c:');
     plot(Index_p, min(h1_go,[],2), 'r--^');
     plot(Index_p, h1, 'b-v');
-    ylim([0.8*min(h1_go(:)), 1.5*max(h1(:))]);
+    ylim( [0.8,1.5].*minmax2([h1_go(:);h1(:)]') );
 
     title('Zielfunktion 1 (nicht opt.)');
     ylabel('Zielfkt 1'); grid on;
@@ -494,7 +494,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     plot(Index_p, log10(h1), 'b-v');
     ylabel('Log.-Zielfkt 1 (n.o.)'); grid on;
     xlabel('Eckpunkt lfd Nr');
-    ylim([log10(0.8*min(h1_go(:))), log10(1.5*max(h1(:)))]);
+    ylim( log10([0.8,1.5].*minmax2([h1_go(:);h1(:)]')) );
 
     subplot(2,2,2); hold on;
     plot(Index_p, h2_go, 'c:');
@@ -502,7 +502,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     plot(Index_p, h2, 'b-v');
     title('Optimierungs-Zielfunktion 2');
     ylabel('Zielfkt 2'); grid on;
-    ylim([0.9*min(h2_go(:)), 1.5*max(h2(:))]);
+    ylim( [0.9,1.5].*minmax2([h2_go(:);h2(:)]') );
 
     subplot(2,2,4); hold on;
     hdl1=plot(Index_p, log10(h2_go), 'c:');
@@ -510,7 +510,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     hdl3=plot(Index_p, log10(h2), 'b-v');
     ylabel('Log.-Zielfkt 2'); grid on;
     xlabel('Eckpunkt lfd Nr');
-    ylim([log10(0.9*min(h2_go(:))), log10(1.5*max(h2(:)))]);
+    ylim( log10([0.9,1.5].*minmax2([h2_go(:);h2(:)]')) );
     legend([hdl1(1), hdl2, hdl3], {'Glob. Opt., 2°-Schritte.', 'Glob. Opt., bester', 'Mit Aufgabenredundanz'});
     saveas(fhdl, fullfile(respath,sprintf( ...
       'Rob%d_%s_EinzelTraj_Zielf.fig',robnr, RP.mdlname)));
@@ -1162,13 +1162,13 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   hdl{1}=plot(t, H1_PKM_all);
   title('Zielfunktion 1 ');
   ylabel('Zielfkt 1'); grid on;
-  ylim([0.8*min(H1_PKM_all(:)), 2.5*max(H1_PKM_all(:))]);
+  ylim( [0.8,2.5].*minmax2(H1_PKM_all(:)') );
  
   subplot(2,2,3); hold on;
   plot(t, log10(h1_z_all), 'c:');
   plot(t, log10(min(h1_z_all,[],2)), 'r--');
   hdl{2}=plot(t, log10(H1_PKM_all));
-  ylim([log10(0.8*min(H1_PKM_all(:))), log10(2.5*max(H1_PKM_all(:)))]);
+  ylim( log10([0.8,2.5].*minmax2(H1_PKM_all(:)')) );
   ylabel('Log.-Zielfkt 1 (n.o.)'); grid on;
   
   subplot(2,2,2); hold on;
