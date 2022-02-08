@@ -77,7 +77,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
 % identisch zu 2T1R für Redundanz.
 Robots = {{'S3RRR1', ''}, {'S6RRRRRR10V2', 'S6RRRRRR10V2_FANUC6'}};
 %% Alle Robotermodelle durchgehen
-for robnr = 2
+for robnr = 1:2
 
   % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
   % Implementierung davon richtig ist
@@ -90,8 +90,8 @@ for robnr = 2
   
   %% Funktionen ggf neu generieren
   % Kann händisch aktiviert werden, wenn Änderungen durchgeführt werden:
-%   serroblib_create_template_functions({SName}, false);
-  
+  serroblib_create_template_functions({SName}, false);
+  serroblib_update_template_functions({SName}, false);
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
@@ -104,7 +104,10 @@ for robnr = 2
     r_W_E = [0.2;0;0]; phi_W_E(:) = 0;
   end
   RS.fill_fcn_handles(use_mex_functions, true);
-  % matlabfcn2mex({[RS.mdlname,'_invkin_traj'],[RS.mdlname,'_invkin_eulangresidual']});
+%   err = false;
+%   err = err | matlabfcn2mex({[RS.mdlname,'_invkin_eulangresidual']});
+%   err = err | matlabfcn2mex({[RS.mdlname,'_invkin_traj']});
+%   if err, error('Mex fehlgeschlagen'); end
   
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
@@ -298,7 +301,8 @@ for robnr = 2
     end
   end
   %% Zeitverlauf der Trajektorie generieren
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, 2e-3, 1e-2);
+  Tv = 0.01; % Anstiegszeit der Geschwindigkeit
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, Tv, 2e-3, 1e-2);
   if short_traj && strcmp(SName, 'S6RRRRRR10V2') % Debug: Trajektorie reduzieren
     n = 200; % TODO: Für Industrieroboter passt die ganze Trajektorie noch schlecht.
   else
@@ -309,6 +313,54 @@ for robnr = 2
   X_t = X_t(II,:);
   XD_t = XD_t(II,:);
   XDD_t = XDD_t(II,:);
+  % Generiere Stützstellen für die Rast-zu-Rast-Bewegung der Nullraum-
+  % bewegung. Vor dem Abbremsen der Aufgabenbewegung wird die NR-Bew. abge-
+  % bremst. Dadurch wird eine komplette Rast-zu-Rast-Bewegung erzeugt.
+  % Beim Start der Aufgabe wird direkt auch die Nullraumbewegung zugelassen
+  t_rest = t(IL);
+  % Abbauzeit der Geschwindigkeit ergibt sich mit der maximalen Beschleunigung.
+  Tv_ns = RS.xDlim(6,2) / RS.xDDlim(6,2);
+  t_acc_done = t_rest + Tv; % Verschliffzeit von traj_trapez2_multipoint
+  t_dec_start = t_rest - Tv;
+  t_ns_acc_start = t_rest; %t_acc_done;
+  t_ns_acc_finish = t_rest+0.5e-3; % sofort max. Geschw. erlauben. Wird anderweitig begrenzt.
+  t_ns_dec_start = t_dec_start - Tv_ns;
+  t_ns_dec_finish = t_ns_dec_start + Tv_ns;
+  assert(all(t_ns_dec_finish(1:end-1) < t_ns_acc_start(2:end)), ['Start ', ...
+    'der Nullraumbewegung muss nach Ende der vorherigen sein']);
+  assert(all(t_ns_dec_start(1:end-1) < t_ns_acc_finish(2:end)), ['Bremsen ', ...
+    'der Nullraumbewegung muss nach Ende des Startvorgangs sein']);
+  nullspace_maxvel_interp = [ ... % zunächst nach Kategorie sortiert sammeln
+    [t_ns_acc_start'; zeros(1,length(t_ns_acc_start))], ...
+    [t_ns_acc_finish'; ones(1,length(t_ns_acc_start))], ...
+    [t_ns_dec_start'; ones(1,length(t_ns_dec_start))], ...
+    [t_ns_dec_finish'; zeros(1,length(t_ns_dec_finish))], ...
+    ]; % anschließend sortieren und nochmals prüfen
+  [~,I_sort] = sort(nullspace_maxvel_interp(1,:));
+  nullspace_maxvel_interp = nullspace_maxvel_interp(:,I_sort);
+  assert(all(diff(nullspace_maxvel_interp(1,:))>0), ['Zeit-Stützstellen ', ...
+    'müssen aufsteigend sein']);
+  assert(size(nullspace_maxvel_interp,2)==length(unique( ...
+    nullspace_maxvel_interp(1,:))), 'Zeit-Stützstellen nicht eindeutig');
+  if false % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
+    change_current_figure(9345); clf;
+    subplot(2,2,1);
+    plot(t, sum(abs(X_t),2));
+    ylabel('s'); grid on;
+    subplot(2,2,2); hold on;
+    plot(t, sum(abs(XD_t),2));
+    plot(t(IL), 0, 'rs');
+    ylabel('v'); grid on;
+    subplot(2,2,3); hold on;
+    plot(t, sum(abs(XDD_t),2));
+    plot(t(IL), 0, 'rs');
+    ylabel('a'); grid on;
+    subplot(2,2,4); hold on;
+    plot(nullspace_maxvel_interp(1,:)', nullspace_maxvel_interp(2,:)');
+    plot(t(IL), 0, 'rs');
+    ylabel('vNmax rel');
+    linkxaxes
+  end
   
   %% Inverse Kinematik zum Startpunkt der Trajektorie
   % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert.
@@ -360,7 +412,7 @@ for robnr = 2
   H1D_all = H1_all; H2D_all = H1_all; Hcond_all = H1_all; Hsum_all = H1_all;
   XE_all = NaN(length(t), 6, length(Namen_Methoden)); XDE_all = XE_all; XDDE_all = XE_all;
   % Allgemeine Einstellungen für Trajektorie
-  s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
+  s_Traj = struct( 'nullspace_maxvel_interp', nullspace_maxvel_interp, ...
       'I_EE', I_EE_red, 'reci', true, ...
       'wn', zeros(RS.idx_ik_length.wntraj, 1), ...
       'normalize', false);
@@ -485,6 +537,11 @@ for robnr = 2
     XE_all(I_traj,:,kk) = X_ist;
     XDE_all(I_traj,:,kk) = XD_ist;
     XDDE_all(I_traj,:,kk) = XDD_ist;
+
+    % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
+    % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
+    assert(all(all(abs(QD_t_kk(IL,:))<1e-3)), 'QD an Rastpunkten nicht Null');
+    assert(all(all(abs(XD_ist(IL,:))<1e-3)), 'XD an Rastpunkten nicht Null');
     
     % Ergebnis in Tabelle eintragen
     IKres_traj.Nr(kk) = kk;
