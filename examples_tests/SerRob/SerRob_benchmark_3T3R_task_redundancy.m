@@ -54,11 +54,11 @@ end
 
 %% Definitionen, Benutzereingaben
 % Benutzereingaben zur Ablaufsteuerung
-short_traj = true; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen. TODO: Noch singulär mit ganzer Länge.
-eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
+short_traj = false; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen. TODO: Noch singulär mit ganzer Länge.
+eckpunkte_berechnen = false; % Einzelpunkt-IK für alle Eckpunkte berechnen
 debug_plot = false;
 use_mex_functions = true;
-save_results = false;
+save_results = true;
 
 % Definitionen
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
@@ -90,7 +90,7 @@ for robnr = 1:2
   
   %% Funktionen ggf neu generieren
   % Kann händisch aktiviert werden, wenn Änderungen durchgeführt werden:
-  serroblib_create_template_functions({SName}, false);
+  % serroblib_create_template_functions({SName}, false);
   serroblib_update_template_functions({SName}, false);
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
@@ -186,7 +186,7 @@ for robnr = 1:2
     XL = XL(1:6,:);
   end
   if ~all(RS.I_EE == [1 1 1 1 1 1])
-    XL(:, ~RS.I_EE) = 0; XL = unique(XL, 'rows');
+    XL(:, ~RS.I_EE) = 0; XL = uniquetol(XL, 'ByRows', true);
   end
   % Debug: Zeichne Eckpunkte
   if debug_plot
@@ -320,29 +320,48 @@ for robnr = 1:2
   t_rest = t(IL);
   % Abbauzeit der Geschwindigkeit ergibt sich mit der maximalen Beschleunigung.
   Tv_ns = RS.xDlim(6,2) / RS.xDDlim(6,2);
-  t_acc_done = t_rest + Tv; % Verschliffzeit von traj_trapez2_multipoint
-  t_dec_start = t_rest - Tv;
-  t_ns_acc_start = t_rest; %t_acc_done;
-  t_ns_acc_finish = t_rest+0.5e-3; % sofort max. Geschw. erlauben. Wird anderweitig begrenzt.
-  t_ns_dec_start = t_dec_start - Tv_ns;
-  t_ns_dec_finish = t_ns_dec_start + Tv_ns;
+  % Berechne die Zeitpunkte der einzelnen Phasen der Bewegung aus den Rast-
+  % punkten. Zusätzliche Prüfung bei sehr kurzen Bewegungsphasen, damit die
+  % Beschleunigungs- und Bremsphasen nicht unlogisch überlappen.
+  % Der letzte Rastpunkt in t_rest entspricht dem Ende. Indizierung entspr.
+  t_acc_done = t_rest(1:end-1) + Tv; % Verschliffzeit von traj_trapez2_multipoint
+  t_dec_start = t_rest(2:end) - Tv;
+  t_ns_acc_start = t_rest(1:end-1); %Alternative für Abwarten der Aufgaben-Beschleunigung: t_acc_done;
+  t_ns_acc_finish = t_rest(1:end-1)+0.5e-3; % sofort max. Geschw. erlauben ohne Rampe. Die Geschw. wird anderweitig begrenzt.
+  % Verzögerungsphase bereits etwas (um Tv) vorziehen?
+  t_ns_dec_start = max([t_dec_start-Tv_ns-Tv, t_ns_acc_finish+0.5e-3], [], 2);
+  t_ns_dec_finish = min([t_ns_dec_start + Tv_ns, [t_ns_acc_start(2:end)-0.5e-3;inf]], [], 2);
+  % Falls der letzte Wert nach der Trajektorie liegt, setze auf Ende
+  t_ns_dec_finish(t_ns_dec_finish>t(end)) = t(end);
+  T_dec = t_ns_dec_finish-t_ns_dec_start;
   assert(all(t_ns_dec_finish(1:end-1) < t_ns_acc_start(2:end)), ['Start ', ...
     'der Nullraumbewegung muss nach Ende der vorherigen sein']);
-  assert(all(t_ns_dec_start(1:end-1) < t_ns_acc_finish(2:end)), ['Bremsen ', ...
-    'der Nullraumbewegung muss nach Ende des Startvorgangs sein']);
+  assert(all(t_ns_acc_start(1:end) < t_ns_acc_finish(1:end)), ['Logik-', ...
+    'Fehler bei Nullraum-Begrenzung (t_ns_acc_start)']);
+  assert(all(t_ns_acc_finish(1:end) < t_ns_dec_start(1:end)), ['Logik-', ...
+    'Fehler bei Nullraum-Begrenzung (t_ns_acc_finish)']);
+  assert(all(t_ns_dec_start(1:end) < t_ns_dec_finish(1:end)), ['Logik-', ...
+    'Fehler bei Nullraum-Begrenzung (t_ns_dec_start)']);
   nullspace_maxvel_interp = [ ... % zunächst nach Kategorie sortiert sammeln
     [t_ns_acc_start'; zeros(1,length(t_ns_acc_start))], ...
-    [t_ns_acc_finish'; ones(1,length(t_ns_acc_start))], ...
+    [t_ns_acc_finish'; ones(1,length(t_ns_acc_finish))], ...
     [t_ns_dec_start'; ones(1,length(t_ns_dec_start))], ...
     [t_ns_dec_finish'; zeros(1,length(t_ns_dec_finish))], ...
-    ]; % anschließend sortieren und nochmals prüfen
+    ];
+  % Letzten Zeitschritt hinzufügen, damit dieser auch definiert ist
+  if ~any(nullspace_maxvel_interp(1,:)==t(end))
+    nullspace_maxvel_interp = [nullspace_maxvel_interp, [t(end); 0]]; %#ok<AGROW> 
+  end
+  % anschließend sortieren und nochmals prüfen
+  assert(all(nullspace_maxvel_interp(1,:)<=t(end)), ['Zeitschritte dürfen ', ...
+    'nicht weiter als Trajektorie gehen'])
   [~,I_sort] = sort(nullspace_maxvel_interp(1,:));
   nullspace_maxvel_interp = nullspace_maxvel_interp(:,I_sort);
   assert(all(diff(nullspace_maxvel_interp(1,:))>0), ['Zeit-Stützstellen ', ...
     'müssen aufsteigend sein']);
   assert(size(nullspace_maxvel_interp,2)==length(unique( ...
     nullspace_maxvel_interp(1,:))), 'Zeit-Stützstellen nicht eindeutig');
-  if false % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
+  if true % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
     change_current_figure(9345); clf;
     subplot(2,2,1);
     plot(t, sum(abs(X_t),2));
@@ -356,9 +375,11 @@ for robnr = 1:2
     plot(t(IL), 0, 'rs');
     ylabel('a'); grid on;
     subplot(2,2,4); hold on;
-    plot(nullspace_maxvel_interp(1,:)', nullspace_maxvel_interp(2,:)');
+    plot(nullspace_maxvel_interp(1,:)', nullspace_maxvel_interp(2,:)', 'o-');
+    stairs(t, interp1(nullspace_maxvel_interp(1,:)', ...
+      nullspace_maxvel_interp(2,:)', t));
     plot(t(IL), 0, 'rs');
-    ylabel('vNmax rel');
+    ylabel('vNmax rel'); grid on;
     linkxaxes
   end
   
@@ -540,8 +561,8 @@ for robnr = 1:2
 
     % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
     % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
-    assert(all(all(abs(QD_t_kk(IL,:))<1e-3)), 'QD an Rastpunkten nicht Null');
     assert(all(all(abs(XD_ist(IL,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+    assert(all(all(abs(QD_t_kk(IL,:))<1e-3)), 'QD an Rastpunkten nicht Null');
     
     % Ergebnis in Tabelle eintragen
     IKres_traj.Nr(kk) = kk;
