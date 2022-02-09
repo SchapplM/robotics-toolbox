@@ -302,7 +302,16 @@ for robnr = 1:2
   end
   %% Zeitverlauf der Trajektorie generieren
   Tv = 0.01; % Anstiegszeit der Geschwindigkeit
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, Tv, 2e-3, 1e-2);
+  T_pause = 1e-2;
+  T_sample = 2e-3;
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, Tv, T_sample, T_pause);
+  % Hänge Pause am Ende an (sonst abbremsen im Nullraum nicht abgeschlossen)
+  n_pause = T_pause / T_sample;
+  X_t = [X_t; repmat(X_t(end,:),n_pause,1)]; %#ok<AGROW> 
+  XD_t = [XD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  XDD_t = [XDD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  t = [t; ((t(end)+T_sample):T_sample:(t(end)+T_pause))']; %#ok<AGROW> 
+  IL(end) = length(t);
   if short_traj && strcmp(SName, 'S6RRRRRR10V2') % Debug: Trajektorie reduzieren
     n = 200; % TODO: Für Industrieroboter passt die ganze Trajektorie noch schlecht.
   else
@@ -427,7 +436,7 @@ for robnr = 1:2
   
   %% IK für Trajektorie berechnen
   fprintf('Berechne Trajektorie aus %d Bahnpunkten\n', length(t));
-  Namen_Methoden = cell(1,7);
+  Namen_Methoden = cell(1,7); Namen_Methoden(:) = {''}; % Belegung mit char
   Q_t_all = NaN(length(t), RS.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
   H1_all = NaN(length(t), length(Namen_Methoden)); H2_all = H1_all;
   H1D_all = H1_all; H2D_all = H1_all; Hcond_all = H1_all; Hsum_all = H1_all;
@@ -559,11 +568,6 @@ for robnr = 1:2
     XDE_all(I_traj,:,kk) = XD_ist;
     XDDE_all(I_traj,:,kk) = XDD_ist;
 
-    % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
-    % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
-    assert(all(all(abs(XD_ist(IL,:))<1e-3)), 'XD an Rastpunkten nicht Null');
-    assert(all(all(abs(QD_t_kk(IL,:))<1e-3)), 'QD an Rastpunkten nicht Null');
-    
     % Ergebnis in Tabelle eintragen
     IKres_traj.Nr(kk) = kk;
     IKres_traj.Beschreibung{kk} = Namen_Methoden{kk};
@@ -640,7 +644,8 @@ for robnr = 1:2
     corrQD(isnan(corrQD)) = 1;
     corrQ(isnan(corrQ)) = 1;
     if any(corrQD < 0.95) || any(corrQ < 0.98)
-      error('Korrelation zwischen Q-QD oder QD-QDD zu gering. Vermutlich Fehler');
+      error(['Korrelation zwischen Q-QD (%1.3f) oder QD-QDD (%1.3f) zu ', ...
+        'gering. Vermutlich Fehler'], min(corrQ), min(corrQD));
     end
     % Integriere die Endeffektor Beschleunigung und Geschwindigkeit
     XD_int = cumtrapz(t, XDD) + repmat(XD(1,:),n,1);
@@ -680,6 +685,11 @@ for robnr = 1:2
       saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
     end
   end
+  % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
+  % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
+  IL_traj = IL(IL <= size(XD_ist,1));
+  assert(all(all(abs(XD_ist(IL_traj,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+  assert(all(all(abs(QD_t_kk(IL_traj,:))<1e-3)), 'QD an Rastpunkten nicht Null');
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
   fhdl = change_current_figure(100*robnr+20); clf;

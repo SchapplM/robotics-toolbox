@@ -348,8 +348,10 @@ N = zeros(NQJ,NQJ);
 x_k_ist = NaN(6,1);
 xD_k_ist = NaN(6,1);
 phizDlim = s.xDlim(6,:);
+phizD_N_lim = s.xDlim(6,:);
 qD_N_lim_noscale = NaN(NQJ,2);
 qD_N_lim = NaN(NQJ,2);
+vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), 'condJ', NaN(nt,2), ...
@@ -385,6 +387,8 @@ for k = 1:nt
   condJik = cond(J_x(I_EE,:)); condJ = cond(Jg(Rob_I_EE,:));
   % Gelenk-Geschwindigkeit mit inverser Jacobi
   qD_k_T = J_x(I_EE,:) \ XD(k,I_EE)'; % resultierend aus Aufgabe (minimale Norm der Geschw.)
+  xD_k_T_ist = J_x * qD_k_T;
+  xD_k_ist = J_x * qD_k;
   if ~(nsoptim || redundant)
     qD_k = qD_k_T; % ohne Redundanz nur Aufgaben-Geschw.; eindeutig.
   else
@@ -441,14 +445,28 @@ for k = 1:nt
     if ~isempty(s.nullspace_maxvel_interp) && k < nt
       vmax_rel = interp1(s.nullspace_maxvel_interp(1,:), ... % Zeit-Stützstellen
         s.nullspace_maxvel_interp(2,:), T(k+1)); % Werte für vrel, Wahl für Zeitpunkt
-      phizDlim = vmax_rel * s.xDlim(6,:);
-    else
-      vmax_rel = 1.0;
+      phizD_N_lim_noscale = s.xDlim(6,:) - xD_k_T_ist(6);
+      if vmax_rel == 1 % Halte die relative Geschw. bzgl. der Grenzen fest
+        % Aufschlag von 50%, damit das Bremsen der Nullraumbewegung lang-
+        % samer passiert. Zuerst Prüfung der EE-Drehung (Nullraum)
+        vmax_rel_lastvel = 1.5*max((xD_k_ist(6)- xD_k_T_ist(6)) ./ s.xDlim(6,:));
+        % Anschließend Prüfung der Gelenkgeschwindigkeit (Nullraum)
+        vmax_rel_lastvel = max(vmax_rel_lastvel, 1.5*max(max((qD_k-qD_k_T)./s.qDlim)));
+        % Skalierung darf höchstens eins sein (falls vorher über Grenzen)
+        vmax_rel_lastvel = min(vmax_rel_lastvel, 1);
+      else
+        % Abbremsen der Nullraumbewegung. Benutze den vorher festgehaltenen
+        % Maximalwert der tatsächlichen Geschwindigkeit als Basis zum
+        % Abbremsen. Dadurch sofort Abbremsen und nicht erst bei kleinen
+        % Geschwindigkeiten relativ spät.
+        vmax_rel = vmax_rel_lastvel * vmax_rel;
+      end
+      phizD_N_lim = phizD_N_lim_noscale * vmax_rel;
+      % Setze die Grenzen für die Gelenkgeschwindigkeit basierend auf der
+      % skalierten Nullraumgeschwindigkeit
+      qD_N_lim_noscale = s.qDlim - qD_k_T;
+      qD_N_lim = qD_N_lim_noscale * vmax_rel;
     end
-    % Setze die Grenzen für die Gelenkgeschwindigkeit basierend auf der
-    % skalierten Nullraumgeschwindigkeit
-    qD_N_lim_noscale = s.qDlim - qD_k_T;
-    qD_N_lim = qD_N_lim_noscale * vmax_rel;
   end
   if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
     % Positions-bezogene Kriterien werden auf Geschwindigkeitsebene behandelt
@@ -820,8 +838,7 @@ for k = 1:nt
     if any(wn([idx_wnP.xlim_par, idx_wnD.xlim_par, idx_wnP.xDlim_par, ...
         idx_wnP.xlim_hyp,idx_wnD.xlim_hyp]))
       % Bestimme Ist-Geschwindigkeit und Ist-Lage des Endeffektors.
-      xD_k_ist = J_x * qD_k;
-      x_k_ist = x_k;
+      x_k_ist = x_k; % xD_k_ist bereits oben bestimmt
       if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
         x_k_ist(6) = Phi_k_voll(4); % z-Komponente der ZB
       else % folgende Zeitschritte: Euler-Einschritt-Integration von phi_z
@@ -939,21 +956,47 @@ for k = 1:nt
   end
   % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
   % Geschwindigkeit der redundanten Endeffektor-Koordinaten verletzt werden
+  % Betrachtung von 1FG-Aufgabenredundanz mit EE-Drehung
   if NQJ - sum(I_EE) == 1 && ~I_EE(end) && limits_xD_set && enforce_xDlim
-    qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
-    xD_pre= J_x * qD_pre;
-    phizD_pre = xD_pre(end);
-    phizDmax = phizDlim(2); % Grenzen oben dynamisch berechnet.
+    % Aufgrund aktueller Beschleunigung erwartete Geschwindigkeit
+    % (Getrennt nach Komponenten)
+    qD_pre = qD_k + (qDD_N_pre+qDD_k_T)*dt;
+    qD_T_pre = qD_k_T + qDD_k_T*dt;
+    qD_N_pre = qD_pre - qD_T_pre;
+    % Bestimmung der daraus resultierenden Plattform-Geschwindigkeit
+    xD_T_pre = J_x * qD_T_pre;
+    xD_N_pre = J_x * qD_N_pre;
+    xD_pre= xD_T_pre + xD_N_pre; % = J_x * qD_pre
+    % Absolute Grenzen für die EE-Drehung
+    phizDlim = s.xDlim(6,:);
+    phizDmax = phizDlim(2);
     phizDmin = phizDlim(1);
-    if phizD_pre > phizDmax || phizD_pre < phizDmin
+    % Grenzen für Nullraum-Anteil in der EE-Drehung: 
+    phizDmax_N = phizD_N_lim(2); % Bestimmung oben aus Runterskalierung ...
+    phizDmin_N = phizD_N_lim(1); % ... bei Rastpunkten
+    % Prüfe, ob Grenzen gesamt oder für Nullraumteil verletzt werden
+    phizD_pre = xD_pre(end);
+    phizD_N_pre = xD_N_pre(end);
+    phizDD_counterlim = 0;
+    if phizD_pre > phizDmax || phizD_pre < phizDmin % Prüfe absolute Grenzen
       if phizD_pre > phizDmax
         phizDD_counterlim = (phizDmax-phizD_pre)/dt; % Geschw. zu groß -> negative Beschl.
       else
         phizDD_counterlim = (phizDmin-phizD_pre)/dt; % Geschw. zu klein -> positive Beschl.
       end
+    elseif phizD_N_pre > phizDmax_N || phizD_N_pre < phizDmin_N% Prüfe Grenzen für Nullraumgeschwindigkeit
+      if phizD_N_pre > phizDmax_N
+        phizDD_counterlim = (phizDmax_N-phizD_N_pre)/dt; % Geschw. zu groß -> negative Beschl.
+      else
+        phizDD_counterlim = (phizDmin_N-phizD_N_pre)/dt; % Geschw. zu klein -> positive Beschl.
+      end
+    end
+    if phizDD_counterlim ~= 0
       % Erzeuge die Nullraumbeschleunigung im Gelenkraum
       delta_qDD = J_x \ [zeros(5,1); phizDD_counterlim];
       qDD_N_pre = qDD_N_pre + delta_qDD;
+      % Debug: Nach dieser Rechnung diesen Block nochmal ausführen. Es muss
+      % genau der Grenzfall herauskommen für phizD_pre bzw. phizD_N_pre
     end
   end
   
@@ -994,12 +1037,16 @@ for k = 1:nt
       qDD_N_h = N * (-hdqD');
       % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
       qDD_N_he = qDD_N_h/qDD_N_h(I_worst); % [3]/(5)
-      % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
-      % an der Grenze landet.
-      qDD_N_korr_I = -qDD_pre(I_worst) + qDD_lim_I; % [3]/(7)
-      % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
-      qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
-      qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+      if ~any(isinf(qDD_N_he)) && ~any(isnan(qDD_N_he))
+        % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
+        % an der Grenze landet.
+        qDD_N_korr_I = -qDD_pre(I_worst) + qDD_lim_I; % [3]/(7)
+        % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
+        qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
+        qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+      else
+        qDD_N_post = qDD_N_pre;
+      end
       if false % debug
         Iutest = qD_k + (qDD_k_T+qDD_N_post)*dt > qDmax + 1e-6;
         Iltest = qD_k + (qDD_k_T+qDD_N_post)*dt < qDmin - 1e-6;
