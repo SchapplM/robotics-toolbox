@@ -64,6 +64,8 @@
 %   Trajektorie von Gelenkgeschwindigkeiten
 % QDD
 %   Trajektorie von Gelenkbeschleunigungen
+% PHI
+%   Kinematische Zwangsbedingungen der IK. Muss (ungefähr) Null sein.
 % Jinv_ges
 %   Inverse PKM-Jacobi-Matrix für alle Bahnpunkte (spaltenweise in Zeile)
 %   (Jacobi zwischen allen Gelenkgeschwindigkeiten qD und EE-geschwindigkeit xDE)
@@ -100,7 +102,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-02
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
+function [Q, QD, QDD, PHI, Jinv_ges, JinvD_ges, JointPos_all, Stats] = invkin_traj(Rob, X, XD, XDD, T, q0, s)
 
 %% Initialisierung
 Rob_I_EE = Rob.I_EE;
@@ -215,14 +217,15 @@ s_par = struct('debug', s.debug);
 qlim = cat(1, Rob.Leg.qlim);
 qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
+qmin = qlim(:,1);
+qmax = qlim(:,2);
 if ~all(isnan(qlim(:)))
   limits_q_set = true;
-  qmin = qlim(:,1);
-  qmax = qlim(:,2);
 else
+  % Grenzen sind nicht wirksam
+  qmin(:) = -Inf;
+  qmax(:) =  Inf;
   limits_q_set = false;
-  qmin = -inf(NJ,1);
-  qmax =  inf(NJ,1);
 end
 if ~all(isnan(qDlim(:)))
   limits_qD_set = true;
@@ -233,14 +236,16 @@ else
   qDmin = -inf(NJ,1);
   qDmax =  inf(NJ,1);
 end
-if ~all(isnan(qDDlim(:)))
+% Prüfe, ob Grenzen für die Beschleunigung gesetzt wurden
+qDDmin = qDDlim(:,1);
+qDDmax = qDDlim(:,2);
+if all(~isnan(qDDlim(:)))
   limits_qDD_set = true;
-  qDDmin = qDDlim(:,1);
-  qDDmax = qDDlim(:,2);
 else
+  % Grenzen sind nicht wirksam
+  qDDmin(:) = -Inf;
+  qDDmax(:) =  Inf;
   limits_qDD_set = false;
-  qDDmin = -inf(NJ,1);
-  qDDmax =  inf(NJ,1);
 end
 if ~all(isnan(s.xDDlim(:)))
   limits_xDD_set = true;
@@ -277,12 +282,12 @@ collbodies_ns = Rob.collbodies;
 maxcolldepth = 0;
 collobjdist_thresh = 0;
 if isempty(collbodies_ns.type) % Keine Kollisionskörper
-  wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
+  wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]) = 0; % Deaktivierung der Kollisionsvermeidung
 end
-if isempty(Rob.collbodies_instspc.type) % Keine Kollisionskörper
-  wn([idx_wnP.instspc_hyp idx_wnD.instspc_hyp]) = 0; % Deaktivierung der Bauraumprüfung
+if isempty(Rob.collbodies_instspc.type) % Keine Bauraum-Prüfkörper
+  wn([idx_wnP.instspc_hyp,idx_wnD.instspc_hyp,idx_wnP.instspc_par,idx_wnD.instspc_par]) = 0; % Deaktivierung der Bauraumprüfung
 end
-if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]))
+if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]))
   % Kollisionskörper für die Kollisionserkennung z.B. 50% größer machen.
   % Ist zusammen mit dem Schwellwert für die Kollisionsvermeidung wirksam.
   collbodies_ns.params(collbodies_ns.type==6,1) = ... % Kapseln (Direktverbindung)
@@ -336,7 +341,7 @@ nt = length(T);
 Q = NaN(nt, NJ);
 QD = Q;
 QDD = Q;
-Phi = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
+PHI = NaN(nt, length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red));
 % Definition der Jacobi-Matrix.
 % Hier werden die strukturellen FG des Roboters benutzt und nicht die
 % Aufgaben-FG. Ist besonders für 3T2R relevant. Dort ist die Jacobi-Matrix
@@ -387,7 +392,7 @@ for k = 1:nt
   end
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
-  Phi(k,:) = Phi_k;
+  PHI(k,:) = Phi_k;
   JointPos_all(k,:) = Tc_stack_k(:,4);
   % Prüfe Erfolg der IK
   if any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
@@ -740,24 +745,24 @@ for k = 1:nt
         h(idx_hn.jac_cond) = 0;
       end
       %% Antriebskoordinaten: Kollisionsvermeidung
-      if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
+      if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
         colldet_warn = false;
         colldet = true(1,size(s.collchecks,1));
-        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]))
+        if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp]))
           colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
             Tc_stack_k(:,4)', struct('collsearch', true));
           if any(colldet)
             colldet_warn = true;
           end
         end
-        if any(wn([idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) && ~colldet_warn
+        if any(wn([idx_wnP.coll_par,idx_wnD.coll_par]) ~= 0) && ~colldet_warn
           % Prüfe im Folgenden Schritt alle Kollisionen
           colldet(:) = true;
         end
-        h([idx_hn.coll_hyp idx_hn.coll_hyp]) = 0;
-        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp])) && colldet_warn || ...
-            any(wn([idx_wnP.coll_par idx_wnD.coll_par]))
+        h([idx_hn.coll_hyp,idx_hn.coll_hyp]) = 0;
+        if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp])) && colldet_warn || ...
+            any(wn([idx_wnP.coll_par,idx_wnD.coll_par]))
           Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
           [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
@@ -782,7 +787,7 @@ for k = 1:nt
           else
             h(idx_hn.coll_hyp) = 0;
           end
-          if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp])) % hyperbolisches Kriterium
+          if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp]) ~= 0) % hyperbolisches Kriterium
             if h(idx_hn.coll_hyp) == 0 || ... % nichts tun. Noch im Toleranzbereich
               all(I_nochange)
               h7drz = 0;
@@ -804,7 +809,7 @@ for k = 1:nt
           end
           h(idx_hn.coll_par) = invkin_optimcrit_limits1(-mincolldist_test(1), ... % zurückgegebene Distanz ist zuerst negativ
             [-10*maxcolldepth, 0]);
-          if any(wn([idx_wnP.coll_par idx_wnD.coll_par])) % Quadratisches Kriterium
+          if any(wn([idx_wnP.coll_par,idx_wnD.coll_par])) % Quadratisches Kriterium
             h12_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
               [-10*maxcolldepth, 0]);
             % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
@@ -816,7 +821,7 @@ for k = 1:nt
         end
       end
       %% Antriebskoordinaten: Einhaltung der Bauraumgrenzen
-      h([idx_hn.instspc_hyp idx_hn.instspc_par]) = 0;
+      h([idx_hn.instspc_hyp,idx_hn.instspc_par]) = 0;
       if wn(idx_wnP.instspc_hyp) ~= 0 || wn(idx_wnD.instspc_hyp) ~= 0 || ... % Bauraumprüfung
           wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0
         Stats.mode(k) = bitset(Stats.mode(k),11);
@@ -1029,23 +1034,23 @@ for k = 1:nt
         h(idx_hn.jac_cond) = 0;
       end
       %% Gelenkkoordinaten: Kollisionsvermeidung
-      if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
+      if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp,idx_wnP.coll_par,idx_wnD.coll_par]) ~= 0) % Kollisionsprüfung
         % Kollisionserkennung im vergrößerten Warnbereich
         colldet_warn = false;
         colldet = true(1,size(Rob.collchecks,1));
-        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]))
+        if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp]))
           colldet = check_collisionset_simplegeom_mex(collbodies_ns, Rob.collchecks, ...
             Tc_stack_k(:,4)', struct('collsearch', true));
           if any(colldet)
             colldet_warn = true;
           end
         end
-        if any(wn([idx_wnP.coll_par idx_wnD.coll_par])) && ~colldet_warn
+        if any(wn([idx_wnP.coll_par,idx_wnD.coll_par])) && ~colldet_warn
           % Prüfe im Folgenden Schritt alle Kollisionen
           colldet(:) = true;
         end
-        h([idx_hn.coll_hyp idx_hn.coll_par]) = 0;
-        if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]) ~= 0) && colldet_warn || any(wn([idx_wnP.coll_par idx_wnD.coll_par]) ~= 0)
+        h([idx_hn.coll_hyp,idx_hn.coll_par]) = 0;
+        if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp]) ~= 0) && colldet_warn || any(wn([idx_wnP.coll_par,idx_wnD.coll_par]) ~= 0)
           Stats.mode(k) = bitset(Stats.mode(k),10);
           JP_test = [Tc_stack_k(:,4)'; NaN(1, size(Tc_stack_k,1))];
           [~, JP_test(2,:)] = Rob.fkine_coll(q_k+qD_test);
@@ -1071,9 +1076,8 @@ for k = 1:nt
           else
             h(idx_hn.coll_hyp) = 0;
           end
-          if any(wn([idx_wnP.coll_hyp idx_wnD.coll_hyp]) ~= 0) % hyperbolisches Kriterium
-            if h(idx_hn.coll_hyp) == 0 || ... % nichts tun. Noch im Toleranzbereich
-              all(I_nochange)
+          if any(wn([idx_wnP.coll_hyp,idx_wnD.coll_hyp]) ~= 0) % hyperbolisches Kriterium
+            if h(idx_hn.coll_hyp) == 0 || all(I_nochange) % nichts tun. Noch im Toleranzbereich
               h7dq = zeros(1,NJ);
             elseif ~isinf(h(idx_hn.coll_hyp))
               h7_test = invkin_optimcrit_limits3(-mincolldist_test(2), ...
@@ -1092,7 +1096,7 @@ for k = 1:nt
           end
           h(idx_hn.coll_par) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
             [-10*maxcolldepth, 0]);
-          if any(wn([idx_wnP.coll_par idx_wnD.coll_par]) ~= 0) % quadratisches Kriterium
+          if any(wn([idx_wnP.coll_par,idx_wnD.coll_par]) ~= 0) % quadratisches Kriterium
             h12_test = invkin_optimcrit_limits1(-mincolldist_test(2), ...
               [-10*maxcolldepth, 0]);
             h12dq = (h12_test-h(idx_hn.coll_par))./(qD_test');
@@ -1114,12 +1118,12 @@ for k = 1:nt
         [~, absdist] = check_collisionset_simplegeom_mex(Rob.collbodies_instspc, ...
           Rob.collchecks_instspc, JP_test, struct('collsearch', false));
         I_nochange = abs(absdist(1,:)-absdist(2,:)) < 1e-12;
-        % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
-        % Bauraumkörper enthalten sind (falls Prüfung gefordert)
         if all(I_nochange) % Keine Bauraumprüfung nennenswert geändert
           % Setze alle auf exakt den gleichen Wert. Dann Gradient Null.
           mindist_all = repmat(absdist(1), size(JP_test,1), 1);
         else
+          % Prüfe, ob alle beweglichen Kollisionsobjekte in mindestens einem
+          % Bauraumkörper enthalten sind (falls Prüfung gefordert)
           mindist_all = -inf(size(JP_test,1),1);
           for i = 1:size(Rob.collbodies_instspc.link,1)
             % Indizes aller Kollisionsprüfungen mit diesem (Roboter-)Objekt i
@@ -1424,12 +1428,15 @@ for k = 1:nt
         qDD_N_post = scale*qDD_N_post;
       end
     else
+      % Keine Verletzung der Geschwindigkeitsgrenzen. Lasse
+      % Beschleunigung so wie sie ist
       qDD_N_post = qDD_N_pre;
     end
   else
+    % Keine Grenzen für qD gesetzt. Beschleunigung muss nicht korrigiert
+    % werden
     qDD_N_post = qDD_N_pre;
   end
-
   % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
@@ -1509,6 +1516,7 @@ for k = 1:nt
     qDD_N_post2 = qDD_N_post;
   end
 
+  % Beschleunigung aus Aufgabe und Nullraumbewegung
   qDD_k = qDD_k_T + qDD_N_post2;
   % Teste die Beschleunigung (darf die Zwangsbedingungen nicht verändern)
   if debug
