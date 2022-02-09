@@ -301,10 +301,11 @@ for robnr = 1:2
     end
   end
   %% Zeitverlauf der Trajektorie generieren
-  Tv = 0.01; % Anstiegszeit der Geschwindigkeit
+  Tv = 0.05; % Anstiegszeit der Geschwindigkeit -> max. Beschl.
+  Ta = 0.01; % Anstiegszeit der Beschleunigung -> max. Ruck
   T_pause = 1e-2;
   T_sample = 2e-3;
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, Tv, T_sample, T_pause);
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, Tv, Ta, T_sample, T_pause);
   % Hänge Pause am Ende an (sonst abbremsen im Nullraum nicht abgeschlossen)
   n_pause = T_pause / T_sample;
   X_t = [X_t; repmat(X_t(end,:),n_pause,1)]; %#ok<AGROW> 
@@ -330,7 +331,7 @@ for robnr = 1:2
   Tv_ns = RS.xDlim(6,2) / RS.xDDlim(6,2);
   nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
     IL, Tv, Tv_ns, T_sample);
-  if false % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
+  if true % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
     change_current_figure(9345); clf;
     subplot(2,2,1);
     plot(t, sum(abs(X_t),2));
