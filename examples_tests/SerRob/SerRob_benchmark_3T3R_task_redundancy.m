@@ -159,7 +159,7 @@ for robnr = 1:2
   I_EE_full_str = sprintf('%dT%dR', sum(I_EE_full(1:3)), sum(I_EE_full(4:6)));
   I_EE_red_str = sprintf('%dT%dR', sum(I_EE_red(1:3)), sum(I_EE_red(4:6)));
   % Roboter auf 3T2R einstellen
-  RS.I_EE_Task = I_EE_red;
+  RS.update_EE_FG([], I_EE_red);
 
   %% Eckpunkte für Beispiel-Trajektorie bestimmen und IK prüfen
   % Würfel-Trajektorie (Kantenlänge 300mm)
@@ -225,7 +225,7 @@ for robnr = 1:2
       end
       % Bestimme best- und schlechtmöglichstes IK-Ergebnis (ohne Aufgabenredundenz)
       t3 = tic();
-      RS.I_EE_Task = I_EE_full;
+      RS.update_EE_FG([], I_EE_full);
       s_ep_3T3R = s_ep; % Neue Konfiguration für Einzelpunkt-IK mit 3T3R
       s_ep_3T3R.I_EE = I_EE_full; % keine Aufgabenredundanz
       s_ep_3T3R.scale_lim = 0; % Grenzen ignorieren. Gibt eh nur eine Lösung
@@ -252,7 +252,7 @@ for robnr = 1:2
       % Speichere den besten Punkt für die 3T3R-IK ab
       [~,j_best]=min(h1_go(i,:));
       XL(i,6) = 360/nsteps_angle*(j_best-1)*pi/180; % gleiche Formel wie in vorheriger Schleife
-      RS.I_EE_Task = I_EE_red; % Aufgabenredundanz zuruecksetzen
+      RS.update_EE_FG([], I_EE_red); % Aufgabenredundanz zurücksetzen
       fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (Brute-Force %s).\n', ...
         i, size(XL,1), toc(t3), I_EE_full_str);
     end
@@ -371,7 +371,8 @@ for robnr = 1:2
   s_start.wn = zeros(RS.idx_ik_length.wnpos, 1);
   s_start.wn(RS.idx_ikpos_wn.qlim_par) = 1;
   % Berechne IK mit 3T2R (bzw. reduziertem FG)
-  RS.I_EE_Task = I_EE_red;
+  RS.update_EE_FG([], I_EE_red);
+  s_start.I_EE = I_EE_red;
   warning on
   % Berechne Ersten Punkt der Trajektorie mit Aufgabenredundanz.
   % Dadurch bestmögliche Startkonfiguration
@@ -430,11 +431,11 @@ for robnr = 1:2
     switch kk
       case 1
         name_method=sprintf('%s-IK (mit Opt.)', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
       case 2
         name_method=sprintf('%s-IK ohne qD lim.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.qDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
         % Zielfunktionen basierend auf qDlim deaktivieren
@@ -442,33 +443,33 @@ for robnr = 1:2
         s_kk.wn(RS.idx_iktraj_wnP.qDlim_hyp)=0;
       case 3
         name_method=sprintf('%s-IK ohne qDD lim.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.qDDlim = RS.qDDlim*NaN; % Dadurch Grenzen nicht aktiv
       case 4
         name_method=sprintf('%s-IK ohne Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(:) = 0; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
       case 5
         name_method=sprintf('%s-IK mit pos. cond.-Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(RS.idx_iktraj_wnP.jac_cond)=1; % Auch Konditionszahl verbessern
         s_kk.wn(RS.idx_iktraj_wnD.jac_cond)=0.3;
       case 6
         name_method=sprintf('%s-IK mit neg. cond.-Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(RS.idx_iktraj_wnP.jac_cond)= -1; % Konditionszahl testweise verschlechtern
         s_kk.wn(RS.idx_iktraj_wnD.jac_cond) = -0.3;
 %         name_method=sprintf('%s-IK simplify acc', I_EE_red_str);
-%         RS.I_EE_Task = I_EE_red;
+%         RS.update_EE_FG([],I_EE_red);
 %         s_kk.I_EE = I_EE_red;
 %         s_kk.simplify_acc = true;
       case 7
         name_method=sprintf('%s-IK', I_EE_full_str);
-        RS.I_EE_Task = I_EE_full;
+        RS.update_EE_FG([],I_EE_full);
         s_kk.I_EE = I_EE_full;
         s_kk.wn(:) = 0; % Keine zusätzliche Optimierung möglich
       otherwise
@@ -483,7 +484,7 @@ for robnr = 1:2
     % Wähle immer die gleichen Nebenbedingungen, damit alle mit gleicher
     % Konfiguration starten (besser vergleichbar)
     s_pik_kk.wn = zeros(RS.idx_ik_length.wnpos,1);
-    s_pik_kk.wn(RS.idx_ikpos_wn.qlim_par) = 1;    
+    s_pik_kk.wn(RS.idx_ikpos_wn.qlim_par) = 1;
     [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_pik_kk);
     if any(abs(Phi_s)>1e-6)
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
@@ -605,6 +606,12 @@ for robnr = 1:2
     corrQD(all(abs(QD_int-QD)<1e-3)) = 1;
     corrQD(isnan(corrQD)) = 1;
     corrQ(isnan(corrQ)) = 1;
+    % Zusätzlich Prüfung auf Geschwindigkeit Null. Diese Phasen sollen als
+    % Korrelation 1 gewichtet werden. Sonst bei langen Phasen mit qD=0
+    % alleinige Gewichtung einzelner Ausreißer.
+    n_zeroqD = sum(abs(QD) < 1e-6 & abs(QD_int) < 1e-6);
+    corrQD = ((size(QD,1) - n_zeroqD') .* corrQD + n_zeroqD' * 1) ./ ...
+               size(QD,1);
     if any(corrQD < 0.95) || any(corrQ < 0.98)
       error(['Korrelation zwischen Q-QD (%1.3f) oder QD-QDD (%1.3f) zu ', ...
         'gering. Vermutlich Fehler'], min(corrQ), min(corrQD));
@@ -824,7 +831,7 @@ for robnr = 1:2
     dt = dt_array(ii);
     [X_ii,XD_ii,XDD_ii,t_ii] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, dt, 1e-2);
     s_kk = s_Traj;
-    RS.I_EE_Task = I_EE_red;
+    RS.update_EE_FG([], I_EE_red);
     s_kk.I_EE = I_EE_red;
     t1=tic();
     [Q_t_ii, QD_t_ii, QDD_t_ii, Phi_t_ii] = RS.invkin2_traj(X_ii,XD_ii,XDD_ii,t_ii,qs,s_kk);
