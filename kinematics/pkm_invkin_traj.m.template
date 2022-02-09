@@ -785,7 +785,7 @@ for k = 1:nt
         % samer passiert. Zuerst Prüfung der EE-Drehung (Nullraum)
         vmax_rel_lastvel = 1.5*max((xD_k_ist(6)- xD_k_T_ist(6)) ./ s.xDlim(6,:));
         % Anschließend Prüfung der Gelenkgeschwindigkeit (Nullraum)
-        vmax_rel_lastvel = max(vmax_rel_lastvel, 1.5*max(max((qD_k-qD_k_T)./qDlim)));
+        vmax_rel_lastvel = max(vmax_rel_lastvel, 1.5*max(max(repmat(qD_k-qD_k_T,1,2)./qDlim)));
         % Skalierung darf höchstens eins sein (falls vorher über Grenzen)
         vmax_rel_lastvel = min(vmax_rel_lastvel, 1);
       else
