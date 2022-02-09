@@ -54,6 +54,7 @@ usr_figure_invisible = true; % Bilder unsichtbar erstellen und nur speichern (we
 eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
 test_class_methods = false; % Zusätzlich zweite Implementierung rechnen. Aufgrund numerischer Abweichung aber oft falsch-positive Fehler
 debug_plot = false;
+use_mex_functions = true;
 
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results', 'ParRob_3T3R_task_red_benchmark');
@@ -127,15 +128,15 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
   end
   % Debug: Alle Vorlagen-Funktionen neu generieren:
-  serroblib_update_template_functions({RP.Leg(1).mdlname});
-  parroblib_update_template_functions({RP.mdlname(1:end-2)});
+  serroblib_update_template_functions({RP.Leg(1).mdlname}, false, ~use_mex_functions);
+  parroblib_update_template_functions({RP.mdlname(1:end-2)}, true, ~use_mex_functions);
 %   serroblib_create_template_functions({RP.Leg(1).mdlname}, false, false);
 %   parroblib_create_template_functions({RP.mdlname(1:end-2)}, false, false);
 %   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin_traj']});
 %   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin3']});
 %   matlabfcn2mex({[RP.mdlname(1:end-6), '_invkin']});
 %   matlabfcn2mex({[RP.Leg(1).mdlname, '_invkin_eulangresidual']});
-  RP.fill_fcn_handles(true,true);
+  RP.fill_fcn_handles(use_mex_functions,true);
 
   I_EE_full = RP.I_EE;
   if all(RP.I_EE == [1 1 1 1 1 1])
@@ -198,10 +199,21 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Reduziere alle Schwenkwinkel gegenüber der Vorlage
   XL(:,4:6) = 0.1*XL(:,4:6);
   if ~all(RP.I_EE == [1 1 1 1 1 1])
-    XL(:, ~RP.I_EE) = 0; XL = unique(XL, 'rows');
+    XL(:, ~RP.I_EE) = 0; XL = uniquetol(XL, 'ByRows', true);
   end
   % Zeitverlauf der Trajektorie generieren
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.20, 0.010, 2e-3, 0);
+  Tv = 0.20; % Anstiegszeit der Geschwindigkeit -> max. Beschl.
+  Ta = 0.010; % Anstiegszeit der Beschleunigung -> max. Ruck
+  T_pause = 1e-2;
+  T_sample = 2e-3;
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, Tv, Ta, T_sample, T_pause);
+  % Hänge Pause am Ende an (sonst abbremsen im Nullraum nicht abgeschlossen)
+  n_pause = T_pause / T_sample;
+  X_t = [X_t; repmat(X_t(end,:),n_pause,1)]; %#ok<AGROW> 
+  XD_t = [XD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  XDD_t = [XDD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  t = [t; ((t(end)+T_sample):T_sample:(t(end)+T_pause))']; %#ok<AGROW>
+  IL(end) = length(t);
   % Debug: Trajektorie reduzieren
 %   if short_traj
 %     n = 200;
@@ -214,6 +226,36 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   X_t = X_t(II,:);
   XD_t = XD_t(II,:);
   XDD_t = XDD_t(II,:);
+  IL = IL(IL<=n);
+  % Bestimme Rastpunkte nur bezogen auf die translatorische Bewegung.
+  % Dadurch wird die Nullraumbewegung bei reiner Drehung in XL
+  I_sel = [true; any(diff(XL(:,I_EE_red), 1, 1) ~= 0, 2)];
+  IL_rest_trans = IL(I_sel);
+  Tv_ns = RP.xDlim(6,2) / RP.xDDlim(6,2);
+  nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
+    IL_rest_trans, Tv, Tv_ns, T_sample);
+  if false % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
+    change_current_figure(9345); clf;
+    subplot(2,2,1);
+    plot(t, sum(abs(X_t),2));
+    ylabel('s'); grid on;
+    subplot(2,2,2); hold on;
+    plot(t, sum(abs(XD_t),2));
+    plot(t(IL_rest_trans), 0, 'rs');
+    ylabel('v'); grid on;
+    subplot(2,2,3); hold on;
+    plot(t, sum(abs(XDD_t),2));
+    plot(t(IL_rest_trans), 0, 'rs');
+    ylabel('a'); grid on;
+    subplot(2,2,4); hold on;
+    plot(nullspace_maxvel_interp(1,:)', nullspace_maxvel_interp(2,:)', 'o-');
+    stairs(t, interp1(nullspace_maxvel_interp(1,:)', ...
+      nullspace_maxvel_interp(2,:)', t));
+    plot(t(IL_rest_trans), 0, 'rs');
+    ylabel('vNmax rel'); grid on;
+    linkxaxes
+  end
+
   %% Debug: Maßsynthese
   % Hiermit können Kinematik-Parameter für die PKM per Optimierung bestimmt
   % werden. Die Parameter werden oben in die Initialisierung hart kodiert
@@ -567,9 +609,9 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Einstellungen für Trajektorie: Kein Normalisieren, damit Traj. nicht
   % springt. Muss doch normalisieren, damit Gelenkwinkelgrenzen korrekt
   % erkannt werden.
-  s_Traj = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12);
+  s_Traj = struct('nullspace_maxvel_interp', nullspace_maxvel_interp);
   % Abspeichern der Gelenkwinkel für verschiedene Varianten der Berechnung
-  Namen_Methoden = cell(1,7);
+  Namen_Methoden = cell(1,7); Namen_Methoden(:) = {''};
   Q_t_all = NaN(length(t), RP.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
   Q_t_norm_all = Q_t_all;
   H1_all = NaN(length(t), 1+RP.NLEG, length(Namen_Methoden)); H2_all = H1_all;
@@ -644,7 +686,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     Namen_Methoden{kk} = name_method;
     t1=tic();
     [Q_t_kk, QD_t_kk, QDD_t_kk, Phi_t_kk,~,~,~,Stats_kk] = RP.invkin2_traj(X_t, XD_t, XDD_t, t, qs_kk, s_kk);
-    I_err = abs(Phi_t_kk) > max(s_kk.Phit_tol,s_kk.Phir_tol) | isnan(Phi_t_kk);
+    I_err = abs(Phi_t_kk) > 1e-9 | isnan(Phi_t_kk);
     % Prüfe, ob die Trajektorie vorzeitig abbricht. Das ist kein Fehler, da
     % bei ungünstiger Parametrierung des IK-Algorithmus keine Lösung
     % gefunden werden kann. Bei guter Parametrierung ist dann eine Lösung
@@ -670,7 +712,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       fprintf(['Traj.-IK Fall %d (%s) berechnet. Dauer: %1.1fs für %d ', ...
         'Bahnpunkte; %1.1fms pro Punkt (Klassen-Methode)\n'], kk, ...
         name_method, toc(t1), n_iO, 1e3*toc(t1)/n_iO);
-      if max(abs(Phi_t_kls(:))) > max(s.Phit_tol,s.Phir_tol)
+      if max(abs(Phi_t_kls(:))) > 1e-9
         error('Fehler in Trajektorie zu groß. IK nicht berechenbar');
       end
       Phi_test = Phi_t_kk(1:n_iO,:) - Phi_t_kls;
@@ -826,6 +868,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Konsistenz von Position, Geschwindigkeit und Beschleunigung testen
   for kk = 1:length(Namen_Methoden)
     Q = Q_t_all(:,:,kk);
+    if isempty(Namen_Methoden{kk}), continue; end % vermutlich Debuggen und oben Schleife unvollständig
     assert(any(~isnan(Q(:))), 'Keine Daten vorliegend. Fehler beim Debuggen?');
     QD = QD_t_all(:,:,kk);
     QDD = QDD_t_all(:,:,kk);
@@ -898,6 +941,13 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     linkxaxes
     saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_qDD', robnr, kk)));
   end
+  % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
+  % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
+  [~, XD_ist, XDD_ist] = RP.fkineEE_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
+  IL_traj = IL_rest_trans(IL_rest_trans <= size(XD_ist,1));
+  assert(all(all(abs(XD_ist(IL_traj,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+  assert(all(all(abs(QD_t_kk(IL_traj,:))<1e-3)), 'QD an Rastpunkten nicht Null');
+
   %% Trajektorie: Bild für einzelne Beine
   fprintf('Zeichne Bilder für Zusammenfassung von einzelnen Beinketten (Trajektorien-IK)\n');
   for kk = 1:length(Namen_Methoden)

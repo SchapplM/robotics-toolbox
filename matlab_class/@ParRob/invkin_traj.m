@@ -123,6 +123,7 @@ s_std = struct( ...
   'xlim', Rob.xlim, ... % Grenzen für EE-Koordinaten
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xDDlim', Rob.xDDlim, ... % Grenzen für EE-Geschwindigkeiten
+  'nullspace_maxvel_interp', [T([1; end])'; [1 1]], ... % Begrenzung der Nullraumgeschwindigkeit mit Skalierung
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_xDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen für die Plattform (bei Nullraumbewegung)
@@ -219,7 +220,7 @@ qDlim = cat(1, Rob.Leg.qDlim);
 qDDlim = cat(1, Rob.Leg.qDDlim);
 qmin = qlim(:,1);
 qmax = qlim(:,2);
-if ~all(isnan(qlim(:)))
+if all(~isnan(qlim(:)))
   limits_q_set = true;
 else
   % Grenzen sind nicht wirksam
@@ -359,7 +360,9 @@ qaD_N_pre_alt = zeros(sum(I_qa),1);
 qD_N_pre_alt = zeros(NJ,1);
 qaDD_N_pre1 = zeros(sum(I_qa),1);
 qDD_N_pre1 = zeros(NJ,1);
-xD_k_ist = NaN(6,1);
+xD_k_ist = zeros(6,1);
+xD_k_T_ist = zeros(6,1);
+vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
   'phi_zD', NaN(nt,1), 'mode', uint32(zeros(nt,1)));
@@ -431,14 +434,15 @@ for k = 1:nt
       J_x_inv = -Phi_q \ Phi_x;
     end
   end
+  if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
+      dof_3T2R % beliebige 3T2R-PKM
+    qD_k_T = J_x_inv * xD_k(I_EE); % ohne Redundanz nur Aufgaben-Geschw.; eindeutig.
+  else
+    % Bei Aufgabenredundanz ist J_x_inv anders definiert
+    qD_k_T = -Phi_q \ Phi_x * xD_k(I_EE);
+  end
   if ~(nsoptim || redundant)
-    if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
-        dof_3T2R % beliebige 3T2R-PKM
-      qD_k = J_x_inv * xD_k(I_EE);
-    else
-      % Bei Aufgabenredundanz ist J_x_inv anders definiert
-      qD_k = -Phi_q \ Phi_x * xD_k(I_EE);
-    end
+    qD_k = qD_k_T;
   else % Nullraum-Optimierung
     % Korrekturterm für Linearisierungsfehler. Für PhiD_pre=0 entsteht die
     % normale inverse differentielle Kinematik. Mit dem Korrekturterm
@@ -552,11 +556,12 @@ for k = 1:nt
     [~, Phi_r] = Rob.constr3_rot(q_k, x_k);
     % Bestimme die Orientierung absolut (ohne +/-pi-Begrenzung). Dadurch
     % ist die Begrenzung der Koordinate phi_z besser möglich
-    xD_k_ist = zeros(6,1);
     if condJ < 1e6 % Benutze PKM-Jacobi
       xD_k_ist(Rob_I_EE) = Jinv_ax \ qD_k(I_qa);
+      xD_k_T_ist(Rob_I_EE) = Jinv_ax \ qD_k_T(I_qa);
     else % Benutze Jacobi der ersten Beinkette
       xD_k_ist(Rob_I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k(1:Rob.I2J_LEG(1));
+      xD_k_T_ist(Rob_I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k_T(1:Rob.I2J_LEG(1));
     end
     x_k_ist = x_k;
     if k == 1 % erster Zeitschritt. Kein Wert außerhalb 180° vorgesehen
@@ -567,6 +572,35 @@ for k = 1:nt
       x_k_ist(6) = normalizeAngle(Phi_r(1), X(k-1,6)+xD_k_ist(6)*dt);
     end
     X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
+
+    % Berechne Maximalgeschwindigkeit für Nullraumbewegung für den nächsten
+    % Zeitschritt. Unten wird dies für den nächsten Zeitschritt benutzt.
+    if ~isempty(s.nullspace_maxvel_interp) && k < nt
+      vmax_rel = interp1(s.nullspace_maxvel_interp(1,:), ... % Zeit-Stützstellen
+        s.nullspace_maxvel_interp(2,:), T(k+1)); % Werte für vrel, Wahl für Zeitpunkt
+      phizD_N_lim_noscale = s.xDlim(6,:) - xD_k_T_ist(6);
+      if vmax_rel == 1 % Halte die relative Geschw. bzgl. der Grenzen fest
+        % Aufschlag von 50%, damit das Bremsen der Nullraumbewegung lang-
+        % samer passiert. Zuerst Prüfung der EE-Drehung (Nullraum)
+        vmax_rel_lastvel = 1.5*max((xD_k_ist(6)- xD_k_T_ist(6)) ./ s.xDlim(6,:));
+        % Anschließend Prüfung der Gelenkgeschwindigkeit (Nullraum)
+        vmax_rel_lastvel = max(vmax_rel_lastvel, 1.5*max(max((qD_k-qD_k_T)./qDlim)));
+        % Skalierung darf höchstens eins sein (falls vorher über Grenzen)
+        vmax_rel_lastvel = min(vmax_rel_lastvel, 1);
+      else
+        % Abbremsen der Nullraumbewegung. Benutze den vorher festgehaltenen
+        % Maximalwert der tatsächlichen Geschwindigkeit als Basis zum
+        % Abbremsen. Dadurch sofort Abbremsen und nicht erst bei kleinen
+        % Geschwindigkeiten relativ spät.
+        vmax_rel = vmax_rel_lastvel * vmax_rel;
+      end
+      phizD_N_lim = phizD_N_lim_noscale * vmax_rel;
+      % Setze die Grenzen für die Gelenkgeschwindigkeit basierend auf der
+      % skalierten Nullraumgeschwindigkeit
+      qD_N_lim_noscale = qDlim - qD_k_T;
+      qD_N_lim = qD_N_lim_noscale * vmax_rel;
+    end
+
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
     % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
@@ -1356,33 +1390,65 @@ for k = 1:nt
   % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
   % Geschwindigkeit der Plattform-Koordinaten verletzt werden
   if redundant && taskred_rot && limits_xD_set && enforce_xDlim
-    qD_pre = qD_k + (qDD_k_T + qDD_N_pre)*dt;
+    % Aufgrund aktueller Beschleunigung erwartete Geschwindigkeit
+    % (Getrennt nach Komponenten)
+    qD_pre = qD_k + (qDD_N_pre+qDD_k_T)*dt;
+    qD_T_pre = qD_k_T + qDD_k_T*dt;
+    qD_N_pre = qD_pre - qD_T_pre;
     if condJ < 1e6 % Benutze PKM-Jacobi
-      xD_pre= J_x_inv(I_qa,:) \ qD_pre(I_qa);
+      xD_T_pre = J_x_inv(I_qa,:) \ qD_T_pre(I_qa);
+      xD_N_pre = J_x_inv(I_qa,:) \ qD_N_pre(I_qa);
     else % Benutze erste Beinkette
-      xD_pre= J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_pre(1:Rob.I2J_LEG(1));
+      xD_T_pre = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_T_pre(1:Rob.I2J_LEG(1));
+      xD_N_pre = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_N_pre(1:Rob.I2J_LEG(1));
     end
+    xD_pre= xD_T_pre + xD_N_pre; % Alternativ Formel s.o. ohne N/T
+    % Absolute Grenzen für die EE-Drehung
+    phizDlim = s.xDlim(6,:);
+    phizDmax = phizDlim(2);
+    phizDmin = phizDlim(1);
+    % Grenzen für Nullraum-Anteil in der EE-Drehung: 
+    phizDmax_N = phizD_N_lim(2); % Bestimmung oben aus Runterskalierung ...
+    phizDmin_N = phizD_N_lim(1); % ... bei Rastpunkten
+    % Prüfe, ob Grenzen gesamt oder für Nullraumteil verletzt werden
     phizD_pre = xD_pre(end);
-    phizDmax = s.xDlim(6,2);
-    phizDmin = s.xDlim(6,1);
-    if phizD_pre > phizDmax || phizD_pre < phizDmin
+    phizD_N_pre = xD_N_pre(end);
+    phizDD_counterlim = 0;
+    if phizD_pre > phizDmax || phizD_pre < phizDmin % Prüfe absolute Grenzen
       Stats.mode(k) = bitset(Stats.mode(k),19);
       if phizD_pre > phizDmax
         phizDD_counterlim = (phizDmax-phizD_pre)/dt; % Geschw. zu groß -> negative Beschl.
       else
         phizDD_counterlim = (phizDmin-phizD_pre)/dt; % Geschw. zu klein -> positive Beschl.
       end
+    elseif phizD_N_pre > phizDmax_N || phizD_N_pre < phizDmin_N% Prüfe Grenzen für Nullraumgeschwindigkeit
+      if phizD_N_pre > phizDmax_N
+        phizDD_counterlim = (phizDmax_N-phizD_N_pre)/dt; % Geschw. zu groß -> negative Beschl.
+      else
+        phizDD_counterlim = (phizDmin_N-phizD_N_pre)/dt; % Geschw. zu klein -> positive Beschl.
+      end
+    end
+    if phizDD_counterlim ~= 0
       % Erzeuge die Nullraumbeschleunigung im Gelenkraum
       xDD_counterlim = [zeros(5,1); phizDD_counterlim];
       delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
       qDD_N_pre = qDD_N_pre + delta_qDD;
+      % Debug: Nach dieser Rechnung diesen Block nochmal ausführen. Es muss
+      % genau der Grenzfall herauskommen für phizD_pre bzw. phizD_N_pre
     end
   end
   
-  if redundant && limits_qD_set && enforce_qDlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Geschwindigkeit
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  % Geschwindigkeitsgrenzen im Gelenkraum. Reduziere, falls notwendig.
+  if redundant && limits_qD_set && enforce_qDlim && ... % Nullraum-Bewegung erlaubt Begrenzung der Gelenk-Geschwindigkeit
       condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre = qDD_k_T + qDD_N_pre;
+    % Daraus berechnete Geschwindigkeit im nächsten Zeitschritt
     qD_pre = qD_k + qDD_pre*dt;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden. Grenzen oben
+    % dynamisch berechnet.
+    qDmax = min(qD_k_T + qD_N_lim(:,2), qDlim(:,2));
+    qDmin = max(qD_k_T + qD_N_lim(:,1), qDlim(:,1));
     deltaD_ul = (qDmax - qD_pre); % Überschreitung der Maximalwerte: <0
     deltaD_ll = (-qDmin + qD_pre); % Unterschreitung Minimalwerte: <0
     if any([deltaD_ul;deltaD_ll] < 0)
@@ -1396,19 +1462,30 @@ for k = 1:nt
         [~,I_worst] = min(deltaD_ll);
         qDD_lim_I = (qDmin(I_worst)-qD_k(I_worst))/dt;
       end
+      % Ein Geschwindigkeits-Grenzwert würde im folgenden Schritt
+      % verletzt werden. Versuche die Beschleunigung durch
+      % Nullraumbewegung zu begrenzen. "Ziehe" die Geschwindigkeit in
+      % Richtung der Mitte der Grenzen.
       qD_pre_h = qD_pre;
       % qD_pre_h(~(deltaD_ll<0|deltaD_ul<0)) = 0; % Nur Reduzierung, falls Grenze verletzt
-      [~, hdqD] = invkin_optimcrit_limits1(qD_pre_h, qDlim);
+      [~, hdqD] = invkin_optimcrit_limits1(qD_pre_h, [qDmin,qDmax]);
+      % Dieser Beschleunigungsvektor liegt im Nullraum der Jacobi-Matrix
+      % (erfüllt also noch die Soll-Beschleunigung des Endeffektors).
+      % Der Vektor führt zu einer Reduzierung der Geschwindigkeit von den
+      % Grenzen weg
       qDD_N_h = N * (-hdqD');
       % Normiere den Vektor auf den am stärksten grenzverletzenden Eintrag
       qDD_N_he = qDD_N_h/qDD_N_h(I_worst); % [3]/(5)
-      % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
-      % an der Grenze landet.
-      qDD_N_korr_I = -qDD_pre(I_worst) + qDD_lim_I; % [3]/(7)
-      % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
-      qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
-      qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
-      
+      if ~any(isinf(qDD_N_he)) && ~any(isnan(qDD_N_he))
+        % Stelle Nullraumbewegung so ein, dass schlechtester Wert gerade so
+        % an der Grenze landet.
+        qDD_N_korr_I = -qDD_pre(I_worst) + qDD_lim_I; % [3]/(7)
+        % Erzeuge kompletten Vektor als durch Skalierung des Nullraum-Vektors
+        qDD_N_korr = qDD_N_korr_I*qDD_N_he; % [3]/(8)
+        qDD_N_post = qDD_N_pre+qDD_N_korr; % [3]/(6)
+      else
+        qDD_N_post = qDD_N_pre;
+      end
       % Die Nullraumbewegung zur Vermeidung der Geschwindigkeitsgrenzen
       % kann fehlschlagen, wenn die fragliche Geschwindigkeitskomponente
       % nicht im Nullraum beeinflussbar ist. Daher nochmals Begrenzung der
