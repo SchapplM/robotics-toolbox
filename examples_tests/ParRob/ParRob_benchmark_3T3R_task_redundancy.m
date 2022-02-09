@@ -609,7 +609,8 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   % Einstellungen für Trajektorie: Kein Normalisieren, damit Traj. nicht
   % springt. Muss doch normalisieren, damit Gelenkwinkelgrenzen korrekt
   % erkannt werden.
-  s_Traj = struct('nullspace_maxvel_interp', nullspace_maxvel_interp);
+  s_Traj = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ...
+    'nullspace_maxvel_interp', nullspace_maxvel_interp);
   % Abspeichern der Gelenkwinkel für verschiedene Varianten der Berechnung
   Namen_Methoden = cell(1,7); Namen_Methoden(:) = {''};
   Q_t_all = NaN(length(t), RP.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
