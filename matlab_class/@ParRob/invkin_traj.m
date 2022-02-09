@@ -362,6 +362,10 @@ qaDD_N_pre1 = zeros(sum(I_qa),1);
 qDD_N_pre1 = zeros(NJ,1);
 xD_k_ist = zeros(6,1);
 xD_k_T_ist = zeros(6,1);
+phizDlim = Rob.xDlim(6,:);
+phizD_N_lim = Rob.xDlim(6,:);
+qD_N_lim_noscale = NaN(NJ,2);
+qD_N_lim = NaN(NJ,2);
 vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 Stats = struct('file', 'pkm_invkin_traj', 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
@@ -597,7 +601,7 @@ for k = 1:nt
       phizD_N_lim = phizD_N_lim_noscale * vmax_rel;
       % Setze die Grenzen für die Gelenkgeschwindigkeit basierend auf der
       % skalierten Nullraumgeschwindigkeit
-      qD_N_lim_noscale = qDlim - qD_k_T;
+      qD_N_lim_noscale = qDlim - repmat(qD_k_T,1,2);
       qD_N_lim = qD_N_lim_noscale * vmax_rel;
     end
 
