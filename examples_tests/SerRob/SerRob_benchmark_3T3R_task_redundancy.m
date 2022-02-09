@@ -612,46 +612,59 @@ for robnr = 1:2
     n_zeroqD = sum(abs(QD) < 1e-6 & abs(QD_int) < 1e-6);
     corrQD = ((size(QD,1) - n_zeroqD') .* corrQD + n_zeroqD' * 1) ./ ...
                size(QD,1);
-    if any(corrQD < 0.95) || any(corrQ < 0.98)
-      error(['Korrelation zwischen Q-QD (%1.3f) oder QD-QDD (%1.3f) zu ', ...
-        'gering. Vermutlich Fehler'], min(corrQ), min(corrQD));
+    if any(corrQ < 0.98)
+      error('Nr. %d: Korrelation zwischen Q-QD (%1.3f) zu gering. Fehler', ...
+        kk, min(corrQ));
+    end
+    if any(corrQD < 0.95)
+      if any(any(abs(QDD) > repmat(2*RS.qDDlim(:,2)', size(QDD,1), 1)))
+        warning(['Nr. %d: Beschleunigungs-Grenzen stark verletzt. Korrelation ', ...
+          'QD-QDD vermutlich daher zu schlecht (%1.3f)'], kk, min(corrQD));
+      else
+        error('Nr. %d: Korrelation zwischen QD-QDD (%1.3f) zu gering. Fehler', ...
+          kk, min(corrQD));
+      end
     end
     % Integriere die Endeffektor Beschleunigung und Geschwindigkeit
     XD_int = cumtrapz(t, XDD) + repmat(XD(1,:),n,1);
     % Integriere die Geschwindigkeit zur Position
     X_int = cumtrapz(t, XD) + repmat(X(1,:),n,1);
     % Vergleiche die Verläufe graphisch
-    continue % Auswertungsbild für X nur selten benötigt. TODO: Automatischer Test der Konsistenz
-    fhdl = change_current_figure(100*robnr+50+kk);clf;
-    set(fhdl, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
-    sgtitle(sprintf('Konsistenz x-int(xD), xD-int(xDD). M%d (%s)', kk, Namen_Methoden{kk}));
-    for i = 1:6
-      % EE-Position
-      subplot(3,6,sprc2no(3,6, 1, i));
-      hold on;
-      plot(t, X(:,i), 'b-');
-      plot(t, X_int(:,i), 'r--');
-      plot(t, X_t(:,i), 'g--');
-      ylabel(sprintf('x %d', i)); grid on;
-      if i == 6, legend({'direkt', 'integral', 'Soll'}); end
-      % EE-Geschwindigkeit
-      subplot(3,6,sprc2no(3,6, 2, i));
-      hold on;
-      plot(t, XD(:,i), 'b-');
-      plot(t, XD_int(:,i), 'r--');
-      plot(t, XD_t(:,i), 'g--');
-      ylabel(sprintf('xD %d', i)); grid on;
-      if i == RS.NJ, legend({'direkt', 'integral', 'Soll'}); end
-      % EE-Beschleunigung
-      subplot(3,6,sprc2no(3,6, 3, i));
-      hold on;
-      plot(t, XDD(:,i), 'b-');
-      plot(t, XDD_t(:,i), 'g--');
-      ylabel(sprintf('xDD %d', i)); grid on;
-    end
-    linkxaxes
-    if save_results
-      saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+    if any(corrQ < 0.98) || any(corrQD < 0.95) % Auswertungsbild für X nur selten benötigt
+      fhdl = change_current_figure(100*robnr+50+kk);clf;
+      set(fhdl, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
+      sgtitle(sprintf('Konsistenz x-int(xD), xD-int(xDD). M%d (%s)', kk, Namen_Methoden{kk}));
+      for i = 1:6
+        % EE-Position (Winkel nicht normalisieren)
+        subplot(3,6,sprc2no(3,6, 1, i));
+        hold on;
+        if i < 4,  denormalize = @(x)x;
+        else,      denormalize = @(x)denormalize_angle_traj((x));
+        end
+          plot(t, denormalize(X(:,i)), 'b-');
+          plot(t, X_int(:,i), 'r--');
+          plot(t, denormalize(X_t(:,i)), 'g--');
+        ylabel(sprintf('x %d', i)); grid on;
+        if i == 6, legend({'direkt', 'integral', 'Soll'}); end
+        % EE-Geschwindigkeit
+        subplot(3,6,sprc2no(3,6, 2, i));
+        hold on;
+        plot(t, XD(:,i), 'b-');
+        plot(t, XD_int(:,i), 'r--');
+        plot(t, XD_t(:,i), 'g--');
+        ylabel(sprintf('xD %d', i)); grid on;
+        if i == RS.NJ, legend({'direkt', 'integral', 'Soll'}); end
+        % EE-Beschleunigung
+        subplot(3,6,sprc2no(3,6, 3, i));
+        hold on;
+        plot(t, XDD(:,i), 'b-');
+        plot(t, XDD_t(:,i), 'g--');
+        ylabel(sprintf('xDD %d', i)); grid on;
+      end
+      linkxaxes
+      if save_results
+        saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+      end
     end
   end
   % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
