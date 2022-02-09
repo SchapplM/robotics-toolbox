@@ -15,8 +15,6 @@
 % XDD [NT x 6]
 %   Trajektorie von EE-Beschleunigungen (Sollwerte)
 %   Orientierung bezogen auf Euler-Winkel
-% PHI
-%   Kinematische Zwangsbedingungen über die Trajektorie
 % T [NT x 1]
 %   Zeitbasis der Trajektorie (Alle Zeit-Stützstellen)
 % q0 [%NQJ% x 1]
@@ -610,7 +608,7 @@ for k = 1:nt
               % Indirekte Bestimmung über die betragsmäßige Verkleinerung der (negativen) Eindringtiefe
               h7drz = (-mincolldist_test(2)-(-mincolldist_test(1)));
               if abs(h7drz) > 100*eps % Normiere auf Wert 1e3
-                h7drz =  sign(h7drz)*1e3; % wird weiter unten reduziert (für qDD_max)
+                h7drz = sign(h7drz) * 1e3; % wird weiter unten reduziert (für qDD_max)
               end
             end
             % Umrechnung auf Gelenke mit Jacobi-Matrix
@@ -1167,7 +1165,6 @@ for k = 1:nt
   else
     qDD_N_post2 = qDD_N_post;
   end
-  
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
   I_wn = [idx_wnP.qlim_par, idx_wnP.qlim_hyp,   idx_wnP.qDlim_par,...
