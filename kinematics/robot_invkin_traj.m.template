@@ -463,7 +463,7 @@ for k = 1:nt
       phizD_N_lim = phizD_N_lim_noscale * vmax_rel;
       % Setze die Grenzen für die Gelenkgeschwindigkeit basierend auf der
       % skalierten Nullraumgeschwindigkeit
-      qD_N_lim_noscale = s.qDlim - qD_k_T;
+      qD_N_lim_noscale = s.qDlim - repmat(qD_k_T,1,2);
       qD_N_lim = qD_N_lim_noscale * vmax_rel;
     end
   end
