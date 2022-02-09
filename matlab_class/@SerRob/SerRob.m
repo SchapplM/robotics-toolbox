@@ -1220,6 +1220,14 @@ classdef SerRob < RobBase
           R.I_constr_t_red = R.I_constr_t;
           R.I_constr_r_red = R.I_constr_r;
         end
+      elseif all(I_EE_Task == [1 1 0 0 0 1]) % 2T1R
+        R.I_constr_red = [1 2];
+        R.I_constr_t_red = [1 2];
+        R.I_constr_r_red = 6;
+      elseif all(I_EE_Task == [1 1 0 0 0 0]) % 2T0R
+        R.I_constr_red = [1 2];
+        R.I_constr_t_red = [1 2];
+        R.I_constr_r_red = [];
       else
         error('Case not defined');
       end
