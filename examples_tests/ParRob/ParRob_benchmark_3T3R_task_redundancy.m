@@ -944,10 +944,11 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   end
   % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
   % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
-  [~, XD_ist, XDD_ist] = RP.fkineEE_traj(Q_t_kk, QD_t_kk, QDD_t_kk);
-  IL_traj = IL_rest_trans(IL_rest_trans <= size(XD_ist,1));
-  assert(all(all(abs(XD_ist(IL_traj,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+  IL_traj = IL_rest_trans(IL_rest_trans <= n_iO);
+  assert(all(all(abs(XDE_all(IL_traj,:,kk))<1e-3)), 'XD an Rastpunkten nicht Null');
+  assert(all(all(abs(XDDE_all(IL_traj,:,kk))<1e-2)), 'XDD an Rastpunkten nicht Null');
   assert(all(all(abs(QD_t_kk(IL_traj,:))<1e-3)), 'QD an Rastpunkten nicht Null');
+  assert(all(all(abs(QDD_t_kk(IL_traj,:))<1e-2)), 'QDD an Rastpunkten nicht Null');
 
   %% Trajektorie: Bild für einzelne Beine
   fprintf('Zeichne Bilder für Zusammenfassung von einzelnen Beinketten (Trajektorien-IK)\n');

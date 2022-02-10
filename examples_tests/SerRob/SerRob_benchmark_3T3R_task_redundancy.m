@@ -527,6 +527,7 @@ for robnr = 1:2
     % Berechne Ist-EE-Traj.
     I_traj = ~any(isnan(Q_t_kk),2); % Bei Fehlern wird NaN ausgegeben
     [X_ist, XD_ist, XDD_ist] = RS.fkineEE_traj(Q_t_kk(I_traj,:), QD_t_kk(I_traj,:), QDD_t_kk(I_traj,:));
+    X_ist(:,4:6) = denormalize_angle_traj(X_ist(:,4:6));
     XE_all(I_traj,:,kk) = X_ist;
     XDE_all(I_traj,:,kk) = XD_ist;
     XDDE_all(I_traj,:,kk) = XDD_ist;
@@ -638,12 +639,9 @@ for robnr = 1:2
         % EE-Position (Winkel nicht normalisieren)
         subplot(3,6,sprc2no(3,6, 1, i));
         hold on;
-        if i < 4,  denormalize = @(x)x;
-        else,      denormalize = @(x)denormalize_angle_traj((x));
-        end
-          plot(t, denormalize(X(:,i)), 'b-');
-          plot(t, X_int(:,i), 'r--');
-          plot(t, denormalize(X_t(:,i)), 'g--');
+        plot(t, X(:,i), 'b-');
+        plot(t, X_int(:,i), 'r--');
+        plot(t, X_t(:,i), 'g--');
         ylabel(sprintf('x %d', i)); grid on;
         if i == 6, legend({'direkt', 'integral', 'Soll'}); end
         % EE-Geschwindigkeit
@@ -671,7 +669,9 @@ for robnr = 1:2
   % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
   IL_traj = IL(IL <= size(XD_ist,1));
   assert(all(all(abs(XD_ist(IL_traj,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+  assert(all(all(abs(XDD_ist(IL_traj,:))<1e-2)), 'XDD an Rastpunkten nicht Null');
   assert(all(all(abs(QD_t_kk(IL_traj,:))<1e-3)), 'QD an Rastpunkten nicht Null');
+  assert(all(all(abs(QDD_t_kk(IL_traj,:))<1e-2)), 'QDD an Rastpunkten nicht Null');
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
   fhdl = change_current_figure(100*robnr+20); clf;
