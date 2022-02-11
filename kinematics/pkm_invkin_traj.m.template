@@ -5,17 +5,17 @@
 % Zusätzlich Nutzung der differentiellen Kinematik für schnellere Konvergenz
 % 
 % Eingabe:
-% XE
+% XE [NT x 6]
 %   Trajektorie von EE-Lagen (Sollwerte)
-% XDE
+% XDE [NT x 6]
 %   Trajektorie von EE-Geschwindigkeiten (Sollwerte)
 %   (Die Orientierung wird durch Euler-Winkel-Zeitableitung dargestellt)
-% XDDE
+% XDDE [NT x 6]
 %   Trajektorie von EE-Beschleunigungen (Sollwerte)
 %   Orientierung bezogen auf Euler-Winkel
-% T
+% T [NT x 1]
 %   Zeitbasis der Trajektorie (Alle Zeit-Stützstellen)
-% q0
+% q0 [%NJ% x 1]
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
@@ -58,11 +58,11 @@
 %    (23) wie 22, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
-% Q
+% Q [NT x %NJ%]
 %   Trajektorie von Gelenkpositionen (Lösung der IK)
-% QD
+% QD [NT x %NJ%]
 %   Trajektorie von Gelenkgeschwindigkeiten
-% QDD
+% QDD [NT x %NJ%]
 %   Trajektorie von Gelenkbeschleunigungen
 % Jinv_ges
 %   Inverse PKM-Jacobi-Matrix für alle Bahnpunkte (spaltenweise in Zeile)
@@ -83,7 +83,7 @@
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
 %       Kriterien, siehe Beschreibung von Eingabe wn)
 %   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
-%   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
+%   .condJ (NT x 2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
 %     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 
