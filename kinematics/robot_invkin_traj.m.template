@@ -1119,7 +1119,7 @@ for k = 1:nt
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   XD_k_Stats = J_x * qD_k;
   Stats.phi_zD(k,1) = XD_k_Stats(6) - XD(k,6); % siehe wn(idx_wnP.xDlim_par)
-  Stats.condJ = [condJik, condJ];
+  Stats.condJ(k,:) = [condJik, condJ];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
