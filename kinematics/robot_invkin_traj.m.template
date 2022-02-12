@@ -121,6 +121,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs            'xlim', zeros(6,2),
 %$cgargs           'xDlim', zeros(6,2),
 %$cgargs          'xDDlim', zeros(6,2),
+%$cgargs 'xlim6_interp', coder.newtype('double',[3,inf]),
 %$cgargs 'nullspace_maxvel_interp', coder.newtype('double',[2,inf]),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -133,6 +134,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'wn', zeros(23,1),
+%$cgargs  'abort_thresh_h', zeros(13,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
@@ -222,7 +224,8 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*s.optimcrit_limits_hyp_deact,NQJ,1);
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
-xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+xlim = s.xlim;
+xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 wn = s.wn;
 if any(wn ~= 0)
@@ -289,7 +292,7 @@ s_pik = struct( ...
   'pkin', s.pkin, ...
   'sigmaJ', s.sigmaJ, ...
   'qlim', s.qlim, ...
-  'xlim', s.xlim, ...
+  'xlim', s.xlim, ... % hat keinen Einfluss (ohne Nullraumbewegung)
   'I_EE', s.I_EE, ...
   'phiconv_W_E', s.phiconv_W_E, ...
   'I_EElink', s.I_EElink, ...
@@ -465,6 +468,15 @@ for k = 1:nt
       % skalierten Nullraumgeschwindigkeit
       qD_N_lim_noscale = s.qDlim - repmat(qD_k_T,1,2);
       qD_N_lim = qD_N_lim_noscale * vmax_rel;
+    end
+    % Bestimme Grenzen für redundante Koordinate per Interpolation
+    % Dadurch ist eine Aufweitung und Verengung der Grenzen möglich.
+    % Die Grenzen beziehen sich weiterhin auf die Trajektorie X
+    if ~isempty(s.xlim6_interp)
+      xlim(6,:) = [interp1(s.xlim6_interp(1,:), s.xlim6_interp(2,:), T(k)), ...
+              interp1(s.xlim6_interp(1,:), s.xlim6_interp(3,:), T(k))];
+      xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
+        repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
     end
   end
   if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
@@ -848,7 +860,7 @@ for k = 1:nt
       X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
     end
     if wn(idx_wnP.xlim_par) ~= 0 || wn(idx_wnD.xlim_par) ~= 0 % Quadr. Abstand von Phi bzgl. redundantem FHG von xlim maximieren
-      [h(idx_hn.xlim_par), h9drz] = invkin_optimcrit_limits1(x_k_ist(6), s.xlim(6,1:2));
+      [h(idx_hn.xlim_par), h9drz] = invkin_optimcrit_limits1(x_k_ist(6), xlim(6,1:2));
       h9dq = h9drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
       v_qD  = v_qD  - wn(idx_wnD.xlim_par)*h9dq'; % D-Anteil (auf qDD)
       v_qDD = v_qDD - wn(idx_wnP.xlim_par)*h9dq'; % P-Anteil (auf qDD)
@@ -856,7 +868,7 @@ for k = 1:nt
     if wn(idx_wnP.xlim_hyp) ~= 0 || wn(idx_wnD.xlim_hyp) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
       % Kriterium für aktuellen Schritt
       [h(idx_hn.xlim_hyp), h10drz] = invkin_optimcrit_limits2(x_k_ist(6), ...
-        s.xlim(6,1:2), xlim_thr_h10(6,:));
+        xlim(6,1:2), xlim_thr_h10(6,:));
       h10dq = h10drz*J_x(end,:); % Siehe [SchapplerOrt2021], Gl. 14
       v_qD  = v_qD  - wn(idx_wnD.xlim_hyp)*h10dq'; % D-Anteil (auf qDD)
       v_qDD = v_qDD - wn(idx_wnP.xlim_hyp)*h10dq'; % P-Anteil (auf qDD)
@@ -1194,6 +1206,10 @@ for k = 1:nt
   QD(k,:) = qD_k;
   QDD(k,:) = qDD_k;
   J_x_alt = J_x;
+  %% Abbruchbedingung prüfen
+  if any(~isnan(s.abort_thresh_h)) && any(h >= s.abort_thresh_h)
+    break;
+  end
 end
 if nargout == 4
   if wn(idx_wnP.coll_hyp) ~= 0 % Berechnung muss genauso sein wie oben
