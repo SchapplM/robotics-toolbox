@@ -50,7 +50,6 @@ RS.qlim = repmat([-2*pi, 2*pi], RS.NQJ, 1);
 %% Klasse für PKM erstellen
 RP = ParRob('Delta');
 RP.create_symmetric_robot(3, RS, 0.2, 0.15);
-RP.initialize();
 
 X0 = [0.1;0.05;-0.7; pi; 0; 0];
 % EE-FG setzen: Technische EE-FG der PKM, Aufgaben-EE-FG, FG aller

@@ -74,7 +74,6 @@ for NNN = RobotNames
   RP = ParRob(PName);
   RP.create_symmetric_robot(N_LEG, RS, 0.5, 0.2);
   
-  RP.initialize();
   X = [ [0.0;0.0;0.5]; [0;0;0]*pi/180 ];
   xE = X + [[0.1; 0.05; 0]; [1; 1; 1]*pi/180];
   xE(:,~RP.I_EE) = 0;

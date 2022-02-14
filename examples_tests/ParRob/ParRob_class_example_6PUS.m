@@ -20,7 +20,6 @@ if ~isempty(which('parroblib_path_init.m'))
 end
 RP = ParRob('P6PRRRRR6V2G8P1A1');
 RP.create_symmetric_robot(6, RS, 1.0, 0.3);
-RP.initialize();
 
 % Basis KS einstellen: Gruppenweise für bessere Konditionierung der Jacobi
 RP.align_base_coupling(8, [0.8;0.3;pi/3]);

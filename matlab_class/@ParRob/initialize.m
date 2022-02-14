@@ -50,9 +50,13 @@ R.NL = R.NL + 1;
 R.I1L_LEG = I1L_LEG;
 R.I2L_LEG = I2L_LEG;
 
-% phi_P_B_all initialisieren
-R.phi_P_B_all = zeros(3,NLEG);
-
+% Platzhalter für Strukturvariablen setzen (werden später überschrieben)
+if isempty(R.r_P_B_all) % Nur einmal machen, falls Funktion mehrfach aufgerufen wird
+  R.r_P_B_all = NaN(3, NLEG);
+end
+if isempty(R.phi_P_B_all)
+  R.phi_P_B_all = NaN(3,NLEG);
+end
 % MDH-Parameter sigma für ganzen Roboter: Anzeige für Art der einzelnen
 % Gelenke der Beinketten der PKM (bezieht sich nur auf Minimalkoordinaten
 % der Beingelenke)
@@ -110,5 +114,4 @@ R.DynPar = struct('mges',   NaN(NL_symPKM,1), ... % Massen
                   'ipv_n1s', [], ...  % Inertialparameter-Vektor für numerische Berechnung der Schnittkräfte
                   'mpv_sym', [], ...  % Minimalparameter-Dynamikvektor für symbolische Berechnung
                   'mode', 2); % Standard-Modus: Inertialparameter
-% Platzhalter für weitere Strukturvariablen setzen
-R.r_P_B_all = NaN(3, NLEG);
+

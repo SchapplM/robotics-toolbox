@@ -46,7 +46,6 @@ if ~isempty(which('parroblib_path_init.m'))
 end
 RP = ParRob('P3RPR1G1P1A2');
 RP.create_symmetric_robot(3, RS, 1, 0.3);
-RP.initialize();
 RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM
 % Schubgelenke sind aktuiert
 I_qa = false(RP.NJ,1);

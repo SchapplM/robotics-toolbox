@@ -32,10 +32,10 @@ for testcase = 1:5
     RP.Leg(2) = copy(RS1);
     RP.Leg(3) = copy(RS1);
     RP.NLEG = 3;
+    RP.initialize();
     % PKM-Parameter definieren
     RP.align_base_coupling(1, 1.0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Basis KS einstellen
     phiconv_W_0 = uint8(2);
@@ -43,7 +43,6 @@ for testcase = 1:5
     RP.Leg(2).update_base( [-0.5;-0.5;0], [0;0;pi], phiconv_W_0);
     RP.Leg(3).update_base( [1;-1;0], [0;0;-pi/2], phiconv_W_0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Kinematik-Parameter der Beinketten neu belegen (hier mit Zufallswerten)
     pkin_all = [1.2,1.2
@@ -75,10 +74,10 @@ for testcase = 1:5
     RP.Leg(3) = copy(RS2);
     RP.Leg(4) = copy(RS2);
     RP.NLEG = 4;
+    RP.initialize();
     % PKM-Parameter definieren
     RP.align_base_coupling(1, 1.0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     %Basis KS einstellen
     phiconv_W_0 = uint8(2);
@@ -87,7 +86,6 @@ for testcase = 1:5
     RP.Leg(3).update_base( [-0.5;-0.5;0], [pi/2;pi*3/2;pi/2], phiconv_W_0);
     RP.Leg(4).update_base( [1;-1;0], [-pi/2;0;-pi/2], phiconv_W_0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Kinematik-Parameter der Beinketten neu belegen (hier mit Zufallswerten)
     pkin_all = [0.5,0.75,0.75,0.15,0.15,0.25,0;
@@ -117,10 +115,10 @@ for testcase = 1:5
     RP.Leg(3) = copy(RS1);
     RP.Leg(4) = copy(RS1);
     RP.NLEG = 4;
+    RP.initialize();
     % PKM-Parameter definieren
     RP.align_base_coupling(1, 1.0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     %Basis KS einstellen
     phiconv_W_0 = uint8(2);
@@ -129,7 +127,6 @@ for testcase = 1:5
     RP.Leg(3).update_base( [-0.5;-0.5;0], [pi/2;pi*3/2;pi/2], phiconv_W_0);
     RP.Leg(4).update_base( [1;-1;0], [-pi/2;0;-pi/2], phiconv_W_0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Kinematik-Parameter der Beinketten neu belegen (hier mit Zufallswerten)
     pkin_all = [0.5,0.75,0.75,0.15,0.15,0.25;
@@ -160,11 +157,11 @@ for testcase = 1:5
     RP.Leg(3) = copy(RS3);
     RP.Leg(4) = copy(RS2);
     RP.NLEG = 4;
+    RP.initialize();
     % PKM-Parameter definieren
     RP.align_base_coupling(1, 1.0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
-    
+
     %Basis KS einstellen
     phiconv_W_0 = uint8(2);
     RP.Leg(1).update_base( [1;1;0], [0;0;-pi/2], phiconv_W_0);
@@ -172,7 +169,6 @@ for testcase = 1:5
     RP.Leg(3).update_base( [-0.5;-0.5;0], [pi/2;pi*3/2;pi/2], phiconv_W_0);
     RP.Leg(4).update_base( [1;-1;0], [-pi/2;0;-pi/2], phiconv_W_0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Kinematik-Parameter der Beinketten neu belegen (hier mit Zufallswerten)
     pkin_all = [0.5,0.75,0.75,0.15,0.15,0.25,0,0,0,0,0,0,0,0;
@@ -201,10 +197,10 @@ for testcase = 1:5
     RP.Leg(3) = copy(RS2);
     RP.Leg(4) = copy(RS2);
     RP.NLEG = 4;
+    RP.initialize();
     % PKM-Parameter definieren
     RP.align_base_coupling(1, 1.0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     %Basis KS einstellen
     phiconv_W_0 = uint8(2);
@@ -213,7 +209,6 @@ for testcase = 1:5
     RP.Leg(3).update_base( [-0.5;-0.5;0], [pi/2;pi*3/2;pi/2], phiconv_W_0);
     RP.Leg(4).update_base( [1;-1;0], [-pi/2;0;-pi/2], phiconv_W_0);
     RP.align_platform_coupling(1, 0.3);
-    RP.initialize();
     
     % Kinematik-Parameter der Beinketten neu belegen (hier mit Zufallswerten)
     pkin_all = [0.5,0.75,0.75,0.15,0.15,0.25,0,0,0,0,0,0,0,0;

@@ -35,7 +35,6 @@ RP.Leg(2).phi_W_0 = [0;0;0];
 RP.Leg(2).update_base();
 RP.Leg(2).update_EE([0;0;0], [0;0;0]);
 
-RP.initialize();
 RP.update_actuation(logical([1 1 0 0 1 0]'));% Index der aktiven (und damit unabhängigen Gelenke)
 RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM: planare Bewegung
 

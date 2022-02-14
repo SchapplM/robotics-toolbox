@@ -46,7 +46,6 @@ parroblib_addtopath({'P3RRR1G1P1A1'}); % Benötigt ParRobLib
 RP = ParRob('P3RRR1G1P1A1');
 parroblib_update_template_functions({RP.mdlname});
 RP.create_symmetric_robot(3, RS, 1, 0.3);
-RP.initialize();
 RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM
 
 % Basis und EE-KS anders definieren, um diese Eigenschaften zu berücksichtigen

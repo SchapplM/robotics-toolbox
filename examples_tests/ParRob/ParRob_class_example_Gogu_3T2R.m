@@ -31,10 +31,10 @@ RP.Leg(3) = copy(RS2);
 RP.Leg(4) = copy(RS2);
 RP.Leg(5) = copy(RS2);
 RP.NLEG = 5;
+RP.initialize();
 % PKM-Parameter definieren
 RP.align_base_coupling(1, 1.0);
 RP.align_platform_coupling(1, 0.3);
-RP.initialize();
 
 %Basis KS einstellen
 phiconv_W_0 = uint8(2);
@@ -46,7 +46,6 @@ RP.Leg(3).update_base( 3*RP.r_P_B_all(:,3), [0;0;0], phiconv_W_0);
 RP.Leg(4).update_base( 3*RP.r_P_B_all(:,4), [0;0;0], phiconv_W_0);
 RP.Leg(5).update_base( 3*RP.r_P_B_all(:,5), [pi/2;0;0], phiconv_W_0);
 RP.align_platform_coupling(1, 0.3);
-RP.initialize();
 
 % Kinematik-Parameter der Beinketten neu belegen
 pkin_all = [0,0.75,0.65,0.1,0.1,0.25,0,0,0,0,0,0,0,0;

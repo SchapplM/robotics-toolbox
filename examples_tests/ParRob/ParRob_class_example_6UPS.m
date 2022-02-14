@@ -36,7 +36,6 @@ if ~use_parrob
   % RS.mex_dep(true)
   RP = ParRob('P6RRPRRR14V3G1P4A1');
   RP.create_symmetric_robot(6, RS, 0.5, 0.2);
-  RP.initialize();
   % Schubgelenke sind aktuiert
   I_qa = false(36,1);
   I_qa(3:6:36) = true;

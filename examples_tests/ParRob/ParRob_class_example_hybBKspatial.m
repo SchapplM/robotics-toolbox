@@ -40,7 +40,7 @@ phi_z = -RP.Leg(2).phi_W_0(2);
 RP.Leg(2).update_EE(zeros(3,1), [3*pi/2;0;phi_z+150/180*pi])
 phi_z = -RP.Leg(3).phi_W_0(2);
 RP.Leg(3).update_EE(zeros(3,1), [-pi/2;0;phi_z+30/180*pi])
-RP.initialize();
+
 % Index der aktiven (und damit unabhängigen Gelenke)
 RP.update_actuation(logical(repmat([1 0 1 0 0 0]',3,1)));
 RP.update_EE_FG(logical([1 1 1 1 1 1])); % Für IK der PKM
