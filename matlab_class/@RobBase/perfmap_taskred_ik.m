@@ -146,9 +146,11 @@ for i = 1:size(X_tref,1)
     last_s = s_ref(i);
   end
 end
+% Letzten Schritt immer benutzen, damit bei der Redundanzkarte rechts
+% nichts fehlt. 
+I_remove(end) = false;
 X_ref = X_tref(~I_remove,:);
 s_ref = s_ref(~I_remove);
-
 %% Initialisierung weiterer Größen
 % Create range of values for the redundant coordinate.
 phiz_range = unique([s.map_phistart:-s.mapres_redcoord_dist_deg*pi/180:s.maplim_phi(1), ...
