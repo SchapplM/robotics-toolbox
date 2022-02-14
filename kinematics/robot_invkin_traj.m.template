@@ -149,7 +149,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
 %$cgargs  'collision_thresh', NaN,
-%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]), 
+%$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs  'collbodies_instspc', struct(
 %$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
@@ -357,8 +357,9 @@ qD_N_lim = NaN(NQJ,2);
 vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
-Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), 'condJ', NaN(nt,2), ...
-  'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 6);
+Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
+  'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
+  'version', 6);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -388,6 +389,7 @@ for k = 1:nt
   Tw = euljac(X(k,4:6)', s.phiconv_W_E); % Euler-Transformationsmatrix
   J_x = [Jg(1:3,:); Tw \ Jg(4:6,:)]; % analytische Jacobi-Matrix
   condJik = cond(J_x(I_EE,:)); condJ = cond(Jg(Rob_I_EE,:));
+  Stats.condJ(k,:) = [condJik, condJ];
   % Gelenk-Geschwindigkeit mit inverser Jacobi
   qD_k_T(:) = J_x(I_EE,1:NQJ) \ XD(k,I_EE)'; % resultierend aus Aufgabe (minimale Norm der Geschw.)
   xD_k_T_ist = J_x * qD_k_T;
@@ -483,8 +485,19 @@ for k = 1:nt
     if ~isempty(s.xlim6_interp)
       xlim(6,:) = [interp1(s.xlim6_interp(1,:), s.xlim6_interp(2,:), T(k)), ...
               interp1(s.xlim6_interp(1,:), s.xlim6_interp(3,:), T(k))];
-      xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
-        repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
+      % Bestimme Grenze für x6 dynamisch aus dem Bremsweg bis zur Grenze
+      delta_phiz = 0.5 * s.xDlim(6,2)^2/s.xDDlim(6,2);
+      xlim_thr_h10 = xlim;
+      % Wähle den 1.2-fachen Bremsweg als Aktivierungsschwelle. Dadurch
+      % langsame (stetige) Aktivierung der Funktion mit berücksichtigt.
+      xlim_thr_h10(6,:) = xlim_thr_h10(6,:) + 1.2*[+1, -1]*delta_phiz;
+      if xlim_thr_h10(6,1) > xlim_thr_h10(6,2)
+        % Wenn min und max vertauscht sind, ist der Bremsweg zu groß. Immer
+        % aktivieren
+        xlim_thr_h10(6,:) = 0;
+      end
+%       xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
+%         repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
     end
   end
   if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
@@ -1198,7 +1211,6 @@ for k = 1:nt
           idx_hn.xlim_hyp,  idx_hn.xDlim_par,   idx_hn.coll_par, ...
           idx_hn.instspc_par];
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
-  Stats.condJ(k,:) = [condJik, condJ];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
   qDk0 = qD_k + qDD_k*dt;
