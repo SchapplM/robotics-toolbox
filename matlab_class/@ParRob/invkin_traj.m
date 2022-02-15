@@ -88,6 +88,11 @@
 %   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
 %     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
+%   .errorcode [1x1]: Grund für den frühzeitigen Abbruch der Trajektorie.
+%     0: alles in Ordnung
+%     1: Fehler Positions-IK
+%     2: Ungültiger Wert für nächste Iteration (NaN im Nullraum)
+%     3: Abbruch durch Überschreitung von Zielkriterien
 % 
 % Siehe auch: SerRob/invkin_traj bzw. SerRob/invkin2_traj
 
@@ -373,7 +378,7 @@ qD_N_lim = NaN(NJ,2);
 vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 Stats = struct('file', 'pkm_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'mode', uint32(zeros(nt,1)));
+  'mode', uint32(zeros(nt,1)), 'errorcode', 0);
 h = zeros(idx_ik_length.hntraj,1);
 
 for k = 1:nt
@@ -407,6 +412,7 @@ for k = 1:nt
   % Prüfe Erfolg der IK
   if any(abs(Phi_k(Rob.I_constr_t_red)) > s_ser.Phit_tol) || ...
      any(abs(Phi_k(Rob.I_constr_r_red)) > s_ser.Phir_tol)
+    Stats.errorcode = 1;
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   elseif debug
     % Erneute Berechnung der Zwangsbedingungen, falls falsch berechnet.
@@ -1669,6 +1675,7 @@ for k = 1:nt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
   if any(isnan(qk0))
+    Stats.errorcode = 2;
     break; % aufgrund von Singularität o.ä. unendlich hohe Werte
   end
   %% Ergebnisse speichern
@@ -1684,6 +1691,7 @@ for k = 1:nt
   Phi_x_alt = Phi_x;
   %% Abbruchbedingung prüfen
   if any(~isnan(s.abort_thresh_h)) && any(h >= s.abort_thresh_h)
+    Stats.errorcode = 3;
     break;
   end
   Stats.iter = k;
