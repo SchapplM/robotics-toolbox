@@ -79,6 +79,11 @@
 %   .condJ (NT x 2): (1.) Konditionszahl der analytischen Jacobi-Matrix
 %     (bezogen auf Aufgaben-FG). (2.)  Konditionszahl der geometrischen 
 %     Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
+%   .errorcode [1x1]: Grund für den frühzeitigen Abbruch der Trajektorie.
+%     0: alles in Ordnung
+%     1: Fehler Positions-IK
+%     2: Ungültiger Wert für nächste Iteration (NaN im Nullraum)
+%     3: Abbruch durch Überschreitung von Zielkriterien
 %
 % Siehe auch: ParRob/invkin_traj
 
@@ -359,7 +364,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'version', 6);
+  'errorcode', 0, 'version', 6);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -381,6 +386,7 @@ for k = 1:nt
   if any(abs(Phi_k(1:n_Phi_t)) > s_pik.Phit_tol) || ...
      any(abs(Phi_k(n_Phi_t+1:end)) > s_pik.Phir_tol) || ...
      any(isnan(Phi_k)) || any(isnan(q_k))
+    Stats.errorcode = 1;
     break; % Die IK kann nicht gelöst werden. Weitere Rechnung ergibt keinen Sinn.
   end
   %% Gelenk-Geschwindigkeit berechnen
@@ -1218,6 +1224,7 @@ for k = 1:nt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
   if any(isnan(qk0))
+    Stats.errorcode = 2;
     break; % aufgrund von Singularität o.ä. unendlich hohe Werte
   end
   %% Ergebnisse speichern
@@ -1226,6 +1233,7 @@ for k = 1:nt
   J_x_alt = J_x;
   %% Abbruchbedingung prüfen
   if any(~isnan(s.abort_thresh_h)) && any(h >= s.abort_thresh_h)
+    Stats.errorcode = 3;
     break;
   end
   Stats.iter = k;
