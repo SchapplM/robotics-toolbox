@@ -163,6 +163,7 @@ if s.verbose
 end
 % IK-Grundeinstellungen
 s_ik = struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12, ... % sehr genau rechnen
+  'normalize', false, ... Falls q0 außerhalb von +/-pi liegt sonst Abweichung
   'scale_lim', 0.7, ...
   'retry_limit', 0);
 s_ep = s_ik; % Einstellungen für die Eckpunkte-IK
@@ -194,8 +195,7 @@ s_ep_dummy.Phir_tol = 1; % ... sowieso keine Bewegung statt.
 % Betrifft solche, die den Wert der Kriterien beeinflussen.
 for f = fields(s.settings_ik)'
   if any(strcmp(f{1}, {'cond_thresh_ikjac', 'optimcrit_limits_hyp_deact', ...
-      'collbodies_thresh', 'installspace_thresh'})) || ...
-      R.Type == 2 && any(strcmp(f{1}, {'cond_thresh_jac'}))
+      'collbodies_thresh', 'installspace_thresh', 'cond_thresh_jac'}))
     s_ep_dummy.(f{1}) = s.settings_ik.(f{1});
   end
 end
@@ -212,9 +212,9 @@ Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
 if R.Type == 0,   R.I_EE_Task = s.I_EE_full;
 else,             R.update_EE_FG(s.I_EE_full,s.I_EE_full); end
 if R.Type == 0
-  [q0, Phi, ~, ~] = R.invkin2(R.x2tr([X_ref(1,1:5)';s.map_phistart]), s.q0, s_ik);
+  [q0, Phi] = R.invkin2(R.x2tr([X_ref(1,1:5)';s.map_phistart]), s.q0, s_ik);
 else
-  [q0, Phi, ~, ~] = R.invkin4([X_ref(1,1:5)';s.map_phistart], s.q0, s_ik);
+  [q0, Phi] = R.invkin4([X_ref(1,1:5)';s.map_phistart], s.q0, s_ik);
 end
 if any(abs(q0-s.q0)>1e-3) || any(abs(Phi)>1e-5)
   warning('initial value q0 for performance map does not match parameter map_phistart');
