@@ -54,7 +54,7 @@ for Robot_Data = Robots
    
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
-  % serroblib_create_template_functions({SName}, false, false);
+  serroblib_update_template_functions({SName});
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
   % Grenzen festlegen (für Zusatz-Optimierung)
@@ -574,7 +574,6 @@ for Robot_Data = Robots
   Namen_Methoden = cell(1,5);
   % Initialisierung
   phiz_traj_diff_k = NaN(size(T,1),size(Namen_Methoden,2));
-  phiz_traj_diff_k_pre = phiz_traj_diff_k;
   h8_k = NaN(size(T,1),size(Namen_Methoden,2));
   h9_k = h8_k;
   h10_k = h8_k;
@@ -645,13 +644,7 @@ for Robot_Data = Robots
     fprintf('\nBerechnung der Trajektorie mit "%s" beendet.', name_method);
     % Actual platform trajectory
     [X_ist_k, XD_ist_k, ~] = RS.fkineEE_traj(Q_k, QD_k, QDD_k);
-    % Save original vector
-    X_ist_k_pre = X_ist_k;
-    % Get platform pose from integration to avoid restriction to +/- pi
-    X_ist_k_int = repmat(X_ist_k(1,:), length(T), 1) + cumtrapz(T, XD_ist_k);
-    % Normalize platform angles from direct calculation using angles from
-    % integration as center. Gives exact solution without limitation to +/-pi
-    X_ist_k(:,4:6) = normalizeAngle(X_ist_k(:,4:6), X_ist_k_int(:,4:6));
+    X_ist_k(:,4:6) = denormalize_angle_traj(X_ist_k(:,4:6));
     
     % IK-Ergebnis testen
     for i = 1:length(T)
@@ -670,7 +663,6 @@ for Robot_Data = Robots
     
     % Auswertung für den Plot: phiz
     phiz_traj_diff_k(:,k)     = -X(:,6) + X_ist_k(:,6);
-    phiz_traj_diff_k_pre(:,k) = -X(:,6) + X_ist_k_pre(:,6);
     if k > 1
       if phiz_traj_diff_k(size(T,1),k) <= s_traj.xlim(RS.NQJ,1) || phiz_traj_diff_k(size(T,1),k) >= s_traj.xlim(RS.NQJ,2)
         limred_fail_flag_traj(1,limred_fail_counter) = k;
@@ -683,7 +675,7 @@ for Robot_Data = Robots
     h9_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xlim_hyp);
     h10_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xDlim_par);
     % Auswertung für den Plot: phizD
-    phizD_traj(:,k) = Stats_Traj_k.phi_zD(:,1);
+    phizD_traj(:,k) = XD_ist_k(:,6);
   end
   fprintf('\nBerechnung und Auswertung der Trajektorien-IK beendet.\n');
   
@@ -715,7 +707,6 @@ for Robot_Data = Robots
       % Subplots Erste Zeile: Verlauf von phiz -------------------------------------
       subplot(5,size(Namen_Methoden,2),kk); hold on;
       plot(T, phiz_traj_diff_k(:,kk)*180/pi, 'm', 'LineWidth',1);
-      plot(T, phiz_traj_diff_k_pre(:,kk)*180/pi, 'k--', 'LineWidth',1);
       xlim_vek = repmat([s_traj.xlim(RS.NQJ,1) s_traj.xlim(RS.NQJ,2)]*180/pi,index_traj(end),1);
       plot(T, xlim_vek(:,1), 'r--', 'LineWidth',1);
       plot(T, xlim_vek(:,2), 'r--', 'LineWidth',1);
