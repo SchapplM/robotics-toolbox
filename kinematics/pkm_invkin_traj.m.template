@@ -568,7 +568,7 @@ JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 JointPos_all = NaN(nt, (NL+NLEG)*3);
 
 qk0 = q0;
-qDk0 = zeros(NJ,1);
+qDNk0 = zeros(NJ,1);
 qaD_N_pre_alt = zeros(sum(I_qa),1);
 qD_N_pre_alt = zeros(NJ,1);
 qaDD_N_pre1 = zeros(sum(I_qa),1);
@@ -576,7 +576,7 @@ qDD_N_pre = zeros(NJ,1);
 qDD_N_pre1 = zeros(NJ,1);
 qDD_N_pre_voll = zeros(NJ,1);
 J_ax = NaN(sum(Rob_I_EE), sum(I_qa));
-q_k = qDk0; % für Kompilierbarkeit
+q_k = qDNk0; % für Kompilierbarkeit
 Tc_stack_k = NaN((NL-1+NLEG)*3,4); % für Kompilierbarkeit
 Phi_k = zeros(size(PHI,2),1); % für Kompilierbarkeit
 delta_phi_z = NaN;
@@ -652,8 +652,9 @@ for k = 1:nt
     end
   end
   if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
-      dof_3T2R % beliebige 3T2R-PKM
-    qD_k_T = J_x_inv * xD_k(I_EE); % ohne Redundanz nur Aufgaben-Geschw.; eindeutig.
+      dof_3T2R || ... % beliebige 3T2R-PKM
+      ~s.ik_solution_min_norm % Vorsteuerung der Geschwindigkeit.
+    qD_k_T = J_x_inv * xD_k(Rob_I_EE); % ohne Redundanz nur Aufgaben-Geschw.; eindeutig.
   else
     % Bei Aufgabenredundanz ist J_x_inv anders definiert
     qD_k_T = -Phi_q \ Phi_x * xD_k(I_EE);
@@ -665,16 +666,21 @@ for k = 1:nt
     % normale inverse differentielle Kinematik. Mit dem Korrekturterm
     % bleibt die Geschwindigkeit konsistent zur Nullraumbewegung aus der
     % Beschleunigung
-    PhiD_pre = Phi_q*qDk0;
+    PhiD_pre = Phi_q*(qD_k_T + qDNk0);
     PhiD_korr = -PhiD_pre - Phi_x*xD_k(I_EE);
     qD_korr = Phi_q\PhiD_korr;
-    qD_k = qDk0 + qD_korr;
+    qD_k = qD_k_T + qDNk0 + qD_korr;
     if debug % Erneuter Test
       PhiD_test = Phi_x*xD_k(I_EE) + Phi_q*qD_k;
       if any(abs(PhiD_test) > max(1e-10, max(abs(qD_k))/1e9)) % bei hohen Geschwindigkeiten ist die Abweichung größer; feine IK-Toleranz notwendig.
         error(['Korrektur der Geschwindigkeit hat nicht funktioniert (k=%d). ', ...
           'Fehler %1.1e'], k, max(abs(PhiD_test)));
       end
+    end
+    % Korrigiere nachträglich auch die Beschleunigung, da sie sich geändert
+    % hat. Benutze direkt den Differenzenquotienten. Sonst inkonsistente Ausgabe.
+    if k > 1
+      QDD(k-1,:) = (qD_k' - QD(k-1,:))/(T(k)-T(k-1));
     end
   end
   %% Zeitableitung der Zwangsbedingungs-Gradienten und der Jacobi-Matrix
@@ -727,6 +733,11 @@ for k = 1:nt
   if s.ik_solution_min_norm || ~taskred_rot
     % Pseudo-Inverse: Minimale Norm des Vektors
     qDD_k_T = -Phi_q\(Phi_qD*qD_k+Phi_xD*xD_k(I_EE)+Phi_x*xDD_k(I_EE));
+  elseif ~s.ik_solution_min_norm && taskred_rot
+    % Benutze nicht die Jacobi-Matrix-Zeitableitung. TODO: Genaue
+    % Begründung fehlt noch. Führt aber unten zu keinem Fehler.
+    qDD_k_T = J_x_inv * xDD_k(Rob_I_EE) + ...
+      -Phi_q_voll\(Phi_qD_voll*qD_k+Phi_xD_voll*xD_k(Rob_I_EE));
   else
     % Normale Inverse. Nehme die Beschleunigung aus XDD an. Damit auch Vor-
     % steuerung einer Nullraumbeschleunigung möglich
@@ -745,8 +756,8 @@ for k = 1:nt
     PhiDD_test3 = Phi_q*qDD_k_T + Phi_qD*qD_k + ...
       Phi_x*xDD_k(I_EE)+Phi_xD*xD_k(I_EE);
     if any(abs(PhiDD_test3) > max(1e-6, max(abs([qD_k;qDD_k_T]))/1e9)) % bei hohen Werten ist die Abweichung größer; feine IK-Toleranz notwendig.
-      error(['Beschleunigung qDD_k_T erfuellt die kinematischen Bedingungen ', ...
-        'nicht. Max. Fehler %1.2e'], max(abs(PhiDD_test3)));
+      error(['Schritt %d: Beschleunigung qDD_k_T erfuellt die kinematischen Bedingungen ', ...
+        'nicht. Max. Fehler %1.2e'], k, max(abs(PhiDD_test3)));
     end
   end
   if nsoptim || redundant
@@ -1889,8 +1900,10 @@ for k = 1:nt
           idx_hn.instspc_par];
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
-  % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
-  qDk0 = qD_k + qDD_k*dt;
+  % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt.
+  % Nehme nur die Nullraum-Komponente. Die Aufgabenkomponente wird in
+  % nächster Iteration aus der Trajektorie aktualisiert
+  qDNk0 = qD_k + qDD_k*dt - qD_k_T;
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;

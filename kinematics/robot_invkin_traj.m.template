@@ -353,7 +353,7 @@ q_wn5 = inf(NQJ,1);
 h5dq = NaN(1,NQJ); h6dq=h5dq; h7dq=h5dq; h8dq=h5dq; h13dq = h5dq;
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
-qDk0 = zeros(NQJ,1);
+qDNk0 = zeros(NQJ,1);
 qD_k_T = zeros(NQJ,1);
 qDD_k_T = zeros(NQJ,1);
 qD_k = zeros(NQJ,1);
@@ -405,7 +405,12 @@ for k = 1:nt
   condJik = cond(J_x(I_EE,:)); condJ = cond(Jg(Rob_I_EE,:));
   Stats.condJ(k,:) = [condJik, condJ];
   % Gelenk-Geschwindigkeit mit inverser Jacobi
-  qD_k_T(:) = J_x(I_EE,1:NQJ) \ XD(k,I_EE)'; % resultierend aus Aufgabe (minimale Norm der Geschw.)
+  % resultierend aus Aufgabe 
+  if s.ik_solution_min_norm % (minimale Norm der Geschw.)
+    qD_k_T(:) = J_x(I_EE,1:NQJ) \ XD(k,I_EE)';
+  else % Vorgesteuerte Geschwindigkeit auch bei Aufgabenredundanz möglich
+    qD_k_T(:) = J_x(Rob_I_EE,1:NQJ) \ XD(k,Rob_I_EE)';
+  end
   xD_k_T_ist = J_x * qD_k_T;
   xD_k_ist = J_x * qD_k;
   if ~(nsoptim || redundant)
@@ -415,9 +420,9 @@ for k = 1:nt
     % letzten Iteration (k-1). Ausgleich der Nullraumbewegung, die aus der
     % Beschleunigung berechnet wird. Siehe [3].
     % EE-Geschw. mit der Gelenk-Geschw. aus dem vorherigen Zeitschritt
-    % (k-1) berechnet für diesen Zeitschritt (k). Ein Teil von qDk0 geht in
+    % (k-1) berechnet für diesen Zeitschritt (k). Ein Teil von qDNk0 geht in
     % den Nullraum. Daher kann nicht einfach obige Formel genommen werden.
-    xD_pre = J_x(I_EE,:)*qDk0;
+    xD_pre = J_x(I_EE,:)*(qD_k_T + qDNk0);
     % Korrektur-Term der Geschwindigkeit: Die Gelenk-Geschwindigkeit mit
     % Berechnung aus (k-1) führt nicht zur korrekten EE-Geschw. in (k)
     xD_korr = -xD_pre+XD(k,I_EE)'; % dieses Residuum sollte klein bleiben
@@ -425,7 +430,12 @@ for k = 1:nt
     % Nullraumoptimierung, da nur Ausgleich für numerische Ungenauigkeit)
     qD_korr = J_x(I_EE,:) \ xD_korr;
     % zu xD passende Gelenk-Geschw. für diesen Zeitschritt (k)
-    qD_k = qDk0 + qD_korr;
+    qD_k = qD_k_T + qDNk0 + qD_korr;
+    % Korrigiere nachträglich auch die Beschleunigung, da sie sich geändert
+    % hat. Benutze direkt den Differenzenquotienten. Sonst inkonsistente Ausgabe.
+    if k > 1
+      QDD(k-1,:) = (qD_k' - QD(k-1,:))/(T(k)-T(k-1));
+    end
   end
   %% Gelenk-Beschleunigung berechnen
   if ~simplify_acc
@@ -1232,7 +1242,9 @@ for k = 1:nt
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
-  qDk0 = qD_k + qDD_k*dt;
+  % Nehme nur die Nullraum-Komponente. Die Aufgabenkomponente wird in
+  % nächster Iteration aus der Trajektorie aktualisiert
+  qDNk0 = qD_k + qDD_k*dt - qD_k_T;
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
   qk0 = q_k + qD_k*dt + 0.5*qDD_k*dt^2;
