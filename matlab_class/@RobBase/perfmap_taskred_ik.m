@@ -55,6 +55,7 @@ s = struct( ...
   'mapres_thresh_eerot', 3*pi/180, ... % 3deg ...
   'mapres_thresh_pathcoordres', 0.05, ...% min 20 values between key points
   'mapres_redcoord_dist_deg', 3, ... % Auflösung der redundanten Koordinate; 3deg
+  'only_trajectory_normalization', false, ... % Abbruch vor der Diskretisierung
   'settings_ik', struct(''), ... % Einstellungs-Struktur für den IK-Aufruf (Modifikation der Optimierungskriterien)
   'verbose', false);
 if nargin == 4
@@ -151,6 +152,7 @@ end
 I_remove(end) = false;
 X_ref = X_tref(~I_remove,:);
 s_ref = s_ref(~I_remove);
+
 %% Initialisierung weiterer Größen
 % Create range of values for the redundant coordinate.
 phiz_range = unique([s.map_phistart:-s.mapres_redcoord_dist_deg*pi/180:s.maplim_phi(1), ...
@@ -207,6 +209,11 @@ s_ep_glbdscr = rmfield(s_ep_glbdscr, 'finish_in_limits'); % does not work withou
 s_traj_glbdscr = struct('simplify_acc', true);
 H_all = NaN(size(X_ref,1), length(phiz_range(:)), R.idx_ik_length.hnpos+4);
 Q_all = NaN(length(phiz_range(:)), R.NJ, size(X_ref,1));
+
+if s.only_trajectory_normalization
+  % Abbruch erst hier, damit alle Ausgaben definiert sind
+  return
+end
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
 if R.Type == 0,   R.I_EE_Task = s.I_EE_full;
