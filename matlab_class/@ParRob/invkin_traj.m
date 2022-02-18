@@ -85,7 +85,7 @@
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
 %       Kriterien, siehe Beschreibung von Eingabe wn)
 %   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
-%   .condJ (n+1x2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
+%   .condJ (NT x 2): (1.) Konditionszahl der IK-Jacobi-Matrix (Ableitung
 %     des Euler-Winkel-Residuums mit reduzierten FG. (2.) Konditionszahl 
 %     der analytischen PKM-Jacobi-Matrix ohne Betrachtung von Aufgaben-Red.
 %   .errorcode [1x1]: Grund für den frühzeitigen Abbruch der Trajektorie.
@@ -165,6 +165,14 @@ else
 end
 if Rob_I_EE(6) && ~I_EE(6)
   taskred_rot = true;
+end
+% Stelle fest, ob Schwellen der Zielfunktion zum Abbruch führen sollen
+if ~nsoptim && any(~isnan(s.abort_thresh_h))
+  % Setze Marker, damit auch im nicht-redundanten Fall die Zielkriterien
+  % berechnet werden
+  calc_h_nored = true;
+else
+  calc_h_nored = false;
 end
 % Vermerke, ob die PKM strukturen 3T2R-FG hat. Dann wird auch die
 % Modellierung für 3T2R-Aufgaben gewählt.
@@ -276,7 +284,7 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 % Schwellwert der Z-Rotation (3T2R) für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 xlim = s.xlim;
-xlim_thr_h10 = repmat(mean(s.xlim,2),1,2) + repmat(s.xlim(:,2)-s.xlim(:,1),1,2).*...
+xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
 
 idx_wnP = Rob.idx_iktraj_wnP;
@@ -338,6 +346,7 @@ else
 end
 % Variablen initialisieren (werden nicht in jedem Ausführungspfad benötigt)
 JD_x_inv = NaN(NJ,sum(Rob_I_EE));
+J_q_qa = NaN(NJ,sum(Rob_I_EE));
 Phi_q_alt = zeros(length(Rob.I_constr_t_red)+length(Rob.I_constr_r_red), NJ);
 Phi_q_voll_alt = zeros(6*NLEG, NJ);
 Phi_qD_voll = Phi_q_voll_alt;
@@ -567,8 +576,14 @@ for k = 1:nt
     Stats.mode(k) = bitset(Stats.mode(k),23);
   end
   Stats.condJ(k,:) = [condJik, condJ];
-  if nsoptim % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
+  if nsoptim || ... % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
+      calc_h_nored % Leistungsmerkmale sollen im nicht-redundanten Fall berechnet werden
     Stats.mode(k) = bitset(Stats.mode(k),2);
+    % Initialisierung
+    x_k_ist = x_k; % Vorbelegen der nicht redundanten Koordinaten
+    xD_k_ist = xD_k;
+    delta_phi_z = 0;
+    if taskred_rot % Nur bei Rotations-Aufgabenredundanz neu berechnen
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
     % Notwendig für die constr4-Methode für Jacobi-Matrix.
     % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
@@ -583,7 +598,6 @@ for k = 1:nt
       xD_k_ist(Rob_I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k(1:Rob.I2J_LEG(1));
       xD_k_T_ist(Rob_I_EE) = J_x_inv(1:Rob.I2J_LEG(1),:) \ qD_k_T(1:Rob.I2J_LEG(1));
     end
-    x_k_ist = x_k; % Vorbelegen der nicht redundanten Koordinaten
     % Das IK-Residuum bezieht sich auf x_k und bildet die Differenz des
     % Ist-Werts zum Referenz-Wert x_k(6) aus der Trajektorie
     delta_phi_z = -Phi_r(1); % phiz_soll - phiz_ist
@@ -595,7 +609,8 @@ for k = 1:nt
       x_k_ist(6) = normalizeAngle(x_k(6) - delta_phi_z, X(k-1,6)+xD_k_ist(6)*dt);
     end
     X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
-
+    end % if taskred_rot
+    if nsoptim
     % Berechne Maximalgeschwindigkeit für Nullraumbewegung für den nächsten
     % Zeitschritt. Unten wird dies für den nächsten Zeitschritt benutzt.
     if ~isempty(s.nullspace_maxvel_interp) && k < nt
@@ -623,6 +638,7 @@ for k = 1:nt
       qD_N_lim_noscale = qDlim - repmat(qD_k_T,1,2);
       qD_N_lim = qD_N_lim_noscale * vmax_rel;
     end
+    end % if nsoptim
     % Bestimme Grenzen für redundante Koordinate per Interpolation
     % Dadurch ist eine Aufweitung und Verengung der Grenzen möglich.
     % Die Grenzen beziehen sich weiterhin auf die Trajektorie X
@@ -641,7 +657,6 @@ for k = 1:nt
         xlim_thr_h10(6,:) = 0;
       end
     end
-
     % Inkrement der Plattform für Prüfung der Optimierungskriterien.
     % Annahme: Nullraum-FG ist die Drehung um die z-Achse (Rotationssymm.)
     % Dadurch numerische Bestimmung der partiellen Ableitung nach 6. Koord.
@@ -659,13 +674,14 @@ for k = 1:nt
       J_ax = inv(J_x_inv(I_qa,:));
       J_ax_3T3R = zeros(6,sum(I_qa));
       J_ax_3T3R(Rob_I_EE,:) = J_ax;
+      v_qaD = zeros(sum(I_qa), 1);
+      v_qaDD = zeros(sum(I_qa), 1);
+      if nsoptim
       % Jacobi-Matrix zur Umrechnung von Antrieben auf Gesamtgelenke
       J_q_qa = J_x_inv * J_ax; %#ok<MINV>
       % Nullraum-Projektor bezogen auf analytische Jacobi-Matrix ohne
       % letzte redundante Koordinate
-      Na = (eye(sum(I_qa)) - pinv(J_ax_3T3R(I_EE,:))* J_ax_3T3R(I_EE,:));
-      v_qaD = zeros(sum(I_qa), 1);
-      v_qaDD = zeros(sum(I_qa), 1);
+      end
       % Bestimme den Gradienten der Optimierungskriterien zuerst bezüglich
       % der redundanten EE-Koordinate und rechne dann auf die Antriebe um.
       %% Antriebskoordinaten: Einhaltung Gelenkwinkelgrenzen
@@ -980,6 +996,8 @@ for k = 1:nt
         v_qaDD = v_qaDD - wn(idx_wnP.xDlim_par)*h11dqa(:);
       end
       %% Antriebskoordinaten: Abschluss der Nullraumbewegung
+      if nsoptim
+      Na = (eye(sum(I_qa)) - pinv(J_ax_3T3R(I_EE,:))* J_ax_3T3R(I_EE,:));
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -1003,6 +1021,7 @@ for k = 1:nt
       % zweiter Methode (vollständige Gelenkkoordinaten). TODO: Genaue
       % Formel noch unklar. So erstmal halb geraten und passt nicht ganz.
       qDD_N_pre = qDD_N_pre / norm(J_q_qa);
+      end % if nsoptim
     end
     % Berechne Nullraumbewegung in vollständigen Gelenkkoordinaten.
     % Robuster, aber auch rechenaufwändiger. Daher nur benutzen, wenn
@@ -1042,6 +1061,7 @@ for k = 1:nt
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
         Stats.mode(k) = bitset(Stats.mode(k),8);
+        if nsoptim
         Phi_q_test = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         h5_test = invkin_optimcrit_condsplineact(cond(Phi_q_test), ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
@@ -1053,6 +1073,7 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(idx_wnD.ikjac_cond)*h5dq(:);
         v_qDD = v_qDD - wn(idx_wnP.ikjac_cond)*h5dq(:);
+        end % if nsoptim
       else
         h(idx_hn.ikjac_cond) = 0;
       end
@@ -1061,6 +1082,7 @@ for k = 1:nt
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+        if nsoptim
         % Siehe gleiche Berechnung oben.
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
         [~,Phi_x_voll_test] = Rob.constr3grad_x(q_k+qD_test, x_k+xD_test);
@@ -1100,6 +1122,7 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(idx_wnD.jac_cond)*h6dq(:);
         v_qDD = v_qDD - wn(idx_wnP.jac_cond)*h6dq(:);
+        end % if nsoptim
       else
         h(idx_hn.jac_cond) = 0;
       end
@@ -1278,6 +1301,7 @@ for k = 1:nt
         v_qDD = v_qDD - wn(idx_wnP.xDlim_par)*h11dq(:);
       end
       %% Gelenkkoordinaten: Abschluss der Nullraumbewegung
+      if nsoptim
       % Begrenze die Werte für die Gradienten (können direkt an Grenzen
       % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
       % saubere Nullraumbewegung mehr möglich.
@@ -1362,8 +1386,9 @@ for k = 1:nt
         % if-else wegen debug-Abfrage).
         qDD_N_pre = qDD_N_pre_voll;
       end
+      end % if nsoptim
     end
-  end
+  end % if nsoptim || calc_h_nored
   %% Nullraumbewegung weiter nachverarbeiten
   % Reduziere die Nullraumbeschleunigung weiter, falls Beschleunigungs-
   % Grenzen erreicht werden. Sollte eigentlich nur hier gemacht werden,

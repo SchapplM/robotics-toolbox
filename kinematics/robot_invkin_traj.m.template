@@ -191,8 +191,6 @@ else
   qmax(:) =  Inf;
   limits_q_set = false;
 end
-enforce_qlim = s.enforce_qlim;
-enforce_qDlim = s.enforce_qDlim;
 % Prüfe, ob Grenzen für die Geschwindigkeit gesetzt wurden
 qDlim = s.qDlim;
 if all(~isnan(s.qDlim(:)))
@@ -222,8 +220,9 @@ if ~all(isnan(s.xDlim(:)))
 else
   limits_xD_set = false;
 end
+enforce_qlim = s.enforce_qlim;
+enforce_qDlim = s.enforce_qDlim;
 enforce_xDlim = s.enforce_xDlim;
-
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
 qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
@@ -251,6 +250,14 @@ else
   % Redundanz vorliegend. Wird für Nullraumoptimierung und weitere
   % Nullraumbewegungen genutzt.
   redundant = true;
+end
+% Stelle fest, ob Schwellen der Zielfunktion zum Abbruch führen sollen
+if ~nsoptim && any(~isnan(s.abort_thresh_h))
+  % Setze Marker, damit auch im nicht-redundanten Fall die Zielkriterien
+  % berechnet werden
+  calc_h_nored = true;
+else
+  calc_h_nored = false;
 end
 [~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index(0);
 % Definitionen für die Kollisionsprüfung
@@ -351,6 +358,7 @@ qD_k_T = zeros(NQJ,1);
 qDD_k_T = zeros(NQJ,1);
 qD_k = zeros(NQJ,1);
 qD_N_pre_alt = zeros(NQJ,1);
+qDD_N_pre = zeros(NQJ,1);
 qDD_N_pre1 = zeros(NQJ,1);
 N = zeros(NQJ,NQJ);
 x_k_ist = NaN(6,1);
@@ -506,7 +514,8 @@ for k = 1:nt
 %         repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
     end
   end
-  if nsoptim % Nullraumbewegung, siehe [RMG16], [RMG18]
+  if nsoptim || ...% Nullraumbewegung, siehe [RMG16], [RMG18]
+      calc_h_nored % Leistungsmerkmale sollen im nicht-redundanten Fall berechnet werden
     % Positions-bezogene Kriterien werden auf Geschwindigkeitsebene behandelt
     % Geschwindigkeits-bezogene Kennzahlen werden auf Beschleunigungsebene behandelt
     v_qD = zeros(NQJ, 1);
@@ -538,6 +547,7 @@ for k = 1:nt
           1.5*s.cond_thresh_jac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
       h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
+      if nsoptim
       if NQJ - sum(I_EE) == 1 && ~I_EE(end)
         % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
         % Numerischer Differenzenquotient aus Bewegung in EE-z-Drehung.
@@ -578,6 +588,7 @@ for k = 1:nt
       v_qDD = v_qDD - wn(idx_wnP.ikjac_cond)*h5dq';
       v_qD = v_qD - wn(idx_wnD.jac_cond)*h6dq';
       v_qDD = v_qDD - wn(idx_wnP.jac_cond)*h6dq';
+      end % if nsoptim
     else
       h(idx_hn.jac_cond) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
     end
@@ -912,6 +923,7 @@ for k = 1:nt
       v_qDD = v_qDD - wn(idx_wnP.xDlim_par)*h11dq';
     end
     %% Nullraumbewegung abschließen
+    if nsoptim
     % Begrenze die Werte für die Gradienten (können direkt an Grenzen
     % oder Singularitäten extrem werden). Dann Numerik-Fehler und keine
     % saubere Nullraumbewegung mehr möglich.
@@ -929,6 +941,7 @@ for k = 1:nt
     % Zielfunktion h. Siehe [RMG16]/(20) (zweiter Term)
     % Hier auch direkte Addition der Nullraumbewegung aus Geschwindigkeit.
     qDD_N_pre = qDD_N_pre1 + N * v_qDD;
+    end
   else
     qDD_N_pre = zeros(NQJ,1);
   end
