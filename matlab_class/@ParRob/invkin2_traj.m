@@ -139,6 +139,7 @@ s = struct('I_EE', R.I_EE,...
      'Leg_qDDlim', Leg_qDDlim, ...
    'enforce_qlim', true, ... % Standardmäßig Positions-Grenzen um jeden Preis versuchen einzuhalten
   'enforce_qDlim', true, ... % Das gleiche für Geschwindigkeits-Grenzen
+  'enforce_xlim', true, ... % Einhaltung der Winkelgrenzen für die Plattform (bei Nullraumbewegung)
   'enforce_xDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen für die Plattform (bei Nullraumbewegung)
 'Leg_phiconv_W_E', Leg_phiconv_W_E);
 %% Eingabestruktur für IK-Einstellungen

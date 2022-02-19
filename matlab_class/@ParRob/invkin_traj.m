@@ -134,6 +134,7 @@ s_std = struct( ...
   'nullspace_maxvel_interp', zeros(2,0), ... % Begrenzung der Nullraumgeschwindigkeit mit Skalierung
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
+  'enforce_xlim', true, ... % Einhaltung der Positionsgrenzen für die Plattform (bei Nullraumbewegung)
   'enforce_xDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen für die Plattform (bei Nullraumbewegung)
   'collbodies_thresh', 1.5, ... % Vergrößerung der Kollisionskörper für Aktivierung des Ausweichens
   'collision_thresh', NaN, ... % absoluter Schwellwert für die Aktivierung der Kollisions-Kennzahl (hyperbolisch)
@@ -276,6 +277,7 @@ else
 end
 enforce_qlim = s.enforce_qlim;
 enforce_qDlim = s.enforce_qDlim;
+enforce_xlim = s.enforce_xlim;
 enforce_xDlim = s.enforce_xDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
@@ -286,7 +288,11 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 xlim = s.xlim;
 xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
-
+if ~all(isnan(xlim(:))) || ~isempty(s.xlim6_interp)
+  limits_x_set = true;
+else
+  limits_x_set = false;
+end
 idx_wnP = Rob.idx_iktraj_wnP;
 idx_wnD = Rob.idx_iktraj_wnD;
 idx_hn  = Rob.idx_iktraj_hn;
@@ -1589,13 +1595,55 @@ for k = 1:nt
     % werden
     qDD_N_post = qDD_N_pre;
   end
-  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Position der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_x_set && enforce_xlim
+    % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
+    qDD_pre = qDD_k_T + qDD_N_post;
+    if condJ < 1e6
+      % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
+      xDD_JDqD = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
+        J_x_inv(I_qa,:) * qD_k(I_qa);
+      xDD_k_pre = J_x_inv(I_qa,:) \ qDD_pre(I_qa) + xDD_JDqD;
+    else
+      % Benutze Jacobi-Matrix basierend auf erster Beinkette
+      xDD_JDqD = - J_x_inv(1:Rob.I2J_LEG(1),:) \ JD_x_inv(1:Rob.I2J_LEG(1),:) / ...
+        J_x_inv(1:Leg_NQJ(1),:) * qD_k(1:Leg_NQJ(1));
+      xDD_k_pre = J_x_inv(1:Rob.I2J_LEG(1),:) \ qDD_pre(1:Rob.I2J_LEG(1)) + xDD_JDqD;
+    end
+    phizDD_k_pre = xDD_k_pre(6);
+    % Bestimme erwartete EE-Drehung (Annahme: Konstante Beschleunigung)
+    phiz_pre = x_k_ist(6) + xD_k_ist(6)*dt + 0.5*phizDD_k_pre*dt^2;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden. Grenzen sind
+    % relativ zur Soll-Trajektorie in x_k (nicht: x_k_ist)
+    if phiz_pre < x_k(6) + xlim(6,1)
+      delta_phiz = x_k(6) + xlim(6,1) - phiz_pre;
+    elseif phiz_pre > x_k(6) + xlim(6,2)
+      delta_phiz = x_k(6) + xlim(6,2) - phiz_pre;
+    else
+      delta_phiz = 0;
+    end
+    % Erzeuge eine Nullraumbewegung um die überlaufende EE-Drehung
+    % auszugleichen
+    if delta_phiz ~= 0
+      Stats.mode(k) = bitset(Stats.mode(k),26);
+      % Ansatz: delta_phiz = 0.5 * phizDD_counterlim * dt^2
+      phizDD_counterlim = 2 * (delta_phiz*1.03) / dt^2; % 3% mehr wegen Ungenauigkeit
+      xDD_counterlim = [zeros(5,1); phizDD_counterlim];
+      delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
+      qDD_N_post = qDD_N_post + delta_qDD;
+    end
+  end
+  
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der Gelenk-
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
   if redundant && limits_q_set && enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
       condJik < 1e10 % numerisch nicht für singuläre PKM sinnvoll
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
+    % Ansatz: Konstante Beschleunigung (für Position die aktuelle Geschw.)
     qD_pre2 = qD_k + qDD_pre2*dt;
     q_pre2 = q_k + qD_k*dt + 0.5*qDD_pre2*dt^2;
     % Prüfe, ob Grenzen damit absehbar verletzt werden

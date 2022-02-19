@@ -172,6 +172,7 @@ function [Q, QD, QDD, PHI, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs        'Leg_qDDlim', zeros(6,2*%NLEG%),
 %$cgargs    'enforce_qlim', false,
 %$cgargs   'enforce_qDlim', false,
+%$cgargs    'enforce_xlim', false,
 %$cgargs   'enforce_xDlim', false,
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1))),
 %$cgargs struct(    'reci', true,
@@ -286,6 +287,7 @@ else
 end
 enforce_qlim = s.enforce_qlim;
 enforce_qDlim = s.enforce_qDlim;
+enforce_xlim = s.enforce_xlim;
 enforce_xDlim = s.enforce_xDlim;
 % Schwellwert in Gelenkkoordinaten für Aktivierung des Kriteriums für 
 % hyperbolisch gewichteten Abstand von den Grenzen.
@@ -296,7 +298,11 @@ qlim_thr_h2 = repmat(mean(qlim,2),1,2) + repmat(qlim(:,2)-qlim(:,1),1,2).*...
 xlim = s.xlim;
 xlim_thr_h10 = repmat(mean(xlim,2),1,2) + repmat(xlim(:,2)-xlim(:,1),1,2).*...
   repmat([-0.5, +0.5]*0.8,6,1); % vorläufig auf 80% der Grenzen in xlim
-
+if ~all(isnan(xlim(:))) || ~isempty(s.xlim6_interp)
+  limits_x_set = true;
+else
+  limits_x_set = false;
+end
 [~, ~, idx_wnP, idx_wnD, idx_hn, idx_ik_length] = ik_optimcrit_index(2);
 
 % Definitionen für die Kollisionsprüfung
@@ -1783,7 +1789,48 @@ for k = 1:nt
     % werden
     qDD_N_post = qDD_N_pre;
   end
-  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der
+  
+  % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
+  % Position der Plattform-Koordinaten verletzt werden
+  if redundant && taskred_rot && limits_x_set && enforce_xlim
+    % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
+    qDD_pre = qDD_k_T + qDD_N_post;
+    if condJ < 1e6
+      % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
+      xDD_JDqD = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
+        J_x_inv(I_qa,:) * qD_k(I_qa);
+      xDD_k_pre = J_x_inv(I_qa,:) \ qDD_pre(I_qa) + xDD_JDqD;
+    else
+      % Benutze Jacobi-Matrix basierend auf erster Beinkette
+      xDD_JDqD = - J_x_inv(1:Leg_NQJ(1),:) \ JD_x_inv(1:Leg_NQJ(1),:) / ...
+        J_x_inv(1:Leg_NQJ(1),:) * qD_k(1:Leg_NQJ(1));
+      xDD_k_pre = J_x_inv(1:Leg_NQJ(1),:) \ qDD_pre(1:Leg_NQJ(1)) + xDD_JDqD;
+    end
+    phizDD_k_pre = xDD_k_pre(6);
+    % Bestimme erwartete EE-Drehung (Annahme: Konstante Beschleunigung)
+    phiz_pre = x_k_ist(6) + xD_k_ist(6)*dt + 0.5*phizDD_k_pre*dt^2;
+    % Prüfe, ob Grenzen damit absehbar verletzt werden. Grenzen sind
+    % relativ zur Soll-Trajektorie in x_k (nicht: x_k_ist)
+    if phiz_pre < x_k(6) + xlim(6,1)
+      delta_phiz = x_k(6) + xlim(6,1) - phiz_pre;
+    elseif phiz_pre > x_k(6) + xlim(6,2)
+      delta_phiz = x_k(6) + xlim(6,2) - phiz_pre;
+    else
+      delta_phiz = 0;
+    end
+    % Erzeuge eine Nullraumbewegung um die überlaufende EE-Drehung
+    % auszugleichen
+    if delta_phiz ~= 0
+      Stats.mode(k) = bitset(Stats.mode(k),26);
+      % Ansatz: delta_phiz = 0.5 * phizDD_counterlim * dt^2
+      phizDD_counterlim = 2 * (delta_phiz*1.03) / dt^2; % 3% mehr wegen Ungenauigkeit
+      xDD_counterlim = [zeros(5,1); phizDD_counterlim];
+      delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
+      qDD_N_post = qDD_N_post + delta_qDD;
+    end
+  end
+  
+  % Berechne maximale Nullraum-Beschleunigung bis zum Erreichen der Gelenk-
   % Positionsgrenzen. Reduziere, falls notwendig. Berechnung nach Betrachtung
   % der Geschwindigkeits- und Beschl.-Grenzen, da Position wichtiger ist.
   if redundant && limits_q_set && enforce_qlim && ... % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
