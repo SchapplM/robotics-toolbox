@@ -433,8 +433,9 @@ for k = 1:nt
     qD_k = qD_k_T + qDNk0 + qD_korr;
     % Korrigiere nachträglich auch die Beschleunigung, da sie sich geändert
     % hat. Benutze direkt den Differenzenquotienten. Sonst inkonsistente Ausgabe.
+    % Nehme Quotienten in dem die Korrektur der Position berücksichtigt ist
     if k > 1
-      QDD(k-1,:) = (qD_k' - QD(k-1,:))/(T(k)-T(k-1));
+      QDD(k-1,:) = 1/dt^2*(Q(k,:) - Q(k-1,:) - QD(k-1,:)*dt);
     end
   end
   %% Gelenk-Beschleunigung berechnen
@@ -1157,8 +1158,9 @@ for k = 1:nt
   if redundant && limits_q_set && enforce_qlim % Nullraum-Optimierung erlaubt Begrenzung der Gelenk-Position
     qDD_pre2 = qDD_k_T+qDD_N_post;
     % Daraus berechnete Position und Geschwindigkeit im nächsten Zeitschritt
+    % Ansatz: Konstante Beschleunigung (für Position die aktuelle Geschw.)
     qD_pre2 = qD_k + qDD_pre2*dt;
-    q_pre2 = q_k + qD_pre2*dt + 0.5*qDD_pre2*dt^2;
+    q_pre2 = q_k + qD_k*dt + 0.5*qDD_pre2*dt^2;
     % Prüfe, ob Grenzen damit absehbar verletzt werden
     delta_ul = (qmax - q_pre2); % Überschreitung der Maximalwerte: <0
     delta_ll = (-qmin + q_pre2); % Unterschreitung Minimalwerte: <0
