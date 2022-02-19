@@ -64,6 +64,7 @@ s = struct( ...
   ... % Optimierungs-Zustände in der DP. Indizes bezogen auf `X_t_in` usw.
   'IE', [1, size(X_t_in,1)], ... 
   'debug_dir', '', ... % Verzeichnis zum Speichern aller Zwischenzustände
+  'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
   'verbose', 0); % Stufen: 1=Text, 2=Zusammenfassungs-Bilder, 3=alle Bilder
 % Vorgegebene Einstellungen laden
@@ -87,6 +88,10 @@ assert(s.IE(1) == 1, 'Erster Eintrag von IE muss 1 sein');
 assert(s.IE(end) == size(X_t_in,1), 'Letzter Eintrag von IE muss Trajektorienlänge sein');
 assert(all(diff(s.IE)>0), 'Rastpunkt-Indizes müssen aufsteigend sein');
 assert(length(unique(s.IE))==length(s.IE), 'Rastpunkt-Indizes müssen eindeutig sein');
+if s.continue_saved_state && isempty(s.debug_dir)
+  warning('Laden von gespeichertem Zustand nicht möglich, da kein Ordner gegeben.');
+  s.continue_saved_state = false;
+end
 %% Roboter-bezogene Variablen initialisieren
 if R.Type == 0
   qlim = R.qlim;
@@ -143,7 +148,11 @@ n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
 n_statechange_total = 0; % Anzahl aller Stufenübergänge
 nt_ik = 0; % Anzahl insgesamt simulierter Trajektorien-Zeitschritte
 %% Einstellungen für Trajektorien-IK vorbereiten
-s_Traj = struct('enforce_qlim', false);
+s_Traj = struct('enforce_qlim', false, ... % hier nicht relevant bzw. anderweitig abgedeckt
+  ... % Plattform-Trajektorie in Toleranzband erzwingen. Sollte eigentlich
+  ... % durch Kriterium xlim_hyp erreicht werden. Ist nur Rückfallebene
+  'enforce_xlim', true, ... 
+  'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % hohe Genauigkeit für Positionskorrektur
 % Gewichtungen der Nullraumoptimierung einstellen.
 s_Traj.wn = zeros(R.idx_ik_length.wntraj,1);
 wn_names = {}; % Namen der aktiven Nebenbedingungen
@@ -170,9 +179,11 @@ s_Traj.wn(R.idx_iktraj_wnP.qDlim_par) = 0.5; % Dämpfung
 s_Traj.wn(R.idx_iktraj_wnP.xlim_par) = 1; %   P-Regler
 s_Traj.wn(R.idx_iktraj_wnD.xlim_par) = 0.7; % D-Regler
 % Hyperbolische Gewichtung des Abstands zu den Grenzen: Stößt stark von
-% Grenzen ab.
-s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 1; %   P-Regler
-s_Traj.wn(R.idx_iktraj_wnD.xlim_hyp) = 0.7; % D-Regler
+% Grenzen ab. Muss sehr hoch skaliert werden, da Zielfunktion erst kurz vor
+% Grenze wirklich stark ansteigt und dann der Bremsweg oft zu kurz ist.
+% Sonst dominiert die Konditionszahl
+s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 100*1; %   P-Regler
+s_Traj.wn(R.idx_iktraj_wnD.xlim_hyp) = 100*0.7; % D-Regler
 % Dämpfung xlim quadratisch (bzw. Bestrafung der Abweichung von Ref.-Geschw.)
 s_Traj.wn(R.idx_iktraj_wnP.xDlim_par) = 0.5;
 % Einhaltung der Geschwindigkeitsgrenzen erzwingen (mit Nullraumbewegung)
@@ -180,8 +191,11 @@ s_Traj.enforce_xDlim = true;
 % Sofort abbrechen, wenn eine der Nebenbedingungen verletzt wurde. Dadurch
 % schnellere Berechnung. Konfiguration über Eingabe möglich.
 s_Traj.abort_thresh_h = s.abort_thresh_h;
-% Zusätzlich immer die Einhaltung der Grenzen der Optimierungsvariable
-s_Traj.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = inf;
+% Einhaltung der Grenzen der Optimierungsvariable nicht erzwingen. Wird mit
+% enforce_xlim gemacht und so wird eine kurze, geringfügige Überschreitung
+% erlaubt. Falls inf gesetzt wird, erfolgt sofort ein Abbruch wenn die Traj.
+% das Toleranzband überschreitet.
+s_Traj.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = NaN;
 % Nehme nicht die IK-Lösung mit minimaler Norm von qDD, sondern benutze die
 % Trajektorie aus der Dynamischen Optimierung als Vorsteuerung.
 % Sonst können die Toleranzbänder für die Zustandswechsel oft nicht
@@ -226,6 +240,8 @@ if R.I_EE_Task(6) == R.I_EE(6)
   s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 0; % irrelevant bei 3T3R
   s_Traj.wn(R.idx_iktraj_wnP.qDlim_hyp) = 0; % irrelevant bei 3T3R
 end
+% Debug-Einstellung auch in Trajektorie übernehmen
+s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
 %% Dynamische Programmierung vorbereiten
 IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
 XE = X_t_in(IE,:); % EE-Pose für die Eckpunkte
@@ -268,6 +284,7 @@ F_stage_cond = NaN(z, z);
 
 %% Debug-Bild vorbereiten
 if s.verbose > 1
+  DbgLineHdl = NaN(z,z); % Handle mit Linien für alle Zwischenschritte
   figikhdl = change_current_figure(500);clf;hold on;
   sgtitle(figikhdl, sprintf('Redundanzkarte für alle Stufen'));
   set(figikhdl, 'Name', sprintf('DynProg_PerfMap'), 'NumberTitle', 'off');
@@ -451,6 +468,19 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   F_stage_cond(:) = inf;
   YE_stage(:) = NaN;
   QE_stage(:) = NaN;
+  if false && s.continue_saved_state % TODO: Prüfung fehlt, Tmp-Plot geht nicht
+    % Prüfe, ob ein gespeicherter Zustand geladen werden kann
+    d = load(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
+      'F_stage_sum', 'F_stage', 'F_stage_cond', 'QE_stage', 'YE_stage');
+    F_stage = d.F_stage;
+    F_stage_cond = d.F_stage_cond;
+    YE_stage = d.YE_stage;
+    QE_stage = d.QE_stage;
+    if s.verbose
+      fprintf('Zustand %d aus Datei geladen. Überspringe Berechnung\n', i);
+    end
+    nz_i = 0;
+  end
   for k = 1:nz_i % z unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
     % Im Mittel vorgesehener Wert für den Zustand
@@ -571,41 +601,81 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
       % Grenzen für die redundante Koordinate erst schmal, dann weit und
       % dann wieder eng
-      xlim6_interp = NaN(3,4); % Spalten: Zeitschritte
+      xlim6_interp = NaN(3,5); % Spalten: Zeitschritte
       % Schmale Grenzen (Breite wie Abstand zwischen DO-Zuständen)
       xlim6_interp(:,1) = [t_i(1);-delta_phi/2; delta_phi/2];
+      % Direkt am Anfang zwei Punkte einfügen, damit Ableitung des Spline
+      % am Anfang Null ist. Sonst zu viel oszillieren.
+      xlim6_interp(:,2) = [t_i(1)+1e-6;-delta_phi/2; delta_phi/2];
       % Aufweiten der Grenzen: drei mal so breit wie am Anfang.
-      xlim6_interp(:,2) = [mean([t_i(1),nullspace_maxvel_interp(1,2)]); ...
+      xlim6_interp(:,3) = [mean([t_i(1),nullspace_maxvel_interp(1,2)]); ...
         xlim6_interp(2:3,1)*3];
       % Toleranzband darf sich nicht mehr ändern, während die
       % Nullraumgeschwindigkeit auf Null gebremst wird
-      xlim6_interp(:,3) = [nullspace_maxvel_interp(1,2);-delta_phi/2 + 1e-3; delta_phi/2 - 1e-3];
+      xlim6_interp(:,4) = [nullspace_maxvel_interp(1,2);-delta_phi/2 + 1e-3; delta_phi/2 - 1e-3];
       % Danach Grenzen konstant lassen. Die Aufgabenbewegung darf nicht
       % dazu führen, dass die Trajektorie wieder das Band verlässt.
       % Die Bewegung die in der phiz-Variable der Trajektorie ist, muss
       % ausgeglichen werden (siehe Debug-Plot)
-      xlim6_interp(:,4) = [t_i(end); xlim6_interp(2:3,3)]; % keine Modifikation hier wenn Traj. oben korrigiert
+      xlim6_interp(:,5) = [t_i(end); xlim6_interp(2:3,4)]; % keine Modifikation hier wenn Traj. oben korrigiert
       % Debug: Plotten des Bereichs
-%         figure(99);clf;hold on;
-%         plot(t_l, 180/pi*X_t_l(:,6));
-%         plot(t_l, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_l)));
-%         plot(t_l, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_l)));
-%         grid on;
+%       figure(99);clf;hold on;
+%       plot(t_i, 180/pi*X_t_l(:,6));
+%       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')));
+%       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')));
+%       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i)));
+%       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)));
+%       grid on;
       s_Traj.xlim6_interp = xlim6_interp;
       % Trajektorie berechnen
       t0_traj = tic();
-      if R.Type == 0 % Seriell
-        [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
-      else % PKM
-        [Q, QD, QDD, ~, ~, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
+      calc_traj = true;
+      if s.continue_saved_state
+        % Prüfe, ob ein gespeicherter Zustand geladen werden kann
+        resfile_l = fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+          'to%d_result.mat'], i-1, k, l));
+        if exist(resfile_l, 'file')
+          d = load(resfile_l);
+          Q = d.Q;
+          QD = d.QD;
+          QDD = d.QDD;
+          Stats = d.Stats;
+          if size(Q,1) ~= length(t_i) || ... % Länge ist falsch.
+              abs(d.X6_traj(1) - z_k) > 1e-6 % Anfangswert ist anders. Passt nicht.
+            if s.verbose && calc_traj
+              fprintf(['Geladene Daten passen nicht zu der Trajektorie. ', ...
+                'Kein weiteres Laden von Ergebnissen versuchen.\n']);
+            end
+            s.continue_saved_state = false;
+          else
+            calc_traj = false;
+          end
+        else
+          if s.verbose
+            fprintf(['Datei für Übergang %d/%d-%d/%d nicht vorhanden. ', ...
+              'Kein Laden weiterer Ergebnisse versuchen.\n'], i-1, k, i, l);
+          end
+          s.continue_saved_state = false;
+        end
+        if s.verbose
+          fprintf(['Zustand %d/%d-%d/%d aus Datei geladen. Überspringe ', ...
+            'Berechnung der Trajektorie\n'], i-1, k, i, l);
+        end
+      end
+      if calc_traj
+        if R.Type == 0 % Seriell
+          [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
+        else % PKM
+          [Q, QD, QDD, ~, ~, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
+        end
+        if s.verbose
+          fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
+            Stats.iter, length(t_i), toc(t0_traj), 1e3*toc(t0_traj)/Stats.iter);
+        end
       end
       assert(all(~isnan(Stats.h(1:Stats.iter,1))), 'Nebenbedingung NaN. Logik-Fehler');
       % Anzahl der insgesamt durchführten IK-Schritte speichern
       nt_ik = nt_ik + Stats.iter;
-      if s.verbose
-        fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
-          Stats.iter, length(t_i), toc(t0_traj), 1e3*toc(t0_traj)/Stats.iter);
-      end
       if any(Stats.errorcode == [0 1 2])
         % Entweder kein Abbruch der IK (Code 0), oder Abbruch der IK
         % aufgrund unmöglicher Berechnung von q/qD/qDD (Code 1/2).
@@ -672,6 +742,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if Stats.iter < length(t_i) % Trajektorie nicht erfolgreich
         % Setze Strafterm unendlich
         F_stage(k,l) = inf;
+      elseif X_l(iter_l) < X_t_l(iter_l,6) + xlim6_interp(2,end) || ...
+             X_l(iter_l) > X_t_l(iter_l,6) + xlim6_interp(3,end)
+        % Wert für die redundante Koordinate ist außerhalb des Zielbereichs
+        % Kann gelegentlich passieren, wenn enforce_xlim nicht richtig funktioniert.
+        F_stage(k,l) = inf;
       else % Erfolgreich berechnet
         % Kostenfunktion für DP aus IK-Zielfunktion bestimmen:
         % Bedingung: Kriterium ist addierbar über die gestückelte Trajektorie
@@ -719,6 +794,43 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
         end
       end
+      % Prüfe Konsistenz von zurückgegebenen Daten
+      if s.debug
+        % Position neu mit Trapezregel berechnen (Integration)
+        Q_num = repmat(Q(1,:),iter_l,1)+cumtrapz(t_i(1:iter_l), QD(1:iter_l,:));
+        % das gleiche für die Geschwindigkeit
+        QD_num = cumtrapz(t_i(1:iter_l), QDD(1:iter_l,:));
+        QDD_num = zeros(size(Q_num));
+        QDD_num(2:iter_l,:) = diff(QD(1:iter_l,:))./...
+          repmat(diff(t_i(1:iter_l)), 1, size(Q,2)); % Differenzenquotient
+        
+        % Bestimme Korrelation zwischen den Verläufen (1 ist identisch)
+        corrQD = diag(corr(QD_num, QD(1:iter_l,:)));
+        corrQ = diag(corr(Q_num, Q(1:iter_l,:)));
+        if any(corrQD < 0.95) || any(corrQ < 0.98)
+          fprintf(['Keine konsistenten Gelenkverläufe. Korrelation q ', ...
+            '%1.2f...%1.2f, qD %1.2f...%1.2f\n'], min(corrQ), max(corrQ), ...
+            min(corrQD), max(corrQD));
+          if s.verbose > 2 && false % nur manuell untersuchen
+            change_current_figure(56);clf;
+            for kkk = 1:R.NJ
+              subplot(ceil(sqrt(R.NJ)), ceil(sqrt(R.NJ)), kkk); hold on;
+              plot(t_i(1:iter_l), [QD(1:iter_l,kkk), QD_num(:,kkk)]);
+              ylabel(sprintf('qD %d', kkk)); grid on;
+            end
+            legend({'traj.', 'int.'});
+            linkxaxes
+            change_current_figure(57);clf;
+            for kkk = 1:R.NJ
+              subplot(ceil(sqrt(R.NJ)), ceil(sqrt(R.NJ)), kkk); hold on;
+              plot(t_i(1:iter_l), [QDD(1:iter_l,kkk), QDD_num(:,kkk)]);
+              ylabel(sprintf('qDD %d', kkk)); grid on;
+            end
+            legend({'traj.', 'int.'});
+            linkxaxes
+          end
+        end
+      end
       %% Debugge einzelne Trajektorie
       if isinf(F_stage(k,l)) && s.verbose > 2
         [~, XD_l, XDD_l] = R.fkineEE2_traj(Q(1:iter_l,:), ...
@@ -727,8 +839,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         subplot(3,3,1);hold on;
         plot(t_i, 180/pi*X_t_l(:,6));
         plot(t_i(1:iter_l,:), 180/pi*X_l(:,6));
-        plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i)), '-^');
-        plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)), '-v');
+        plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')), '-^');
+        plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), '-v');
         legend({'Ref', 'ist', 'Unten', 'Oben'});
         grid on
         ylabel('phiz');
@@ -809,7 +921,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           linecolor = 'm'; % Erfolgreich: Magenta. Kann später in cyan umgewandelt werden, wenn optimal für Ziel-Zustand
         end
         if l == 1 && k == 1 % Initialisierung
-          DbgLineHdl = NaN(z,z);
+          DbgLineHdl(:) = NaN;
         end
         DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), linecolor, 'linewidth', 2);
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
@@ -836,8 +948,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               end
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), marker);
               break;
-            elseif kk < 6 && Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
+            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
+                Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
                 s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
+              % Kriterium kk wurde nicht überschritten. Nicht weiter zum Plot.
               continue
             elseif kk == 6 && ~isnan(Stats.h(iter_l,1))
               continue
@@ -852,6 +966,74 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
         end % if isinf...
         drawnow(); % Sonst wird das Bild nicht aktualisiert
+        %% Debug-Bild für Redundanzkarte speziell für xlim_hyp und xlim_par
+        if s.debug && ~isempty(s.PM_H_all) && false % manuell untersuchen
+          s.PM_H_all(:,:,R.idx_ikpos_hn.xlim_hyp) = inf;
+          s.PM_H_all(:,:,R.idx_ikpos_hn.xlim_par) = inf;
+          % Erzeuge neue Werte für die Zielkriterien
+          for ii1 = 1:size(s.PM_H_all,1) % Zeit-Stützstellen
+            for ii2 = 1:size(s.PM_H_all,2) % Winkel-Stützstellen
+              % Trage Kriterien direkt in vorhandene Variable ein
+              % Index auf Stützstellen aus Teil der Trajektorie
+              s_ref_ii1 = s.PM_s_ref(ii1);
+              [~, iii1] = min(abs(s.PM_s_tref - s_ref_ii1));
+              if t(iii1) > t_i(end)
+                continue % Außerhalb des Bereichs für diesen Teil der Traj.
+              end
+              [~,I_t_ii1] = min(abs(t(iii1)-t_i));
+              % Wert für redundante Koordinate in Karte
+              phi_iii = s.PM_phiz_range(ii2);
+              % Wert für Zielkriterien bestimmen
+              delta_phi_z = X_t_l(I_t_ii1,6) - phi_iii; % Soll - Ist
+              phi_lim_ii1 = [... % Grenzen bestimmen
+                interp1(s_Traj.xlim6_interp(1,:), s_Traj.xlim6_interp(2,:), t_i(I_t_ii1), 'spline'), ...
+                interp1(s_Traj.xlim6_interp(1,:), s_Traj.xlim6_interp(3,:), t_i(I_t_ii1), 'spline')];
+              % Aktivierungsschwellwert so wie in Funktionbestimmen
+              delta_phiz_thr = 1.2 * 0.5 * s_Traj.xDlim(6,2)^2/s_Traj.xDDlim(6,2);
+              philim_thr = phi_lim_ii1 + [+1, -1]*delta_phiz_thr;
+              if philim_thr(1) > philim_thr(2), philim_thr(:) = 0; end
+              % Kriterien berechnen
+              s.PM_H_all(ii1,ii2,R.idx_ikpos_hn.xlim_hyp) = ...
+                invkin_optimcrit_limits2(-delta_phi_z, phi_lim_ii1, philim_thr);
+              s.PM_H_all(ii1,ii2,R.idx_ikpos_hn.xlim_par) = ...
+                invkin_optimcrit_limits1(-delta_phi_z, phi_lim_ii1);
+            end
+          end
+          wn_plot = zeros(R.idx_ik_length.hnpos, 1);
+          for f = fields(R.idx_ikpos_hn)'
+            if isfield(R.idx_iktraj_wnP, f{1})
+              wn_plot(R.idx_ikpos_hn.(f{1})) = s_Traj.wn(R.idx_iktraj_wnP.(f{1}));
+            end
+          end
+          wn_plot(R.idx_ikpos_hn.xlim_hyp) = 100;
+          CC_ext(:) = 0; % Bereits oben initialisiert
+          for iii = 1:length(wn_plot)
+            if wn_plot(iii) == 0, continue; end
+            CC_ext = CC_ext + wn_plot(iii) * s.PM_H_all(:,:,iii)';
+          end
+          pmtrajdbghdl = change_current_figure(501);clf;hold on;
+          sgtitle(pmtrajdbghdl, sprintf('Redundanzkarte für Stufe %d Aktion %d-%d', i, k, l));
+          set(pmtrajdbghdl, 'Name', sprintf('DynProg_PerfMap_Detail'), 'NumberTitle', 'off');
+          surf(X_ext,Y_ext,zeros(size(X_ext)),log10(CC_ext), 'EdgeColor', 'none');
+          xlim(minmax2(t_i'));
+          ylim(180/pi*minmax2(s.PM_phiz_range'));        
+          colormap(flipud(hot(4096)));
+          set(gca,'ColorScale','log'); % damit werden niedrige Werte nochmal ausgeprägter
+          xlabel('Zeit in s');
+          ylabel('Redundante Koordinate in deg');
+          cb = colorbar();
+          cbtext = 'log10(h)';
+          ylabel(cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
+          % Linien einzeichnen
+          hdl = NaN(4,1);
+          hdl(1) = plot(t_i, 180/pi*X_t_l(:,6), 'k-', 'LineWidth', 3);
+          hdl(2) = plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), ...
+            xlim6_interp(2,:), t_i, 'spline')), '-m', 'LineWidth', 2);
+          hdl(3) = plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), ...
+            xlim6_interp(3,:), t_i, 'spline')), '-m', 'LineWidth', 2);
+          hdl(4) = plot(t_i(1:iter_l,:), 180/pi*X_l(:,6), 'c-', 'LineWidth', 3);
+          legend(hdl, {'Ref', 'Grenze Unten', 'Grenze Oben', 'ist'});
+        end
       end % if s.verbose (Debug-Plot)
       if s.verbose
         fprintf('Stufe %d, Start-Orientierung %d: Aktion %d/%d. Dauer: %1.1fs\n', ...
@@ -916,7 +1098,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if s.verbose
         fprintf('Zustand %d (St. %d) bester Vorgänger für Zustand %d (St. %d)\n', ...
           k_best, i-1, l, i);
-        if s.verbose > 1
+        if s.verbose > 1 && ~isnan(DbgLineHdl(k_best,l))
           % Ändere nochmal die Farbe im Bild
           set(DbgLineHdl(k_best,l), 'Color', 'c'); % cyan für lokal optimal
         end
@@ -1082,8 +1264,8 @@ if s.verbose > 1
   grid on;
   subplot(2,2,2);hold on;
   plot(t, 180/pi*X_t_in(:,6));
-  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t)));
-  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t)));
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   plot(t(IE), 180/pi*XE(:,6), 'rs');
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
@@ -1099,8 +1281,8 @@ if s.verbose > 1
   subplot(2,2,1);hold on;
   plot(t, 180/pi*X_t_in(:,6));
   plot(t, 180/pi*X_neu(:,6));
-  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t)), '-^');
-  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t)), '-^');
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')), '-^');
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')), '-^');
   legend({'Ref', 'Traj', 'Traj-Lim.', 'Traj-Lim.'});
   grid on; ylabel('phiz'); xlabel('Zeit in s');
   subplot(2,2,2);hold on;
