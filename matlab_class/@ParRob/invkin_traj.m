@@ -595,14 +595,11 @@ for k = 1:nt
     Stats.mode(k) = bitset(Stats.mode(k),23);
   end
   Stats.condJ(k,:) = [condJik, condJ];
-  if nsoptim || ... % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
-      calc_h_nored % Leistungsmerkmale sollen im nicht-redundanten Fall berechnet werden
-    Stats.mode(k) = bitset(Stats.mode(k),2);
-    % Initialisierung
-    x_k_ist = x_k; % Vorbelegen der nicht redundanten Koordinaten
-    xD_k_ist = xD_k;
-    delta_phi_z = 0;
-    if taskred_rot % Nur bei Rotations-Aufgabenredundanz neu berechnen
+  % Initialisierung
+  x_k_ist = x_k; % Vorbelegen der nicht redundanten Koordinaten
+  xD_k_ist = xD_k;
+  delta_phi_z = 0;
+  if taskred_rot % Nur bei Rotations-Aufgabenredundanz neu berechnen
     % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
     % Notwendig für die constr4-Methode für Jacobi-Matrix.
     % Rotation um z-Achse aus Zwangsbedingung 3 ablesbar. Sonst dir.Kin. erste Beinkette.
@@ -628,7 +625,10 @@ for k = 1:nt
       x_k_ist(6) = normalizeAngle(x_k(6) - delta_phi_z, X(k-1,6)+xD_k_ist(6)*dt);
     end
     X(k,6) = x_k_ist(6); % In Eingabe speichern, um Integration durchzuführen
-    end % if taskred_rot
+  end % if taskred_rot
+  if nsoptim || ... % Nullraumbewegung: Zwei Koordinatenräume dafür möglich (s.u.)
+      calc_h_nored % Leistungsmerkmale sollen im nicht-redundanten Fall berechnet werden
+    Stats.mode(k) = bitset(Stats.mode(k),2);
     if nsoptim
     % Berechne Maximalgeschwindigkeit für Nullraumbewegung für den nächsten
     % Zeitschritt. Unten wird dies für den nächsten Zeitschritt benutzt.
@@ -1051,29 +1051,34 @@ for k = 1:nt
       % (bezogen auf vollständige Koordinaten)
       v_qD = zeros(NJ, 1);
       v_qDD = zeros(NJ, 1);
+      hdq_all = zeros(NJ, idx_ik_length.hntraj);
       %% Gelenkkoordinaten: Einhaltung Gelenkwinkelgrenzen
       if wn(idx_wnP.qlim_par) ~= 0 || wn(idx_wnD.qlim_par) ~= 0 % Quadratische Abweichung von Gelenkposition zur Mitte
         Stats.mode(k) = bitset(Stats.mode(k),4);
         [h(idx_hn.qlim_par), h1dq] = invkin_optimcrit_limits1(q_k, qlim);
         v_qD = v_qD - wn(idx_wnD.qlim_par)*h1dq(:);
         v_qDD = v_qDD - wn(idx_wnP.qlim_par)*h1dq(:);
+        hdq_all(:,idx_hn.qlim_par) = h1dq;
       end
       if wn(idx_wnP.qlim_hyp) ~= 0 || wn(idx_wnD.qlim_hyp) ~= 0 % Hyperbolischer Abstand Gelenkposition zu Grenze
         Stats.mode(k) = bitset(Stats.mode(k),5);
         [h(idx_hn.qlim_hyp), h2dq] = invkin_optimcrit_limits2(q_k, qlim, qlim_thr_h2);
         v_qD = v_qD - wn(idx_wnD.qlim_hyp)*h2dq(:);
         v_qDD = v_qDD - wn(idx_wnP.qlim_hyp)*h2dq(:);
+        hdq_all(:,idx_hn.qlim_hyp) = h2dq;
       end
       %% Gelenkkoordinaten: Einhaltung Gelenkgeschwindigkeitsgrenzen
       if wn(idx_wnP.qDlim_par) ~= 0 % Quadratische Gelenkgeschwindigkeiten
         [h(idx_hn.qDlim_par), h3dq] = invkin_optimcrit_limits1(qD_k, qDlim);
         Stats.mode(k) = bitset(Stats.mode(k),6);
         v_qDD = v_qDD - wn(idx_wnP.qDlim_par)*h3dq(:);
+        hdq_all(:,idx_hn.qDlim_par) = h3dq;
       end
       if wn(idx_wnP.qDlim_hyp) ~= 0 % Hyperbolischer Abstand Gelenkgeschwindigkeit zu Grenze
         Stats.mode(k) = bitset(Stats.mode(k),7);
         [h(idx_hn.qDlim_hyp), h4dq] = invkin_optimcrit_limits2(qD_k, qDlim);
         v_qDD = v_qDD - wn(idx_wnP.qDlim_hyp)*h4dq(:);
+        hdq_all(:,idx_hn.qDlim_hyp) = h4dq;
       end
       %% Gelenkkoordinaten: Singularitätsvermeidung (IK-Jacobi)
       if (wn(idx_wnP.ikjac_cond) ~= 0 || wn(idx_wnD.ikjac_cond) ~= 0) && condJik > s.cond_thresh_ikjac % Konditionszahl der geom. Matrix der Inv. Kin.
@@ -1092,6 +1097,7 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(idx_wnD.ikjac_cond)*h5dq(:);
         v_qDD = v_qDD - wn(idx_wnP.ikjac_cond)*h5dq(:);
+        hdq_all(:,idx_hn.ikjac_cond) = h5dq;
         end % if nsoptim
       else
         h(idx_hn.ikjac_cond) = 0;
@@ -1141,6 +1147,7 @@ for k = 1:nt
         end
         v_qD = v_qD - wn(idx_wnD.jac_cond)*h6dq(:);
         v_qDD = v_qDD - wn(idx_wnP.jac_cond)*h6dq(:);
+        hdq_all(:,idx_hn.jac_cond) = h6dq;
         end % if nsoptim
       else
         h(idx_hn.jac_cond) = 0;
@@ -1205,6 +1212,7 @@ for k = 1:nt
             h7dq(isnan(h7dq)) = 0;
             v_qD = v_qD - wn(idx_wnD.coll_hyp)*h7dq(:);
             v_qDD = v_qDD - wn(idx_wnP.coll_hyp)*h7dq(:);
+            hdq_all(:,idx_hn.coll_hyp) = h7dq;
           end
           h(idx_hn.coll_par) = invkin_optimcrit_limits1(-mincolldist_test(1), ...
             [-10*maxcolldepth, 0]);
@@ -1215,6 +1223,7 @@ for k = 1:nt
             h12dq(isnan(h12dq)) = 0;
             v_qD = v_qD - wn(idx_wnD.coll_par)*h12dq(:);
             v_qDD = v_qDD - wn(idx_wnP.coll_par)*h12dq(:);
+            hdq_all(:,idx_hn.coll_par) = h12dq;
           end
         end
       end
@@ -1269,6 +1278,7 @@ for k = 1:nt
           h8dq(isnan(h8dq)) = 0;
           v_qD = v_qD - wn(idx_wnD.instspc_hyp)*h8dq(:);
           v_qDD = v_qDD - wn(idx_wnP.instspc_hyp)*h8dq(:);
+          hdq_all(:,idx_hn.instspc_hyp) = h8dq;
         end
         if wn(idx_wnP.instspc_par) ~= 0 || wn(idx_wnD.instspc_par) ~= 0 % Quadratisch
           h(idx_hn.instspc_par) = invkin_optimcrit_limits1(mindist_all(1), [-100.0, 0]);
@@ -1277,6 +1287,7 @@ for k = 1:nt
           h13dq(isnan(h13dq)) = 0;
           v_qD = v_qD - wn(idx_wnD.instspc_par)*h13dq(:);
           v_qDD = v_qDD - wn(idx_wnP.instspc_par)*h13dq(:);
+          hdq_all(:,idx_hn.instspc_par) = h13dq;
         end
       end
       %% Gelenkkoordinaten: Einhaltung der Grenzen der redundanten Koord.
@@ -1288,6 +1299,7 @@ for k = 1:nt
         h9dq(isnan(h9dq)) = 0;
         v_qD  = v_qD  - wn(idx_wnD.xlim_par)*h9dq(:);
         v_qDD = v_qDD - wn(idx_wnP.xlim_par)*h9dq(:);
+        hdq_all(:,idx_hn.xlim_par) = h9dq;
       end
       if wn(idx_wnP.xlim_hyp) ~= 0 || wn(idx_wnD.xlim_hyp) ~= 0 % Hyperb. Abstand außerhalb von xlim minimieren
         Stats.mode(k) = bitset(Stats.mode(k),13);
@@ -1308,6 +1320,7 @@ for k = 1:nt
         end
         v_qD  = v_qD  - wn(idx_wnD.xlim_hyp)*h10dq(:);
         v_qDD = v_qDD - wn(idx_wnP.xlim_hyp)*h10dq(:);
+        hdq_all(:,idx_hn.xlim_hyp) = h10dq;
       end
       if wn(idx_wnP.xDlim_par) ~= 0 % Quadr. Abstand von phiD bzgl. redundantem FHG von xDlim minimieren
         Stats.mode(k) = bitset(Stats.mode(k),14);
@@ -1319,6 +1332,7 @@ for k = 1:nt
         h11_test2 = invkin_optimcrit_limits1(XD6_k_diff+1e-6, s.xDlim(6,1:2));
         h11dq = (h11_test2-h11_test1)./(2*qD_test'); % Siehe [SchapplerOrt2021], Gl. 28
         v_qDD = v_qDD - wn(idx_wnP.xDlim_par)*h11dq(:);
+        hdq_all(:,idx_hn.xDlim_par) = h11dq;
       end
       %% Gelenkkoordinaten: Abschluss der Nullraumbewegung
       if nsoptim
