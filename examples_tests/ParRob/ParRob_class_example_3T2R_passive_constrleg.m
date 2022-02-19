@@ -47,9 +47,9 @@ for robnr = 1:3
     for ii=2:RP.NLEG % Folgebeinketten 4 UPS( vielleicht Verallgemeinerung fuer spaeter)
       RP.Leg(ii).update_mdh(pkin_RS2(1:size(RP.Leg(ii).pkin),1));
     end
+    RP.initialize();
     RP.align_base_coupling(8, [0.5;0.3;0.2]);  % Wahl ist wichtig fuer Loesbarkeit der IK
     RP.align_platform_coupling(4, [0.2;0.1]); % Wahl ist wichtig fuer Loesbarkeit der IK
-    RP.initialize();
     I_qa_Typ1 = zeros(1,5); % keine Aktuierung fuer passives Fuehrungsbein
     I_qa_Typ2 = zeros(1,6); % Folgebeinketten
     I_qa_Typ2(1) = 1;  % das erstes Gelenk (P) ist aktuiert
@@ -71,7 +71,8 @@ for robnr = 1:3
     for ii=2:RP.NLEG % Folgebeinketten 5 UPS
       RP.Leg(ii) = copy(RS2);
     end
-    
+    RP.initialize();
+    RP.phi_P_B_all(:) = 0;
     RP.Leg(1).update_base( [0.5;0;0], r2eulxyz(rotx(pi/2)*roty(0))); % Fuehrungsbeinkette UPU
     RP.Leg(2).update_base( [-2;0;0], r2eulxyz(rotx(0)*rotz(0))); % Folgebeinkette UPS
     RP.Leg(3).update_base( [-3;2;0], r2eulxyz(rotx(0)*rotz((0)))); % Folgebeinketten UPS
@@ -79,13 +80,12 @@ for robnr = 1:3
     RP.Leg(5).update_base( [3;-1;0], r2eulxyz(rotx(0)*rotz(0))); % Folgebeinkette UPS
     RP.Leg(6).update_base( [-3;-2;0], r2eulxyz(rotx(0)*rotz(0))); % Folgebeinkette UPS
     % Reihenfolge wie im Bild
-    RP.r_P_B_all(:,1) = rotz(0)*[0.5;0;0]; %schon
-    RP.r_P_B_all(:,2) = rotz(0)*[-2;0;0]; %schon
+    RP.r_P_B_all(:,1) = rotz(0)*[0.5;0;0];
+    RP.r_P_B_all(:,2) = rotz(0)*[-2;0;0];
     RP.r_P_B_all(:,3) = rotz(0)*[-1;0.7;0];
     RP.r_P_B_all(:,6) = rotz(0)*[-1;-0.7;0];
-    RP.r_P_B_all(:,4) = rotz(0)*[2;1.5;0]; %schon
-    RP.r_P_B_all(:,5) = rotz(0)*[2;-1.5;0]; %schon
-    RP.initialize();
+    RP.r_P_B_all(:,4) = rotz(0)*[2;1.5;0];
+    RP.r_P_B_all(:,5) = rotz(0)*[2;-1.5;0];
     for ii = 1:RP.NLEG
       RP.Leg(ii).update_EE(zeros(3,1),zeros(3,1));
     end
@@ -110,9 +110,9 @@ for robnr = 1:3
     for ii=2:RP.NLEG % Folgebeinketten 5 UPS
       RP.Leg(ii) = copy(RS2);
     end
+    RP.initialize(); 
     RP.align_base_coupling(8, [0.5;0.3;0.2]);  % Wahl ist wichtig fuer Loesbarkeit der IK
     RP.align_platform_coupling(4, [0.2;0.1]); % Wahl ist wichtig fuer Loesbarkeit der IK
-    RP.initialize(); 
 
     I_qa_Typ1 = zeros(1,5); % keine Aktuierung fuer passives Fuehrungsbein
     I_qa_Typ2 = zeros(1,6); % Folgebeinketten
@@ -142,6 +142,8 @@ for robnr = 1:3
   fprintf('3T2R-PKM mit passiver Führungskette %d/%d: %s\n', robnr, 3, Name);
   %% IK berechnen
   [q,phi] = RP.invkin_ser(X0, q0);
+  [q,phi] = RP.invkin3(X0, q0);
+  assert(all(abs(phi)<1e-6), 'IK funktioniert nicht, obwohl vorher ausprobiert');
   [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
   assert(all(size(Phi3_red)==[35,1]), 'Ausgabe 1 von constr3 muss 35x1 sein');
   assert(all(size(Phi3_voll)==[36,1]), 'Ausgabe 2 von constr3 muss 36x1 sein');
@@ -153,7 +155,7 @@ for robnr = 1:3
   assert(all(size(Phi2_red)==[36,1]), 'Ausgabe 1 von constr2 muss 36x1 sein');
   assert(all(size(Phi2_voll)==[36,1]), 'Ausgabe 2 von constr2 muss 36x1 sein');
   %% Roboter zeichnen
-  figure(10+robnr);clf;
+  change_current_figure(10+robnr);clf;
   hold on; grid on;
   xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
   view(3);
@@ -312,7 +314,7 @@ for robnr = 1:3
     end
   end
   Q_int = repmat(Q(1,:),length(T),1)+cumtrapz(T, QD);
-  figure(20+robnr);clf;
+  change_current_figure(20+robnr);clf;
   for i = 1:RP.NLEG
     for j = 1:RP.Leg(1).NJ
       subplot(RP.NLEG,6, sprc2no(RP.NLEG, 6, i, j)); hold all;
@@ -334,7 +336,7 @@ for robnr = 1:3
   resdir = fullfile(rob_path, 'examples_tests', 'results');
   mkdirs(resdir);
   s_anim = struct('gif_name', fullfile(resdir, sprintf('3T2R_PKM_PassivBK_%s.gif',RP.mdlname)));
-  fhdl=figure(2);clf;
+  fhdl=change_current_figure(2);clf;
   set(fhdl,'units','normalized','outerposition',[0 0 1 1],'color','w'); % Vollbild
   hold on;
   plot3(X(:,1), X(:,2), X(:,3));

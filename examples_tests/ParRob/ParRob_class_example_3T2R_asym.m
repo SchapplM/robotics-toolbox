@@ -369,10 +369,12 @@ for LeadingNr = 1:3 % Führungskette: PUU, RUU, UPU
     X0 = [[0.2;0.2;1.2];[5;10;-10]*pi/180]; % Plattform nur verdrehbar, keine Kipp-bwg
     q0 = rand(RP.NJ,1);
     q0(RP.I_qa) = 0.5;
-    q = q0; % qs in constr2 und q sind ungleich ( also aktive Gelenke)
-    %% IK
-    X0(6) = 0;
-    [q,phi] = RP.invkin_ser(X0, q, struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12));
+    %% IK berechnen und prüfen
+    X0(6) = 0; % Muss auf Null gesetzt werden, damit es mit dem Residuum korrigiert werden kann
+    % IK mit kombinierter Methode berechnen. Bei invkin_ser kann es vor-
+    % kommen, dass durch Umklappen der Konfiguration bei der ersten Bein-
+    % kette die folgenden nicht mehr schließbar sind.
+    [q,phi] = RP.invkin3(X0, q0, struct('Phit_tol', 1e-12, 'Phir_tol', 1e-12));
     assert(all(abs(phi)<1e-6), 'IK funktioniert nicht, obwohl vorher ausprobiert');
     [Phi3_red,Phi3_voll] = RP.constr3(q, X0); % mit Fuehrungsbeinkette
     assert(all(size(Phi3_red)==[29,1]), 'Ausgabe 1 von constr3 muss 29x1 sein');
