@@ -1162,7 +1162,7 @@ for k = 1:nt
   
   % Reduziere die Nullraumbeschleunigung im Gelenkraum, falls Grenzen für
   % Position der Plattform-Koordinaten verletzt werden
-  if redundant && taskred_rot && limits_x_set && enforce_xlim
+  if redundant && NQJ - sum(I_EE) == 1 && ~I_EE(end) && limits_x_set && enforce_xlim
     % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
     qDD_pre = qDD_k_T + qDD_N_post;
     qD_pre = qDD_pre * dt;
@@ -1182,11 +1182,10 @@ for k = 1:nt
     % Erzeuge eine Nullraumbewegung um die überlaufende EE-Drehung
     % auszugleichen
     if delta_phiz ~= 0
-      Stats.mode(k) = bitset(Stats.mode(k),26);
       % Ansatz: delta_phiz = 0.5 * phizDD_counterlim * dt^2
       phizDD_counterlim = 2 * (delta_phiz*1.03) / dt^2; % 3% mehr wegen Ungenauigkeit
       xDD_counterlim = [zeros(5,1); phizDD_counterlim];
-      delta_qDD = J_x_inv * xDD_counterlim(Rob_I_EE);
+      delta_qDD = J_x(Rob_I_EE,:) \ xDD_counterlim(Rob_I_EE);
       qDD_N_post = qDD_N_post + delta_qDD;
     end
   end
