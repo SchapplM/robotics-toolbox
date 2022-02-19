@@ -1295,9 +1295,10 @@ for k = 1:nt
         h10_test = invkin_optimcrit_limits2(-delta_phi_z+1e-6, xlim(6,1:2), xlim_thr_h10(6,:));
         if isinf(h(idx_hn.xlim_hyp)) || isinf(h10_test)
           if -delta_phi_z <= xlim(6,1) + 1e-6
-            h10dq = -1e6*qD_test';
+            % Die Richtung von qD_test ist eine Nullraumbewegung.
+            h10dq = -1e10*(qD_test'/norm(qD_test));
           elseif -delta_phi_z >= xlim(6,2) - 1e-6
-            h10dq = +1e6*qD_test';
+            h10dq = +1e10*(qD_test'/norm(qD_test));
           else
             error('Fall sollte eigentlich nicht vorkommen');
           end
