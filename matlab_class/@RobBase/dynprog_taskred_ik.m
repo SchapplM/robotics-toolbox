@@ -143,10 +143,6 @@ if ~isempty(s.debug_dir)
   save(fullfile(s.debug_dir, 'dp_init.mat'), 's', 'X_t_in', 'XD_t_in', ...
     'XDD_t_in', 't', 'q0');
 end
-% Vorbereitung statistischer Größen für die Ausgabe
-n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
-n_statechange_total = 0; % Anzahl aller Stufenübergänge
-nt_ik = 0; % Anzahl insgesamt simulierter Trajektorien-Zeitschritte
 %% Einstellungen für Trajektorien-IK vorbereiten
 s_Traj = struct('enforce_qlim', false, ... % hier nicht relevant bzw. anderweitig abgedeckt
   ... % Plattform-Trajektorie in Toleranzband erzwingen. Sollte eigentlich
@@ -281,7 +277,15 @@ F_stage = NaN(z, z);
 % Zusätzlichen Kostenterm aus der Konditionszahl berechnen. Wird bei
 % Gleichheit der sonstigen Kosten benutzt
 F_stage_cond = NaN(z, z);
-
+% Vorbereitung statistischer Größen für die Ausgabe
+n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
+n_statechange_total = 0; % Anzahl aller Stufenübergänge
+% Speichere die Anzahl der erfolgreichen Stufenübergänge für jede Stufe
+Stats_statechange_succ_all = NaN(N,z);
+% Anzahl insgesamt simulierter Trajektorien-Zeitschritte (für alle
+% Übergänge und insgesamt).
+Stats_nt_ik_all = NaN(N+1,z);
+nt_ik = 0;
 %% Debug-Bild vorbereiten
 if s.verbose > 1
   DbgLineHdl = NaN(z,z); % Handle mit Linien für alle Zwischenschritte
@@ -570,6 +574,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
       end
       if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10)
+        if ~isempty(s.debug_dir)
+          save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+            'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+        end
         error('Profilzeiten stimmen nicht');
       end
       X_t_l(ii1+1:end,6) = X_t_l(ii1,6); % letzten Wert halten
@@ -695,7 +703,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       X_l(1,6) = z_k;
       if s.debug && ~task_redundancy
         test_X = X_l - X_t_l(1:iter_l,:);
-        assert(all(abs(test_X(:)) < 1e-8), sprintf( ...
+        assert(all(abs(test_X(:)) < 1e-6), sprintf( ...
           'X-Traj. stimmt nicht. Fehler max %1.1e', max(abs(test_X(:)))));
       end
       % Prüfe, ob die Gelenk-Konfigurationen noch denen aus der
@@ -714,7 +722,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         q_end_PM = s.PM_Q_all(I_phiend,:,I_tend)';
         dbg_delta_q2 = Q(iter_l,:)' - q_end_PM;
         fprintf(['Vergleich Endpunkt (phiz=%1.1f°; Soll %1.1f°) mit Werten aus ', ...
-          'Diskretisierung(%1.1f°): Delta phi %1.1g°. Max delta q %1.3f. delta t %1.1gs.\n'], ...
+          'Diskretisierung (%1.1f°): Delta phi %1.1g°. Max delta q %1.3f. delta t %1.1gs.\n'], ...
           180/pi*X_l(iter_l,6), 180/pi*z_l, 180/pi*s.PM_phiz_range(I_phiend), ...
           180/pi*dbg_delta_phi2, max(abs(dbg_delta_q2)), dbg_delta_t2);
         if any(abs([dbg_delta_phi1; dbg_delta_phi2]) > 10*pi/180)
@@ -763,6 +771,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         F_stage_cond(k,l) = mean(Stats.condJ(:,2)); % Aktuierungs-J. / geom. J.
         % Statistik: Anzahl der erfolgreichen Übergänge speichern
         n_statechange_succ = n_statechange_succ + 1;
+        Stats_statechange_succ_all(i,l) = Stats_statechange_succ_all(i,l)+1;
       end
       %% Debugge Ergebnis der Berechnung. Vergleich gegen Redundanzkarte.
       % Kann inkonsistentes Verhalten aufdecken
@@ -948,6 +957,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               end
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), marker);
               break;
+            elseif any(Stats.errorcode == [1 2]) % IK-Fehler
+              % Steht im Zusammenhang zu einer IK-Singularität, aber
+              % anderer Marker
+              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
+              break;
             elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
                 s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
@@ -956,6 +970,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             elseif kk == 6 && ~isnan(Stats.h(iter_l,1))
               continue
             elseif kk == 7
+              if ~isempty(s.debug_dir)
+                save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+                  'to%d_error_abortreason.mat'], i-1, k, l)));
+              end
               error('Abbruchgrund konnte nicht gefunden werden. Logik-Fehler.');
             end
             % Trage kritischen Bahnpunkt mit aktuellem Marker in Bild ein.
@@ -1314,7 +1332,8 @@ if s.verbose > 1
 end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
-  'n_statechange_total', n_statechange_total, 'nt_ik', nt_ik);
+  'n_statechange_total', n_statechange_total, 'nt_ik', nt_ik, ...
+  'nt_ik_all', Stats_nt_ik_all, 'statechange_succ_all', Stats_statechange_succ_all);
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
   'XD6', XD_neu(:,6), 'XDD6', XDD_neu(:,6));
