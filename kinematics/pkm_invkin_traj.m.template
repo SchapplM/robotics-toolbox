@@ -744,7 +744,7 @@ for k = 1:nt
     % Benutze nicht die Jacobi-Matrix-Zeitableitung. TODO: Genaue
     % Begründung fehlt noch. Führt aber unten zu keinem Fehler.
     qDD_k_T = J_x_inv * xDD_k(Rob_I_EE) + ...
-      -Phi_q_voll\(Phi_qD_voll*qD_k+Phi_xD_voll*xD_k(Rob_I_EE));
+      -Phi_q_voll\(Phi_qD_voll*qD_k+Phi_xD_voll(:,Rob_I_EE)*xD_k(Rob_I_EE));
   else
     % Normale Inverse. Nehme die Beschleunigung aus XDD an. Damit auch Vor-
     % steuerung einer Nullraumbeschleunigung möglich
@@ -1810,16 +1810,17 @@ for k = 1:nt
   if redundant && taskred_rot && limits_x_set && enforce_xlim
     % Berechne Ist-x-Beschleunigung aufgrund aktueller q-Beschleunigung.
     qDD_pre = qDD_k_T + qDD_N_post;
+    xDD_JDqD = zeros(6,1); xDD_k_pre = zeros(6,1); % Für 2T1R volle Init. notwendig.
     if condJ < 1e6
       % Benutze die PKM-Jacobi-Matrix. Funktioniert nicht in Singularität
-      xDD_JDqD = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
+      xDD_JDqD(Rob_I_EE) = - J_x_inv(I_qa,:) \ JD_x_inv(I_qa,:) / ...
         J_x_inv(I_qa,:) * qD_k(I_qa);
-      xDD_k_pre = J_x_inv(I_qa,:) \ qDD_pre(I_qa) + xDD_JDqD;
+      xDD_k_pre(Rob_I_EE) = J_x_inv(I_qa,:) \ qDD_pre(I_qa) + xDD_JDqD(Rob_I_EE);
     else
       % Benutze Jacobi-Matrix basierend auf erster Beinkette
-      xDD_JDqD = - J_x_inv(1:Leg_NQJ(1),:) \ JD_x_inv(1:Leg_NQJ(1),:) / ...
+      xDD_JDqD(Rob_I_EE) = - J_x_inv(1:Leg_NQJ(1),:) \ JD_x_inv(1:Leg_NQJ(1),:) / ...
         J_x_inv(1:Leg_NQJ(1),:) * qD_k(1:Leg_NQJ(1));
-      xDD_k_pre = J_x_inv(1:Leg_NQJ(1),:) \ qDD_pre(1:Leg_NQJ(1)) + xDD_JDqD;
+      xDD_k_pre(Rob_I_EE) = J_x_inv(1:Leg_NQJ(1),:) \ qDD_pre(1:Leg_NQJ(1)) + xDD_JDqD(Rob_I_EE);
     end
     phizDD_k_pre = xDD_k_pre(6);
     % Bestimme erwartete EE-Drehung (Annahme: Konstante Beschleunigung)
