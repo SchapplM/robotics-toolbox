@@ -515,14 +515,15 @@ for k = 1:nt
     % Dadurch ist eine Aufweitung und Verengung der Grenzen möglich.
     % Die Grenzen beziehen sich weiterhin auf die Trajektorie X
     if ~isempty(s.xlim6_interp)
-      xlim(6,:) = [interp1(s.xlim6_interp(1,:), s.xlim6_interp(2,:), T(k)), ...
-              interp1(s.xlim6_interp(1,:), s.xlim6_interp(3,:), T(k))];
-      % Bestimme Grenze für x6 dynamisch aus dem Bremsweg bis zur Grenze
-      delta_phiz = 0.5 * s.xDlim(6,2)^2/s.xDDlim(6,2);
+      xlim(6,:) = [interp1(s.xlim6_interp(1,:), s.xlim6_interp(2,:), T(k), 'spline'), ...
+              interp1(s.xlim6_interp(1,:), s.xlim6_interp(3,:), T(k), 'spline')];
+      % Bestimme Grenze für x6 dynamisch aus dem Bremsweg bis zur Grenze.
+      % Nehme den 1.2-fachen Bremsweg, da zunächst nur schwach gebremst wird
+      delta_phiz = 1.2 * 0.5 * s.xDlim(6,2)^2/s.xDDlim(6,2);
       xlim_thr_h10 = xlim;
-      % Wähle den 1.2-fachen Bremsweg als Aktivierungsschwelle. Dadurch
-      % langsame (stetige) Aktivierung der Funktion mit berücksichtigt.
-      xlim_thr_h10(6,:) = xlim_thr_h10(6,:) + 1.2*[+1, -1]*delta_phiz;
+      % Benutze den Bremsweg für die Aktivierungsschwelle. Dadurch
+      % langsame (stetige) Aktivierung der Funktion etwas mit berücksichtigt.
+      xlim_thr_h10(6,:) = xlim_thr_h10(6,:) + [+1, -1]*delta_phiz;
       if xlim_thr_h10(6,1) > xlim_thr_h10(6,2)
         % Wenn min und max vertauscht sind, ist der Bremsweg zu groß. Immer
         % aktivieren
