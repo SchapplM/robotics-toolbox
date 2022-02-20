@@ -17,9 +17,9 @@
 %   Struktur mir Einstellungswerten (siehe Quelltext)
 % 
 % Ausgabe:
-% XL [NI x 6]
+% XE [NI x 6]
 %   Modifizierte Stützstellen der Trajektorie (Spalte 6 ist
-%   Optimierungsvariable, phiz-Euler-Winkel)
+%   Optimierungsvariable, phiz-Euler-Winkel). Spalte 1-5 wie Eingabe.
 % DPstats
 %   Struktur mit Details zum Ablauf der Dynamischen Programmierung. Felder:
 %   Siehe Quelltext
@@ -157,11 +157,11 @@ for f = fields(R.idx_ikpos_wn)'
   % Gehe alle vorgesehenen Kriterien der Eingabe durch. Diese sind bezogen
   % auf die Positions-IK und werden auf die Trajektorien-IK umgerechnet
   if s.wn(R.idx_ikpos_wn.(f{1})) ~= 0
-    % Setze alle Kriterien standardmäßig auf schwach gedämpfte PD-Regler.
+    % Setze alle Kriterien standardmäßig auf moderat gedämpfte PD-Regler.
     % Benutze die Gewichtung des P-Anteils, die vorgegeben wird.
     % Dann sind die Gewichtungen konsistent mit der aufrufenden Funktion.
     s_Traj.wn(R.idx_iktraj_wnP.(f{1})) = 1.0 * s.wn(R.idx_ikpos_wn.(f{1}));
-    s_Traj.wn(R.idx_iktraj_wnD.(f{1})) = 0.3 * s.wn(R.idx_ikpos_wn.(f{1}));
+    s_Traj.wn(R.idx_iktraj_wnD.(f{1})) = 0.7 * s.wn(R.idx_ikpos_wn.(f{1}));
     wn_names = [wn_names, f{1}]; %#ok<AGROW>
     wn_hcost(R.idx_iktraj_hn.(f{1})) = s_Traj.wn(R.idx_iktraj_wnP.(f{1}));
   end
@@ -1139,6 +1139,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if s.verbose > 1 && ~isnan(DbgLineHdl(k_best,l))
           % Ändere nochmal die Farbe im Bild
           set(DbgLineHdl(k_best,l), 'Color', 'c'); % cyan für lokal optimal
+          ZOrderSet(DbgLineHdl(k_best,l), 1); % Linie ist voll sichtbar
         end
       end
       % Nummer zum besten Zustand der Vor-Stufe
@@ -1209,21 +1210,41 @@ end
 %% Trajektorie aus den optimierten Stützstellen berechnen
 % Referenztrajektorie für redundante Koordinate (wie oben). Darum wird noch
 % die Nullraumbewegung durchgeführt.
-for ii = 1:size(XE,1)-1
-  i1 = IE(ii);
-  i2 = IE(ii+1);
-  % Benutze die angepassten Ist-Werte der Optimierungsvariablen.
-  [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(ii:ii+1,6)', i2-i1+1,...
-    'EndTime',t(i2)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+
+for i = 1:size(XE,1)-1
+  % Referenzwert für die redundante Koordinate bestimmen. Genau wie oben,
+  % damit das Ergebnis möglichst identisch ist.
+  i1 = IE(i); % Start-Index für Stufe i
+  i2 = IE(i+1); % End-Index
+  % Index für den Zeitschritt, an dem der Wert nur noch gehalten wird
+  ii1 = i1-1+floor( interp1(t(i1:i2), 1:(i2-i1+1), t(i2)-s.Tv-s.T_dec_ns) );
+  % Start- und Ziel-Koordinate für diese Stufe
+  if i == 1
+    phi1 = x0(6);
+  else
+    phi1 = phi_range(I_best(i));
+  end
+  phi2 = phi_range(I_best(i+1));
+  % Referenzverlauf bestimmen.
+  % Alternative 1: Benutze die angepassten Ist-Werte der Optimierungsvariablen.
+%   [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(i:i+1,6)', i2-i1+1,...
+%     'EndTime',t(i2)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+  % Alternative 2: Benutze die gleichen Referenzwerte wie oben.
+  [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
+    'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+  X_t_in(ii1+1:i2,6) = X_t_in(ii1,6); % letzten Wert halten
+  XD_t_in(ii1+1:i2,6) = 0;
+  XD_t_in(ii1+1:i2,6) = 0;
+  
   % Prüfe durch Integration die Konsistenz der Trajektorie
   X6_int_ii = X_t_in(i1,6) + cumtrapz(t(i1:i2)-t(i1), XD_t_in(i1:i2,6));
   test_x6 = X6_int_ii-X_t_in(i1:i2,6);
   if ~all(abs(test_x6) < 1e-2) || any(~isreal(test_x6))
-    warning('Fehler bei Bestimmung der Referenztrajektorie für Punkt %d bis %d', ii, ii+1);
+    warning('Fehler bei Bestimmung der Referenztrajektorie für Punkt %d bis %d', i, i+1);
     % Benutze eine konstante Geschwindigkeit ohne Beschleunigung
-    X_t_in(i1:i2,6) = interp1(t([i1;i2]), XE([ii;ii+1],6), t(i1:i2)); % Einfachere Variante
-    XD_t_in(i1:i2,6) = (XE(ii+1,6) - XE(ii,6))/(t(i2)-t(i1));
-    XDD_t_in(i1:i2,6) = 0;
+    X_t_in(i1:ii1,6) = interp1(t([i1;ii1]), [phi1,phi2], t(i1:ii1)); % Einfachere Variante
+    XD_t_in(i1:ii1,6) = (XE(i+1,6) - XE(i,6))/(t(i2)-t(i1));
+    XDD_t_in(i1:ii1,6) = 0;
   end
 end
 % % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
@@ -1232,9 +1253,8 @@ end
 % end
 
 % Toleranzband für die Koordinate: Muss genauso wie oben sein, damit
-% ungefähr das gleiche rauskommt. Aber anders, da Stützstellen jetzt nicht
-% die Soll- sondern die Ist-Punkte sind. Annahme: Nicht so schlimm.
-xlim6_interp = NaN(3,1+2*(length(IE)-1)); % Spalten: Zeitschritte
+% ungefähr das gleiche rauskommt.
+xlim6_interp = NaN(3,1+3*(length(IE)-1)); % Spalten: Zeitschritte
 xlim6_interp(:,1) = [t(1);-delta_phi/2; delta_phi/2];
 for i = 1:size(XE,1)-1
   if ~any(I_validstates==i)
@@ -1243,14 +1263,22 @@ for i = 1:size(XE,1)-1
     % Zeitpunkt deaktiviert, ab dem keine Aussage mehr möglich ist.
     delta_phi = inf;
   end
-  xlim6_interp(:,2*i) = [mean(t(IE([i,i+1])));-delta_phi; delta_phi];
-  xlim6_interp(:,2*i+1) = [t(IE(i+1));-delta_phi/2 + 1e-3; delta_phi/2 - 1e-3];
+  % Zweiter Punkt direkt am Anfang für Steitigkeit (funktioniert nicht bei
+  % zusammengesetzten Einzelbewegungen)
+%   xlim6_interp(:,1+3*i-2) = [t(IE(i))+1e-6;-delta_phi/2; delta_phi/2];
+  % Aufweitung des Toleranzbandes zur Mitte
+  xlim6_interp(:,1+3*i-1) = [mean(t(IE([i,i+1])));-delta_phi; delta_phi];
+  % Zusammenführen am Ende
+  xlim6_interp(:,1+3*i) = [t(IE(i+1));-delta_phi/2 + 1e-3; delta_phi/2 - 1e-3];
 end
+xlim6_interp = xlim6_interp(:, ~any(isnan(xlim6_interp)));
 if s.verbose > 2 % Debug-Plot für die Referenztrajektorie
   change_current_figure(300);clf;
   subplot(3,1,1); hold on;
-  plot(t, X_t_in(:,6));
-  legend({'traj', 'int'});
+  plot(t, 180/pi*X_t_in(:,6));
+  plot(t(IE), 180/pi*X_t_in(IE,6), 'rs');
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
+  plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   subplot(3,1,2);
   plot(t, XD_t_in(:,6));
   subplot(3,1,3);
@@ -1262,7 +1290,8 @@ nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
   IE, s.Tv, s.T_dec_ns , diff(t(1:2)));
 s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
 % Kein Abbrechen der Trajektorie mehr, wenn Toleranzband verletzt wird.
-% Dieses war nur Mittel zum Zweck für die DP
+% Dieses war nur Mittel zum Zweck für die DP (bzw. dort auch deaktiviert)
+% TODO: enforce_xlim hier wieder deaktivieren?
 s_Traj.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = NaN;
 if R.Type == 0 % Seriell
   [Q, QD, QDD, PHI, JP, Stats] = R.invkin2_traj(X_t_in, XD_t_in, XDD_t_in, t, q0, s_Traj);
@@ -1305,6 +1334,8 @@ if s.verbose > 1
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   plot(t(IE), 180/pi*XE(:,6), 'rs');
+  plot(t(IE(2:end)), 180/pi*phi_range(I_best(2:end)), 'co');
+  legend({'Ref', 'Max', 'Min', 'Result DP', 'Keypoint'});
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
   subplot(2,2,3);hold on;
@@ -1313,7 +1344,6 @@ if s.verbose > 1
   grid on; ylabel('Geschwindigkeitsgrenze, Nullraum, norm');
   sgtitle(dpfinalhdl1, 'Soll-Trajektorie aus Dynamischer Programmierung');
   xlabel('Zeit in s');
-  linkxaxes
   %% Debug-Bild für Trajektorie
   dpfinalhdl2 = change_current_figure(250);clf;
   subplot(2,2,1);hold on;
