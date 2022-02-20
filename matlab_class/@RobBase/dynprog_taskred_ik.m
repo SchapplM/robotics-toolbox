@@ -281,10 +281,10 @@ F_stage_cond = NaN(z, z);
 n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
 n_statechange_total = 0; % Anzahl aller Stufenübergänge
 % Speichere die Anzahl der erfolgreichen Stufenübergänge für jede Stufe
-Stats_statechange_succ_all = NaN(N,z);
+Stats_statechange_succ_all = zeros(N+1,z);
 % Anzahl insgesamt simulierter Trajektorien-Zeitschritte (für alle
 % Übergänge und insgesamt).
-Stats_nt_ik_all = NaN(N+1,z);
+Stats_nt_ik_all = zeros(N+1,z);
 nt_ik = 0;
 %% Debug-Bild vorbereiten
 if s.verbose > 1
@@ -644,21 +644,22 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           'to%d_result.mat'], i-1, k, l));
         if exist(resfile_l, 'file')
           d = load(resfile_l);
-          Q = d.Q;
-          QD = d.QD;
-          QDD = d.QDD;
-          Stats = d.Stats;
-          if size(Q,1) ~= length(t_i) || ... % Länge ist falsch.
-              abs(d.X6_traj(1) - z_k) > 1e-6 % Anfangswert ist anders. Passt nicht.
+          if size(d.Q,1) ~= length(t_i) || ... % Länge ist falsch.
+              abs(d.X6_traj(1) - z_k) > 1e-6 || ... % Anfangswert ist anders. Passt nicht.
+              any(abs(d.Q(1,:) - qs')>1e-8) % Startkonfiguration stimmt nicht überein
             if s.verbose && calc_traj
               fprintf(['Geladene Daten passen nicht zu der Trajektorie. ', ...
                 'Kein weiteres Laden von Ergebnissen versuchen.\n']);
             end
             s.continue_saved_state = false;
           else
+            Q = d.Q;
+            QD = d.QD;
+            QDD = d.QDD;
+            Stats = d.Stats;
             calc_traj = false;
           end
-        else
+        else % ~exist(resfile_l, 'file')
           if s.verbose
             fprintf(['Datei für Übergang %d/%d-%d/%d nicht vorhanden. ', ...
               'Kein Laden weiterer Ergebnisse versuchen.\n'], i-1, k, i, l);
@@ -684,6 +685,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       assert(all(~isnan(Stats.h(1:Stats.iter,1))), 'Nebenbedingung NaN. Logik-Fehler');
       % Anzahl der insgesamt durchführten IK-Schritte speichern
       nt_ik = nt_ik + Stats.iter;
+      Stats_nt_ik_all(i,l) = Stats_nt_ik_all(i,l) + Stats.iter;
       if any(Stats.errorcode == [0 1 2])
         % Entweder kein Abbruch der IK (Code 0), oder Abbruch der IK
         % aufgrund unmöglicher Berechnung von q/qD/qDD (Code 1/2).
