@@ -166,7 +166,7 @@ for f = fields(R.idx_ikpos_wn)'
     wn_hcost(R.idx_iktraj_hn.(f{1})) = s_Traj.wn(R.idx_iktraj_wnP.(f{1}));
   end
 end
-s_Traj.wn(R.idx_iktraj_wnP.qDlim_par) = 0.5; % Dämpfung     
+s_Traj.wn(R.idx_iktraj_wnP.qDlim_par) = 0.8; % Dämpfung     
 % Begrenzung der Plattform-Drehung. Wird in DP vorgegeben. Ohne diese
 % Begrenzung würde der DP-Ansatz nicht funktionieren, da die vorgesehenen
 % Zustände für die Optimierungsvariable nicht im Toleranzband eingehalten
@@ -181,7 +181,7 @@ s_Traj.wn(R.idx_iktraj_wnD.xlim_par) = 0.7; % D-Regler
 s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 100*1; %   P-Regler
 s_Traj.wn(R.idx_iktraj_wnD.xlim_hyp) = 100*0.7; % D-Regler
 % Dämpfung xlim quadratisch (bzw. Bestrafung der Abweichung von Ref.-Geschw.)
-s_Traj.wn(R.idx_iktraj_wnP.xDlim_par) = 0.5;
+s_Traj.wn(R.idx_iktraj_wnP.xDlim_par) = 0.8;
 % Einhaltung der Geschwindigkeitsgrenzen erzwingen (mit Nullraumbewegung)
 s_Traj.enforce_xDlim = true;
 % Sofort abbrechen, wenn eine der Nebenbedingungen verletzt wurde. Dadurch
@@ -750,8 +750,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if Stats.iter < length(t_i) % Trajektorie nicht erfolgreich
         % Setze Strafterm unendlich
         F_stage(k,l) = inf;
-      elseif X_l(iter_l) < X_t_l(iter_l,6) + xlim6_interp(2,end) || ...
-             X_l(iter_l) > X_t_l(iter_l,6) + xlim6_interp(3,end)
+      elseif isinf(Stats.h(iter_l,1+R.idx_iktraj_hn.xlim_hyp))
         % Wert für die redundante Koordinate ist außerhalb des Zielbereichs
         % Kann gelegentlich passieren, wenn enforce_xlim nicht richtig funktioniert.
         F_stage(k,l) = inf;
@@ -933,11 +932,23 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           DbgLineHdl(:) = NaN;
         end
         DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), linecolor, 'linewidth', 2);
+        % Zeichne Verbindung zur Ideallinie ein. Macht das Bild unüber-
+        % sichtlich, daher immer nur eine Linie einzeichnen und die alte löschen
+        if exist('DbgLine2Hdl', 'var'), delete(DbgLine2Hdl); end
+        DbgLine2Hdl(1) = plot(t_i, 180/pi*X_t_l(:,6), 'g-');
+        I_quiver = round(linspace(1, iter_l, 7));
+        DbgLine2Hdl(2) = quiver(t_i(I_quiver), 180/pi*X_l(I_quiver,6), ...
+          zeros(length(I_quiver), 1), 180/pi*(X_t_l(I_quiver,6)-X_l(I_quiver,6)), 'off', 'b-');
+        set(DbgLine2Hdl(2), 'MaxHeadSize', 0.03); % Sonst Pfeil zu breit
+        DbgLine2Hdl(3) = plot(t_i, 180/pi*(X_t_l(:,6)+...
+          interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')), 'k-');
+        DbgLine2Hdl(4) = plot(t_i, 180/pi*(X_t_l(:,6)+...
+          interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), 'k-');
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
           % direkt erkennbar. Es muss nur der letzte Bahnpunkt geprüft werden
-          for kk = 1:7
+          for kk = 1:7 % über mögliche Fälle für den Abbruchgrund
             switch kk % siehe gleiche Schleife oben
               case 1, hname = 'qlim_hyp';
               case 2, hname = 'jac_cond';
@@ -945,9 +956,26 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               case 4, hname = 'coll_hyp';
               case 5, hname = 'instspc_hyp';
               case 6, hname = ''; % IK ungültig / nicht lösbar (Reichweite)
+              case 7 % Zum Abfangen sonstiger Abbruchgründe 
             end
-            if isinf(Stats.h(iter_l,1+R.idx_iktraj_hn.xlim_hyp))
-              % Abbruchgrund war Verlassen des Toleranzbands
+            if any(Stats.errorcode == [1 2]) % IK-Fehler
+              % Steht im Zusammenhang zu einer IK-Singularität, aber
+              % anderer Marker
+              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
+              break;
+            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
+                Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) >= ...
+                s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
+              % Kriterium kk wurde überschritten. Weiter zum Plot.
+            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
+                Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
+                s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
+              % Kriterium kk war nicht dasjenige, das den Abbruch erzeugte
+              continue
+            elseif isinf(Stats.h(iter_l,1+R.idx_iktraj_hn.xlim_hyp))
+              % Toleranzband im letzten Zeitschritt wurde verlassen. Kein
+              % Abbruchgrund für Trajektorie (da abort_thresh auf xlim_hyp
+              % deaktiviert). Nachträgliche Erkennung.
               % Zeichne einen anderen Marker zur Kennzeichnung
               % Verhältnis Ist-/Soll-Koordinate zum Zeitpunkt des Abbruchs:
               if X_l(iter_l,6) > X_t_l(iter_l,6)
@@ -957,19 +985,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               end
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), marker);
               break;
-            elseif any(Stats.errorcode == [1 2]) % IK-Fehler
-              % Steht im Zusammenhang zu einer IK-Singularität, aber
-              % anderer Marker
-              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
-              break;
-            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
-                Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
-                s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
-              % Kriterium kk wurde nicht überschritten. Nicht weiter zum Plot.
-              continue
             elseif kk == 6 && ~isnan(Stats.h(iter_l,1))
               continue
-            elseif kk == 7
+            else % Keiner der vorherigen Fälle hat gepasst. Unklar, was passiert ist
               if ~isempty(s.debug_dir)
                 save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
                   'to%d_error_abortreason.mat'], i-1, k, l)));
@@ -981,7 +999,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             PM_hdl(5+kk) = plot(t_i(iter_l), 180/pi*X_l(iter_l,6), ...
               PM_formats{kk}, 'MarkerSize', 6); % Größerer Marker als oben, damit Herkunft erkennbar
             break; % es kann nur einen Abbruchgrund geben
-          end
+          end % for kk (Fälle für Plot)
         end % if isinf...
         drawnow(); % Sonst wird das Bild nicht aktualisiert
         %% Debug-Bild für Redundanzkarte speziell für xlim_hyp und xlim_par
