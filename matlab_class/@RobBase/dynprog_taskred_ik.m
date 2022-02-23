@@ -49,6 +49,8 @@ s = struct( ...
   'cost_mode', 'average', ... 
   ... % Schwellwert zum Abbruch der Trajektorien-Kinematik
   'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
+  ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
+  'use_free_stage_transfer', true, ...
   ... % Redundanzkarte für schönere Debug-Bilder. Ausgabe von perfmap_taskred_ik
   'PM_H_all', [], 'PM_s_ref', [], 'PM_s_tref', [], 'PM_phiz_range', [], ...
   'PM_Q_all', [], ... % optional Gelenkwinkel für Redundanzkarte zum Debuggen
@@ -235,6 +237,8 @@ if R.I_EE_Task(6) == R.I_EE(6)
   end
   s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 0; % irrelevant bei 3T3R
   s_Traj.wn(R.idx_iktraj_wnP.qDlim_hyp) = 0; % irrelevant bei 3T3R
+  % Freier Transfer zwischen Zuständen ist nicht sinnvoll ohne Redundanz
+  s.use_free_stage_transfer = false;
 end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
@@ -243,6 +247,13 @@ IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
 XE = X_t_in(IE,:); % EE-Pose für die Eckpunkte
 N = size(XE,1)-1; % Anzahl der Entscheidungsstufen (erste Stufe schon festgelegt)
 z = s.n_phi; % Anzahl unterschiedlicher Orientierungen
+z1 = z; % Anzahl der Start-Zustände auf jeder Stufe
+z2 = z; % Anzahl der Ende-Zustände auf der jeweils nächsten Stufe
+if s.use_free_stage_transfer
+  % Zusätzlicher (virtueller) Ziel-Zustand für freie Bewegung. Nur einen pro
+  % Start-Zustand.
+  z2 = z2 + 1;
+end
 phi_range = linspace(s.phi_min, s.phi_max, z); % Diskretisierung der Optimierungsvariablen
 delta_phi = phi_range(2)-phi_range(1); % Abstand zwischen zwei Zuständen
 x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
@@ -268,23 +279,23 @@ I_all = zeros(N+1, z);
 % Alle Endwerte der IK für die berechneten Transitionen auf der aktuellen
 % Stufe. Wird für z Anfangs-Drehungen und z End-Drehungen gemacht.
 % Index 2: Start-Zustand, Index 3: End-Zustand
-QE_stage = NaN(R.NJ, z, z);
+QE_stage = NaN(R.NJ, z1, z2);
 % Das gleiche für die Orientierung
 % Index 1: Start-Zustand, Index 2: End-Zustand
-YE_stage = NaN(z, z);
+YE_stage = NaN(z1, z2);
 % Das gleiche für den Kostenterm für den Stufenübergang
-F_stage = NaN(z, z);
+F_stage = NaN(z1, z2);
 % Zusätzlichen Kostenterm aus der Konditionszahl berechnen. Wird bei
 % Gleichheit der sonstigen Kosten benutzt
-F_stage_cond = NaN(z, z);
+F_stage_cond = NaN(z1, z2);
 % Vorbereitung statistischer Größen für die Ausgabe
 n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
 n_statechange_total = 0; % Anzahl aller Stufenübergänge
 % Speichere die Anzahl der erfolgreichen Stufenübergänge für jede Stufe
-Stats_statechange_succ_all = zeros(N+1,z);
+Stats_statechange_succ_all = zeros(N+1,z2);
 % Anzahl insgesamt simulierter Trajektorien-Zeitschritte (für alle
 % Übergänge und insgesamt).
-Stats_nt_ik_all = zeros(N+1,z);
+Stats_nt_ik_all = zeros(N+1,z2);
 nt_ik = 0;
 %% Debug-Bild vorbereiten
 if s.verbose > 1
@@ -464,7 +475,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     phi_range_i = phi_range;
   end
   % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
-  n_statechange_total = n_statechange_total + nz_i*z;
+  n_statechange_total = n_statechange_total + nz_i*z2;
   % Trajektorien-Zeiten für den Übergang von i-1 nach i.
   t_i = t(IE(i-1):IE(i)); % Ausschnitt aus der Gesamt-Trajektorie
   % Variablen für diesen Stufenübergang vorbelegt initialisieren
@@ -511,23 +522,40 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       fprintf(['Stufe %d: Prüfe Start-Orientierung %d/%d (%1.1f deg, ', ...
         'Intervall-Mitte %1.1f deg)\n'], i, k, nz_i, 180/pi*z_k_mid, 180/pi*z_k);
     end
-    for l = 1:z % Zustand auf nächster Stufe
+    % Anzahl der zu prüfenden Zustands-Transfers auf nächste Stufe.
+    % Je nach Modus anders (siehe oben für Initialisierung der Variablen).
+    if s.use_free_stage_transfer
+      nz2_ik = z + 1;
+    else
+      nz2_ik = z;
+    end
+    for l = 1:nz2_ik % Zustand auf nächster Stufe
       t0_l = tic();
       if s.verbose
-        fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, z);
+        fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
+      end
+      % Die zweite Hälfte der Prüfungen bezieht sich auf eine freie Bewegung
+      if l > z
+        free_stage_transfer = true;
+      else
+        free_stage_transfer = false;
       end
       % Anfangswert aus Endwert aus vorherigen Iterationen
       qs = QE_all(:,k,i-1);
       assert(all(~isnan(qs)), 'Logik-Fehler. qs ist NaN');
-      z_l = phi_range(l);
-      assert(~isnan(z_l), 'Logik-Fehler: z_l ist NaN');
+      if ~free_stage_transfer
+        z_l = phi_range(l);
+        assert(~isnan(z_l), 'Logik-Fehler: z_l ist NaN');
+      else
+        z_l = NaN; % Ziel-Zustand ist undefiniert.
+      end
       % Trajektorie als Teil der eingegebenen Trajektorie bestimmen.
       % Redundante Koordinate überschreiben. Bildet dann Mitte des
       % Toleranzbandes
       X_t_l = X_t_in(IE(i-1):IE(i),:);
       XD_t_l = XD_t_in(IE(i-1):IE(i),:);
       XDD_t_l = XDD_t_in(IE(i-1):IE(i),:);
-
+      if ~free_stage_transfer
       % Finde den Index bis zum Zeitpunkt, ab dem die Bewegung aufhören
       % soll, damit noch die Verzögerungszeiten eingehalten werden können
       ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
@@ -635,6 +663,21 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)));
 %       grid on;
       s_Traj.xlim6_interp = xlim6_interp;
+      end % ~free_stage_transfer
+      s_Traj_l = s_Traj;
+      if free_stage_transfer
+        % Setze Einstellungen wieder zurück, die eine freie Bewegung verhindern
+        s_Traj_l.wn(R.idx_iktraj_wnP.xlim_hyp) = 0;
+        s_Traj_l.wn(R.idx_iktraj_wnD.xlim_hyp) = 0;
+        s_Traj_l.wn(R.idx_iktraj_wnP.xlim_par) = 0;
+        s_Traj_l.wn(R.idx_iktraj_wnD.xlim_par) = 0;
+        s_Traj_l.wn(R.idx_iktraj_wnP.xDlim_par) = 0;
+        s_Traj_l.enforce_xlim = false;
+        s_Traj_l.enforce_xDlim = false;
+        s_Traj_l.abort_thresh_h = s.abort_thresh_h;
+        s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = NaN;
+        s_Traj_l.ik_solution_min_norm = true;
+      end
       % Trajektorie berechnen
       t0_traj = tic();
       calc_traj = true;
@@ -644,9 +687,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           'to%d_result.mat'], i-1, k, l));
         if exist(resfile_l, 'file')
           d = load(resfile_l);
-          if size(d.Q,1) ~= length(t_i) || ... % Länge ist falsch.
+          if ~isfield(d, 'z_l') || ... % Altes Speicherformat. Daten fehlen.
+              size(d.Q,1) ~= length(t_i) || ... % Länge ist falsch.
               abs(d.X6_traj(1) - z_k) > 1e-6 || ... % Anfangswert ist anders. Passt nicht.
-              any(abs(d.Q(1,:) - qs')>1e-8) % Startkonfiguration stimmt nicht überein
+              any(abs(d.Q(1,:) - qs')>1e-8) || ... % Startkonfiguration stimmt nicht überein
+              ~isnan(z_l) && d.z_l ~= z_l
             if s.verbose && calc_traj
               fprintf(['Geladene Daten passen nicht zu der Trajektorie. ', ...
                 'Kein weiteres Laden von Ergebnissen versuchen.\n']);
@@ -666,16 +711,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
           s.continue_saved_state = false;
         end
-        if s.verbose
+        if s.verbose && ~calc_traj
           fprintf(['Zustand %d/%d-%d/%d aus Datei geladen. Überspringe ', ...
             'Berechnung der Trajektorie\n'], i-1, k, i, l);
         end
       end
       if calc_traj
         if R.Type == 0 % Seriell
-          [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
+          [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
         else % PKM
-          [Q, QD, QDD, ~, ~, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj);
+          [Q, QD, QDD, ~, ~, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
         end
         if s.verbose
           fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
@@ -847,27 +892,33 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           QD(1:iter_l,:), QDD(1:iter_l,:));
         fighdl_trajdbg = change_current_figure(999);clf;
         subplot(3,3,1);hold on;
-        plot(t_i, 180/pi*X_t_l(:,6));
         plot(t_i(1:iter_l,:), 180/pi*X_l(:,6));
+        if ~free_stage_transfer
+        plot(t_i, 180/pi*X_t_l(:,6));
         plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')), '-^');
         plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), '-v');
-        legend({'Ref', 'ist', 'Unten', 'Oben'});
+        legend({'ist', 'Ref', 'Unten', 'Oben'});
+        end
         grid on
         ylabel('phiz');
         subplot(3,3,2);hold on;
-        plot(t_i, XD_t_l(:,6));
         plot(t_i(1:iter_l,:), XD_l(:,6));
+        if ~free_stage_transfer
+        plot(t_i, XD_t_l(:,6));
         plot(t_i([1;end]), s.xDlim(6,1)*[1;1], 'r-^');
         plot(t_i([1;end]), s.xDlim(6,2)*[1;1], 'r-v');
         plot(t_i, interp1(nullspace_maxvel_interp(1,:),s.xDlim(6,2)*nullspace_maxvel_interp(2,:), t_i));
-        legend({'Ref', 'ist', 'Unten', 'Oben', 'Max Vel'});
+        legend({'ist', 'Ref', 'Unten', 'Oben', 'Max Vel'});
+        end
         ylabel('phizD'); grid on;
         subplot(3,3,3);hold on;
-        plot(t_i, XDD_t_l(:,6));
         plot(t_i(1:iter_l,:), XDD_l(:,6));
+        if ~free_stage_transfer
+        plot(t_i, XDD_t_l(:,6));
         plot(t_i([1;end]), s.xDDlim(6,1)*[1;1], 'r-^');
         plot(t_i([1;end]), s.xDDlim(6,2)*[1;1], 'r-v');
-        legend({'Ref', 'ist', 'Unten', 'Oben'});
+        legend({'ist', 'Ref', 'Unten', 'Oben'});
+        end
         ylabel('phizDD'); grid on;
         Q_norm = (Q - repmat(qlim(:,1)', size(Q,1), 1)) ./ ...
                   repmat(qlim(:,2)'-qlim(:,1)', size(Q,1), 1);
@@ -907,24 +958,36 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
         end
         linkxaxes
-        sgtitle(fighdl_trajdbg, sprintf(['Stufe %d->%d. Transition %d->%d (%1.2f° -> ', ...
-          '%1.2f°; bzw. %1.2f°)'], i-1, i, k, l, 180/pi*X_t_l(1,6), ...
-          180/pi*phi_range(l), 180/pi*X_l(end,6)));
+        if ~free_stage_transfer
+          sgtitle(fighdl_trajdbg, sprintf(['Stufe %d->%d. Transition %d->%d (%1.2f° -> ', ...
+            '%1.2f°; bzw. %1.2f°)'], i-1, i, k, l, 180/pi*X_t_l(1,6), ...
+            180/pi*phi_range(l), 180/pi*X_l(end,6)));
+        else
+          sgtitle(fighdl_trajdbg, sprintf(['Stufe %d->%d. Transition %d->%d (%1.2f° -> ', ...
+            '%1.2f°; freie Bewegung)'], i-1, i, k, l, 180/pi*X_l(1,6), ...
+            180/pi*X_l(end,6)));
+        end
         set(fighdl_trajdbg, 'NumberTitle', 'off', 'Name', sprintf(...
           'i%d_k%d_l%d_TrajDbg', i, k, l));
       end
-      % Speichere Ergebnis für Trajektorie ab
-      QE_stage(:, k, l) = Q(end,:)'; % Gelenkkonfiguration (Vermeidung von Umklappen)
-      YE_stage(k, l) = X_l(end,6); % EE-Drehung / kontinuierliche Optimierungsvariable
+      % Speichere Ergebnis für bei Erfolg Trajektorie ab. Sonst NaN lassen.
+      if ~isinf(F_stage(k,l))
+        QE_stage(:, k, l) = Q(end,:)'; % Gelenkkonfiguration (Vermeidung von Umklappen)
+        YE_stage(k, l) = X_l(end,6); % EE-Drehung / kontinuierliche Optimierungsvariable
+      end
       if ~isempty(s.debug_dir)
         % Speichere detaillierten Zwischen-Zustand ab
         X6_traj = X_l(:,6);
         save(fullfile(s.debug_dir, sprintf('dp_stage%d_state%d_to%d_result.mat', ...
-          i-1, k, l)), 'Q', 'QD', 'QDD', 'Stats', 'X6_traj', 'i', 'k', 'l');
+          i-1, k, l)), 'Q', 'QD', 'QDD', 'Stats', 'X6_traj', 'i', 'k', 'l', 's_Traj_l', 'z_l');
       end
       % Eintragen der Linie in die Redundanzkarte
       if s.verbose > 1 % Debug-Plot
         change_current_figure(figikhdl);
+        linestyle = '-';
+        if free_stage_transfer % Besondere Kennzeichnung bei freier Bewegung
+          linestyle = '--';
+        end
         if isinf(F_stage(k,l))
           linecolor = 'k'; % fehlgeschlagen: Schwarz
         else
@@ -933,10 +996,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if l == 1 && k == 1 % Initialisierung
           DbgLineHdl(:) = NaN;
         end
-        DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), linecolor, 'linewidth', 2);
+        DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), [linecolor,linestyle], 'linewidth', 2);
         % Zeichne Verbindung zur Ideallinie ein. Macht das Bild unüber-
         % sichtlich, daher immer nur eine Linie einzeichnen und die alte löschen
         if exist('DbgLine2Hdl', 'var'), delete(DbgLine2Hdl); end
+        if ~free_stage_transfer % Nur einzeichnen, falls Begrenzung gegeben
         DbgLine2Hdl(1) = plot(t_i, 180/pi*X_t_l(:,6), 'g-');
         I_quiver = round(linspace(1, iter_l, 7));
         DbgLine2Hdl(2) = quiver(t_i(I_quiver), 180/pi*X_l(I_quiver,6), ...
@@ -946,6 +1010,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')), 'k-');
         DbgLine2Hdl(4) = plot(t_i, 180/pi*(X_t_l(:,6)+...
           interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), 'k-');
+        end
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
@@ -1083,11 +1148,38 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         i, k, z, toc(t0_k));
     end
   end % for k (Zustände Stufe i-1)
+  F_stage_filt = F_stage;
+  % Prüfe, ob in den Intervallen Zustände mehrfach vorkommen. Damit die Anzahl
+  % der Zustände nicht immer weiter steigt, werden diese hier reduziert.
+  if s.use_free_stage_transfer
+    % Gehe die möglichen Intervalle durch für den Ziel-Zustand. Von jedem Start-
+    % Zustand nur eine Verbindung zu jedem Ziel-Zustand möglich.
+    for k = find(~all(isinf(F_stage),2))' % nur Start-Zustände k betrachten, die zu mindestens einem Ziel führen
+      for j = 1:length(phi_range) % Gehe das Intervall durch
+        I_inrangej = YE_stage(k,:) >  phi_range(j) - delta_phi/2 & ...
+                     YE_stage(k,:) <= phi_range(j) + delta_phi/2;
+        if sum(I_inrangej) > 1
+          % Mehr als ein Wert im Intervall. Behalte nur den besten
+          II_inrangej = find(I_inrangej);
+          [~, III_best] = min(F_stage(k,II_inrangej));
+          I_remove = I_inrangej; % alle entfernen ...
+          I_remove(II_inrangej(III_best)) = false; % ... bis auf den besten
+          F_stage_filt(k,I_remove) = inf; % Entferne durch setzen auf inf.
+          if s.verbose
+            fprintf(['Transfer nach Stufe %d Intervall %1.1f°...%1.1f°: %d ', ...
+              'doppelt: [%s]\n'], i, 180/pi*(phi_range(j)-delta_phi/2), 180/pi*(phi_range(j)+...
+              delta_phi/2), sum(I_inrangej), disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'));
+          end
+          break;
+        end
+      end
+    end
+  end
   % Füge die Kosten der vorherigen Stufen dazu
-  F_stage_sum = F_stage;
-  F_stage_max = F_stage;
-  for k = 1:z % vorherige Stufe
-    for l = 1:z % nächste Stufe
+  F_stage_sum = F_stage_filt;
+  F_stage_max = F_stage_filt;
+  for k = 1:z1 % vorherige Stufe
+    for l = 1:z2 % nächste Stufe
       F_stage_sum(k,l) = F_stage(k,l) + F_all(i-1,k);
       F_stage_max(k,l) = max(F_stage(k,l), F_all(i-1,k));
     end
@@ -1160,7 +1252,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   if ~isempty(s.debug_dir)
     % Speichere detaillierten Zwischen-Zustand ab
     save(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
-      'F_stage_sum', 'F_stage', 'F_stage_cond', 'QE_stage', 'YE_stage');
+      'F_stage_sum', 'F_stage_filt', 'F_stage', 'F_stage_cond', 'QE_stage', 'YE_stage');
   end
 end % for i (Schleife über Stufen)
 if s.verbose
