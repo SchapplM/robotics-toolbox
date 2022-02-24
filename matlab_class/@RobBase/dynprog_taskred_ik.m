@@ -318,131 +318,26 @@ if s.verbose > 1
   PM_formats = {'bx', 'g*', 'g^', 'co', 'gv', 'm+'}; % NB-Marker
   %% Redundanzkarte einzeichen (falls gegeben)
   if ~isempty(s.PM_H_all)
-    [X_ext, Y_ext] = meshgrid(t_tref, 180/pi*s.PM_phiz_range);
-    CC_ext = zeros(size(X_ext));
-    wn_plot = s.wn;
-    for iii = 1:length(wn_plot)
-      if wn_plot(iii) == 0, continue; end
-      CC_ext = CC_ext + wn_plot(iii) * s.PM_H_all(:,:,iii)';
-    end
-    if all(CC_ext(:)==0 | isnan(CC_ext(:))) 
-      CC_ext = s.PM_H_all(:,:,end)'; % Nur Konditionszahl (direkt)
-      title('Farbe nur illustrativ cond(J). Alle h=0');
-    end
-    if s.PM_limit
-      % Begrenze die Farb-Werte im Plot. Logik für Farben noch unfertig
-      % Der Farbbereich für die interessanten Werte wird besser ausgenutzt.
-      % Benutze Abbruch-Schwelle als Kriterium
-      colorlimit = min(s_Traj.abort_thresh_h(s_Traj.abort_thresh_h<inf));
-      if isempty(colorlimit)
-        colorlimit = 1e3;
+    abort_thresh_hpos = NaN(R.idx_ik_length.hnpos, 1);
+    for f = fields(R.idx_ikpos_hn)'
+      if isfield(R.idx_iktraj_hn, f{1})
+        abort_thresh_hpos(R.idx_ikpos_hn.(f{1})) = ...
+          s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}));
       end
-      % Sättige alle Werte oberhalb einer Grenze
-      condsat_limit = min(colorlimit-10, 1e4);
-      assert(colorlimit > condsat_limit, 'colorlimit muss größer als condsat_limit sein');
-      % Begrenze den Farbraum. Bezieht sich auf Werte oberhalb der Sättigung.
-      % Diese werden unten logarithmisch behandelt.
-      condsat_limit_rel = min(CC_ext(:)) + condsat_limit;
-      if isinf(condsat_limit_rel)
-        condsat_limit_rel = condsat_limit;
-      end
-      colorlimit_rel = min(CC_ext(:)) + colorlimit;
-      if isinf(colorlimit_rel)
-        colorlimit_rel = colorlimit;
-      end
-      assert(colorlimit_rel > condsat_limit_rel, 'colorlimit_rel muss größer als condsat_limit_rel sein');
-      % Begrenze die Farbwerte (siehe oben, Beschreibung von colorlimit)
-      I_colorlim = CC_ext>=colorlimit_rel;
-      CC_ext(I_colorlim) = colorlimit_rel;
-      I_exc = CC_ext >= condsat_limit_rel;
-      CC_ext(I_exc) = condsat_limit_rel+10*log10(CC_ext(I_exc)/condsat_limit_rel);
-    else
-      I_exc = false;
-      I_colorlim = false;
     end
-    % Zeichne die Farbkarte
-    surf(X_ext,Y_ext,zeros(size(X_ext)),CC_ext, 'EdgeColor', 'none');
-    xlim(minmax2(t_tref'));
-    ylim(180/pi*minmax2(s.PM_phiz_range'));
-    colors_map = flipud(hot(1024)); % white to dark red.
-    % Falls starke Singularitäten oder Grenzverletzungen vorliegen, 
-    % wird diesdurch eine neue Farbe (Schwarz) hervorgehoben. Die Farbe
-    %  ist nicht so wichtig. Es werden noch Marker darüber gezeichnet.
-    if any(I_colorlim(:))
-      numcolors_sat = 1; % add black for worst value. Do not show magenta in legend (1 value not visible)
-      colors_map = [colors_map; repmat([0 0 0]/255, numcolors_sat,1)];
-    end
-    colormap(colors_map);
-    if max(CC_ext(:)) / min(CC_ext(:)) > 100 % Log-Skalierung wenn Größenordnung stark unterschiedlich
-      set(gca,'ColorScale','log');
-    end
-    cb = colorbar();
+    [Hdl_all, ~, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
+      t_tref, struct( ...
+      'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
+      'PM_limit', s.PM_limit));
     cbtext = sprintf('h=%s(%s)', s.cost_mode, disp_array(wn_names, '%s'));
-    if any(I_exc(:))
-      cbtext = [cbtext, sprintf('; Log: h>%1.0f', condsat_limit_rel)];
+    if any(PlotData.I_exc(:))
+      cbtext = [cbtext, sprintf('; Log: h>%1.0f', PlotData.condsat_limit_rel)];
     end
-    if any(I_colorlim(:))
-      cbtext = [cbtext, sprintf('; h>%1.1e black', colorlimit_rel)];
+    if any(PlotData.I_colorlim(:))
+      cbtext = [cbtext, sprintf('; h>%1.1e black', PlotData.colorlimit_rel)];
     end
-    ylabel(cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
-    % Replizieren der Daten des Bildes über berechneten Bereich hinaus.
-    % (Ist nicht ganz korrekt z.B. bei Gelenkwinkel-Kriterium)
-    for ysign = [-1, +1]
-      Y_ext2 = Y_ext + ysign*360;
-      % Wähle nur die Indizes aus, die nicht mit den bisherigen Daten
-      % überlappen. Alle Spalten von Y_ext sind identisch (grid)
-      if ysign < 0
-        Iy2 = Y_ext2(:,1)<=min(Y_ext(:,1));
-      else
-        Iy2 = Y_ext2(:,1)>=max(Y_ext(:,1));
-      end
-      % Erneuter Plot (Transparent)
-      surf(X_ext(Iy2,:),Y_ext2(Iy2,:),zeros(size(X_ext(Iy2,:))), ...
-        CC_ext(Iy2,:), 'EdgeColor', 'none', 'FaceAlpha', 0.5);
-    end
-    % Zusätzliche Marker für Nebenbedingungsverletzungen setzen
-    for kk = 1:6
-      % Bestimme Indizes für bestimmte Sonderfälle, wie Gelenküberschreitung,
-      % Singularität, Kollision, Bauraumverletzung.
-      % Mit den Farben sind diese Bereiche nicht eindeutig zu kennzeichnen, da
-      % immer die summierte Zielfunktion gezeichnet wird 
-      switch kk % Index passend zu Einträgen in legtxt
-        case 1 % Gelenkgrenzen
-          if ~any(strcmp(wn_names, 'qlim_hyp'))
-            continue
-          end
-          Icrit = find(strcmp(fields(R.idx_ikpos_hn), 'qlim_hyp'));
-          I = isinf(s.PM_H_all(:,:,Icrit)');
-        case 2 % Kondition Jacobi (Antriebe)
-          Icrit1 = find(strcmp(fields(R.idx_ikpos_hn), 'jac_cond'));
-          Icrit2 = find(strcmp(fields(R.idx_iktraj_hn), 'jac_cond'));
-          I = s.PM_H_all(:,:,Icrit1)' > s_Traj.abort_thresh_h(Icrit2);
-        case 3 % Kondition IK-Jacobi (Beinketten)
-          Icrit1 = find(strcmp(fields(R.idx_ikpos_hn), 'ikjac_cond'));
-          Icrit2 = find(strcmp(fields(R.idx_iktraj_hn), 'ikjac_cond'));
-          I = s.PM_H_all(:,:,Icrit1)' > s_Traj.abort_thresh_h(Icrit2);
-        case 4 % Kollision
-          if ~any(strcmp(wn_names, 'coll_hyp'))
-            continue
-          end
-          Icrit = find(strcmp(fields(R.idx_ikpos_hn), 'coll_hyp'));
-          I = isinf(s.PM_H_all(:,:,Icrit)');
-        case 5 % Bauraum
-          if ~any(strcmp(wn_names, 'instspc_hyp'))
-            continue
-          end
-          Icrit = find(strcmp(fields(R.idx_ikpos_hn), 'instspc_hyp'));
-          I = isinf(s.PM_H_all(:,:,Icrit)');
-        case 6
-          I = isnan(s.PM_H_all(:,:,1)'); % IK ungültig / nicht lösbar (Reichweite)
-      end
-      if ~any(I(:))
-        continue
-      end
-      x_i = X_ext(I);
-      y_i = Y_ext(I);
-      PM_hdl(5+kk) = plot(x_i(:), y_i(:), PM_formats{kk}, 'MarkerSize', 4);
-    end
+    ylabel(Hdl_all.cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
+      PM_hdl(5+(1:6)) = Hdl_all.VM;
   end
   xlabel('Zeit in s');
   ylabel('Redundante Koordinate in deg');
@@ -978,8 +873,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if ~isempty(s.debug_dir)
         % Speichere detaillierten Zwischen-Zustand ab
         X6_traj = X_l(:,6);
+        X6_traj_ref = X_t_l(:,6);
         save(fullfile(s.debug_dir, sprintf('dp_stage%d_state%d_to%d_result.mat', ...
-          i-1, k, l)), 'Q', 'QD', 'QDD', 'Stats', 'X6_traj', 'i', 'k', 'l', 's_Traj_l', 'z_l');
+          i-1, k, l)), 'Q', 'QD', 'QDD', 'Stats', 'X6_traj', 'i', 'k', 'l', ...
+          's_Traj_l', 'z_l', 'X6_traj_ref', 'xlim6_interp');
       end
       % Eintragen der Linie in die Redundanzkarte
       if s.verbose > 1 % Debug-Plot
@@ -1109,24 +1006,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             end
           end
           wn_plot(R.idx_ikpos_hn.xlim_hyp) = 100;
-          CC_ext(:) = 0; % Bereits oben initialisiert
-          for iii = 1:length(wn_plot)
-            if wn_plot(iii) == 0, continue; end
-            CC_ext = CC_ext + wn_plot(iii) * s.PM_H_all(:,:,iii)';
-          end
           pmtrajdbghdl = change_current_figure(501);clf;hold on;
+          Hdl_all = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
+            t_tref, struct( ...
+            'reference', 'time', 'wn', wn_plot, 'abort_thresh_h', abort_thresh_hpos, ...
+            'PM_limit', false, 'log', true));
           sgtitle(pmtrajdbghdl, sprintf('Redundanzkarte für Stufe %d Aktion %d-%d', i, k, l));
           set(pmtrajdbghdl, 'Name', sprintf('DynProg_PerfMap_Detail'), 'NumberTitle', 'off');
-          surf(X_ext,Y_ext,zeros(size(X_ext)),log10(CC_ext), 'EdgeColor', 'none');
-          xlim(minmax2(t_i'));
-          ylim(180/pi*minmax2(s.PM_phiz_range'));        
-          colormap(flipud(hot(4096)));
-          set(gca,'ColorScale','log'); % damit werden niedrige Werte nochmal ausgeprägter
           xlabel('Zeit in s');
           ylabel('Redundante Koordinate in deg');
-          cb = colorbar();
-          cbtext = 'log10(h)';
-          ylabel(cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
+          ylabel(Hdl_all.cb, 'log10(h)', 'Rotation', 90, 'interpreter', 'none');
           % Linien einzeichnen
           hdl = NaN(4,1);
           hdl(1) = plot(t_i, 180/pi*X_t_l(:,6), 'k-', 'LineWidth', 3);
