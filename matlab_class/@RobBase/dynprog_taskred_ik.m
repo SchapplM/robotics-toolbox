@@ -723,12 +723,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         Icrit1 = find(strcmp(fields(R.idx_ikpos_hn), 'jac_cond'));
         Icrit2 = find(strcmp(fields(R.idx_iktraj_hn), 'jac_cond'));
         Hcrit = s.PM_H_all(:,:,Icrit1)';
-        h_interp = interp2(t_tref, s.PM_phiz_range, ...
-          Hcrit, t_i(1:iter_l,:), X_l(:,6));
+        [t_tref_unique, I_t_unique] = unique(t_tref); % Sonst Fehler bei interp2
+        h_interp = interp2(t_tref_unique, s.PM_phiz_range, ...
+          Hcrit(:,I_t_unique), t_i(1:iter_l,:), X_l(:,6));
         h_traj = Stats.h(1:iter_l,1+Icrit2);
         % Korrelation berechnen auf Basis der Werte fast bis zum Schluss.
         % Am Ende nicht aussagekräftig durch Abbruch bei sehr großen Werten
-        iter_mc = min(1, iter_l-5);
+        iter_mc = max(1, iter_l-5);
         corr_PM_traj = corr(h_interp(1:iter_mc), h_traj(1:iter_mc));
         if corr_PM_traj < 0.8
           fprintf(['Zielkriterium %s stimmt nicht zwischen Trajektorie ', ...
