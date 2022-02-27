@@ -20,6 +20,9 @@
 %   .wn [NK x 1]
 %     Gewichtung der Kriterien im Plot. Sollte mit Gewichtung in Trajektorie
 %     übereinstimmen, damit Verhalten plausibel aus Karte abgeleitet werden kann
+%   .markermindist [1x2]
+%     Mindestabstand zweier Marker für Nebenbedingungen (1. waagerechter,
+%     2. senkrechter Abstand in Plot (in Plot-Einheiten))
 %   .extend_map [true, false]
 %     Verdopple die Karte transparent nach unten und oben mit 2pi-Periodizität
 %   .violation_markers {2xNV} cell
@@ -53,6 +56,7 @@ s = struct( ...
   'abort_thresh_h', inf(R.idx_ik_length.hnpos, 1), ... % Schwellwert für Marker
   'PM_limit', true, ... % Farben begrenzen
   'wn', NaN(R.idx_ik_length.hnpos, 1), ... % Gewichtung Leistungsmerkmale
+  'markermindist', [0,0], ... % Minimaler Abstand zweier gleicher Marker in x- und y-Richtung
   'extend_map', true, ... % Karte erweitern
   'log', false, ... % Log-Skalierung der Farbe
   'xlabel', '#AUTO', ... % Mit Makro #AUTO wird die Beschriftung automatisch gesetzt
@@ -188,7 +192,13 @@ for kk = 1:size(s.violation_markers,2)
   end
   x_i = X_ext(I);
   y_i = Y_ext(I);
-  Hdl_all.VM(kk) = plot(x_i(:), y_i(:), s.violation_markers{2,kk}, 'MarkerSize', 4);
+  if any(s.markermindist) % Marker ausdünnen.
+    II = select_plot_indices_downsample_nonuniform([x_i(:), y_i(:)], [], ...
+      s.markermindist(1), s.markermindist(2));
+  else % alle Marker nehmen
+    II = true(length(x_i), 1);
+  end
+  Hdl_all.VM(kk) = plot(x_i(II), y_i(II), s.violation_markers{2,kk}, 'MarkerSize', 4);
 end
 
 PlotData = struct( 'I_exc', I_exc, 'I_colorlim', I_colorlim, ...

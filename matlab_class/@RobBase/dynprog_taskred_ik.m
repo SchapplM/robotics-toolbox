@@ -328,7 +328,8 @@ if s.verbose > 1
     [Hdl_all, ~, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
       t_tref, struct( ...
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
-      'PM_limit', s.PM_limit));
+      'PM_limit', s.PM_limit, ...
+      'markermindist', [max(t)/200, 1])); % leichtes Ausdünnen der Marker
     cbtext = sprintf('h=%s(%s)', s.cost_mode, disp_array(wn_names, '%s'));
     if any(PlotData.I_exc(:))
       cbtext = [cbtext, sprintf('; Log: h>%1.0f', PlotData.condsat_limit_rel)];
@@ -1183,7 +1184,7 @@ end
 assert(~any(isnan(XE(:))), 'Logik-Fehler. XE enthält NaN.');
 if ~isempty(s.debug_dir)
   % Speichere detaillierten Zwischen-Zustand ab
-  save(fullfile(s.debug_dir, 'dp_final.mat'), 'I_best', 'XE_all', 'QE_all');
+  save(fullfile(s.debug_dir, 'dp_final.mat'), 'I_best', 'XE_all', 'QE_all', 'I_all');
 end
 if s.debug && ~isempty(s.debug_dir)
   % Speichere kompletten Zustand ab
@@ -1369,8 +1370,8 @@ DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
   'XD6', XD_neu(:,6), 'XDD6', XDD_neu(:,6));
-if s.verbose > 1
-  DPstats.figikhdl = figikhdl;
+if s.verbose > 1 && ~isempty(s.debug_dir)
+  saveas(figikhdl, fullfile(s.debug_dir, 'dp_perfmap_traj.fig'));
 end
 if ~isempty(s.debug_dir)
   save(fullfile(s.debug_dir, 'dp_output.mat'), 'DPstats', 'TrajDetail');
