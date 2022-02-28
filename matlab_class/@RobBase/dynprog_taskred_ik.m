@@ -205,7 +205,8 @@ s_Traj.ik_solution_min_norm = false;
 % tent mit den Vorgaben aus der aufrufenden Funktion (Maßsynthese) sein
 for f = fields(s.settings_ik)'
   if any(strcmp(f{1}, {'cond_thresh_ikjac', 'optimcrit_limits_hyp_deact', ...
-      'collbodies_thresh', 'installspace_thresh', 'cond_thresh_jac'}))
+      'collbodies_thresh', 'installspace_thresh', 'cond_thresh_jac', ...
+      'thresh_ns_qa'}))
     s_Traj.(f{1}) = s.settings_ik.(f{1});
   end
 end
