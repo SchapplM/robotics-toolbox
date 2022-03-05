@@ -1845,5 +1845,62 @@ classdef ParRob < RobBase
         end
       end
     end
+    function update_collchecks(R)
+      % Aktualisiere die Kollisionsprüfungen für die PKM.
+      % Voraussetzung: update_collbodies wurde durchgeführt.
+      % TODO: Code aus Maßsynthese-Repo vollständig übernehmen. Aktuell
+      % hier unvollständig.
+      R.collchecks = uint8(zeros(0,2));
+      % Indizes definieren
+      I1 = (1:R.NLEG)'; I2 = [R.NLEG, 1:R.NLEG-1]';
+      I_legbase = R.I1L_LEG-(I1-1);
+      I_legplatform = R.I2L_LEG(I1)-(I1-1)-1;
+      % Teste alle Beinketten gegeneinander
+      I_cb_legs = 1:size(R.collbodies.type,1);
+%       N_cb_legs = size(R.collbodies.type,1)-size(R.collbodies_nonleg.type,1);
+      for i = I_cb_legs
+        for j = I_cb_legs
+          if i >= j, continue; end % nicht sich selbst und nicht doppelt testen
+          % Prüfe, ob zu Basis zugehörig
+          is_base = [any(R.collbodies.link(i,:)==0)', ...
+                     any(R.collbodies.link(j,:)==0)'];
+          % Prüfe, ob zu Beinketten-Basis zugehörig
+          is_base = is_base | [~isempty(intersect(R.collbodies.link(i,:), ...
+            I_legbase)), ~isempty(intersect(R.collbodies.link(j,:), I_legbase))];
+          if all(is_base), continue; end % Kollision Basis-Basis nicht relevant
+          % Prüfe ob zu Plattform zugehörig
+          is_platform = [~isempty(intersect(R.collbodies.link(i,:), I_legplatform)), ...
+                         ~isempty(intersect(R.collbodies.link(j,:), I_legplatform))];
+          if all(is_platform), continue; end % Kollision Plattform-Plf. nicht relevant
+          % Prüfe, zu welcher Beinkette zugehörig
+          I_Leg_i1 = find(R.collbodies.link(i,1) >= I_legbase & ...
+                          R.collbodies.link(i,1) <= I_legplatform);
+          if isempty(I_Leg_i1), I_Leg_i1 = 0; end
+          I_Leg_i2 = find(R.collbodies.link(i,2) >= I_legbase & ...
+                          R.collbodies.link(i,2) <= I_legplatform);
+          if isempty(I_Leg_i2), I_Leg_i2 = 0; end
+          I_Leg_i = [I_Leg_i1, I_Leg_i2];
+          
+          I_Leg_j1 = find(R.collbodies.link(j,1) >= I_legbase & ...
+                          R.collbodies.link(j,1) <= I_legplatform);
+          if isempty(I_Leg_j1), I_Leg_j1 = 0; end
+          I_Leg_j2 = find(R.collbodies.link(j,2) >= I_legbase & ...
+                          R.collbodies.link(j,2) <= I_legplatform);
+          if isempty(I_Leg_j2), I_Leg_j2 = 0; end
+          I_Leg_j = [I_Leg_j1, I_Leg_j2];
+          % Keine Kollision prüfen, wenn Plattform der eigenen Beinkette
+          % beteiligt ist
+          if any(is_platform) && ~isempty(intersect(I_Leg_i, I_Leg_j))
+            continue
+          end
+          % Alle Ausschlüsse geprüft. Eintragen
+          R.collchecks = [R.collchecks; [j, i]];
+%           fprintf('%d: %d (Leg %d Link %d) vs %d (Leg %d Link %d)\n', ...
+%             size(R.collchecks,1), ...
+%             i, I_Leg_i(1), R.collbodies.link(i,1), ...
+%             j, I_Leg_j(1), R.collbodies.link(j,1));
+        end
+      end
+    end
   end
 end
