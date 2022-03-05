@@ -17,6 +17,10 @@
 %     Schwellwert für jedes Kriterium zur Begrenzung der Farben
 %   .PM_limit [true, false]
 %     Begrenze die Farben mit einem oberen Wert
+%   .s_range_plot
+%     Grenzen für die senkrechte Achse (redundante Koordinate)
+%   .phiz_range_plot
+%     Grenzen für die senkrechte Achse (redundante Koordinate)
 %   .wn [NK x 1]
 %     Gewichtung der Kriterien im Plot. Sollte mit Gewichtung in Trajektorie
 %     übereinstimmen, damit Verhalten plausibel aus Karte abgeleitet werden kann
@@ -55,6 +59,8 @@ s = struct( ...
   'reference', 'normalized', ...
   'abort_thresh_h', inf(R.idx_ik_length.hnpos, 1), ... % Schwellwert für Marker
   'PM_limit', true, ... % Farben begrenzen
+  's_range_plot', NaN(1,2), ...
+  'phiz_range_plot', NaN(1,2), ...
   'wn', NaN(R.idx_ik_length.hnpos, 1), ... % Gewichtung Leistungsmerkmale
   'markermindist', [0,0], ... % Minimaler Abstand zweier gleicher Marker in x- und y-Richtung
   'extend_map', true, ... % Karte erweitern
@@ -86,15 +92,28 @@ if all(isnan(s.wn))
   s.wn(R.idx_ikpos_hn.jac_cond) = 1; % nur Konditionszahl plotten
 end
 %% Farbkarte vorbereiten
-[X_ext, Y_ext] = meshgrid(s_ref, 180/pi*phiz_range);
+if any(isnan(s.s_range_plot))
+  % Keine Grenzen der Karte festgelegt. Alles zeichnen
+  I_x = true(length(s_ref),1);
+  s.s_range_plot = s_ref([1,end])';
+else
+  I_x = s_ref>=s.s_range_plot(1) & s_ref<=s.s_range_plot(2);
+end
+if any(isnan(s.phiz_range_plot))
+  % Keine Grenzen der Karte festgelegt. Alles zeichnen
+  I_y = true(length(phiz_range),1);
+else
+  I_y = phiz_range>=s.phiz_range_plot(1) & phiz_range<=s.phiz_range_plot(2);
+end
+[X_ext, Y_ext] = meshgrid(s_ref(I_x), 180/pi*phiz_range(I_y));
 CC_ext = zeros(size(X_ext));
 wn_plot = s.wn;
 for iii = 1:length(wn_plot)
   if wn_plot(iii) == 0, continue; end
-  CC_ext = CC_ext + wn_plot(iii) * H_all(:,:,iii)';
+  CC_ext = CC_ext + wn_plot(iii) * H_all(I_x,I_y,iii)';
 end
 if all(CC_ext(:)==0 | isnan(CC_ext(:))) 
-  CC_ext = H_all(:,:,end)'; % Nur Konditionszahl (direkt)
+  CC_ext = H_all(I_x,I_y,end)'; % Nur Konditionszahl (direkt)
   title('Farbe nur illustrativ cond(J). Alle h=0');
 end
 %% Begrenzung der Farb-Werte berechnen
@@ -133,8 +152,8 @@ else
 end
 %% Zeichne die Farbkarte
 Hdl_all.surf = surf(X_ext,Y_ext,zeros(size(X_ext)),CC_ext, 'EdgeColor', 'none');
-xlim(minmax2(s_ref'));
-ylim(180/pi*minmax2(phiz_range'));
+xlim(minmax2(s_ref(I_x)'));
+ylim(180/pi*minmax2(phiz_range(I_y)'));
 colors_map = flipud(hot(1024)); % white to dark red.
 % Falls starke Singularitäten oder Grenzverletzungen vorliegen, 
 % wird diesdurch eine neue Farbe (Schwarz) hervorgehoben. Die Farbe
@@ -181,11 +200,11 @@ for kk = 1:size(s.violation_markers,2)
   % Mit den Farben sind diese Bereiche nicht eindeutig zu kennzeichnen, da
   % immer die summierte Zielfunktion gezeichnet wird
   if strcmp(s.violation_markers{1,kk}, 'invalid')
-    I = isnan(H_all(:,:,1)');
+    I = isnan(H_all(I_x,I_y,1)');
   else
     Icrit = strcmp(fields(R.idx_ikpos_hn), s.violation_markers{1,kk});
     assert(sum(Icrit)==1, sprintf('Kriterium %s passt nicht', s.violation_markers{1,kk}));
-    I = H_all(:,:,Icrit)' >= s.abort_thresh_h(Icrit);
+    I = H_all(I_x,I_y,Icrit)' >= s.abort_thresh_h(Icrit);
   end
   if ~any(I(:))
     continue
