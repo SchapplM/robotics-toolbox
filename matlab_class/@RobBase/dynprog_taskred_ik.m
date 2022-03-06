@@ -45,8 +45,8 @@ s = struct( ...
   'xDlim', R.xDlim, ... % Minimale und maximale EE-Geschw. (6x2). Letzte Zeile für Optimierungsvariable
   'xDDlim', R.xDDlim, ... % Minimale und maximale EE-Beschleunigung.
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
-  ... % über die Stufen. Möglich: average, max
-  'cost_mode', 'average', ... 
+  ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
+  'cost_mode', 'RMStime', ... 
   ... % Schwellwert zum Abbruch der Trajektorien-Kinematik
   'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
@@ -93,6 +93,9 @@ assert(length(unique(s.IE))==length(s.IE), 'Rastpunkt-Indizes müssen eindeutig 
 if s.continue_saved_state && isempty(s.debug_dir)
   warning('Laden von gespeichertem Zustand nicht möglich, da kein Ordner gegeben.');
   s.continue_saved_state = false;
+end
+if strcmp(s.cost_mode, 'RMStraj') && isempty(s.PM_s_ref)
+  error('Für Integration über Bahnkoordinate muss PM_s_ref gegeben sein');
 end
 %% Roboter-bezogene Variablen initialisieren
 if R.Type == 0
@@ -376,6 +379,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   n_statechange_total = n_statechange_total + nz_i*z2;
   % Trajektorien-Zeiten für den Übergang von i-1 nach i.
   t_i = t(IE(i-1):IE(i)); % Ausschnitt aus der Gesamt-Trajektorie
+  if strcmp(s.cost_mode, 'RMStraj') % Bahnkoordinate für Ausschnitt
+    s_i = s.PM_s_tref(IE(i-1):IE(i));
+  end
   % Variablen für diesen Stufenübergang vorbelegt initialisieren
   F_stage(:) = inf;
   F_stage_cond(:) = inf;
@@ -710,6 +716,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         hsum = sum(repmat(wn_hcost, Stats.iter, 1) .* Stats.h(:,2:end), 2);
         if strcmp(s.cost_mode, 'average')
           F_stage(k,l) = mean(hsum);
+        elseif strcmp(s.cost_mode, 'RMStime') % Integration über Zeit
+          F_stage(k,l) =  sqrt(trapz(t_i, hsum.^2)/t_i(end));
+        elseif strcmp(s.cost_mode, 'RMStraj') % Integration über Bahnkoordinate
+          F_stage(k,l) =  sqrt(trapz(s_i, hsum.^2)/s_i(end));
         else
          F_stage(k,l) = max(hsum);
         end
@@ -1100,7 +1110,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         II_equal = find(I_equal1); % Diejenigen Zustände, die gleich gut sind
         k_best = II_equal(ii_best_sum); % Index des nach Summe besten Zustands
       end
-    else % Durchschnitts-Kriterium
+    else % Durchschnitts- oder RMS-Kriterium
       I_equal1 = true(z,1); % Platzhalter
       [F_best_kl_sum, k_best] = min(F_stage_sum(:, l));
       F_best_kl = F_best_kl_sum;
@@ -1134,10 +1144,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Nummer zum besten Zustand der Vor-Stufe
       I_all(i,l) = k_best;
       % Kosten für besten Zustand der Stufe eintragen
-      if strcmp(s.cost_mode, 'average')
-        F_all(i,l) = F_all(i-1,k_best) + F_stage(k_best, l);
-      else
+      if strcmp(s.cost_mode, 'max')
         F_all(i,l) = max(F_all(i-1,k_best), F_stage(k_best, l));
+      else % average, RMStime, RMStraj
+        F_all(i,l) = F_all(i-1,k_best) + F_stage(k_best, l);
       end
       % Endwerte für den Roboter-Zustand eintragen. Aufgrund des Prinzips
       % der lokalen Optimierung nicht nur aus dem diskreten Zustand ableit-
