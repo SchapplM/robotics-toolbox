@@ -297,6 +297,7 @@ Stats_statechange_succ_all = zeros(N+1,z2);
 % Anzahl insgesamt simulierter Trajektorien-Zeitschritte (für alle
 % Übergänge und insgesamt).
 Stats_nt_ik_all = zeros(N+1,z2);
+Stats_comptime_ik_all = zeros(N+1,z2); % Rechenzeit dafür
 nt_ik = 0;
 %% Debug-Bild vorbereiten
 if s.verbose > 1
@@ -613,6 +614,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             'Berechnung der Trajektorie\n'], i-1, k, i, l);
         end
       end
+      t4 = tic();
       if calc_traj
         if R.Type == 0 % Seriell
           [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
@@ -628,6 +630,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Anzahl der insgesamt durchführten IK-Schritte speichern
       nt_ik = nt_ik + Stats.iter;
       Stats_nt_ik_all(i,l) = Stats_nt_ik_all(i,l) + Stats.iter;
+      Stats_comptime_ik_all(i,l) = Stats_comptime_ik_all(i,l) + toc(t4);
       if any(Stats.errorcode == [0 1 2])
         % Entweder kein Abbruch der IK (Code 0), oder Abbruch der IK
         % aufgrund unmöglicher Berechnung von q/qD/qDD (Code 1/2).
@@ -899,6 +902,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), [linecolor,linestyle], 'linewidth', 2);
         % Zeichne Verbindung zur Ideallinie ein. Macht das Bild unüber-
         % sichtlich, daher immer nur eine Linie einzeichnen und die alte löschen
+        if task_redundancy % Nur im Fall von Redundanz sinnvoll
         if exist('DbgLine2Hdl', 'var'), delete(DbgLine2Hdl); end
         if ~free_stage_transfer % Nur einzeichnen, falls Begrenzung gegeben
         DbgLine2Hdl(1) = plot(t_i, 180/pi*X_t_l(:,6), 'g-');
@@ -910,7 +914,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i, 'spline')), 'k-');
         DbgLine2Hdl(4) = plot(t_i, 180/pi*(X_t_l(:,6)+...
           interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), 'k-');
-        end
+        end % if ~free_stage_transfer
+        end % if task_redundancy
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
@@ -1187,10 +1192,10 @@ if ~isempty(s.debug_dir)
   % Speichere detaillierten Zwischen-Zustand ab
   save(fullfile(s.debug_dir, 'dp_final.mat'), 'I_best', 'XE_all', 'QE_all', 'I_all');
 end
-if s.debug && ~isempty(s.debug_dir)
-  % Speichere kompletten Zustand ab
-  save(fullfile(s.debug_dir, 'dp_final_all.mat'));
-end
+% if s.debug && ~isempty(s.debug_dir)
+%   % Speichere kompletten Zustand ab (nur für Debuggen, Datei zu groß)
+%   save(fullfile(s.debug_dir, 'dp_final_all.mat'));
+% end
 %% Trajektorie aus den optimierten Stützstellen berechnen
 % Referenztrajektorie für redundante Koordinate (wie oben). Darum wird noch
 % die Nullraumbewegung durchgeführt.
@@ -1367,7 +1372,8 @@ end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
   'n_statechange_total', n_statechange_total, 'nt_ik', nt_ik, ...
-  'nt_ik_all', Stats_nt_ik_all, 'statechange_succ_all', Stats_statechange_succ_all);
+  'nt_ik_all', Stats_nt_ik_all, 'Stats_comptime_ik_all', Stats_comptime_ik_all, ...
+  'statechange_succ_all', Stats_statechange_succ_all);
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
   'XD6', XD_neu(:,6), 'XDD6', XDD_neu(:,6));
