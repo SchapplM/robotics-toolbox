@@ -51,6 +51,7 @@ s = struct( ...
   'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
   'use_free_stage_transfer', true, ...
+  'overlap', false, ... % Die Zustände bei Redundanz-Optimierung werden zusätzlich überlappend gewählt
   ... % Redundanzkarte für schönere Debug-Bilder. Ausgabe von perfmap_taskred_ik
   'PM_H_all', [], 'PM_s_ref', [], 'PM_s_tref', [], 'PM_phiz_range', [], ...
   'PM_Q_all', [], ... % optional Gelenkwinkel für Redundanzkarte zum Debuggen
@@ -243,6 +244,8 @@ if R.I_EE_Task(6) == R.I_EE(6)
   s_Traj.wn(R.idx_iktraj_wnP.qDlim_hyp) = 0; % irrelevant bei 3T3R
   % Freier Transfer zwischen Zuständen ist nicht sinnvoll ohne Redundanz
   s.use_free_stage_transfer = false;
+  % Überlappende Intervalle ebenfalls nicht sinnvoll
+  s.overlap = false;
 end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
@@ -257,6 +260,10 @@ if s.use_free_stage_transfer
   % Zusätzlicher (virtueller) Ziel-Zustand für freie Bewegung. Nur einen pro
   % Start-Zustand.
   z2 = z2 + 1;
+end
+if s.overlap
+  % Weitere virtuelle Ziel-Zustände genau versetzt zu den ursprünglichen
+  z2 = z2 + z - 1;
 end
 phi_range = linspace(s.phi_min, s.phi_max, z); % Diskretisierung der Optimierungsvariablen
 delta_phi = phi_range(2)-phi_range(1); % Abstand zwischen zwei Zuständen
@@ -433,13 +440,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     else
       nz2_ik = z;
     end
-    for l = 1:nz2_ik % Zustand auf nächster Stufe
+    if s.overlap
+      nz2_ik = nz2_ik + (z-1);
+    end
+    for l = 1:nz2_ik % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle, freie Bewegung
       t0_l = tic();
       if s.verbose
         fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
       end
       % Die zweite Hälfte der Prüfungen bezieht sich auf eine freie Bewegung
-      if l > z
+      if s.use_free_stage_transfer && l == nz2_ik % ist immer der letzte
         free_stage_transfer = true;
       else
         free_stage_transfer = false;
@@ -448,7 +458,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       qs = QE_all(:,k,i-1);
       assert(all(~isnan(qs)), 'Logik-Fehler. qs ist NaN');
       if ~free_stage_transfer
-        z_l = phi_range(l);
+        if l <= z % Normales Intervall / Zustand
+          z_l = phi_range(l);
+        else % Überlappend
+          z_l = phi_range(l-z)+delta_phi/2;
+        end
         assert(~isnan(z_l), 'Logik-Fehler: z_l ist NaN');
       else
         z_l = NaN; % Ziel-Zustand ist undefiniert.
@@ -872,7 +886,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if ~free_stage_transfer
           sgtitle(fighdl_trajdbg, sprintf(['Stufe %d->%d. Transition %d->%d (%1.2f° -> ', ...
             '%1.2f°; bzw. %1.2f°)'], i-1, i, k, l, 180/pi*X_t_l(1,6), ...
-            180/pi*phi_range(l), 180/pi*X_l(end,6)));
+            180/pi*z_l, 180/pi*X_l(end,6)));
         else
           sgtitle(fighdl_trajdbg, sprintf(['Stufe %d->%d. Transition %d->%d (%1.2f° -> ', ...
             '%1.2f°; freie Bewegung)'], i-1, i, k, l, 180/pi*X_l(1,6), ...
@@ -1058,7 +1072,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   F_stage_filt = F_stage;
   % Prüfe, ob in den Intervallen Zustände mehrfach vorkommen. Damit die Anzahl
   % der Zustände nicht immer weiter steigt, werden diese hier reduziert.
-  if s.use_free_stage_transfer
+  if s.use_free_stage_transfer || s.overlap
     % Gehe die möglichen Intervalle durch für den Ziel-Zustand. Von jedem Start-
     % Zustand nur eine Verbindung zu jedem Ziel-Zustand möglich.
     for k = find(~all(isinf(F_stage),2))' % nur Start-Zustände k betrachten, die zu mindestens einem Ziel führen
@@ -1217,6 +1231,9 @@ for i = 1:size(XE,1)-1
   i2 = IE(i+1); % End-Index
   % Index für den Zeitschritt, an dem der Wert nur noch gehalten wird
   ii1 = i1-1+floor( interp1(t(i1:i2), 1:(i2-i1+1), t(i2)-s.Tv-s.T_dec_ns) );
+  if isnan(I_best(i+1))
+    break; % Keine Lösung gefunden.
+  end
   % Start- und Ziel-Koordinate für diese Stufe
   if i == 1
     phi1 = x0(6);
@@ -1333,7 +1350,7 @@ if s.verbose > 1
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   plot(t(IE), 180/pi*XE(:,6), 'rs');
-  plot(t(IE(2:end)), 180/pi*phi_range(I_best(2:end)), 'co');
+  plot(t(IE(I_validstates(2:end))), 180/pi*phi_range(I_best(I_validstates(2:end))), 'co');
   legend({'Ref', 'Max', 'Min', 'Result DP', 'Keypoint'});
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
