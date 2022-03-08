@@ -443,6 +443,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     if s.overlap
       nz2_ik = nz2_ik + (z-1);
     end
+    % Merke, ob auf Stufe k bereits ein freier Transfer zur nächsten Stufe
+    % durchgeführt wurde, ohne dass die Einstellung explizit genutzt wurde
+    unconstrained_transfer_done_k = false;
     for l = 1:nz2_ik % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle, freie Bewegung
       t0_l = tic();
       if s.verbose
@@ -451,6 +454,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Die zweite Hälfte der Prüfungen bezieht sich auf eine freie Bewegung
       if s.use_free_stage_transfer && l == nz2_ik % ist immer der letzte
         free_stage_transfer = true;
+        % Wenn die freie Bewegung schon so stattgefunden hat, überspringen
+        if unconstrained_transfer_done_k
+          if s.verbose
+            fprintf('Unbeschränkte Bewegung wurde bereits durchgeführt. Überspringe.\n');
+          end
+          continue;
+        end
       else
         free_stage_transfer = false;
       end
@@ -673,6 +683,14 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         assert(all(abs(test_X(:)) < 1e-6), sprintf( ...
           'X-Traj. stimmt nicht. Fehler max %1.1e', max(abs(test_X(:)))));
       end
+      % Prüfe freie Bewegung anhand der Werte für xlim_hyp
+      if s.use_free_stage_transfer && ~unconstrained_transfer_done_k && ...
+          all(Stats.h(1:iter_l,1+R.idx_iktraj_hn.xlim_hyp)==0)
+        % Alle Werte für xlim_hyp sind Null. Das Kriterium war also nie
+        % aktiv und die Bewegung war bereits ohne Einschränkungen, frei
+        unconstrained_transfer_done_k = true;
+      end
+      
       % Prüfe, ob die Gelenk-Konfigurationen noch denen aus der
       % Redundanzkarte entsprechen
       if s.debug && ~isempty(s.PM_Q_all)
