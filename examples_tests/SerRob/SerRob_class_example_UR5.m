@@ -151,7 +151,9 @@ for i = 1:size(XE,1)
   % Mit 3T3R-IK
   [q_3T3R, Phi_3T3R] = RS.invkin2(RS.x2tr(XE(i,:)'), q1);
   % Mit 3T2R-IK
-  s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'wn', [0;1]);
+  s_ik = struct('I_EE', logical([1 1 1 1 1 0]));
+  s_ik.wn = zeros(RS.idx_ik_length.wnpos, 1);
+  s_ik.wn(RS.idx_ikpos_wn.qlim_hyp) = 1;
   [q_3T2R, Phi_3T2R] = RS.invkin2(RS.x2tr(XE(i,:)'), q1, s_ik);
   if any(abs([Phi_3T3R;Phi_3T2R]) > 1e-10)
     error('IK für Eckpunkt %d funktioniert mit einer Methode nicht', i);
@@ -175,8 +177,9 @@ fprintf('Dauer der IK-Berechnung (3T3R): %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
 
 % Stelle die IK auf Aufgabenredundanz ein
 t1=tic();
-s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'retry_limit', 0, ...
-  'wn', [0;1;0;0]); % Hyperbolischer Abstand der Gelenkpositionen von ihren Grenzen
+s_ik = struct('I_EE', logical([1 1 1 1 1 0]), 'retry_limit', 0); 
+s_ik.wn = zeros(RS.idx_ik_length.wntraj, 1);
+s_ik.wn(RS.idx_ikpos_wn.qlim_hyp) = 1; % Hyperbolischer Abstand der Gelenkpositionen von ihren Grenzen
 [Q, QD, ~, PHI_3T2R] = RS.invkin2_traj(X,XD,XDD,T,q1,s_ik);
 fprintf('Dauer der IK-Berechnung: %1.1fs (%1.2fms pro Bahnpunkt)\n', ...
   toc(t1), 1e3*toc(t1)/length(T));

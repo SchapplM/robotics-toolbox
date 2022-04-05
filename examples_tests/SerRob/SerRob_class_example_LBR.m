@@ -16,6 +16,9 @@ if isempty(which('serroblib_path_init.m'))
   return
 end
 
+rob_path = fileparts(which('robotics_toolbox_path_init.m'));
+resdir = fullfile(rob_path, 'examples_tests', 'results');
+
 % Typ des seriellen Roboters auswählen (LBR-Typ)
 SName='S7RRRRRRR1';
 % Modellparameter auswählen (hinterlegt aus Datenblatt)
@@ -43,13 +46,11 @@ QE = [[  0,   0, 0,  0, 0,  0,  0]; ...
       [-45, -60, 0, 60, 0, -60, 0]] * pi/180;
 [Q,QD,QDD,t] = traj_trapez2_multipoint(QE, 1, 1e-1, 1e-2, 1e-3, 0.25);
 
-s_anim = struct( 'gif_name', []);
+s_anim = struct( 'mp4_name', fullfile(resdir,'LBR4p_Traj.mp4')); % als mp4 speichern
 figure(3);clf;
-hold on;
-grid on;
-xlabel('x [m]');
-ylabel('y [m]');
-zlabel('z [m]');
+hold on; grid on;
+xlabel('x in m'); ylabel('y in m'); zlabel('z in m');
+set(gcf, 'color','w'); % Wichtig für Zuschneiden Schneiden des Videos
 view(3);
 title('Beispiel-Trajektorie LBR4+');
 RS.anim( Q(1:20:end,:), [], s_anim, s_plot);
