@@ -673,11 +673,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       end
       X_l = R.fkineEE2_traj(Q(1:iter_l,:));
       % Winkel >180° in Trajektorie zulassen
+      X_l(1,6) = z_k; % Zuerst Start-Winkel setzen als Referenz für De-Norm.
       X_l(:,4:6) = denormalize_angle_traj(X_l(:,4:6));
       % Setze den ersten Wert nochmal auf den Anfangswert. Sonst ist ein
       % Startwert >180° nicht möglich, der aber vorgegeben werden kann.
       assert(angleDiff(z_k, X_l(1,6)) < 1e-6, 'Startwert inkonsistent');
-      X_l(1,6) = z_k;
       if s.debug && ~task_redundancy
         test_X = X_l - X_t_l(1:iter_l,:);
         assert(all(abs(test_X(:)) < 1e-6), sprintf( ...
