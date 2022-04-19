@@ -438,12 +438,14 @@ for k = 1:nt
     qD_korr = J_x(I_EE,:) \ xD_korr;
     % zu xD passende Gelenk-Geschw. für diesen Zeitschritt (k)
     qD_k = qD_k_T + qDNk0 + qD_korr;
+    % Debug: 
     % Korrigiere nachträglich auch die Beschleunigung, da sie sich geändert
     % hat. Benutze direkt den Differenzenquotienten. Sonst inkonsistente Ausgabe.
-    % Nehme Quotienten in dem die Korrektur der Position berücksichtigt ist
-    if k > 1
-      QDD(k-1,:) = 1/dt^2*(Q(k,:) - Q(k-1,:) - QD(k-1,:)*dt);
-    end
+    % Nehme Quotienten in dem die Korrektur der Position berücksichtigt ist.
+    % TODO: Noch keine gute Lösung. Vermutlich Problem große Schrittweite.
+    % if k > 1
+    %   QDD(k-1,:) = 1/dt^2*(Q(k,:) - Q(k-1,:) - QD(k-1,:)*dt);
+    % end
   end
   %% Gelenk-Beschleunigung berechnen
   if ~simplify_acc

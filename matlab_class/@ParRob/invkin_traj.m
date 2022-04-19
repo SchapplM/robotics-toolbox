@@ -489,12 +489,14 @@ for k = 1:nt
           'Fehler %1.1e'], k, max(abs(PhiD_test)));
       end
     end
+    % Debug: 
     % Korrigiere nachträglich auch die Beschleunigung, da sie sich geändert
     % hat. Benutze direkt den Differenzenquotienten. Sonst inkonsistente Ausgabe.
-    % Nehme Quotienten in dem die Korrektur der Position berücksichtigt ist
-    if k > 1
-      QDD(k-1,:) = 1/dt^2*(Q(k,:) - Q(k-1,:) - QD(k-1,:)*dt);
-    end
+    % Nehme Quotienten in dem die Korrektur der Position berücksichtigt ist.
+    % TODO: Noch keine gute Lösung. Vermutlich Problem große Schrittweite.
+    % if k > 1
+    %   QDD(k-1,:) = 1/dt^2*(Q(k,:) - Q(k-1,:) - QD(k-1,:)*dt);
+    % end
   end
   %% Zeitableitung der Zwangsbedingungs-Gradienten und der Jacobi-Matrix
   % Zeitableitung der Zwangsbedingungs-Gradienten zuerst
