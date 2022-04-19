@@ -65,6 +65,7 @@ s_par = struct( ...
   'debug', false, ...
   'EE_reference', true, ... % Bezug der IK auf den PKM-Endeffektor und nicht den Koppelpunkt
   'platform_frame', false, ... % Eingabe x ist nicht auf EE-KS, sondern auf Plattform-KS bezogen
+  'prefer_q0_over_first_legchain', false, ... % Reihenfolge der Anfangswerte
   'abort_firstlegerror', false); % Abbruch, wenn IK der ersten Beinkette falsch
 % Prüfe Felder der Einstellungs-Struktur und setze Standard-Werte, falls
 % Eingabe nicht gesetzt. Nehme nur Felder, die vorgesehen sind, damit keine
@@ -140,7 +141,11 @@ for i = 1:Rob.NLEG
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
     % Zusätzlich danach alle gegebenen Anfangswerte prüfen (sofern nicht NaN).
-    Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),~I_nan)];
+    if s_par.prefer_q0_over_first_legchain % Bevorzuge die Q0-Werte
+      Q0_i = [Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),~I_nan), q(Rob.I1J_LEG(1):Rob.I2J_LEG(1))];
+    else % Bevorzuge die Ergebnisse der ersten Beinkette
+      Q0_i = [q(Rob.I1J_LEG(1):Rob.I2J_LEG(1)),Q0(Rob.I1J_LEG(i):Rob.I2J_LEG(i),~I_nan)];
+    end
   end
   
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen

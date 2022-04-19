@@ -61,6 +61,7 @@ function [q, Phi, Tc_stack_PKM, Stats] = %PN%_invkin(xE_soll, Q0, s_par, s_ser)
 %$cgargs      'Leg_sigmaJ', zeros(%NQJ%,%NLEG%),
 %$cgargs        'Leg_qlim', zeros(6,2*%NLEG%),
 %$cgargs  'Leg_phiconv_W_E', uint8(zeros(%NLEG%,1)),
+%$cgargs 'prefer_q0_over_first_legchain', false,
 %$cgargs 'abort_firstlegerror', false),
 %$cgargs  struct(   'reci', true,
 %$cgargs               'K', zeros(%NQJ%,1),
@@ -169,7 +170,7 @@ if nargout == 4
   Stats = struct('file', 'pkm_invkin_ser', 'Q', NaN(1+s.n_max, %NJ%), ...
     'PHI', NaN(1+s.n_max, 6*%NLEG%), 'iter', repmat(s.n_max,1,%NLEG%), ...
     'retry_number', zeros(1,%NLEG%), 'condJ', NaN(1+s.n_max,2*%NLEG%), ...
-    'lambda', NaN(s.n_max,2*%NLEG%), 'version', 4);
+    'lambda', NaN(s.n_max,2*%NLEG%), 'version', 5);
 end
 
 for i = 1:NLEG
@@ -191,7 +192,11 @@ for i = 1:NLEG
     % Nehme die Startwerte für die IK der weiteren Beinkette aus den Er-
     % gebnissen der ersten. Dadurch hoffentlich symmetrisches Ergebnis.
     % Zusätzlich danach alle gegebenen Anfangswerte prüfen (sofern nicht NaN).
-    Q0_i = [q(I1J_LEG(1):I2J_LEG(1)),Q0(I1J_LEG(i):I2J_LEG(i),~I_nan)];
+    if s_par.prefer_q0_over_first_legchain % Bevorzuge die Q0-Werte
+      Q0_i = [Q0(I1J_LEG(i):I2J_LEG(i),~I_nan),q(I1J_LEG(1):I2J_LEG(1))];
+    else % Bevorzuge die Ergebnisse der ersten Beinkette
+      Q0_i = [q(I1J_LEG(1):I2J_LEG(1)),Q0(I1J_LEG(i):I2J_LEG(i),~I_nan)];
+    end
   end
   
   % Transformation vom letzten Beinketten-KS zum EE-KS der PKM bestimmen
