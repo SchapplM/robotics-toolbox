@@ -565,6 +565,9 @@ for robnr = 1:2
     QD_int = cumtrapz(t, QDD) + repmat(QD(1,:),n,1);
     % Integriere die Geschwindigkeit zur Position
     Q_int = cumtrapz(t, QD) + repmat(Q(1,:),n,1);
+    % Weitere Verläufe zur Abgrenzung von Fehlern
+    QD_diff = [zeros(1,RS.NQJ); diff(Q)./repmat(diff(t),1,RS.NQJ)];
+    QDD_diff = [zeros(1,RS.NQJ); diff(QD)./repmat(diff(t),1,RS.NQJ)];
     % Vergleiche die Verläufe graphisch
     fhdl = change_current_figure(100*robnr+40+kk);clf;
     set(fhdl, 'Name', sprintf('Rob%d_Kons_q_M%d', robnr, kk), 'NumberTitle', 'off');
@@ -584,15 +587,18 @@ for robnr = 1:2
       hold on;
       hdl1=plot(t, QD(:,i));
       hdl2=plot(t, QD_int(:,i), '--');
+      hdl3=plot(t, QD_diff(:,i), '--');
       plot(t([1,end]), repmat(RS.qDlim(i,:),2,1), 'r-');
       ylabel(sprintf('qD %d', i)); grid on;
-      if i == RS.NJ, legend([hdl1;hdl2],{'direkt', 'integral'}); end
+      if i == RS.NJ, legend([hdl1;hdl2;hdl3],{'direkt', 'integral(qDD)', 'diff(q)'}); end
       ylim([-0.1, +0.1]+minmax2([QD(:,i);QD_int(:,i)]'));
       % Gelenkbeschleunigung
       subplot(3,RS.NJ,sprc2no(3,RS.NJ, 3, i));
       hold on;
-      plot(t, QDD(:,i));
+      hdl1=plot(t, QDD(:,i));
+      hdl2=plot(t, QDD_diff(:,i), '--');
       plot(t([1,end]), repmat(RS.qDDlim(i,:),2,1), 'r-');
+      if i == RS.NJ, legend([hdl1;hdl2],{'direkt', 'diff(qD)'}); end
       ylabel(sprintf('qDD %d', i)); grid on;
     end
     linkxaxes

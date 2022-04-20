@@ -83,6 +83,7 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
     RP.r_P_B_all(:,3) = [-0.2;0.3;0];
     RP.r_P_B_all(:,4) = [-0.2;-0.3;0];
     RP.r_P_B_all(:,5) = [0.2;-0.3;0];
+    RP.phi_P_B_all(:) = 0;
     
     I_qa_Typ = zeros(5,1);
     I_qa_Typ(2) = 1; % das 2te Gelenk P ist aktuiert
@@ -99,6 +100,7 @@ for robnr = 1:3 % 5_UPU, 5_RUU, 5_RPUR;
     I_qa_Typ = zeros(5,1); % Typ1: S5PRRRR1
     I_qa_Typ(2) = 1; % das 2te Gelenk P ist aktuiert
   end
+  assert(~any(isnan(RP.phi_P_B_all(:))), 'Strukturparameter sind NaN. Falsche Initialisierung');
   serroblib_update_template_functions({RS.mdlname});
   RP.fill_fcn_handles(false, true);
   RP.update_actuation(repmat(I_qa_Typ,5,1));
