@@ -140,6 +140,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs  'cond_thresh_jac', 1,
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
+%$cgargs           'debug', false,
 %$cgargs              'wn', zeros(23,1),
 %$cgargs  'abort_thresh_h', zeros(13,1),
 %$cgargs      'maxrelstep', 0.1,
