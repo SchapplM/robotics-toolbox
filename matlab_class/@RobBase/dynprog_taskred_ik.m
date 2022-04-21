@@ -47,6 +47,9 @@ s = struct( ...
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
   'cost_mode', 'RMStime', ... 
+  ... % Kriterium zur Entscheidung, falls mehrere Pfade hinsichtlich 
+  ... % cost_mode gleich gut sind. Möglich: motion_redcoord, cond
+  'cost_mode2', 'cond', ...
   ... % Schwellwert zum Abbruch der Trajektorien-Kinematik
   'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
@@ -298,7 +301,7 @@ YE_stage = NaN(z1, z2);
 F_stage = NaN(z1, z2);
 % Zusätzlichen Kostenterm aus der Konditionszahl berechnen. Wird bei
 % Gleichheit der sonstigen Kosten benutzt
-F_stage_cond = NaN(z1, z2);
+F_stage_cond = NaN(z1, z2); F_stage_range = F_stage_cond;
 % Vorbereitung statistischer Größen für die Ausgabe
 n_statechange_succ = 0; % Anzahl erfolgreicher Stufenübergänge
 n_statechange_total = 0; % Anzahl aller Stufenübergänge
@@ -392,14 +395,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   % Variablen für diesen Stufenübergang vorbelegt initialisieren
   F_stage(:) = inf;
   F_stage_cond(:) = inf;
+  F_stage_range(:) = inf;
   YE_stage(:) = NaN;
   QE_stage(:) = NaN;
   if false && s.continue_saved_state % TODO: Prüfung fehlt, Tmp-Plot geht nicht
     % Prüfe, ob ein gespeicherter Zustand geladen werden kann
     d = load(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
-      'F_stage_sum', 'F_stage', 'F_stage_cond', 'QE_stage', 'YE_stage');
+      'F_stage_sum', 'F_stage', 'F_stage_cond', 'F_stage_range', 'QE_stage', 'YE_stage');
     F_stage = d.F_stage;
     F_stage_cond = d.F_stage_cond;
+    F_stage_range = d.F_stage_range;
     YE_stage = d.YE_stage;
     QE_stage = d.QE_stage;
     if s.verbose
@@ -757,6 +762,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
         % Mittlere Konditionszahl als weiteres Entscheidungskriterium
         F_stage_cond(k,l) = mean(Stats.condJ(:,2)); % Aktuierungs-J. / geom. J.
+        % Bewegung der redundanten Koordinate als weiteres Kriterium
+        F_stage_range(k,l) = sum(abs(diff(X_l(:,6))));
         % Statistik: Anzahl der erfolgreichen Übergänge speichern
         n_statechange_succ = n_statechange_succ + 1;
         Stats_statechange_succ_all(i,l) = Stats_statechange_succ_all(i,l)+1;
@@ -1155,18 +1162,25 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % machen, damit doppelte Prüfung für Max.-Kriterium möglich ist
       % Prüfe, ob die Kosten jetzt eindeutig sind. Falls die Zielfunktionen
       % unterhalb ihrer Schwellwerte (z.B. Konditionszahl) sind, ist
-      % konstant h=0 möglich. In dem Fall entscheidet die Jacobi-Kondition
+      % konstant h=0 möglich. In dem Fall entscheidet Krit. aus s.cost_mode2
       I_equal2 = (F_stage_sum(:, l) == F_best_kl_sum);
       if sum(I_equal2) > 1
         % Zustände, deren Summen gleich gut sind und falls vorher Maximum-
         % Kriterium angewendet wurde, auch nach diesem optimal sind
         II_equal2 = find(I_equal1 & I_equal2);
-        [~, ii_best_cond] = min(F_stage_cond(II_equal2, l));
-        k_best = II_equal2(ii_best_cond); % Index des Zustands mit bester Kondition
+        if strcmp(s.cost_mode2, 'motion_redcoord')
+          [~, ii_best2] = min(F_stage_range(II_equal2, l));
+        elseif strcmp(s.cost_mode2, 'cond') % Jacobi-Kondition
+          [~, ii_best2] = min(F_stage_cond(II_equal2, l));
+        else
+          error('Modus %s für costmode2 nicht definiert', s.cost_mode2);
+        end
+        k_best = II_equal2(ii_best2); % Index des Zustands mit bester Kondition
       end
       if s.verbose
-        fprintf('Zustand %d (St. %d) bester Vorgänger für Zustand %d (St. %d)\n', ...
-          k_best, i-1, l, i);
+        fprintf(['Zustand %d (St. %d) bester Vorgänger für Zustand %d ', ...
+          '(St. %d). %d Übergänge waren gleich gut, %d in Ordnung.\n'], ...
+          k_best, i-1, l, i, sum(I_equal2), sum(~isinf(F_stage_sum(:, l))));
         if s.verbose > 1 && ~isnan(DbgLineHdl(k_best,l))
           % Ändere nochmal die Farbe im Bild
           set(DbgLineHdl(k_best,l), 'Color', 'c'); % cyan für lokal optimal
@@ -1209,6 +1223,16 @@ I_validstates = find(~all(isinf(F_all),2))'; % Liste bezogen auf Zustänze der S
 for i = fliplr(I_validstates) % Rekursiv von Ende zu Anfang
   if i == I_validstates(end)
     [~, k_best] = min(F_all(i,:));
+    % Bei mehreren gleichwertigen Lösungen, nehme die mit dem geringsten
+    % Abstand zum Startwert (kann vorkommen, wenn Zielfunktion nicht aktiv
+    % ist und immer 0 ist, weil Schwellwerte nicht überschritten werden).
+    I_equal3 = find(F_all(i,:) == F_all(i,k_best));
+    if length(I_equal3) > 1
+      % Ignoriere hier die Option s.cost_mode2, da für Kondition schwer
+      % umsetzbar (nur Betrachtung des letzten Zustands reicht eigtl. nicht)
+      [~, ii_best2] = min(abs(XE_all(i,I_equal3) - x0(6)));
+      k_best = I_equal3(ii_best2);
+    end
     XE(i,6) = XE_all(i,k_best);
     k_to_best = I_all(i,k_best);
     I_best(i) = k_best;
