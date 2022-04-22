@@ -1631,7 +1631,7 @@ for k = 1:nt
     else
       % Benutze Jacobi-Matrix basierend auf erster Beinkette
       xDD_JDqD = - J_x_inv(1:Rob.I2J_LEG(1),:) \ JD_x_inv(1:Rob.I2J_LEG(1),:) / ...
-        J_x_inv(1:Leg_NQJ(1),:) * qD_k(1:Leg_NQJ(1));
+        J_x_inv(1:Rob.I2J_LEG(1),:) * qD_k(1:Rob.I2J_LEG(1));
       xDD_k_pre = J_x_inv(1:Rob.I2J_LEG(1),:) \ qDD_pre(1:Rob.I2J_LEG(1)) + xDD_JDqD;
     end
     phizDD_k_pre = xDD_k_pre(6);
