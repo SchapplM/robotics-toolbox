@@ -399,7 +399,7 @@ for i = 1:size(XL,1)
     end
 
     % Warnung, wenn aktuelle IK ungültig -> Fehlerausgabe am Ende
-    if (any(abs(phi_IK_ep) > Phirt_tol)) && (k == 4)  % nur bei vollständiger Optimierung interessant
+    if any(abs(phi_IK_ep) > 1e-6) && k == 4  % nur bei vollständiger Optimierung interessant
       warning('Inverse Kinematik bei Punkt %d für Optimierungsmethode %d fehlerhaft!', i, k); 
       warning_phi_count = warning_phi_count + 1;
       warnplot_needed_state = 1;
@@ -662,7 +662,6 @@ Namen_Methoden = cell(1,6);
 % Namen_Methoden = cell(1,1);
 % Initialisierung
 phiz_traj_diff_k = NaN(size(T,1),size(Namen_Methoden,2));
-phiz_traj_diff_k_pre = phiz_traj_diff_k;
 h9_k = NaN(size(T,1),size(Namen_Methoden,2));
 h10_k = h9_k;
 h11_k = h9_k;
@@ -744,13 +743,7 @@ for k = 6:length(Namen_Methoden)
 
   % Actual platform trajectory
   [X_ist_k, XD_ist_k, ~] = RP.fkineEE2_traj(Q_k, QD_k, QDD_k);
-  % Save original vector
-  X_ist_k_pre = X_ist_k;
-  % Get platform pose from integration to avoid restriction to +/- pi
-  X_ist_k_int = repmat(X_ist_k(1,:), length(t), 1) + cumtrapz(t, XD_ist_k);
-  % Normalize platform angles from direct calculation using angles from
-  % integration as center. Gives exact solution without limitation to +/-pi
-  X_ist_k(:,4:6) = normalizeAngle(X_ist_k(:,4:6), X_ist_k_int(:,4:6));
+  X_ist_k(:,4:6) = denormalize_angle_traj(X_ist_k(:,4:6));
     
 %   I_err = abs(Phi_k) > max(s_traj.Phit_tol, s_traj.Phir_tol) | isnan(Phi_k);
 %   % Prüfe, ob die Trajektorie vorzeitig abbricht. Das ist kein Fehler, da
@@ -767,7 +760,6 @@ for k = 6:length(Namen_Methoden)
 
   % Auswertung für den Plot: phiz
   phiz_traj_diff_k(:,k)     = -X_t(:,6) + X_ist_k(:,6);
-  phiz_traj_diff_k_pre(:,k) = -X_t(:,6) + X_ist_k_pre(:,6);
   if k > 1
     if phiz_traj_diff_k(size(t,1),k) <= s_traj.xlim(6,1) || phiz_traj_diff_k(size(t,1),k) >= s_traj.xlim(6,2)
       limred_fail_flag_traj(1,limred_fail_counter) = k;
@@ -780,7 +772,7 @@ for k = 6:length(Namen_Methoden)
   h10_k(:,k) = Stats_Traj_k.h(:,11);
   h11_k(:,k) = Stats_Traj_k.h(:,12);
   % Auswertung für den Plot: phizD
-  phizD_traj(:,k) = Stats_Traj_k.phi_zD(:,1);
+  phizD_traj(:,k) = XD_ist_k(:,6) - XD_t(:,6);
 end
 fprintf('\nBerechnung und Auswertung der Trajektorien-IK beendet.\n');
 
@@ -814,7 +806,6 @@ if traj_plot_needed
     subplot(5,size(Namen_Methoden,2),kk); hold on;
     plot(T, phiz_traj_diff_k(:,kk)*180/pi, 'm', 'LineWidth',1);
 %     plot(T, phiz_traj_diff_k(:,kk), 'm', 'LineWidth',1);
-%     plot(T, phiz_traj_diff_k_pre(:,kk)*180/pi, 'k--', 'LineWidth',1);
     xlim_vek = repmat([s_traj.xlim(6,1) s_traj.xlim(6,2)]*180/pi,index_traj(end),1);
     plot(T, xlim_vek(:,1), 'r--', 'LineWidth',1);
     plot(T, xlim_vek(:,2), 'r--', 'LineWidth',1);
