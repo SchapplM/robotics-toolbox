@@ -934,7 +934,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           's_Traj_l', 'z_l', 'X6_traj_ref', 'xlim6_interp');
       end
       % Eintragen der Linie in die Redundanzkarte
-      if s.verbose > 1 % Debug-Plot
+      if s.verbose > 1 && iter_l > 0 % Debug-Plot
         change_current_figure(figikhdl);
         linestyle = '-';
         if free_stage_transfer % Besondere Kennzeichnung bei freier Bewegung
@@ -989,9 +989,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
                 s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
               % Kriterium kk wurde überschritten. Weiter zum Plot.
             elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
-                Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
-                s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
-              % Kriterium kk war nicht dasjenige, das den Abbruch erzeugte
+                ( Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
+                s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname)) || ...
+                isnan(s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))) )
+              % Kriterium kk war nicht dasjenige, das den Abbruch erzeugte.
+              % Entweder es wurde unterschritten, oder gar nicht gesetzt.
               continue
             elseif isinf(Stats.h(iter_l,1+R.idx_iktraj_hn.xlim_hyp))
               % Toleranzband im letzten Zeitschritt wurde verlassen. Kein
