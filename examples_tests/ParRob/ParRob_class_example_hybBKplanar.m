@@ -22,6 +22,8 @@ RS = hybroblib_create_robot_class('hybBKplanar', '', 'hybBKplanarBsp1');
 RS.update_mdh(RS.pkin/4);
 
 RS.fill_fcn_handles(true, true);
+% Mex-Dateien immer neu erstellen (noch kein Update-Mechanismus)
+hybroblib_create_template_functions({'hybBKplanar', ''}, false, true)
 % RS.mex_dep()
 
 RS.I_EE = logical([1 1 0 0 0 1]); % Für IK der Beinketten mit invkin_ser

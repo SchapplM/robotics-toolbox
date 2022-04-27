@@ -22,6 +22,8 @@ RS = hybroblib_create_robot_class('hybBKspatial', '', 'hybBKspatialBsp1');
 scale = 0.25;
 RS.update_mdh(RS.pkin*scale);
 RS.fill_fcn_handles(true, true);
+% Mex-Dateien immer neu erstellen (noch kein Update-Mechanismus)
+hybroblib_create_template_functions({'hybBKspatial', ''}, false, true)
 % RS.mex_dep()
 RS.I_EE = logical([1 1 1 1 1 1]); % Für IK der Beinketten mit invkin_ser
 RS.DesPar.joint_type(6:8) = 3; % Kugelgelenk für Plot markieren
