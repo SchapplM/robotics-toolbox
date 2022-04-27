@@ -20,7 +20,10 @@ if isempty(which('serroblib_path_init.m'))
   warning('Repo mit seriellen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-
+if isempty(which('parroblib_path_init.m'))
+  warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
+  return
+end
 % Typ des seriellen Roboters auswählen (Dreh+Schub+Dreh)
 SName='S3RPR1';
 
@@ -39,11 +42,10 @@ a_mdh(3) = 0;
 pkin = S3RPR1_mdhparam2pkin(beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, qoffset_mdh);
 RS.update_mdh(pkin);
 
-%% Klasse für PKM erstellen
+%% Klasse für PKM erstellen (ohne Funktion ..._create_matlab_class)
 RS.I_EE = logical([1 1 0 0 0 1]); % Für IK der Beinketten mit invkin_ser
-if ~isempty(which('parroblib_path_init.m'))
-  parroblib_addtopath({'P3RPR1G1P1A2'});
-end
+parroblib_update_template_functions({'P3RPR1G1P1A2'});
+parroblib_addtopath({'P3RPR1G1P1A2'});
 RP = ParRob('P3RPR1G1P1A2');
 RP.create_symmetric_robot(3, RS, 1, 0.3);
 RP.update_EE_FG(logical([1 1 0 0 0 1])); % Für IK der PKM

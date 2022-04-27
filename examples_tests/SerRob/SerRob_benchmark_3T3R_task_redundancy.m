@@ -54,11 +54,11 @@ end
 
 %% Definitionen, Benutzereingaben
 % Benutzereingaben zur Ablaufsteuerung
-short_traj = true; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen. TODO: Noch singulär mit ganzer Länge.
-eckpunkte_berechnen = true; % Einzelpunkt-IK für alle Eckpunkte berechnen
+short_traj = false; % Trajektorie stark abkürzen, um prinzipielle Funktionalität zu zeigen. TODO: Noch singulär mit ganzer Länge.
+eckpunkte_berechnen = false; % Einzelpunkt-IK für alle Eckpunkte berechnen
 debug_plot = false;
 use_mex_functions = true;
-save_results = false;
+save_results = true;
 
 % Definitionen
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
@@ -77,7 +77,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
 % identisch zu 2T1R für Redundanz.
 Robots = {{'S3RRR1', ''}, {'S6RRRRRR10V2', 'S6RRRRRR10V2_FANUC6'}};
 %% Alle Robotermodelle durchgehen
-for robnr = 2
+for robnr = 1:2
 
   % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
   % Implementierung davon richtig ist
@@ -90,8 +90,8 @@ for robnr = 2
   
   %% Funktionen ggf neu generieren
   % Kann händisch aktiviert werden, wenn Änderungen durchgeführt werden:
-%   serroblib_create_template_functions({SName}, false);
-  
+  % serroblib_create_template_functions({SName}, false);
+  serroblib_update_template_functions({SName}, false, ~use_mex_functions);
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
   RS = serroblib_create_robot_class(SName, RName);
@@ -104,7 +104,10 @@ for robnr = 2
     r_W_E = [0.2;0;0]; phi_W_E(:) = 0;
   end
   RS.fill_fcn_handles(use_mex_functions, true);
-  % matlabfcn2mex({[RS.mdlname,'_invkin_traj'],[RS.mdlname,'_invkin_eulangresidual']});
+%   err = false;
+%   err = err | matlabfcn2mex({[RS.mdlname,'_invkin_eulangresidual']});
+%   err = err | matlabfcn2mex({[RS.mdlname,'_invkin_traj']});
+%   if err, error('Mex fehlgeschlagen'); end
   
   % Grenzen festlegen (für Zusatz-Optimierung)
   RS.qlim = repmat([-pi, pi], RS.NQJ, 1);
@@ -156,7 +159,7 @@ for robnr = 2
   I_EE_full_str = sprintf('%dT%dR', sum(I_EE_full(1:3)), sum(I_EE_full(4:6)));
   I_EE_red_str = sprintf('%dT%dR', sum(I_EE_red(1:3)), sum(I_EE_red(4:6)));
   % Roboter auf 3T2R einstellen
-  RS.I_EE_Task = I_EE_red;
+  RS.update_EE_FG([], I_EE_red);
 
   %% Eckpunkte für Beispiel-Trajektorie bestimmen und IK prüfen
   % Würfel-Trajektorie (Kantenlänge 300mm)
@@ -183,7 +186,7 @@ for robnr = 2
     XL = XL(1:6,:);
   end
   if ~all(RS.I_EE == [1 1 1 1 1 1])
-    XL(:, ~RS.I_EE) = 0; XL = unique(XL, 'rows');
+    XL(:, ~RS.I_EE) = 0; XL = uniquetol(XL, 'ByRows', true);
   end
   % Debug: Zeichne Eckpunkte
   if debug_plot
@@ -222,7 +225,7 @@ for robnr = 2
       end
       % Bestimme best- und schlechtmöglichstes IK-Ergebnis (ohne Aufgabenredundenz)
       t3 = tic();
-      RS.I_EE_Task = I_EE_full;
+      RS.update_EE_FG([], I_EE_full);
       s_ep_3T3R = s_ep; % Neue Konfiguration für Einzelpunkt-IK mit 3T3R
       s_ep_3T3R.I_EE = I_EE_full; % keine Aufgabenredundanz
       s_ep_3T3R.scale_lim = 0; % Grenzen ignorieren. Gibt eh nur eine Lösung
@@ -249,7 +252,7 @@ for robnr = 2
       % Speichere den besten Punkt für die 3T3R-IK ab
       [~,j_best]=min(h1_go(i,:));
       XL(i,6) = 360/nsteps_angle*(j_best-1)*pi/180; % gleiche Formel wie in vorheriger Schleife
-      RS.I_EE_Task = I_EE_red; % Aufgabenredundanz zuruecksetzen
+      RS.update_EE_FG([], I_EE_red); % Aufgabenredundanz zurücksetzen
       fprintf('Eckpunkt %d/%d berechnet. Dauer %1.1fs (Brute-Force %s).\n', ...
         i, size(XL,1), toc(t3), I_EE_full_str);
     end
@@ -298,7 +301,18 @@ for robnr = 2
     end
   end
   %% Zeitverlauf der Trajektorie generieren
-  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, 2e-3, 1e-2);
+  Tv = 0.05; % Anstiegszeit der Geschwindigkeit -> max. Beschl.
+  Ta = 0.01; % Anstiegszeit der Beschleunigung -> max. Ruck
+  T_pause = 1e-2;
+  T_sample = 2e-3;
+  [X_t,XD_t,XDD_t,t,IL] = traj_trapez2_multipoint(XL, 3, Tv, Ta, T_sample, T_pause);
+  % Hänge Pause am Ende an (sonst abbremsen im Nullraum nicht abgeschlossen)
+  n_pause = T_pause / T_sample;
+  X_t = [X_t; repmat(X_t(end,:),n_pause,1)]; %#ok<AGROW> 
+  XD_t = [XD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  XDD_t = [XDD_t; zeros(n_pause,6)]; %#ok<AGROW> 
+  t = [t; ((t(end)+T_sample):T_sample:(t(end)+T_pause))']; %#ok<AGROW> 
+  IL(end) = length(t);
   if short_traj && strcmp(SName, 'S6RRRRRR10V2') % Debug: Trajektorie reduzieren
     n = 200; % TODO: Für Industrieroboter passt die ganze Trajektorie noch schlecht.
   else
@@ -309,6 +323,35 @@ for robnr = 2
   X_t = X_t(II,:);
   XD_t = XD_t(II,:);
   XDD_t = XDD_t(II,:);
+  % Generiere Stützstellen für die Rast-zu-Rast-Bewegung der Nullraum-
+  % bewegung. Vor dem Abbremsen der Aufgabenbewegung wird die NR-Bew. abge-
+  % bremst. Dadurch wird eine komplette Rast-zu-Rast-Bewegung erzeugt.
+  % Beim Start der Aufgabe wird direkt auch die Nullraumbewegung zugelassen
+  % Abbauzeit der Geschwindigkeit ergibt sich mit der maximalen Beschleunigung.
+  Tv_ns = RS.xDlim(6,2) / RS.xDDlim(6,2);
+  nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
+    IL, Tv, Tv_ns, T_sample);
+  if true % Debuggen der Trajektorie (insbes. Nullraum-Skalierung)
+    change_current_figure(9345); clf;
+    subplot(2,2,1);
+    plot(t, sum(abs(X_t),2));
+    ylabel('s'); grid on;
+    subplot(2,2,2); hold on;
+    plot(t, sum(abs(XD_t),2));
+    plot(t(IL), 0, 'rs');
+    ylabel('v'); grid on;
+    subplot(2,2,3); hold on;
+    plot(t, sum(abs(XDD_t),2));
+    plot(t(IL), 0, 'rs');
+    ylabel('a'); grid on;
+    subplot(2,2,4); hold on;
+    plot(nullspace_maxvel_interp(1,:)', nullspace_maxvel_interp(2,:)', 'o-');
+    stairs(t, interp1(nullspace_maxvel_interp(1,:)', ...
+      nullspace_maxvel_interp(2,:)', t));
+    plot(t(IL), 0, 'rs');
+    ylabel('vNmax rel'); grid on;
+    linkxaxes
+  end
   
   %% Inverse Kinematik zum Startpunkt der Trajektorie
   % Inverse Kinematik berechnen;  Lösung der IK von oben als Startwert.
@@ -328,7 +371,8 @@ for robnr = 2
   s_start.wn = zeros(RS.idx_ik_length.wnpos, 1);
   s_start.wn(RS.idx_ikpos_wn.qlim_par) = 1;
   % Berechne IK mit 3T2R (bzw. reduziertem FG)
-  RS.I_EE_Task = I_EE_red;
+  RS.update_EE_FG([], I_EE_red);
+  s_start.I_EE = I_EE_red;
   warning on
   % Berechne Ersten Punkt der Trajektorie mit Aufgabenredundanz.
   % Dadurch bestmögliche Startkonfiguration
@@ -354,13 +398,14 @@ for robnr = 2
   
   %% IK für Trajektorie berechnen
   fprintf('Berechne Trajektorie aus %d Bahnpunkten\n', length(t));
-  Namen_Methoden = cell(1,7);
+  Namen_Methoden = cell(1,7); Namen_Methoden(:) = {''}; % Belegung mit char
   Q_t_all = NaN(length(t), RS.NJ, length(Namen_Methoden)); QD_t_all = Q_t_all; QDD_t_all = Q_t_all;
   H1_all = NaN(length(t), length(Namen_Methoden)); H2_all = H1_all;
   H1D_all = H1_all; H2D_all = H1_all; Hcond_all = H1_all; Hsum_all = H1_all;
   XE_all = NaN(length(t), 6, length(Namen_Methoden)); XDE_all = XE_all; XDDE_all = XE_all;
   % Allgemeine Einstellungen für Trajektorie
-  s_Traj = struct('n_min', 50, 'n_max', 1500, 'Phit_tol', 1e-7, 'Phir_tol', 1e-7, ...
+  s_Traj = struct( 'Phit_tol', 1e-12, 'Phir_tol', 1e-12, ...
+      'nullspace_maxvel_interp', nullspace_maxvel_interp, ...
       'I_EE', I_EE_red, 'reci', true, ...
       'wn', zeros(RS.idx_ik_length.wntraj, 1), ...
       'normalize', false);
@@ -386,11 +431,11 @@ for robnr = 2
     switch kk
       case 1
         name_method=sprintf('%s-IK (mit Opt.)', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
       case 2
         name_method=sprintf('%s-IK ohne qD lim.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.qDlim = RS.qDlim*NaN; % Dadurch Grenzen nicht aktiv
         % Zielfunktionen basierend auf qDlim deaktivieren
@@ -398,33 +443,33 @@ for robnr = 2
         s_kk.wn(RS.idx_iktraj_wnP.qDlim_hyp)=0;
       case 3
         name_method=sprintf('%s-IK ohne qDD lim.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.qDDlim = RS.qDDlim*NaN; % Dadurch Grenzen nicht aktiv
       case 4
         name_method=sprintf('%s-IK ohne Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(:) = 0; % nur Begrenzung der Geschwindigkeit. der Nullraumprojektor bleibt Null
       case 5
         name_method=sprintf('%s-IK mit pos. cond.-Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(RS.idx_iktraj_wnP.jac_cond)=1; % Auch Konditionszahl verbessern
         s_kk.wn(RS.idx_iktraj_wnD.jac_cond)=0.3;
       case 6
         name_method=sprintf('%s-IK mit neg. cond.-Opt.', I_EE_red_str);
-        RS.I_EE_Task = I_EE_red;
+        RS.update_EE_FG([],I_EE_red);
         s_kk.I_EE = I_EE_red;
         s_kk.wn(RS.idx_iktraj_wnP.jac_cond)= -1; % Konditionszahl testweise verschlechtern
         s_kk.wn(RS.idx_iktraj_wnD.jac_cond) = -0.3;
 %         name_method=sprintf('%s-IK simplify acc', I_EE_red_str);
-%         RS.I_EE_Task = I_EE_red;
+%         RS.update_EE_FG([],I_EE_red);
 %         s_kk.I_EE = I_EE_red;
 %         s_kk.simplify_acc = true;
       case 7
         name_method=sprintf('%s-IK', I_EE_full_str);
-        RS.I_EE_Task = I_EE_full;
+        RS.update_EE_FG([],I_EE_full);
         s_kk.I_EE = I_EE_full;
         s_kk.wn(:) = 0; % Keine zusätzliche Optimierung möglich
       otherwise
@@ -439,7 +484,7 @@ for robnr = 2
     % Wähle immer die gleichen Nebenbedingungen, damit alle mit gleicher
     % Konfiguration starten (besser vergleichbar)
     s_pik_kk.wn = zeros(RS.idx_ik_length.wnpos,1);
-    s_pik_kk.wn(RS.idx_ikpos_wn.qlim_par) = 1;    
+    s_pik_kk.wn(RS.idx_ikpos_wn.qlim_par) = 1;
     [qs_kk, Phi_s, ~, Stats_s] = RS.invkin2(RS.x2tr(X_t(1,:)'), qs, s_pik_kk);
     if any(abs(Phi_s)>1e-6)
       error(['Zusätzliche Nullraumbewegung am Beginn der Trajektorie ', ...
@@ -482,10 +527,11 @@ for robnr = 2
     % Berechne Ist-EE-Traj.
     I_traj = ~any(isnan(Q_t_kk),2); % Bei Fehlern wird NaN ausgegeben
     [X_ist, XD_ist, XDD_ist] = RS.fkineEE_traj(Q_t_kk(I_traj,:), QD_t_kk(I_traj,:), QDD_t_kk(I_traj,:));
+    X_ist(:,4:6) = denormalize_angle_traj(X_ist(:,4:6));
     XE_all(I_traj,:,kk) = X_ist;
     XDE_all(I_traj,:,kk) = XD_ist;
     XDDE_all(I_traj,:,kk) = XDD_ist;
-    
+
     % Ergebnis in Tabelle eintragen
     IKres_traj.Nr(kk) = kk;
     IKres_traj.Beschreibung{kk} = Namen_Methoden{kk};
@@ -519,6 +565,9 @@ for robnr = 2
     QD_int = cumtrapz(t, QDD) + repmat(QD(1,:),n,1);
     % Integriere die Geschwindigkeit zur Position
     Q_int = cumtrapz(t, QD) + repmat(Q(1,:),n,1);
+    % Weitere Verläufe zur Abgrenzung von Fehlern
+    QD_diff = [zeros(1,RS.NQJ); diff(Q)./repmat(diff(t),1,RS.NQJ)];
+    QDD_diff = [zeros(1,RS.NQJ); diff(QD)./repmat(diff(t),1,RS.NQJ)];
     % Vergleiche die Verläufe graphisch
     fhdl = change_current_figure(100*robnr+40+kk);clf;
     set(fhdl, 'Name', sprintf('Rob%d_Kons_q_M%d', robnr, kk), 'NumberTitle', 'off');
@@ -538,15 +587,18 @@ for robnr = 2
       hold on;
       hdl1=plot(t, QD(:,i));
       hdl2=plot(t, QD_int(:,i), '--');
+      hdl3=plot(t, QD_diff(:,i), '--');
       plot(t([1,end]), repmat(RS.qDlim(i,:),2,1), 'r-');
       ylabel(sprintf('qD %d', i)); grid on;
-      if i == RS.NJ, legend([hdl1;hdl2],{'direkt', 'integral'}); end
+      if i == RS.NJ, legend([hdl1;hdl2;hdl3],{'direkt', 'integral(qDD)', 'diff(q)'}); end
       ylim([-0.1, +0.1]+minmax2([QD(:,i);QD_int(:,i)]'));
       % Gelenkbeschleunigung
       subplot(3,RS.NJ,sprc2no(3,RS.NJ, 3, i));
       hold on;
-      plot(t, QDD(:,i));
+      hdl1=plot(t, QDD(:,i));
+      hdl2=plot(t, QDD_diff(:,i), '--');
       plot(t([1,end]), repmat(RS.qDDlim(i,:),2,1), 'r-');
+      if i == RS.NJ, legend([hdl1;hdl2],{'direkt', 'diff(qD)'}); end
       ylabel(sprintf('qDD %d', i)); grid on;
     end
     linkxaxes
@@ -561,47 +613,71 @@ for robnr = 2
     corrQD(all(abs(QD_int-QD)<1e-3)) = 1;
     corrQD(isnan(corrQD)) = 1;
     corrQ(isnan(corrQ)) = 1;
-    if any(corrQD < 0.95) || any(corrQ < 0.98)
-      error('Korrelation zwischen Q-QD oder QD-QDD zu gering. Vermutlich Fehler');
+    % Zusätzlich Prüfung auf Geschwindigkeit Null. Diese Phasen sollen als
+    % Korrelation 1 gewichtet werden. Sonst bei langen Phasen mit qD=0
+    % alleinige Gewichtung einzelner Ausreißer.
+    n_zeroqD = sum(abs(QD) < 1e-6 & abs(QD_int) < 1e-6);
+    corrQD = ((size(QD,1) - n_zeroqD') .* corrQD + n_zeroqD' * 1) ./ ...
+               size(QD,1);
+    if any(corrQ < 0.98)
+      error('Nr. %d: Korrelation zwischen Q-QD (%1.3f) zu gering. Fehler', ...
+        kk, min(corrQ));
+    end
+    if any(corrQD < 0.95)
+      if any(any(abs(QDD) > repmat(2*RS.qDDlim(:,2)', size(QDD,1), 1)))
+        warning(['Nr. %d: Beschleunigungs-Grenzen stark verletzt. Korrelation ', ...
+          'QD-QDD vermutlich daher zu schlecht (%1.3f)'], kk, min(corrQD));
+      else
+        error('Nr. %d: Korrelation zwischen QD-QDD (%1.3f) zu gering. Fehler', ...
+          kk, min(corrQD));
+      end
     end
     % Integriere die Endeffektor Beschleunigung und Geschwindigkeit
     XD_int = cumtrapz(t, XDD) + repmat(XD(1,:),n,1);
     % Integriere die Geschwindigkeit zur Position
     X_int = cumtrapz(t, XD) + repmat(X(1,:),n,1);
     % Vergleiche die Verläufe graphisch
-    continue % Auswertungsbild für X nur selten benötigt. TODO: Automatischer Test der Konsistenz
-    fhdl = change_current_figure(100*robnr+50+kk);clf;
-    set(fhdl, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
-    sgtitle(sprintf('Konsistenz x-int(xD), xD-int(xDD). M%d (%s)', kk, Namen_Methoden{kk}));
-    for i = 1:6
-      % EE-Position
-      subplot(3,6,sprc2no(3,6, 1, i));
-      hold on;
-      plot(t, X(:,i), 'b-');
-      plot(t, X_int(:,i), 'r--');
-      plot(t, X_t(:,i), 'g--');
-      ylabel(sprintf('x %d', i)); grid on;
-      if i == 6, legend({'direkt', 'integral', 'Soll'}); end
-      % EE-Geschwindigkeit
-      subplot(3,6,sprc2no(3,6, 2, i));
-      hold on;
-      plot(t, XD(:,i), 'b-');
-      plot(t, XD_int(:,i), 'r--');
-      plot(t, XD_t(:,i), 'g--');
-      ylabel(sprintf('xD %d', i)); grid on;
-      if i == RS.NJ, legend({'direkt', 'integral', 'Soll'}); end
-      % EE-Beschleunigung
-      subplot(3,6,sprc2no(3,6, 3, i));
-      hold on;
-      plot(t, XDD(:,i), 'b-');
-      plot(t, XDD_t(:,i), 'g--');
-      ylabel(sprintf('xDD %d', i)); grid on;
-    end
-    linkxaxes
-    if save_results
-      saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+    if any(corrQ < 0.98) || any(corrQD < 0.95) % Auswertungsbild für X nur selten benötigt
+      fhdl = change_current_figure(100*robnr+50+kk);clf;
+      set(fhdl, 'Name', sprintf('Rob%d_Kons_x_M%d', robnr, kk), 'NumberTitle', 'off');
+      sgtitle(sprintf('Konsistenz x-int(xD), xD-int(xDD). M%d (%s)', kk, Namen_Methoden{kk}));
+      for i = 1:6
+        % EE-Position (Winkel nicht normalisieren)
+        subplot(3,6,sprc2no(3,6, 1, i));
+        hold on;
+        plot(t, X(:,i), 'b-');
+        plot(t, X_int(:,i), 'r--');
+        plot(t, X_t(:,i), 'g--');
+        ylabel(sprintf('x %d', i)); grid on;
+        if i == 6, legend({'direkt', 'integral', 'Soll'}); end
+        % EE-Geschwindigkeit
+        subplot(3,6,sprc2no(3,6, 2, i));
+        hold on;
+        plot(t, XD(:,i), 'b-');
+        plot(t, XD_int(:,i), 'r--');
+        plot(t, XD_t(:,i), 'g--');
+        ylabel(sprintf('xD %d', i)); grid on;
+        if i == RS.NJ, legend({'direkt', 'integral', 'Soll'}); end
+        % EE-Beschleunigung
+        subplot(3,6,sprc2no(3,6, 3, i));
+        hold on;
+        plot(t, XDD(:,i), 'b-');
+        plot(t, XDD_t(:,i), 'g--');
+        ylabel(sprintf('xDD %d', i)); grid on;
+      end
+      linkxaxes
+      if save_results
+        saveas(fhdl, fullfile(respath,sprintf('Rob%d_M%d_Konsistenz_x', robnr, kk)));
+      end
     end
   end
+  % Prüfe, ob die Eingabe nullspace_maxvel_interp funktioniert. Muss dazu
+  % führen, dass die Geschwindigkeit an Rastpunkten Null ist.
+  IL_traj = IL(IL <= size(XD_ist,1));
+  assert(all(all(abs(XD_ist(IL_traj,:))<1e-3)), 'XD an Rastpunkten nicht Null');
+  assert(all(all(abs(XDD_ist(IL_traj,:))<1e-2)), 'XDD an Rastpunkten nicht Null');
+  assert(all(all(abs(QD_t_kk(IL_traj,:))<1e-3)), 'QD an Rastpunkten nicht Null');
+  assert(all(all(abs(QDD_t_kk(IL_traj,:))<1e-2)), 'QDD an Rastpunkten nicht Null');
   
   %% Trajektorie: Bild für Gesamt-Zielfunktionen
   fhdl = change_current_figure(100*robnr+20); clf;
@@ -774,7 +850,7 @@ for robnr = 2
     dt = dt_array(ii);
     [X_ii,XD_ii,XDD_ii,t_ii] = traj_trapez2_multipoint(XL, 3, 0.05, 0.01, dt, 1e-2);
     s_kk = s_Traj;
-    RS.I_EE_Task = I_EE_red;
+    RS.update_EE_FG([], I_EE_red);
     s_kk.I_EE = I_EE_red;
     t1=tic();
     [Q_t_ii, QD_t_ii, QDD_t_ii, Phi_t_ii] = RS.invkin2_traj(X_ii,XD_ii,XDD_ii,t_ii,qs,s_kk);

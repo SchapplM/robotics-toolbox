@@ -42,6 +42,9 @@ use_mex_functions = true; % mit mex geht es etwas schneller, dafür ist debuggen
 minimal_test = true; % Nur sehr wenige zufällige Winkel testen (geht schneller)
 debug_mode = false;  % Diverse Plots schalten
 traj_anim = false;  % Animation der Trajektorie
+% Plot-Einstellung für Einzelpunkt-IK
+plot_task = 2;  % 1:Warnungen, 2: Auswertung1(außerhalb xlim), 3: Auswertung2 (zwischen Schwellwert und xlim), 4: selbstgewählte Punkte
+
 % Endeffektor-Transformation ungleich Null festlegen, um zu prüfen, ob die
 % Implementierung davon richtig ist
 r_W_E = [0.05;0.07;0.09];
@@ -54,7 +57,7 @@ for Robot_Data = Robots
    
   %% Klasse für seriellen Roboter erstellen
   % Instanz der Roboterklasse erstellen
-  % serroblib_create_template_functions({SName}, false, false);
+  serroblib_update_template_functions({SName});
   RS = serroblib_create_robot_class(SName, RName);
   RS.fill_fcn_handles(use_mex_functions, true);
   % Grenzen festlegen (für Zusatz-Optimierung)
@@ -419,8 +422,7 @@ for Robot_Data = Robots
       end
       fprintf('\n');
     else
-      fprintf('KEINE fehlerhafte IK mit limred -> letztes phiz aller Punkte liegt innerhalb von xlim = [%d %d])', s_ep.xlim(6,1)*180/pi, s_ep.xlim(6,2)*180/pi); 
-      fprintf('\n');
+      fprintf('KEINE fehlerhafte IK mit limred -> letztes phiz aller Punkte liegt innerhalb von xlim = [%d %d])\n', s_ep.xlim(6,1)*180/pi, s_ep.xlim(6,2)*180/pi); 
     end
     
     if ~isnan(phiz_oob_thresh_vector(1))
@@ -430,16 +432,12 @@ for Robot_Data = Robots
       end
       fprintf('\n\n');
     else
-      fprintf('KEIN phiz liegt zwischen Schwellwert und xlim.'); 
-      fprintf('\n\n');
+      fprintf('KEIN phiz liegt zwischen Schwellwert und xlim.\n\n'); 
     end
     
   end
  
   %% Einzelpunkt-IK | Plot Sets
-  plot_task = 4;  % 1:Warnungen, 2: Auswertung1(außerhalb xlim), 3: Auswertung2(zwischen Schwellwert und xlim), 4:selbstgewählte Punkte
-  % STANDARD = 2
-  
   switch plot_task
     case 1
       plot_vector = warnplot_needed_vector;
@@ -567,14 +565,13 @@ for Robot_Data = Robots
     end
   end
   %% Trajektorien-IK | Initialisierung und Berechnung
-  fprintf('\n\nStarte Berechnungen für gesamte Trajektorie');
+  fprintf('\nStarte Berechnungen für gesamte Trajektorie\n');
   Phirt_tol = 1e-8;
   n_max = 1500;
   RS.I_EE_Task = I_EE_3T2R;
   Namen_Methoden = cell(1,5);
   % Initialisierung
   phiz_traj_diff_k = NaN(size(T,1),size(Namen_Methoden,2));
-  phiz_traj_diff_k_pre = phiz_traj_diff_k;
   h8_k = NaN(size(T,1),size(Namen_Methoden,2));
   h9_k = h8_k;
   h10_k = h8_k;
@@ -596,6 +593,7 @@ for Robot_Data = Robots
     s_traj_wn = zeros(RS.idx_ik_length.wntraj,1); % wn(:)=0 -> keine Opt.Krit
     s_traj    = struct('n_min', 50, 'n_max', n_max, 'Phit_tol', Phirt_tol, 'Phir_tol', Phirt_tol, ...
                        'reci', true, 'I_EE', RS.I_EE_Task, 'wn', s_traj_wn);
+    s_traj.enforce_xlim = false; % Überschreitungen kurzzeitig zulassen (Beispiel wurde ohne diese Option konzipiert)
     s_traj.xlim   = [NaN(5,2); [-45 45]*pi/180]; % in [rad] übergeben
     s_traj.xDlim  = [NaN(5,2); [-0.21 0.21]];    % 0.21rad/s = 2rpm laut unitconversion.io/de/rpm-zu-rads-konvertierung
 %     s_traj.xDDlim = [NaN(5,2); [-21 21]];        % vorläufige Konvertierung wie 4*pi zu 100 bei qD und qDD
@@ -609,8 +607,8 @@ for Robot_Data = Robots
       case 2
         % wn(17:18)=1: hyp. für qD und qDD
         s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
-        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
-        name_method = sprintf('3T2R-IK mit xlim_hyp PD=1');
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 0.4;
+        name_method = sprintf('3T2R-IK mit xlim_hyp PD');
         name_method_save2 = name_method;
       case 3
         % wn(19)=1: quadr. Dämpfung für qD
@@ -621,37 +619,35 @@ for Robot_Data = Robots
         % wn(15:17)=1: Einfluss von fehlendem wn(13:14) testen
         % TODO: D-Verstärkung ist zu hoch
         s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
-        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
-        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
-        name_method = sprintf('3T2R-IK mit wn(15:17)=1');
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 0.4;
+        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 0.7;
+        name_method = sprintf('3T2R-IK mit xlim_hyp und xDlim_par');
         name_method_save4 = name_method;
       case 5  % vollständiges Optimierungskriterium immer ans Ende stellen
         % wn(13:17)=1: Alle Optimierungskriterien aktivieren
         s_traj.wn(RS.idx_iktraj_wnP.xlim_par) = 1;
-        s_traj.wn(RS.idx_iktraj_wnD.xlim_par) = 1;
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_par) = 0.4;
         s_traj.wn(RS.idx_iktraj_wnP.xlim_hyp) = 1;
-        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 1;
-        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 1;
-        name_method = sprintf('3T2R-IK mit wn(13:17)=1');
+        s_traj.wn(RS.idx_iktraj_wnD.xlim_hyp) = 0.4;
+        s_traj.wn(RS.idx_iktraj_wnP.xDlim_par) = 0.7;
+        name_method = sprintf('3T2R-IK mit xlim_par und xlim_hyp');
         name_method_save5 = name_method;
     end
     wn_limred_save(:,k) = s_traj.wn(I_13bis17);
     
     % IK berechnen
     [Q_k, QD_k, QDD_k, Phi_k, ~, Stats_Traj_k] = RS.invkin2_traj(X,XD,XDD,T,q0_traj,s_traj);
+    if Stats_Traj_k.errorcode
+      error('Fehler in Trajektorie (Fall %d). Code: %d; Iterationen: %d/%d', ...
+        k, Stats_Traj_k.errorcode, Stats_Traj_k.iter, length(T));
+    end
     Q_k_ges(:,:,k) = Q_k;
     QD_k_ges(:,:,k) = QD_k;
     QDD_k_ges(:,:,k) = QDD_k;
-    fprintf('\nBerechnung der Trajektorie mit "%s" beendet.', name_method);
+    fprintf('Berechnung der Trajektorie mit "%s" beendet.\n', name_method);
     % Actual platform trajectory
-    [X_ist_k, XD_ist_k, ~] = RS.fkineEE_traj(Q_k, QD_k, QDD_k);
-    % Save original vector
-    X_ist_k_pre = X_ist_k;
-    % Get platform pose from integration to avoid restriction to +/- pi
-    X_ist_k_int = repmat(X_ist_k(1,:), length(T), 1) + cumtrapz(T, XD_ist_k);
-    % Normalize platform angles from direct calculation using angles from
-    % integration as center. Gives exact solution without limitation to +/-pi
-    X_ist_k(:,4:6) = normalizeAngle(X_ist_k(:,4:6), X_ist_k_int(:,4:6));
+    [X_ist_k, XD_ist_k, ~] = RS.fkineEE2_traj(Q_k, QD_k, QDD_k);
+    X_ist_k(:,4:6) = denormalize_angle_traj(X_ist_k(:,4:6));
     
     % IK-Ergebnis testen
     for i = 1:length(T)
@@ -670,7 +666,6 @@ for Robot_Data = Robots
     
     % Auswertung für den Plot: phiz
     phiz_traj_diff_k(:,k)     = -X(:,6) + X_ist_k(:,6);
-    phiz_traj_diff_k_pre(:,k) = -X(:,6) + X_ist_k_pre(:,6);
     if k > 1
       if phiz_traj_diff_k(size(T,1),k) <= s_traj.xlim(RS.NQJ,1) || phiz_traj_diff_k(size(T,1),k) >= s_traj.xlim(RS.NQJ,2)
         limred_fail_flag_traj(1,limred_fail_counter) = k;
@@ -683,7 +678,7 @@ for Robot_Data = Robots
     h9_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xlim_hyp);
     h10_k(:,k) = Stats_Traj_k.h(:,1+RS.idx_iktraj_hn.xDlim_par);
     % Auswertung für den Plot: phizD
-    phizD_traj(:,k) = Stats_Traj_k.phi_zD(:,1);
+    phizD_traj(:,k) = XD_ist_k(:,6);
   end
   fprintf('\nBerechnung und Auswertung der Trajektorien-IK beendet.\n');
   
@@ -715,7 +710,6 @@ for Robot_Data = Robots
       % Subplots Erste Zeile: Verlauf von phiz -------------------------------------
       subplot(5,size(Namen_Methoden,2),kk); hold on;
       plot(T, phiz_traj_diff_k(:,kk)*180/pi, 'm', 'LineWidth',1);
-      plot(T, phiz_traj_diff_k_pre(:,kk)*180/pi, 'k--', 'LineWidth',1);
       xlim_vek = repmat([s_traj.xlim(RS.NQJ,1) s_traj.xlim(RS.NQJ,2)]*180/pi,index_traj(end),1);
       plot(T, xlim_vek(:,1), 'r--', 'LineWidth',1);
       plot(T, xlim_vek(:,2), 'r--', 'LineWidth',1);

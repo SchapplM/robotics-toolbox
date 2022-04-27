@@ -546,6 +546,7 @@ for robnr = 1:5
         s_traj_ii = struct('wn', wn_traj);
         s_traj_ii.enforce_qlim = false; % Keine strikte Einhaltung der Gelenkgrenzen
         s_traj_ii.enforce_qDlim = false;
+        s_traj_ii.enforce_xlim = false;
         s_traj_ii.enforce_xDlim = false;
         if isfield(s_ep_ii, 'collbodies_thresh')
           s_traj_ii.collbodies_thresh = s_ep_ii.collbodies_thresh;
@@ -1028,7 +1029,12 @@ for robnr = 1:5
     100*sum(ResStat.Error==0)/size(ResStat,1), sum(ResStat.Error==0), size(ResStat,1));
   raiseerr = false;
   for ii = [2 4 6 8 9 10]
-    ResStat_Filt = ResStat(ResStat.IK_Fall==ii,:);
+    I_filt_case = ResStat.IK_Fall==ii;
+    % Sonderfall xlim_hyp (ii=10): Keinen Fehler aufwerfen, wenn Start
+    % bereits außerhalb der Grenzen. TODO: Aktuell dort zu große
+    % Beschleunigungen.
+    I_filt_inf = ~isinf(ResStat.h_start);
+    ResStat_Filt = ResStat(I_filt_case&I_filt_inf,:);
     Nullspace_Error_ratio = sum(ResStat_Filt.Error~=0)/size(ResStat_Filt,1);
     if ~all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.25 || ...% TODO: Kann kleiner gewählt werden, wenn Parameter getuned sind.
         all(RP.I_EE == [1 1 1 0 0 1]) && Nullspace_Error_ratio > 0.6 % 3T1R funktioniert noch nicht gut.
