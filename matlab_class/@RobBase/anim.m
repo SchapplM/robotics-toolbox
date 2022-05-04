@@ -177,8 +177,8 @@ end
 % Grenzen um 10% der Spannweite aufweiten (nur x und y)
 xyzw = abs(xyzminmax(:,2)-xyzminmax(:,1));
 for i_xyz = 1:2
-  xyzminmax(i_xyz,1) = xyzminmax(1,1)-0.05*xyzw(i_xyz);
-  xyzminmax(i_xyz,2) = xyzminmax(1,2)+0.05*xyzw(i_xyz);
+  xyzminmax(i_xyz,1) = xyzminmax(i_xyz,1)-0.05*xyzw(i_xyz);
+  xyzminmax(i_xyz,2) = xyzminmax(i_xyz,2)+0.05*xyzw(i_xyz);
 end
 xyzw = abs(xyzminmax(:,2)-xyzminmax(:,1)); % Spannweite hat sich geändert
 % Grenzen größer Null setzen (gleich Null bei planaren Systemen)
