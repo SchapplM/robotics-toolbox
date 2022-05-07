@@ -28,6 +28,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .condJ [N x NLEG*2]
@@ -104,7 +105,7 @@ end
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((Rob.NL+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((Rob.NL+Rob.NLEG+1)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
@@ -218,7 +219,9 @@ for i = 1:Rob.NLEG
 end
 % Plattform-KS eintragen
 T_0_P = T_0_E * invtr(T_P_E);
-Tc_stack_PKM(end-2:end,:) = T_0_P(1:3,:);
+Tc_stack_PKM(end-5:end-3,:) = T_0_P(1:3,:);
+% EE-KS eintragen (Soll)
+Tc_stack_PKM(end-2:end,:) = T_0_E(1:3,:);
 if ~s_par.debug
   return
 end

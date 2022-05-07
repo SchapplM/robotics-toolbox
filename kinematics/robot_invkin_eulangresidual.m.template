@@ -29,9 +29,9 @@
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
-% Tc_stack [(%NJ%+1)*3 x 4]
+% Tc_stack [(%NJ%+1+1)*3 x 4]
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
-%   (enthält alle Koordinatensysteme aus direkter Kinematik)
+%   (enthält alle Koordinatensysteme aus direkter Kinematik; inkl. EE)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .Q (n+1)x6: Gelenkkoordinaten für ersten Schritt und alle Iterationen
@@ -277,7 +277,7 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 q0 = Q0(:,1);
 q1 = NaN(NQJ,1);
 Phi = NaN(length(I_IK),1); % Vorbelegung für Ausgabe ohne Iteration
-Tc_stack = NaN(3*%NL%,4);
+Tc_stack = NaN(3*(%NL%+1),4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
@@ -294,7 +294,7 @@ if nargout == 4
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
     'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
     'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
-    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 6);
+    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 7);
   Stats = Stats_default;
 end
 
@@ -478,7 +478,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             q_test = q1; % ausgehend von aktueller Konfiguration
             q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
             % Bestimme Änderung der Gelenkpositionen mit diesem Inkrement
-            [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+            Tc_stack_kkk = %RN%_fkine_coll(q_test, pkin, T_N_E, I_EElink);
             JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
           end
           % Kollisionsprüfung für alle Gelenkpositionen auf einmal.
@@ -559,7 +559,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
           % Bestimme Änderung der Gelenkpositionen mit diesem Inkrement
-          [~, Tc_stack_kkk] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q_test, pkin);
+          Tc_stack_kkk = %RN%_fkine_coll(q_test, pkin, T_N_E, I_EElink);
           JP_test(1+kkk,:) = Tc_stack_kkk(:,4); % Letzte Spalte der homog. Trafo.-Matrix
         end
         [~, absdist] = check_collisionset_simplegeom(s.collbodies_instspc, ...
@@ -737,8 +737,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     % Nullraumbewegung keine Kollision erzeugt (falls das Kriterium benutzt wird)
     if scale_coll
       % Bestimme Abstand der Objekte vor und nach dem Schritt
-      [~, Tc_stack_pre] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q1, pkin);
-      [~, Tc_stack_post] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q1+delta_q_T, pkin);
+      Tc_stack_pre = %RN%_fkine_coll(q1, pkin, T_N_E, I_EElink);
+      Tc_stack_post = %RN%_fkine_coll(q1+delta_q_T, pkin, T_N_E, I_EElink);
       [colldet_pp,colldist_pp] = check_collisionset_simplegeom(s.collbodies, s.collchecks, ...
         [Tc_stack_pre(:,4)';Tc_stack_post(:,4)'], struct('collsearch', false));
       % Prüfe, ob eine Kollision passieren würde und berechne die
@@ -1121,5 +1121,5 @@ if s.normalize
 end
 % Letzte Ausgabe wird jetzt immer schon oben berechnet
 % if nargout >= 3
-%   [~, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
+%   Tc_stack = %RN%_fkine_coll(q, pkin, T_N_E, I_EElink);
 % end

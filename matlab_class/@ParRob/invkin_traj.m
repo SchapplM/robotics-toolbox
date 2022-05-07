@@ -80,6 +80,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
@@ -376,7 +377,7 @@ JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (NL+NLEG)*3);
+JointPos_all = NaN(nt, (NL+NLEG+1)*3);
 
 qk0 = q0;
 qDNk0 = zeros(NJ,1);

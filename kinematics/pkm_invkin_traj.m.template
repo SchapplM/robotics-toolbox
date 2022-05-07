@@ -80,6 +80,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .h (Optimierungskriterien. Erste Spalte gewichtete Summe, dann einzelne
@@ -554,6 +555,7 @@ s_fkinecoll = struct(...
              'r_P_B_all', s.r_P_B_all,...
              'phi_P_B_all', s.phi_P_B_all,...
             'Leg_pkin_gen', s.Leg_pkin_gen,...
+                   'T_P_E', s.T_P_E, ...
            'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
            'Leg_T_0_W_vec', s.Leg_T_0_W_vec);
 I_qa = s.I_qa;
@@ -572,7 +574,7 @@ JinvD_ges = zeros(nt, sum(Rob_I_EE)*NJ);
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-JointPos_all = NaN(nt, (NL+NLEG)*3);
+JointPos_all = NaN(nt, (NL+NLEG+1)*3);
 
 qk0 = q0;
 qDNk0 = zeros(NJ,1);
@@ -597,7 +599,7 @@ vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 dt = 0; % Initialisierung, wird überschrieben.
 Stats = struct('file', 'pkm_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'mode', uint32(zeros(nt,1)), 'errorcode', 0, 'version', 7);
+  'mode', uint32(zeros(nt,1)), 'errorcode', 0, 'version', 9);
 h = zeros(idx_ik_length.hntraj,1);
 
 for k = 1:nt

@@ -33,8 +33,9 @@
 %   Kinematische Zwangsbedingungen des Roboters: Maß für den Positions- und
 %   Orientierungsfehler zwischen Ist-Pose aus gegebenen Gelenkwinkeln q und
 %   Soll-Pose aus gegebenen EE-Koordinaten x
-% Tc_stack [(%NJ%+1)*3 x 4]
+% Tc_stack [(%NJ%+1+1)*3 x 4]
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
+%   Enthält zusätzlich eine Zeile für den EE.
 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Resolution of Functional
@@ -52,12 +53,15 @@ function [Phi, Tc_stack] = %RN%_constr2(q, Tr0E, pkin, T_N_E, phiconv_W_E, I_EEl
 %$cgargs {zeros(%NQJ%,1),zeros(3,4),zeros(%NKP%,1),zeros(4,4),uint8(2),uint8(0),true}
 
 %% Allgemein
+Tc_stack = NaN(3*(%NL%+1),4);
+
 if nargout == 1 % einfacher Aufruf (schneller)
   T_0_N_q = %RN%_fkine_fixb_body_rotmat_mdh_sym_varpar(q, I_EElink, pkin);
   T_0_E_q = T_0_N_q * T_N_E;
 else
-  [Tc_ges, Tc_stack] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
+  [Tc_ges, Tc_stack(1:end-3,:)] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
   T_0_E_q = Tc_ges(:,:,I_EElink+1) * T_N_E;
+  Tc_stack(end-2:end,:) = T_0_E_q(1:3,:);
 end
 
 %% Translatorischer Teil

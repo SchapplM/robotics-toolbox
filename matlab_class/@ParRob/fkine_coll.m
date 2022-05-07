@@ -13,6 +13,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % JointPos_all
 %   gestapelte Positionen aller Gelenke der PKM (als Zeilenvektor)
 %   (Letzte Spalte von Tc_stack_PKM)
@@ -22,7 +23,7 @@
 
 function [Tc_stack_PKM, JointPos_all] = fkine_coll(Rob, q)
 
-Tc_stack_PKM = NaN((Rob.NL+Rob.NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((Rob.NL+Rob.NLEG+1)*3,4); % siehe fkine_legs; dort aber leicht anders
 % Basis-KS. Trägt keine Information. Dient nur zum einfacheren Zugriff auf
 % die Variable und zur Angleichung an Darstellung im Welt-KS.
 Tc_stack_PKM(1:3,1:4) = eye(3,4); % Basis-KS im Basis-KS.
@@ -44,12 +45,14 @@ for i = 1:Rob.NLEG
 end
 % Plattform-KS aus den Daten der ersten Beinkette eintragen
 T_0_N1 = [Tc_stack_PKM(3+(3*Rob.Leg(1).NL-2:3*Rob.Leg(1).NL),:); [0 0 0 1]];
-T_0_E1 = T_0_N1 * Rob.Leg(1).T_N_E;
 % Bei einigen 2T1R-PKM zusätzliche Trafo N-E für Beinkette
+T_0_E1 = T_0_N1 * Rob.Leg(1).T_N_E;
 R_P_B1 = eulxyz2r(Rob.phi_P_B_all(:,1));
 r_P_P_B1 = Rob.r_P_B_all(:,1);
 T_P_B1 = [[R_P_B1, r_P_P_B1]; [0 0 0 1]];
 T_0_P_via1 = T_0_E1 * invtr(T_P_B1);
-Tc_stack_PKM(end-2:end,:) = T_0_P_via1(1:3,:);
+T_0_E_via1 = T_0_P_via1 * Rob.T_P_E;
+Tc_stack_PKM(end-5:end-3,:) = T_0_P_via1(1:3,:);
+Tc_stack_PKM(end-2:end,:) = T_0_E_via1(1:3,:);
 % Positionen in separate Ausgabe extrahieren
 JointPos_all = Tc_stack_PKM(:,4)';

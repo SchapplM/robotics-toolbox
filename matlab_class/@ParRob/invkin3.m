@@ -42,6 +42,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
@@ -269,7 +270,7 @@ I_instspccheck_nochange = false(1,size(Rob.collchecks_instspc,1));
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((NL+NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((NL+NLEG+1)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJ = NaN; condJik = NaN;

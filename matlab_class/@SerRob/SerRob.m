@@ -79,6 +79,7 @@ classdef SerRob < RobBase
   properties (Access = private)
     jtraffcnhdl % Funktions-Handle für Gelenk-Transformationen
     fkinfcnhdl % Funktions-Handle für direkte Kinematik
+    fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
     ekinfcnhdl2     % Funktions-Handle für kinetische Energie
     ekinfcnhdl4     % ... mit anderen Parametern
     epotfcnhdl2     % Funktions-Handle für potentielle Energie
@@ -267,6 +268,7 @@ classdef SerRob < RobBase
       {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
       {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
       {'fkintrajfcnhdl', 'fkineEE_traj'}, ... 
+      {'fkincollfcnhdl', 'fkine_coll'},...
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
       qunit_eng = cell(R.NJ,1);
       qunit_sci = cell(R.NJ,1);
@@ -485,6 +487,18 @@ classdef SerRob < RobBase
       else
         [X, XD, XDD] = R.fkintrajfcnhdl(Q, QD, QDD, R.pkin_gen, R.T_N_E, R.phiconv_W_E, uint8(R.I_EElink));
       end
+    end
+    function [Tc_stack, JointPos_all] = fkine_coll2(R, q)
+      % Direkte Kinematik für alle KS bzw. Gelenkpositionen, die für
+      % Kollisionen notwendig sind. Wie fkine, nur mit zusätzlicher
+      % EE-Transformation.
+      % Eingabe:
+      % q: Gelenkwinkel
+      % Ausgabe:
+      % Tc_stack_PKM: Gestapelte Transformationsmatrizen (Körper-KS und EE).
+      % JointPos_all: Gestapelte Positionen aller Gelenke und des EE
+      Tc_stack = R.fkincollfcnhdl(q, R.pkin_gen, R.T_N_E, uint8(R.I_EElink));
+      JointPos_all = reshape(Tc_stack(:,4),3,size(Tc_stack,1)/3);
     end
     function Ja = jacobia(R, q)
       % Analytische Jacobi-Matrix des Roboters (End-Effektor)

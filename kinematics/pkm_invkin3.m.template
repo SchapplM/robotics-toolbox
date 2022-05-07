@@ -42,6 +42,7 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Plattform-KS
+%   * EE-KS (damit Kollisionskörper zugeordnet werden können)
 % Stats
 %   Struktur mit Detail-Ergebnissen für den Verlauf der Berechnung. Felder:
 %   .mode (jedes gesetzte Bit entspricht einem Programmpfad der IK ("Modus"))
@@ -210,6 +211,7 @@ s_fkinecoll = struct(...
                'r_P_B_all', s.r_P_B_all,...
              'phi_P_B_all', s.phi_P_B_all,...
             'Leg_pkin_gen', s.Leg_pkin_gen,...
+                   'T_P_E', s.T_P_E, ...
            'Leg_T_N_E_vec', s.Leg_T_N_E_vec,...
            'Leg_T_0_W_vec', s.Leg_T_0_W_vec);
 % Variablen aus Einstellungsstruktur holen
@@ -363,7 +365,7 @@ I_instspccheck_nochange = false(1,size(s.collchecks_instspc,1));
 % Zählung in Rob.NL: Starrkörper der Beinketten, Gestell und Plattform. 
 % Hier werden nur die Basis-KS der Beinketten und alle bewegten Körper-KS
 % der Beine angegeben.
-Tc_stack_PKM = NaN((NL+NLEG)*3,4); % siehe fkine_legs; dort aber leicht anders
+Tc_stack_PKM = NaN((NL+NLEG+1)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJ = NaN; condJik = NaN;
@@ -373,7 +375,7 @@ Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, NJ), ...
   'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
   'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
   'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
-  NaN, 'mode', uint32(zeros(n_max,1)), 'version', 9);
+  NaN, 'mode', uint32(zeros(n_max,1)), 'version', 11);
 Stats = Stats_default;
 
 %% Iterative Berechnung der inversen Kinematik
