@@ -273,7 +273,9 @@ for i_FG = 1:size(EEFG_Ges,1)
     % EE-Trafo P-E)
     XE_test = RP.xP2xE_traj(XP_test);
     XP_test2 = RP.xE2xP_traj(XE_test);
-    if any(abs(XP_test2(:)-XP_test(:))>1e-6)
+    test_XP = [XP_test2(:,1:3)-XP_test(:,1:3), ...
+      angleDiff(XP_test2(:,4:6),XP_test(:,4:6))]; % für -2pi/+2pi
+    if any(abs(test_XP(:))>1e-6)
       error('Hin- und Rücktransformation KS P/E fehlerhaft');
     end
     Q_test = NaN(n, RP.NJ);
