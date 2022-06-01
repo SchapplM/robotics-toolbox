@@ -118,12 +118,13 @@ end
 if any(s.mode == 5) || any(s.mode == 6)
   % Wandle das Datenformat von fkine_legs in das von invkin um. Das
   % virtuelle EE-KS der Beinketten wird weggelassen. Zusätzlich Basis-KS.
-  Tc_PKM = NaN(4,4,Rob.NL-1+Rob.NLEG);
+  Tc_PKM = NaN(4,4,Rob.NL-1+Rob.NLEG+1);
   Tc_PKM(:,:,1) = Rob.T_W_0; % PKM-Basis
   for kk = 1:Rob.NLEG
     Tc_PKM(:,:,1+kk+(-1+Rob.I1J_LEG(kk):Rob.I2J_LEG(kk))) = ...
       TcLges_W(:,:,kk*2+(-2+Rob.I1J_LEG(kk):-1+Rob.I2J_LEG(kk)));
   end
+  Tc_PKM(:,:,end) = Rob.x2t(x);
   for cbtype = 1:2
     if cbtype == 1
       collbodies_nonleg = Rob.collbodies_nonleg;
@@ -157,6 +158,10 @@ if any(s.mode == 5) || any(s.mode == 6)
         r = collbodies_nonleg.params(j,4);
         pt_i = collbodies_nonleg.params(j,1:3);
         pt_W = (eye(3,4)*T_body_i1*[pt_i(1:3)';1])'; ... % Punkt
+        drawSphere([pt_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
+      elseif collbodies_nonleg.type(j) == 16 % Kugel im Körper-KS (ohne Angabe des Mittelpunkts)
+        r = collbodies_nonleg.params(j,1);
+        pt_W = (eye(3,4)*T_body_i1*[zeros(3,1);1])'; ... % Punkt im Ursprung des Körper-KS
         drawSphere([pt_W, r], 'FaceColor', color, 'FaceAlpha', 0.2);
       elseif collbodies_nonleg.type(j) == 12 % Zylinder im Basis-KS
         r = collbodies_nonleg.params(j,7);
