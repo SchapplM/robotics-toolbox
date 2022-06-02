@@ -1778,7 +1778,7 @@ classdef ParRob < RobBase
         end
       end
     end
-    function update_collbodies(R, cbtype_selection)
+    function update_collbodies(R, cbtype_selection, assign_to_base)
       % Aktualisiere die Kollisionskörper für die PKM. Notwendig, da Körper
       % für die Beinketten getrennt gespeichert sind. Ergebnis: In Klassen-
       % variable R.collbodies sind alle Kollisionskörper (Beinkette+Platt-
@@ -1786,11 +1786,18 @@ classdef ParRob < RobBase
       % 
       % Eingabe:
       % cbtype_selection
-      % 1: Nur Kollisionskörper
-      % 2: Nur Bauraum-Körper
-      % [1 2]: Beides (Standard)
+      %   1: Nur Kollisionskörper
+      %   2: Nur Bauraum-Körper
+      %   [1 2]: Beides (Standard)
+      % assign_to_base:
+      %   Zuordnung von gestellfesten Objekten zur Basis. Ist hilfreich für
+      %   die Implementierung der Maßsynthese
+      
       if nargin < 2
         cbtype_selection = [1 2];
+      end
+      if nargin < 3
+        assign_to_base = false;
       end
       % Beide Typen von Kollisionskörpern durchgehen
       for cbtype = cbtype_selection
@@ -1822,10 +1829,15 @@ classdef ParRob < RobBase
             R_Leg_i_collbodies.link + uint8(repmat(NLoffset,size(R_Leg_i_collbodies.link,1),2))];
           % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
           % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
-          % (ist für Implementierung der Kollisionserkennung besser)
+          % (ist für Implementierung der Kollisionserkennung besser).
+          % Für Definition der Kollisionsprüfungen aber nachteilig, da
+          % Informationen verloren gehen
           I_legbase = R_collbodies.link == 0 + NLoffset;
           for j = find(any(I_legbase,2)') % alle Körper, die geändert werden müssen
-            if R_collbodies.type(j) == 3 && all(I_legbase(j,:))
+            if assign_to_base, break; end
+            % Typ 3 und 13 sind Kapseln (für Führungsschienen), Typ 13
+            % kennzeichnet Zugehörigkeit zur Basis (Beinkette oder PKM).
+            if any(R_collbodies.type(j) == [3,13]) && all(I_legbase(j,:))
               % Kapsel mit absoluten Positionsangaben
               T_0_0i = R.Leg(i).T_W_0;
               % Punkte bezüglich Beinketten-Basis-KS
@@ -1834,8 +1846,8 @@ classdef ParRob < RobBase
                        eye(3,4)*T_0_0i*[pts_0i(4:6)';1]]'; ... % Punkt 2
               % Als bezüglich PKM-Basis eintragen
               R_collbodies.params(j,1:6) = pts_0;
-              R_collbodies.type(j) = 13;
-              R_collbodies.link(j,:) = 0;
+              R_collbodies.type(j) = 13; % Setze Typ "bezüglich Basis"
+              R_collbodies.link(j,:) = 0; % Überschreibe mit PKM-Basis
             end
           end
         end
