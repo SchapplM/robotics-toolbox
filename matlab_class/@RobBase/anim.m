@@ -277,8 +277,9 @@ for i=1:size(Q,1)
      writeVideo(v,f); % Schreibe Frame des Videos
   end
   if isfield(s_anim, 'resolution')
-    % Speichere Einzelbild als hochauflösendes PNG
-    tmpimage_png = sprintf(s_anim.png_name, i); % Nummer hochzählen
+    % Speichere Einzelbild als hochauflösendes PNG. Interpretation des
+    % Backslash durch sprintf bei Windows-Pfaden vermeiden
+    tmpimage_png = sprintf(strrep(s_anim.png_name,'\','\\'), i); % Nummer hochzählen
     print(tmpimage_png,'-dpng','-r300','-opengl');
 %     % Befehl exportgraphics geht nicht (schneidet Ränder variabel ab)
 %     % exportgraphics(gcf,fullfile(tdir,sprintf('frame_%05d.png',i)),'Resolution',300);
