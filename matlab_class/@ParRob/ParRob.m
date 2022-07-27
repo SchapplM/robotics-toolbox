@@ -498,14 +498,26 @@ classdef ParRob < RobBase
         % Bezug von Antriebsgeschwindigkeiten zur Plattform-Geschwindigkeit.
         Jinv_qD_sDred = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
         % Erweitere auf 6FG, falls es sich um eine 2T1R/3T0R PKM handelt
-        Jinv_qD_sD = zeros(sum(R.I_qa),6);
-        Jinv_qD_sD(:,R.I_EE) = Jinv_qD_sDred;
-        % Korrekturmatrix (symbolische Jacobi bezieht sich auf
+        JinvP_qD_sD = zeros(sum(R.I_qa),6);
+        JinvP_qD_sD(:,R.I_EE) = Jinv_qD_sDred;
+        % Korrektur für Versatz von Plattform- und Endeffektor-KS
+        % Zusätzlicher Hebelarm ändert Einfluss der Winkelgeschwindigkeit
+        if any(R.T_P_E(1:3,4)) && ~platform_frame
+          T_0_E = R.x2t(xE);
+          r_P_P_E = R.T_P_E(1:3,4);
+          r_E_P_E = R.T_P_E(1:3,1:3)' * r_P_P_E;
+          r_0_P_E = T_0_E(1:3,1:3)*r_E_P_E;
+          A_P_E = adjoint_jacobian(-r_0_P_E);
+          JinvE_qD_sD = JinvP_qD_sD * A_P_E;
+        else
+          JinvE_qD_sD = JinvP_qD_sD;
+        end
+        % Euler-Winkel-Korrekturmatrix (symbolische Jacobi bezieht sich auf
         % Winkelgeschwindigkeit, numerische auf Euler-Winkel-Zeitableitung)
         % Hier Bezug auf EE-Euler-Winkel-Geschwindigkeit (nicht: Plattform)
         % Notwendig, wenn 3T3R oder wenn T_P_E ungleich Null.
         T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
-        Jinv_qD_xDvoll = Jinv_qD_sD*T;
+        Jinv_qD_xDvoll = JinvE_qD_sD*T;
         % Reduziere die FG wiede rauf 2T1R o.ä.
         Jinv_qaD_xD = Jinv_qD_xDvoll(:,R.I_EE);
       else % Funktion ist nicht verfügbar. Nehme numerische Berechnung
