@@ -9,6 +9,9 @@
 % Traj_W [struct]
 %   Roboter-Trajektorie (EE) bezogen auf Welt-KS
 %   Felder: X [Nx6], XD [Nx6], XDD [Nx6]. X sind Positionen und Euler-Winkel
+% direction_W_0 (Optional)
+%   Richtung der Transformation. Bei true Ein-/Ausgabe wie dokumentiert.
+%   Bei false: Eingabe ist im Basis-KS und Ausgabe ist im Welt-KS.
 % 
 % Ausgabe:
 % Traj_0 [struct]
@@ -18,7 +21,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-08
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function Traj_0 = transform_traj(R, Traj_W)
+function Traj_0 = transform_traj(R, Traj_W, direction_W_0)
 Traj_0 = Traj_W;
 
 %% Initialisierung
@@ -36,7 +39,15 @@ if isfield(Traj_W, 'XDD')
     error('Berechnung der Beschleunigung ohne Berechnung der Geschw. nicht möglich');
   end
 end
-R_W_0 = R.T_W_0(1:3,1:3);
+if nargin < 3
+  direction_W_0 = true;
+end
+if direction_W_0
+  T_W_0 = R.T_W_0;
+else
+  T_W_0 = invtr(R.T_W_0);
+end
+R_W_0 = T_W_0(1:3,1:3);
 R_0_W = R_W_0';
 
 %% Testen und Fallunterscheidung
@@ -61,7 +72,7 @@ if ~test_norot && ~test_rotx_xyz
     R_0_Pi = R_0_W*R_W_Pi;
     
     % Translation: r_0_Pi = R_0_W*(r_W_0_W + r_W_W_Pi);
-    X_0(i,1:3) = R_0_W*(-R.T_W_0(1:3,4)+X_W(i,1:3)');
+    X_0(i,1:3) = R_0_W*(-T_W_0(1:3,4)+X_W(i,1:3)');
     % Rotation: Euler-Winkel aus neuer Rotationsmatrix berechnen
     X_0(i,4:6) = r2eul(R_0_Pi, R.phiconv_W_E);
     if calc_vel
@@ -92,7 +103,7 @@ if ~test_norot && ~test_rotx_xyz
 elseif test_norot
   %% Sonderfall: Keine Rotation
   % Rechnung: r_0_P = r_W_P - r_W_0; (falls R_W_0 = 1)
-  X_0 = X_W - repmat([R.T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1);
+  X_0 = X_W - repmat([T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1);
   % Keine Neuberechnung der Geschwindigkeit/Beschl- notwendig.
   % Daher auch keine erneute Speicherung
   calc_vel = false;
@@ -100,7 +111,7 @@ elseif test_norot
 else % test_rotx_xyz
   %% Sonderfall: Nur Translation und Rotation mit 180° um x-Achse
   % Rechnung: r_0_P = R_0_W * r_W_0_P = R_0_W * (-r_W_0 + r_W_P);
-  r_W_0_P = - repmat([R.T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1) + X_W;
+  r_W_0_P = - repmat([T_W_0(1:3,4); zeros(3,1)]', size(X_W,1),1) + X_W;
   % Rotation um 180°: Richtungen umdrehen; r_0_P = R_0_W * r_W_0_P
   r_0_0_P = [r_W_0_P(:,1),-r_W_0_P(:,2:3)];
   % Euler-Winkel: Die Drehung der x-Achse um 180° wird wieder korrigiert.

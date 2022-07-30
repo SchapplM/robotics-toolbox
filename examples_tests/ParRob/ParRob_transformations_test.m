@@ -84,17 +84,26 @@ for i = 0:4 % drei Fälle durchgehen: mit/ohne Rotation und 180° um x
   Traj_B1 = RP.transform_traj(Traj_W);
   % De-Normalisieren, damit besser gegen Integration von XD vergleichbar
   Traj_B1.X(:,4:6) = denormalize_angle_traj(Traj_B1.X(:,4:6));
-  % Inverse Rechnung anstellen. Transformiere Welt-KS
+  % Inverse Rechnung anstellen. Rechenweg 1.
+  Traj_B2_v1 = RP.transform_traj(Traj_B1, false); % über Argument umschalten
+  % Rechenweg 2: Transformiere Welt-KS (alte Implementierung)
   T_W_B2 = invtr(T_W_B1);
   RP.update_base(T_W_B2(1:3,4), r2eul(T_W_B2(1:3,1:3), RP.phiconv_W_0));
-  Traj_B2 = RP.transform_traj(Traj_B1);
+  Traj_B2_v2 = RP.transform_traj(Traj_B1);
+  % Vergleiche beide Rechenwege
+  test_X_v12 = Traj_B2_v1.X - Traj_B2_v2.X;
+  test_XD_v12 = Traj_B2_v1.XD - Traj_B2_v2.XD;
+  test_XDD_v12 = Traj_B2_v1.XDD - Traj_B2_v2.XDD;
+  assert(all(abs(test_X_v12(:))<1e-10), 'Fehler bei Umrechnung der Positions-Traj_B1.');
+  assert(all(abs(test_XD_v12(:))<1e-10), 'Fehler bei Umrechnung der Geschw.-Traj_B1.');
+  assert(all(abs(test_XDD_v12(:))<1e-10), 'Fehler bei Umrechnung der Beschl.-Traj_B1.');
   % Testen: B2 ist eigentlich identisch mit W. Trajektorie muss nach
   % zweifacher Transformation wieder die ursprüngliche sein
-  test_X = Traj_W.X - Traj_B2.X;
+  test_X = Traj_W.X - Traj_B2_v2.X;
   assert(all(abs(test_X(:))<1e-10), 'Fehler bei Umrechnung der Positions-Traj_B1.');
-  test_XD = Traj_W.XD - Traj_B2.XD;
+  test_XD = Traj_W.XD - Traj_B2_v2.XD;
   assert(all(abs(test_XD(:))<1e-10), 'Fehler bei Umrechnung der Geschw.-Traj_B1.');
-  test_XDD = Traj_W.XDD - Traj_B2.XDD;
+  test_XDD = Traj_W.XDD - Traj_B2_v2.XDD;
   assert(all(abs(test_XDD(:))<1e-10), 'Fehler bei Umrechnung der Beschl.-Traj_B1.');
   % Prüfe auch die Konsistenz der Trajektorie mit Integration. Bei Euler-
   % Winkeln muss die Trajektorie auch integrierbar sein
