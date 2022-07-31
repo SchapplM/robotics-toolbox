@@ -43,7 +43,8 @@ if any(isnan(Q(1,:))) || ~isempty(X) && any(isnan(X(1,:)))
   return
 end
 %% Initialisierung
-s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', [], 'png_name', [], 'tmpdir', []);
+s_std = struct('gif_name', [], 'avi_name', [], 'mp4_name', [], ...
+  'png_name', [], 'tmpdir', [], 'FrameRate', 30);
 
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -197,6 +198,7 @@ xlim(xyzminmax(1,:));ylim(xyzminmax(2,:));zlim(xyzminmax(3,:));
 [view1_save,view2_save] = view();
 if video_in_frameloop
   v = VideoWriter(s_anim.avi_name, 'Uncompressed AVI');
+  v.FrameRate = s_anim.FrameRate;
   open(v)
 end
 %% Trajektorie durchgehen und Roboter für jeden Zeitpunkt neu zeichnen
@@ -297,8 +299,8 @@ if isfield(s_anim, 'resolution') && ...
   % Speicherung. Dateiformat .avi, damit das nachfolgende
   % Kompressionsskript damit direkt funktioniert.
   avsettings = '-c:v libx264 -qp 0';
-  cmd = sprintf('ffmpeg -y -f image2 -r 30 -i "%s" %s "%s" -loglevel 0', ...
-    s_anim.png_name, avsettings, s_anim.avi_name);
+  cmd = sprintf('ffmpeg -y -f image2 -r %d -i "%s" %s "%s" -loglevel 0', ...
+    s_anim.FrameRate, s_anim.png_name, avsettings, s_anim.avi_name);
   res = system(cmd);
   if res == 0
     % Erfolgreich AVI erstellt. Lösche PNG-Einzelbilder
