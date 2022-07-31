@@ -62,7 +62,7 @@ if ~test_norot && ~test_rotx_xyz
   if calc_vel
     XD_0 = NaN(size(XD_W));
   end
-  if calc_vel
+  if calc_acc
     XDD_0 = NaN(size(XDD_W));
   end
   for i = 1:size(X_W,1) % Gehe alle Zeitschritte durch
