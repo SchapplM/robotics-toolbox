@@ -1204,6 +1204,12 @@ classdef ParRob < RobBase
         R.Leg(i).update_mdh(pkin);
       end
     end
+    function update_qref(R, q)
+      % Aktualisiere die Variable qref in den Beinketten
+      for iLeg = 1:R.NLEG
+        R.Leg(iLeg).update_qref(q(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)));
+      end
+    end
     function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:

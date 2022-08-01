@@ -1375,6 +1375,10 @@ classdef SerRob < RobBase
       R.pkin = pkin_neu;
       R.pkin_gen = pkin_gen_neu;
     end
+    function update_qref(R, q)
+      % Aktualisiere die Klasseneigenschaft qref (gleiche Methode in ParRob)
+      R.qref = q;
+    end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Schwerpunkt
