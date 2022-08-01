@@ -80,6 +80,9 @@ end
 if ~isfield(s_anim, 'tmpdir')
   s_anim.tmpdir = [];
 end
+if ~isfield(s_anim, 'FrameRate')
+  s_anim.FrameRate = s_std.FrameRate;
+end
 
 if isempty(s_anim.avi_name) && ~isempty(s_anim.mp4_name)
   % Die AVI-Datei wird nur temporär erstellt und am Ende wieder gelöscht
