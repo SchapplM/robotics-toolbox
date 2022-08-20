@@ -105,6 +105,10 @@ for i = 1:size(XL,1)-1
   I2 = IL(i+1);
   p_all = ( X_tref(I1:I2,1:5)-repmat(XL(i,1:5),I2-I1+1,1) ) ./ ...
            repmat(XL(i+1,1:5)-XL(i,1:5),I2-I1+1,1);
+  % Begrenze die Werte auf 1. Annahme: Manchmal Rechenungenauigkeit.
+  % Durch die Vorgabe von IE ist eine Anfahrbewegung ohne Überschwingen
+  % angenommen und die Werte müssen für jedes Teilstück i auf 1 normiert sein
+  p_all(p_all>1) = 1;
   % Deaktiviere Koordinaten, die sich nur innerhalb der Rechenungenauigkeit
   % verändern. Aus diesen soll keine Bahnkoordinate berechnet werden.
   p_all(:,abs(XL(i+1,1:5)-XL(i,1:5)) < 1e-10) = NaN;
@@ -115,10 +119,10 @@ end
 I_nonmon = find([false;diff(s_tref) < 0]);
 % Nehme den nächsten vorherigen Punkt, falls ein Abstand so gering ist,
 % dass die Bahnkoordinate nicht mehr monoton steigt
-for i = I_nonmon(:)'
+for i = I_nonmon(:)' % darf eigentlich nicht mehr vorkommen
   s_tref(i) = s_tref(i-1); % der vorherige muss i.O. belegt sein.
 end
-if any(diff(s_tref) < 0)
+if any(diff(s_tref) < 0) % darf mit obigen Korrekturen nicht mehr vorkommen
   warning(['Ermittelte Bahnkoordinate ist nicht monoton steigend. ', ...
     'Trajektorie ungeeignet für Aufteilung in Eckpunkte.']);
   s_tref = (1:size(X_tref,1))'/size(X_tref,1);
