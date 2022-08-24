@@ -1377,7 +1377,7 @@ classdef SerRob < RobBase
     end
     function update_qref(R, q)
       % Aktualisiere die Klasseneigenschaft qref (gleiche Methode in ParRob)
-      R.qref = q;
+      R.qref = q(:);
     end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
