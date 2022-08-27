@@ -1379,6 +1379,16 @@ classdef SerRob < RobBase
       % Aktualisiere die Klasseneigenschaft qref (gleiche Methode in ParRob)
       R.qref = q(:);
     end
+    function update_qlim(R, qlim, IIjoint)
+      % Aktualisiere die Klasseneigenschaft qlim (gleiche Methode in ParRob)
+      % Eingabe:
+      % qlim (NJx2), untere und obere Grenze
+      % IIjoint: Indizes, die aktualisiert werden sollen (binär)
+      if nargin < 3
+        IIjoint = true(R.NJ, 1);
+      end
+      R.qlim(IIjoint,:) = qlim;
+    end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Schwerpunkt

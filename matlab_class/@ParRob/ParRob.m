@@ -1210,6 +1210,21 @@ classdef ParRob < RobBase
         R.Leg(iLeg).update_qref(q(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)));
       end
     end
+    function update_qlim(R, qlim, IIjoint)
+      % Aktualisiere die Variable qlim in den Beinketten
+      % Eingabe:
+      % qlim (NJx2), untere und obere Grenze
+      % IIjoint: Indizes, die aktualisiert werden sollen (binär)
+      if nargin < 3
+        IIjoint = true(R.NJ, 1);
+      end
+      for iLeg = 1:R.NLEG
+        II_leg = false(R.NJ, 1);
+        II_leg(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)) = true;
+        R.Leg(iLeg).update_qlim(qlim(IIjoint & II_leg, :), ...
+          IIjoint(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg),:));
+      end
+    end
     function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:
