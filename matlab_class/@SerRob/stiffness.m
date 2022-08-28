@@ -31,14 +31,12 @@
 
 % Masterarbeit Yuqi ZHAO, zhaoyuqi.nicolas@gmail.com, 2019-12
 % Betreuer: Moritz Schappler, moritz.schappler@imes.uni-hannover.de
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [K_sum, NG, NGJ_c_glob_sum, NGL_c_glob_sum] = stiffness(R, q)
 
 %% Initialisierung
-
 m_L = sum(R.DynPar.mges(2:end));
-
 if ~R.islegchain
   I_qa = R.MDH.mu; % 1=aktiv, 0=passiv
 else
@@ -49,15 +47,28 @@ NJ = R.NJ;
 a = R.MDH.a;
 d = R.MDH.d;
 alpha = R.MDH.alpha;
-
 L_max=R.reach();
-%% Nachgiebigkeit Datenbank für Schub und Drehgelenke
-M_G = m_L*9.8*L_max/2; %Moment aus Selbstgewicht
-if R.islegchain
-  S = 14.7/(1.5*M_G); %Skalierungsfaktor (Norm: M = 12*9.8/6*0.5+2*9.8*0.25 nach ABB IRB 360).
-else
-  S = 11600/(2*M_G); %Skalierungsfaktor (Nach KUKA 240-2 Datenblatt: M = 240*9.8*3+400*9.8*1.5)
+
+%% Skalierungsfaktor für Dimensionierung bestimmen
+% Die Dimensionierung der Gelenke wird überschlagsmäßig aus dem
+% Eigengewicht angenommen.
+if m_L == 0 % Berechne die Masse mit Faustformel
+  % Wenn keine Masse angegeben ist, wird eine äquivalente Masse für die
+  % Berechnung der Steifigkeit angenommen.
+  if R.islegchain % Annahme: Dünne Beinkette, 3kg/m
+    m_L = 3*L_max;
+  else % Annahme: Moderat dimensionierter Industrieroboter, 20kg/m
+    m_L = 20*L_max;
+  end
 end
+M_G = m_L*9.81*L_max/2; %Moment aus Selbstgewicht (Schwerpunkt in der Mitte)
+% Skalierungsfaktor
+if R.islegchain
+  S = 14.7/(1.5*M_G); % (Norm: M = 12*9.8/6*0.5+2*9.8*0.25 nach ABB IRB 360).
+else
+  S = 11600/(2*M_G); % (Nach KUKA 240-2 Datenblatt: M = 240*9.8*3+400*9.8*1.5)
+end
+%% Nachgiebigkeit Datenbank für Schub und Drehgelenke
 if R.islegchain
   % Für Drehgelenk (Aktiv). Nachgiebigkeit Daten aus [Zhang2009] S.79; [Klimchik2011] S.52.
   Nd_a = S*diag([0.0000167, 0.0000167, 0.000022, 0.00002, 0.00002, 0.0000333]);
