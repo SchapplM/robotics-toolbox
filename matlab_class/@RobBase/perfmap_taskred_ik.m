@@ -81,6 +81,7 @@ if R.Type == 0
 else
   qlim = cat(1, R.Leg.qlim);
 end
+R_I_EE_Task_old = R.I_EE_Task; % wird mehrfach in Funktion geändert
 %% Trajektorie normalisieren
 % Erzeuge eine konsistente Eingabe (falls die Trajektorie gekürzt wurde,
 % sich aber die Indizes auf eine längere Trajektorie beziehen)
@@ -220,8 +221,7 @@ if s.only_trajectory_normalization
 end
 
 % Startwert prüfen. Roboter dafür auf 3T3R einstellen
-if R.Type == 0,   R.I_EE_Task = s.I_EE_full;
-else,             R.update_EE_FG(s.I_EE_full,s.I_EE_full); end
+R.update_EE_FG(s.I_EE_full,s.I_EE_full);
 if R.Type == 0
   [q0, Phi] = R.invkin2(R.x2tr([X_ref(1,1:5)';s.map_phistart]), s.q0, s_ik);
 else
@@ -257,11 +257,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
       q0_j = s.q0;
     end
     if strcmp(s.discretization_type, 'trajectory')
-      if R.Type == 0
-        R.I_EE_Task = s.I_EE_full;
-      else
-        R.update_EE_FG(s.I_EE_full,s.I_EE_full); % Roboter auf 3T3R einstellen
-      end
+      R.update_EE_FG(s.I_EE_full,s.I_EE_full); % Roboter auf 3T3R einstellen
       X_i_traj = [repmat(X_ref(i,1:5), length(phiz_range_ii), 1), phiz_range_ii(:)];
       XD_i_traj = [zeros(length(phiz_range_ii), 5), [0;diff(phiz_range_ii(:))]];
       XDD_i_traj = zeros(length(phiz_range_ii), 6);
@@ -503,3 +499,5 @@ end
 if length(unique(phiz_range))~=length(phiz_range)
   error('Something went wrong when assembling phiz_range');
 end
+% Zurücksetzen der Aufgaben-FG auf den ursprünglichen Wert
+R.update_EE_FG(s.I_EE_full, R_I_EE_Task_old);

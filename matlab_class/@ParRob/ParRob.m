@@ -1233,7 +1233,7 @@ classdef ParRob < RobBase
       % I_EE_Legs [NLEGx6] EE-FG der einzelnen Beinketten
       R.I_EE = logical(I_EE);
       if nargin < 3
-        I_EE_Task = I_EE;
+        I_EE_Task = logical(I_EE);
       end
       if nargin < 4
         % Bestimme die Beinketten-Freiheitsgrade (und damit Zwangsbedingungen)
@@ -1310,7 +1310,7 @@ classdef ParRob < RobBase
       
       % Setze die Aufgaben-FG der PKM-Beinketten
       for i = 1:R.NLEG
-        R.Leg(i).I_EE_Task = I_EE_Legs(i,:);
+        R.Leg(i).I_EE_Task = logical(I_EE_Legs(i,:));
       end
       
       % Anzahl der kinematischen Zwangsbedingungen der Beinketten

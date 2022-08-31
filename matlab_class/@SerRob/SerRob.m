@@ -1211,7 +1211,7 @@ classdef SerRob < RobBase
       % I_EE [1x6] logical; Belegung der EE-FG (frei oder blockiert).
       %   Wird nicht beachtet, da einmalig bei Initialisierung gesetzt
       % I_EE_Task [1x6] logical; Belegung der EE-FG der Aufgabe
-      R.I_EE_Task = I_EE_Task;
+      R.I_EE_Task = logical(I_EE_Task);
       % Indizes für die IK-Residuen aufstellen. Siehe auch SerRob/invkin2
       % Vollständige Einträge immer gleich
       R.I_constr_t = 1:3;
