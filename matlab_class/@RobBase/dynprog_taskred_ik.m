@@ -63,7 +63,7 @@ s = struct( ...
   ... % Gewichtung der einzelnen Zielkriterien in der Kostenfunktion.
   'wn', ones(R.idx_ik_length.wnpos, 1), ... % Bezieht sich auf Positions-IK
   'settings_ik', struct(''), ... % Einstellungen für Trajektorien-IK-Funktion
-  'n_phi', 6, ... % Anzahl der Diskretisierungsschritte für Optimierungsvariable
+  'n_phi', 6, ... % Anzahl der Diskretisierungsschritte für Optimierungsvariable (kann um 1 abweichen, je nach Anfangswert)
   'T_dec_ns', 0.1, ... % Verzögerungszeit zum Abbremsen der Nullraumbewegung bei DP-Stufen
   'Tv', 1/3, ... % Verzögerungszeit für Aufgabenbewegung (Nullraum-Abbremsen schon vorher)
   ... % Indizes für Eckpunkte der Trajektorie. Eckpunkte sind Rastpunkte und
@@ -253,10 +253,24 @@ end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
 %% Dynamische Programmierung vorbereiten
+x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
+% Erzeuge die Werte für die diskreten Stufen der dynamischen Programmierung
+phi_range_fix = linspace(s.phi_min, s.phi_max, s.n_phi); % Theoretische Diskretisierung der Optimierungsvariablen
+delta_phi = phi_range_fix(2)-phi_range_fix(1); % Abstand zwischen zwei Zuständen
+% Erzeuge den Bereich so, dass der Anfangswert mit vorkommt. Damit ist
+% prinzipiell ein Beibehalten des Anfangswertes in der nicht-redundanten
+% Version möglich.
+phi_range_all = [x0(6):delta_phi:s.phi_max, x0(6):-delta_phi:s.phi_min];
+[~, I] = sort(abs(phi_range_all-x0(6)));
+phi_range = phi_range_all(I(2:end));
+test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
+assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
+  'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
+% Weitere Variablen vorbereiten
 IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
 XE = X_t_in(IE,:); % EE-Pose für die Eckpunkte
 N = size(XE,1)-1; % Anzahl der Entscheidungsstufen (erste Stufe schon festgelegt)
-z = s.n_phi; % Anzahl unterschiedlicher Orientierungen
+z = length(phi_range); % Anzahl unterschiedlicher Orientierungen
 z1 = z; % Anzahl der Start-Zustände auf jeder Stufe
 z2 = z; % Anzahl der Ende-Zustände auf der jeweils nächsten Stufe
 if s.use_free_stage_transfer
@@ -268,12 +282,6 @@ if s.overlap
   % Weitere virtuelle Ziel-Zustände genau versetzt zu den ursprünglichen
   z2 = z2 + z - 1;
 end
-phi_range = linspace(s.phi_min, s.phi_max, z); % Diskretisierung der Optimierungsvariablen
-delta_phi = phi_range(2)-phi_range(1); % Abstand zwischen zwei Zuständen
-x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
-test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
-assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
-  'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
 % Endwerte für die Gelenkkonfiguration der optimalen Teilstrategie für jede
 % Stufe (aus Vorwärts-Iteration). Setze eine virtuelle Stufe 0 in die
 % Variable für einfachere Indizierung bezogen auf Startwert
@@ -529,18 +537,19 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       else
         [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
           'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
-      end
-      % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
-      if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
-        X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
-      end
-      if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10)
-        if ~isempty(s.debug_dir)
-          save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
-            'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+        if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
+          if ~isempty(s.debug_dir)
+            save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+              'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+          end
+          error('Profilzeiten stimmen nicht');
         end
-        error('Profilzeiten stimmen nicht');
+        % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
+        if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
+          X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
+        end
       end
+
       X_t_l(ii1+1:end,6) = X_t_l(ii1,6); % letzten Wert halten
       % Alternativ (alte Version): Konstante Geschwindigkeit
 %       X_t_l(1:ii1,6) = linspace(z_k, z_l, ii1); % size(X_t_l,1)
