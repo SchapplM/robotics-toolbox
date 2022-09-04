@@ -55,6 +55,7 @@ s = struct( ...
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
   'use_free_stage_transfer', true, ...
   'overlap', false, ... % Die Zustände bei Redundanz-Optimierung werden zusätzlich überlappend gewählt
+  'stageopt_posik', false, ... % Jeder Zustand wird nochmal mit der Positions-Kinematik optimiert nur erneut als Ziel probiert
   ... % Redundanzkarte für schönere Debug-Bilder. Ausgabe von perfmap_taskred_ik
   'PM_H_all', [], 'PM_s_ref', [], 'PM_s_tref', [], 'PM_phiz_range', [], ...
   'PM_Q_all', [], ... % optional Gelenkwinkel für Redundanzkarte zum Debuggen
@@ -252,6 +253,17 @@ if R.I_EE_Task(6) == R.I_EE(6)
 end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
+
+% Einstellungen für Positions-IK, falls Nachverarbeitung damit gemacht wird
+if s.stageopt_posik
+  % Übernehme die wesentlichen Einstellungen von Traj.-IK
+  s_Pos = struct('wn', s.wn, 'cond_thresh_ikjac', s_Traj.cond_thresh_ikjac, ...
+    'cond_thresh_jac', s_Traj.cond_thresh_jac, 'Phit_tol', s_Traj.Phit_tol, ...
+    'Phir_tol', s_Traj.Phir_tol);
+  % Begrenzung der redundanten Koordinate wieder einsetzen
+  s_Pos.wn(R.idx_ikpos_wn.xlim_hyp) = 1;
+  s_Pos.wn(R.idx_ikpos_wn.xlim_par) = 1;
+end
 %% Dynamische Programmierung vorbereiten
 x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
 % Erzeuge die Werte für die diskreten Stufen der dynamischen Programmierung
@@ -281,6 +293,9 @@ end
 if s.overlap
   % Weitere virtuelle Ziel-Zustände genau versetzt zu den ursprünglichen
   z2 = z2 + z - 1;
+elseif s.stageopt_posik
+  % Zusätzliche Ziel-Zustände aus Optimierung der ursprünglichen
+  z2 = z2 + z;
 end
 % Endwerte für die Gelenkkonfiguration der optimalen Teilstrategie für jede
 % Stufe (aus Vorwärts-Iteration). Setze eine virtuelle Stufe 0 in die
@@ -426,7 +441,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     z_k_mid = phi_range_i(k);
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
     % in diesem Intervall geendet hat
-    if task_redundancy
+    if task_redundancy % TODO: Hier Modus stageopt_posik abfragen?
       % Redundanz und lokale Optimierung. Die Werte ändern sich dadurch
       z_k = XE_all(i-1, k);
     else
@@ -455,11 +470,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     end
     if s.overlap
       nz2_ik = nz2_ik + (z-1);
+    elseif s.stageopt_posik
+      nz2_ik = nz2_ik + z;
     end
     % Merke, ob auf Stufe k bereits ein freier Transfer zur nächsten Stufe
     % durchgeführt wurde, ohne dass die Einstellung explizit genutzt wurde
     unconstrained_transfer_done_k = false;
-    for l = 1:nz2_ik % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle, freie Bewegung
+    for l = 1:nz2_ik % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle bzw. Optimierung auf normales Intervall, freie Bewegung
       t0_l = tic();
       if s.verbose
         fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
@@ -483,6 +500,43 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if ~free_stage_transfer
         if l <= z % Normales Intervall / Zustand
           z_l = phi_range(l);
+        elseif s.stageopt_posik && l > z
+          % Erzeuge den Zielwert durch eine Optimierung mit der Positions-IK
+          % Benutze den Zielwert der Stufe der vorherigen Ergebnisse
+          if isnan(YE_stage(k,l-z))
+            if s.verbose
+              fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, keine Lösung\n'], ...
+                i, l-z);
+            end
+            continue
+          end
+          % Aufgabenredundanz für Positions-IK benutzen (Annahme: Ist nicht
+          % schon gesetzt) und dann wieder zurücksetzen
+          if ~task_redundancy
+            I_EE_red = R.I_EE_Task; I_EE_red(end) = false;
+            R.update_EE_FG(R.I_EE, I_EE_red);
+          end
+          xl_posik = X_t_in(IE(i),:)'; % Letzter Wert der Trajektorie (Rotation wird ignoriert)
+          % Anfangswert aus dem schon berechneten Zustand auf der aktuellen Stufe
+          q0_posik = QE_stage(:,k,l-z);
+          xl_posik(end) = YE_stage(k,l-z); % Ist-Rotation. Wird sowieso ignoriert, da 3T2R
+          if R.Type == 0 % Seriell
+            [q_i, Phi_i, ~, Stats] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
+          else % PKM
+            [q_i, Phi_i, ~, Stats] = R.invkin4(xl_posik, q0_posik, s_Pos);
+          end
+          if any(abs(Phi_i) > 1e-8)
+            if s.verbose
+              fprintf(['Keine Optimierung mit Positions-IK möglich bei %d/%d\n'], ...
+                i, l-z);
+            end
+            continue
+          end
+          x_i_neu = R.fkineEE2_traj(q_i');
+          z_l = x_i_neu(end);
+          if ~task_redundancy % Wider auf nicht-redundant zurücksetzen
+            R.update_EE_FG(R.I_EE, R.I_EE);
+          end
         else % Überlappend
           z_l = phi_range(l-z)+delta_phi/2;
         end
@@ -974,6 +1028,12 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i, 'spline')), 'k-');
         end % if ~free_stage_transfer
         end % if task_redundancy
+        % Zeichne Referenz ein, falls eine Nachoptimierung mit Positions-IK
+        if s.stageopt_posik && l > z
+        if exist('DbgLine2Hdl', 'var'), delete(DbgLine2Hdl); end
+        DbgLine2Hdl = quiver(t_i(iter_l), 180/pi*YE_stage(k,l-z), 0, ...
+          180/pi*(X_l(end,6) - YE_stage(k,l-z)));
+        end
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
