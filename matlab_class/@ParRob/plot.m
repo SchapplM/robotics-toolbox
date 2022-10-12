@@ -4,7 +4,7 @@
 % q
 %   Gelenk-Winkel (bzw. verallgemeinerte Koordinaten) des Roboters
 % x
-%   Endeffektor-Pose (entsprechend Roboterdefinition)
+%   Endeffektor-Pose (entsprechend Roboterdefinition). Bezogen auf Basis-KS
 % s
 %   Struktur mit Plot-Einstellungen. Felder, siehe Quelltext
 %   * ks_legs: Plot der durch Nummer gegebenen KS der Beinketten. 
@@ -118,13 +118,20 @@ end
 if any(s.mode == 5) || any(s.mode == 6)
   % Wandle das Datenformat von fkine_legs in das von invkin um. Das
   % virtuelle EE-KS der Beinketten wird weggelassen. Zusätzlich Basis-KS.
-  Tc_PKM = NaN(4,4,Rob.NL-1+Rob.NLEG+1);
+  Tc_PKM = NaN(4,4,Rob.NL+Rob.NLEG+1);
   Tc_PKM(:,:,1) = Rob.T_W_0; % PKM-Basis
-  for kk = 1:Rob.NLEG
+  for kk = 1:Rob.NLEG % Beinketten, inklusive eigener Basis
     Tc_PKM(:,:,1+kk+(-1+Rob.I1J_LEG(kk):Rob.I2J_LEG(kk))) = ...
       TcLges_W(:,:,kk*2+(-2+Rob.I1J_LEG(kk):-1+Rob.I2J_LEG(kk)));
   end
-  Tc_PKM(:,:,end) = Rob.x2t(x);
+  Tc_PKM(:,:,end) = Rob.T_W_0*Rob.x2t(x); % End-Effektor
+  Tc_PKM(:,:,end-1) = Tc_PKM(:,:,end) * invtr(Rob.T_P_E); % Plattform
+  % Debug: Prüfe Berechnung hier gegen eigenständige Funktion
+%   Tc_stack_PKM = fkine_coll(Rob, q);
+%   Tc_PKM2 = NaN(4,4,Rob.NL+Rob.NLEG+1);
+%   for ii = 1:size(Tc_PKM2,3)
+%     Tc_PKM2(:,:,ii) = Rob.T_W_0 * [Tc_stack_PKM((ii-1)*3+1:ii*3,:); [0 0 0 1]];
+%   end
   for cbtype = 1:2
     if cbtype == 1
       collbodies_nonleg = Rob.collbodies_nonleg;
