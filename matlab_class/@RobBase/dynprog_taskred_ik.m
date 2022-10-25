@@ -274,7 +274,9 @@ delta_phi = phi_range_fix(2)-phi_range_fix(1); % Abstand zwischen zwei Zustände
 % Version möglich.
 phi_range_all = [x0(6):delta_phi:s.phi_max, x0(6):-delta_phi:s.phi_min];
 [~, I] = sort(abs(phi_range_all-x0(6)));
-phi_range = phi_range_all(I(2:end));
+phi_range = phi_range_all(I(2:end)); % doppelten Startwert entfernen
+phi_range = sort(phi_range); % Reihenfolge wieder aufsteigend machen (besser nachvollziehbar)
+[~, I_phidistasc] = sort(abs(phi_range-x0(6)));
 test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
 assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
   'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
@@ -435,7 +437,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     end
     nz_i = 0;
   end
-  for k = 1:nz_i % z unterschiedliche Orientierungen für vorherige Stufe
+  % Gehe die Zustände nicht nach der Reihe durch, sondern nach Ähnlichkeit
+  % zum Startwert
+  I_k = [I_phidistasc, max(I_phidistasc)+1:nz_i];
+  I_k = I_k(I_k<=nz_i); % Bei erster Stufe nur ein Zustand
+  for k = I_k % z unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
     % Im Mittel vorgesehener Wert für den Zustand
     z_k_mid = phi_range_i(k);
@@ -476,7 +482,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     % Merke, ob auf Stufe k bereits ein freier Transfer zur nächsten Stufe
     % durchgeführt wurde, ohne dass die Einstellung explizit genutzt wurde
     unconstrained_transfer_done_k = false;
-    for l = 1:nz2_ik % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle bzw. Optimierung auf normales Intervall, freie Bewegung
+    % Ziel-Zustände auch nicht der Reihe nach durchgehen, sondern nach
+    % Ähnlichkeit zu z_k
+    [~, I_phidistasc2] = sort(abs(phi_range-z_k));
+    I_l = [I_phidistasc2, max(I_phidistasc2)+1:nz2_ik];
+    for l = I_l % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle bzw. Optimierung auf normales Intervall, freie Bewegung
       t0_l = tic();
       if s.verbose
         fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
@@ -1513,7 +1523,8 @@ end
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
   'n_statechange_total', n_statechange_total, 'nt_ik', nt_ik, ...
   'nt_ik_all', Stats_nt_ik_all, 'Stats_comptime_ik_all', Stats_comptime_ik_all, ...
-  'statechange_succ_all', Stats_statechange_succ_all);
+  'statechange_succ_all', Stats_statechange_succ_all, ...
+  'phi_range', phi_range, 'z1', z1, 'z2', z2, 'delta_phi', delta_phi);
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
   'XD6', XD_neu(:,6), 'XDD6', XDD_neu(:,6));
