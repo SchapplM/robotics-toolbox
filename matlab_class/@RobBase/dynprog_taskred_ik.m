@@ -254,16 +254,6 @@ end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
 
-% Einstellungen für Positions-IK, falls Nachverarbeitung damit gemacht wird
-if s.stageopt_posik
-  % Übernehme die wesentlichen Einstellungen von Traj.-IK
-  s_Pos = struct('wn', s.wn, 'cond_thresh_ikjac', s_Traj.cond_thresh_ikjac, ...
-    'cond_thresh_jac', s_Traj.cond_thresh_jac, 'Phit_tol', s_Traj.Phit_tol, ...
-    'Phir_tol', s_Traj.Phir_tol);
-  % Begrenzung der redundanten Koordinate wieder einsetzen
-  s_Pos.wn(R.idx_ikpos_wn.xlim_hyp) = 1;
-  s_Pos.wn(R.idx_ikpos_wn.xlim_par) = 1;
-end
 %% Dynamische Programmierung vorbereiten
 x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
 % Erzeuge die Werte für die diskreten Stufen der dynamischen Programmierung
@@ -298,6 +288,20 @@ if s.overlap
 elseif s.stageopt_posik
   % Zusätzliche Ziel-Zustände aus Optimierung der ursprünglichen
   z2 = z2 + z;
+end
+% Einstellungen für Positions-IK, falls Zustände damit berechnet werden
+if s.stageopt_posik
+  % Übernehme die wesentlichen Einstellungen von Traj.-IK
+  s_Pos = struct('wn', s.wn, 'cond_thresh_ikjac', s_Traj.cond_thresh_ikjac, ...
+    'cond_thresh_jac', s_Traj.cond_thresh_jac, 'Phit_tol', s_Traj.Phit_tol, ...
+    'Phir_tol', s_Traj.Phir_tol);
+  % Begrenzung der redundanten Koordinate wieder einsetzen
+  s_Pos.wn(R.idx_ikpos_wn.xlim_hyp) = 1e4; % sehr stark von Grenzen abstoßen
+  s_Pos.wn(R.idx_ikpos_wn.xlim_par) = 0; %  ohne linearen Term
+  % Intervall für redundante Koordinate. Bis zum Rand des
+  % Nachbar-Intervalls und etwas weiter, da das hyperbolische Kriterium bei
+  % 80% der Spannweite aktiv wird.
+  s_Pos.xlim = [NaN(5,2); [-1, 1]*1.2 * delta_phi/2];
 end
 % Endwerte für die Gelenkkonfiguration der optimalen Teilstrategie für jede
 % Stufe (aus Vorwärts-Iteration). Setze eine virtuelle Stufe 0 in die
@@ -447,7 +451,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     z_k_mid = phi_range_i(k);
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
     % in diesem Intervall geendet hat
-    if task_redundancy % TODO: Hier Modus stageopt_posik abfragen?
+    if task_redundancy || s.stageopt_posik
       % Redundanz und lokale Optimierung. Die Werte ändern sich dadurch
       z_k = XE_all(i-1, k);
     else
@@ -511,6 +515,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if l <= z % Normales Intervall / Zustand
           z_l = phi_range(l);
         elseif s.stageopt_posik && l > z
+          % vorläufiger Zielwert
+          z_l = phi_range(l-z);
           % Erzeuge den Zielwert durch eine Optimierung mit der Positions-IK
           % Benutze den Zielwert der Stufe der vorherigen Ergebnisse
           if isnan(YE_stage(k,l-z))
@@ -527,31 +533,124 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             R.update_EE_FG(R.I_EE, I_EE_red);
           end
           xl_posik = X_t_in(IE(i),:)'; % Letzter Wert der Trajektorie (Rotation wird ignoriert)
-          % Anfangswert aus dem schon berechneten Zustand auf der aktuellen Stufe
-          q0_posik = QE_stage(:,k,l-z);
-          xl_posik(end) = YE_stage(k,l-z); % Ist-Rotation. Wird sowieso ignoriert, da 3T2R
-          if R.Type == 0 % Seriell
-            [q_i, Phi_i, ~, Stats] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
-          else % PKM
-            [q_i, Phi_i, ~, Stats] = R.invkin4(xl_posik, q0_posik, s_Pos);
+          % Anfangswert aus allen schon berechneten Zuständen dieser Stufe
+          % (der Reihe nach durchprobieren).
+          [~,I_distsort] = sort(abs(YE_stage(k,1:z)-z_l));
+          I_distsort = I_distsort(~isnan(YE_stage(k,I_distsort)));
+          if isempty(I_distsort)
+             q0_posik= q0;
+          else
+            q0_posik = [squeeze(QE_stage(:,k,I_distsort)), q0];
           end
+          xl_posik(end) = z_l; % Ist-Rotation. Wird als Mittelpunkt für Grenzen xlim benutzt. Sonst keine Auswirkung, da mit 3T2R gerechnet wird
+          if R.Type == 0 % Seriell
+            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
+          else % PKM
+            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
+            if false % Debug Pos.-IK
+              figure(2000);clf;
+              Iter = 1:1+Stats_PosIK.iter;
+              if R.Type == 0, I_constr_red = [1 2 3 5 6];
+              else,           I_constr_red = R.I_constr_red; end
+              subplot(3,3,1);
+              plot(Stats_PosIK.condJ(Iter,:));
+              xlabel('Iterationen'); grid on;
+              ylabel('cond(J)');
+              legend({'IK-Jacobi', 'Jacobi'});
+              subplot(3,3,2);
+              plot([diff(Stats_PosIK.Q(Iter,:),1,1);NaN(1,R.NJ)]);
+              xlabel('Iterationen'); grid on;
+              ylabel('diff q');
+              subplot(3,3,3); hold on;
+              Stats_X = R.fkineEE2_traj(Stats_PosIK.Q(Iter,:));
+              Stats_X(:,6) = denormalize_angle_traj(Stats_X(:,6));
+              I_Phi_iO = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-6,2);
+              I_Phi_med = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-3,2)&~I_Phi_iO;
+              I_Phi_niO = ~I_Phi_iO & ~I_Phi_med;
+              legdhl = NaN(3,1);
+              if any(I_Phi_iO)
+                legdhl(1)=plot(Iter(I_Phi_iO), 180/pi*Stats_X(I_Phi_iO,6), 'gv');
+              end
+              if any(I_Phi_med)
+                legdhl(2)=plot(Iter(I_Phi_med), 180/pi*Stats_X(I_Phi_med,6), 'mo');
+              end
+              if any(I_Phi_niO)
+                legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
+              end
+              plot(Iter, 180/pi*Stats_X(:,6), 'k-');
+              legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3'};
+              legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
+              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
+              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
+              xlabel('Iterationen'); grid on;
+              ylabel('phi_z in deg');
+              qlim = cat(1,R.Leg(:).qlim);
+              qlim_range = qlim(:,2)-qlim(:,1);
+              Stats_Q_norm = (Stats_PosIK.Q(Iter,:)-repmat(qlim(:,1)',1+Stats_PosIK.iter,1))./ ...
+                              repmat(qlim_range',1+Stats_PosIK.iter,1);
+              subplot(3,3,4);
+              plot([Stats_Q_norm(Iter,:);NaN(1,R.NJ)]);
+              xlabel('Iterationen'); grid on;
+              ylabel('q norm');
+              subplot(3,3,5);
+              plot([diff(Stats_PosIK.PHI(Iter,I_constr_red));NaN(1,length(I_constr_red))]);
+              xlabel('Iterationen'); grid on;
+              ylabel('diff Phi');
+              subplot(3,3,6);
+              plot(Stats_PosIK.PHI(Iter,I_constr_red));
+              xlabel('Iterationen'); grid on;
+              ylabel('Phi');
+              subplot(3,3,7);
+              plot(diff(Stats_PosIK.h(Iter,[true,s_Pos.wn'~=0])));
+              xlabel('Iterationen'); grid on;
+              ylabel('diff h');
+              subplot(3,3,8);
+              plot(Stats.h(Iter,[true,s_Pos.wn'~=0]));
+              critnames = fields(R.idx_ikpos_wn)';
+              legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
+              xlabel('Iterationen'); grid on;
+              ylabel('h');
+            end
+          end
+          if ~task_redundancy % Wieder auf nicht-redundant zurücksetzen
+            R.update_EE_FG(R.I_EE, R.I_EE);
+          end
+          % Prüfe das Ergebnis der Positions-IK.
           if any(abs(Phi_i) > 1e-8)
             if s.verbose
-              fprintf(['Keine Optimierung mit Positions-IK möglich bei %d/%d\n'], ...
-                i, l-z);
+              fprintf('Keine Optimierung mit Positions-IK möglich bei %d/%d\n', i, l-z);
+            end
+            continue
+          end
+          if any(isinf(Stats_PosIK.h(1+Stats_PosIK.iter,:)))
+            if s.verbose
+              fprintf('Nebenbedingung in zusätzlicher Optimierung überschritten bei %d/%d\n', i, l);
             end
             continue
           end
           x_i_neu = R.fkineEE2_traj(q_i');
-          z_l = x_i_neu(end);
-          if ~task_redundancy % Wider auf nicht-redundant zurücksetzen
-            R.update_EE_FG(R.I_EE, R.I_EE);
+          if x_i_neu(end) < xl_posik(end) + s_Pos.xlim(6,1) || ...
+              x_i_neu(end) > xl_posik(end) + s_Pos.xlim(6,2)
+            if s.verbose
+              fprintf(['Optimierung mit Positions-IK führt zu unzulässigem ', ...
+                'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: %1.1f°\n'], ...
+                i, l, 180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), ...
+                180/pi*(xl_posik(end) + s_Pos.xlim(6,2)), 180/pi*x_i_neu(end));
+            end
+            continue
           end
-        else % Überlappend
+          % Nehme mit Positions-IK berechneten neuen Wert als Zielwert
+          if s.verbose
+            fprintf(['Optimaler Zustand %1.1f° für Stufe %d im Bereich ', ...
+              '%1.1f°...%1.1f° mit Positions-IK bestimmt. Ursprünglich: %1.1f°\n'], 180/pi*x_i_neu(end), k, ...
+              180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), 180/pi*(xl_posik(end) + s_Pos.xlim(6,2)), 180/pi*xl_posik(end));
+          end
+          z_l = x_i_neu(end);
+        else % if l > z % Überlappend
           z_l = phi_range(l-z)+delta_phi/2;
         end
         assert(~isnan(z_l), 'Logik-Fehler: z_l ist NaN');
-      else
+      else % Freier Übergang
         z_l = NaN; % Ziel-Zustand ist undefiniert.
       end
       % Trajektorie als Teil der eingegebenen Trajektorie bestimmen.
@@ -1042,8 +1141,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if s.stageopt_posik && l > z
         if exist('DbgLine2Hdl', 'var'), delete(DbgLine2Hdl); end
         DbgLine2Hdl = quiver(t_i(iter_l), 180/pi*YE_stage(k,l-z), 0, ...
-          180/pi*(X_l(end,6) - YE_stage(k,l-z)));
-        end
+          180/pi*(X_l(end,6) - YE_stage(k,l-z)), 'k-');
+        end % s.stageopt_posik
         if isinf(F_stage(k,l)) % nur im Fall des Scheiterns der Trajektorie
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
@@ -1178,7 +1277,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   F_stage_filt = F_stage;
   % Prüfe, ob in den Intervallen Zustände mehrfach vorkommen. Damit die Anzahl
   % der Zustände nicht immer weiter steigt, werden diese hier reduziert.
-  if s.use_free_stage_transfer || s.overlap
+  if s.use_free_stage_transfer || s.overlap || s.stageopt_posik
     % Gehe die möglichen Intervalle durch für den Ziel-Zustand. Von jedem Start-
     % Zustand nur eine Verbindung zu jedem Ziel-Zustand möglich.
     for k = find(~all(isinf(F_stage),2))' % nur Start-Zustände k betrachten, die zu mindestens einem Ziel führen
@@ -1194,13 +1293,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           F_stage_filt(k,I_remove) = inf; % Entferne durch setzen auf inf.
           if s.verbose
             fprintf(['Transfer nach Stufe %d Intervall %1.1f°...%1.1f°: %d ', ...
-              'doppelt: [%s]\n'], i, 180/pi*(phi_range(j)-delta_phi/2), 180/pi*(phi_range(j)+...
-              delta_phi/2), sum(I_inrangej), disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'));
+              'doppelt: [%s]. Behalten: %1.1f°\n'], i, 180/pi*(phi_range(j)-delta_phi/2), 180/pi*(phi_range(j)+...
+              delta_phi/2), sum(I_inrangej), disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'), 180/pi*YE_stage(k,II_inrangej(III_best)));
           end
-          break;
+          continue;
         end
-      end
-    end
+      end % for j
+    end % for k
   end
   % Füge die Kosten der vorherigen Stufen dazu
   F_stage_sum = F_stage_filt;
@@ -1282,7 +1381,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       QE_all(:, l, i) = QE_stage(:, k_best, l); % Gelenkwinkel
       XE_all(i, l) = YE_stage(k_best, l); % EE-Drehung
     end
-  end
+  end % for l
   if ~isempty(s.debug_dir)
     % Speichere detaillierten Zwischen-Zustand ab
     save(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
