@@ -73,6 +73,7 @@ s = struct( ...
   'debug_dir', '', ... % Verzeichnis zum Speichern aller Zwischenzustände
   'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
+  'fastdebug', false, ... % Einige Prüfungen wieder deaktivieren, damit es schneller geht
   'verbose', 0); % Stufen: 1=Text, 2=Zusammenfassungs-Bilder, 3=alle Bilder
 % Vorgegebene Einstellungen laden
 if nargin == 7
@@ -119,7 +120,7 @@ if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
     t_tref = interp1(s_tref, t(I_unique), s.PM_s_ref);
     assert(abs(t_tref(end)-t(end)) < 1e-6, ['Zeitbasis zwischen Traj. ', ...
       'und Redundanzkarte stimmt nicht']);
-    if s.debug && ~isempty(s.PM_Q_all)
+    if s.debug && ~isempty(s.PM_Q_all) && ~s.fastdebug
       t1 = tic();
       % Prüfe, ob die eingegebene Gelenkwinkel-Trajektorie aus der 
       % Redundanzkarte zu der EE-Trajektorie passt
@@ -362,7 +363,7 @@ if s.verbose > 1
     'Collision', 'Install. Space', 'Out of Range'}; % ... aus Redundanzkarte
   PM_formats = {'bx', 'g*', 'g^', 'co', 'gv', 'm+'}; % NB-Marker
   %% Redundanzkarte einzeichen (falls gegeben)
-  if ~isempty(s.PM_H_all)
+  if ~isempty(s.PM_H_all) && ~s.fastdebug
     abort_thresh_hpos = NaN(R.idx_ik_length.hnpos, 1);
     for f = fields(R.idx_ikpos_hn)'
       if isfield(R.idx_iktraj_hn, f{1})
@@ -447,6 +448,17 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
   fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d\n', length(I_phidistasc), i);
+  if s.debug % Prüfe, ob in jedem Intervall nur ein Anfangswert liegt
+    for jj = 1:length(phi_range)
+      I_in_jj = phi_range(jj)-delta_phi/2 < XE_all(i-1, I_phidistasc) & ...
+                phi_range(jj)+delta_phi/2 > XE_all(i-1, I_phidistasc);
+      if sum(I_in_jj) > 1
+        error('Mehr als ein Startwert in Intervall %d: [%s]', jj, ...
+          disp_array(XE_all(i-1, I_phidistasc(I_in_jj))))
+      end
+    end
+  end
+
   for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
