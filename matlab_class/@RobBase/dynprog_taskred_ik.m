@@ -120,6 +120,7 @@ if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
     assert(abs(t_tref(end)-t(end)) < 1e-6, ['Zeitbasis zwischen Traj. ', ...
       'und Redundanzkarte stimmt nicht']);
     if s.debug && ~isempty(s.PM_Q_all)
+      t1 = tic();
       % Prüfe, ob die eingegebene Gelenkwinkel-Trajektorie aus der 
       % Redundanzkarte zu der EE-Trajektorie passt
       for kk = 1:length(s.PM_phiz_range) % Gehe scheibenweise Karte durch
@@ -143,7 +144,7 @@ if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
         end % for ii
       end % for kk
       if s.verbose > 0
-        fprintf('Redundanzkarte gegen Eingabe-Trajektorie geprüft\n');
+        fprintf('Redundanzkarte gegen Eingabe-Trajektorie geprüft (in %1.1fs)\n', toc(t1));
       end
     end
   end
@@ -266,7 +267,6 @@ phi_range_all = [x0(6):delta_phi:s.phi_max, x0(6):-delta_phi:s.phi_min];
 [~, I] = sort(abs(phi_range_all-x0(6)));
 phi_range = phi_range_all(I(2:end)); % doppelten Startwert entfernen
 phi_range = sort(phi_range); % Reihenfolge wieder aufsteigend machen (besser nachvollziehbar)
-[~, I_phidistasc] = sort(abs(phi_range-x0(6)));
 test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
 assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
   'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
@@ -275,7 +275,6 @@ IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
 XE = X_t_in(IE,:); % EE-Pose für die Eckpunkte
 N = size(XE,1)-1; % Anzahl der Entscheidungsstufen (erste Stufe schon festgelegt)
 z = length(phi_range); % Anzahl unterschiedlicher Orientierungen
-z1 = z; % Anzahl der Start-Zustände auf jeder Stufe
 z2 = z; % Anzahl der Ende-Zustände auf der jeweils nächsten Stufe
 if s.use_free_stage_transfer
   % Zusätzlicher (virtueller) Ziel-Zustand für freie Bewegung. Nur einen pro
@@ -289,6 +288,7 @@ elseif s.stageopt_posik
   % Zusätzliche Ziel-Zustände aus Optimierung der ursprünglichen
   z2 = z2 + z;
 end
+z1 = z2; % Anzahl der Start-Zustände auf jeder Stufe. Entspricht End-Zuständen der vorherigen
 % Einstellungen für Positions-IK, falls Zustände damit berechnet werden
 if s.stageopt_posik
   % Übernehme die wesentlichen Einstellungen von Traj.-IK
@@ -310,15 +310,16 @@ QE_all = NaN(R.NJ, z, N+1);
 QE_all(:, 1, 1) = q0; % virt. Endwert Stufe 0, ist Anfangswert der Stufe 1
 % Endwert der EE-Drehung (Optimierungsvariable) für die optimalen
 % Teilstrategien für jede Stufe.
-XE_all = NaN(N+1, z);
+XE_all = NaN(N+1, z2);
 XE_all(1,1) = x0(6); % virt. Endwert Stufe 0
 % Kumulierte Zielfunktionswerte bis zur aktuellen Stufe, basierend auf der
 % teil-optimalen Politik bis hier hin
-F_all = inf(N+1, z);
-F_all(1,:) = 0; % Startwert für Stufe 1
+F_all = inf(N+1, z2);
+F_all(1,1) = 0; % Startwert für Stufe 1
+F_all(1,2:end) = inf; % nur ein Startwert. Andere Einträge damit deaktiviert
 % Nummer des Zustands der vorherigen Stufe, der zur optimalen Teilpolitik
 % bis zum jeweiligen Zustand führt
-I_all = zeros(N+1, z);
+I_all = zeros(N+1, z2);
 % Alle Endwerte der IK für die berechneten Transitionen auf der aktuellen
 % Stufe. Wird für z Anfangs-Drehungen und z End-Drehungen gemacht.
 % Index 2: Start-Zustand, Index 3: End-Zustand
@@ -396,7 +397,7 @@ end
 for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   if i > 2 && s.verbose
     fprintf(['Starte Berechnungen für Stufe %d. Zeit bis hier: %1.1fs. ', ...
-      'Verbleibend : ca. %1.1f\n'], i, toc(t0), (size(XE,1)-i)*toc(t0)/(i-2));
+      'Verbleibend: ca. %1.1fs\n'], i, toc(t0), (size(XE,1)-i)*toc(t0)/(i-2));
   end
   if all(isnan(XE_all(i-1,:)))
     if s.verbose
@@ -442,25 +443,17 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     nz_i = 0;
   end
   % Gehe die Zustände nicht nach der Reihe durch, sondern nach Ähnlichkeit
-  % zum Startwert
-  I_k = [I_phidistasc, max(I_phidistasc)+1:nz_i];
-  I_k = I_k(I_k<=nz_i); % Bei erster Stufe nur ein Zustand
-  for k = I_k % z unterschiedliche Orientierungen für vorherige Stufe
+  % zum Startwert. Wähle nur erreichbare Startwerte (nicht unendliche Kosten)
+  [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
+  I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
+  fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d\n', length(I_phidistasc), i);
+  for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
-    % Im Mittel vorgesehener Wert für den Zustand
-    z_k_mid = phi_range_i(k);
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
-    % in diesem Intervall geendet hat
-    if task_redundancy || s.stageopt_posik
-      % Redundanz und lokale Optimierung. Die Werte ändern sich dadurch
-      z_k = XE_all(i-1, k);
-    else
-      % Keine Redundanz. Es muss genau der Wert aus dem Intervall genommen
-      % werden (klassische dynamische Programmierung)
-      z_k = z_k_mid;
-    end
-
-    if isnan(XE_all(i-1,k))
+    % in diesem Intervall geendet hat. Ohne Redundanzoptimierung sind das
+    % genau die vorgegebenen diskreten Werte aus phi_range
+    z_k = XE_all(i-1, k);
+    if isnan(z_k) % dürfte gar nicht mehr vorkommen aufgrund Filter vor Schleife
       if s.verbose
         fprintf(['Überspringe Zustand %d. Keine Teilpolitik führt von ', ...
           'Stufe %d dahin\n'], k, i-1);
@@ -468,8 +461,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       continue
     end
     if s.verbose
-      fprintf(['Stufe %d: Prüfe Start-Orientierung %d/%d (%1.1f deg, ', ...
-        'Intervall-Mitte %1.1f deg)\n'], i, k, nz_i, 180/pi*z_k_mid, 180/pi*z_k);
+      fprintf(['Stufe %d: Prüfe Start-Orientierung %d/%d (%1.1f deg', ...
+        ')\n'], i, k, nz_i, 180/pi*z_k);
     end
     % Anzahl der zu prüfenden Zustands-Transfers auf nächste Stufe.
     % Je nach Modus anders (siehe oben für Initialisierung der Variablen).
@@ -1109,8 +1102,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if s.verbose > 1 && iter_l > 0 % Debug-Plot
         change_current_figure(figikhdl);
         linestyle = '-';
-        if free_stage_transfer % Besondere Kennzeichnung bei freier Bewegung
+        if l > z % Kennzeichnung von stage optimization oder overlap  
           linestyle = '--';
+        end
+        if free_stage_transfer % Besondere Kennzeichnung bei freier Bewegung
+          linestyle = ':';
         end
         if isinf(F_stage(k,l))
           linecolor = 'k'; % fehlgeschlagen: Schwarz
@@ -1292,9 +1288,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           I_remove(II_inrangej(III_best)) = false; % ... bis auf den besten
           F_stage_filt(k,I_remove) = inf; % Entferne durch setzen auf inf.
           if s.verbose
-            fprintf(['Transfer nach Stufe %d Intervall %1.1f°...%1.1f°: %d ', ...
-              'doppelt: [%s]. Behalten: %1.1f°\n'], i, 180/pi*(phi_range(j)-delta_phi/2), 180/pi*(phi_range(j)+...
-              delta_phi/2), sum(I_inrangej), disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'), 180/pi*YE_stage(k,II_inrangej(III_best)));
+            fprintf(['Transfer von Stufe %d, Zustand %d nach Stufe %d (Intervall %1.1f°...%1.1f°): %d ', ...
+              'doppelt: [%s] (%s). Behalten: %1.1f° (%d)\n'], i-1, k, i, 180/pi*(phi_range(j)-delta_phi/2), ...
+              180/pi*(phi_range(j)+delta_phi/2), sum(I_inrangej), ...
+              disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'), disp_array(find(I_inrangej), '%d'), ...
+              180/pi*YE_stage(k,II_inrangej(III_best)), II_inrangej(III_best));
           end
           continue;
         end
@@ -1302,18 +1300,18 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     end % for k
   end
   % Füge die Kosten der vorherigen Stufen dazu
-  F_stage_sum = F_stage_filt;
-  F_stage_max = F_stage_filt;
+  F_stage_sum = NaN(size(F_stage_filt));
+  F_stage_max = F_stage_sum;
   for k = 1:z1 % vorherige Stufe
     for l = 1:z2 % nächste Stufe
-      F_stage_sum(k,l) = F_stage(k,l) + F_all(i-1,k);
-      F_stage_max(k,l) = max(F_stage(k,l), F_all(i-1,k));
+      F_stage_sum(k,l) = F_stage_filt(k,l) + F_all(i-1,k);
+      F_stage_max(k,l) = max(F_stage_filt(k,l), F_all(i-1,k));
     end
   end
   % Rekursion über die Betrachtung der kumulierten Kosten:
   % Bestimme optimale Teilpolitik bis hier hin. Dazu müssen die Vorwärts-
   % Rechnungen für alle Zustände der vorherigen Stufe gemacht worden sein.
-  for l = 1:z
+  for l = 1:z2
     % Bestimme für jede der Zustände l für die nächste Stufe, welcher der
     % beste vorherige Zustand ist, um dort hin zu kommen
     F_best_kl_sum = 0; % Init.
@@ -1371,9 +1369,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       I_all(i,l) = k_best;
       % Kosten für besten Zustand der Stufe eintragen
       if strcmp(s.cost_mode, 'max')
-        F_all(i,l) = max(F_all(i-1,k_best), F_stage(k_best, l));
+        F_all(i,l) = max(F_all(i-1,k_best), F_stage_filt(k_best, l));
       else % average, RMStime, RMStraj
-        F_all(i,l) = F_all(i-1,k_best) + F_stage(k_best, l);
+        F_all(i,l) = F_all(i-1,k_best) + F_stage_filt(k_best, l);
       end
       % Endwerte für den Roboter-Zustand eintragen. Aufgrund des Prinzips
       % der lokalen Optimierung nicht nur aus dem diskreten Zustand ableit-
@@ -1392,7 +1390,7 @@ if s.verbose
   fprintf('Schleife durchgelaufen. Bis hier %1.1fs.\n', toc(t0));
 end
 
-% Ergebnis nachverarbeiten, gestückelte Trajektorie zusammensetzen.
+%% Ergebnis nachverarbeiten, gestückelte Trajektorie zusammensetzen.
 % Trajektorie neu generieren anstatt für alle Zwischenschritte die Größen
 % zu speichern
 % Stützstellen des optimalen Verlaufs für die redundante Koordinate
@@ -1445,7 +1443,6 @@ end
 %% Trajektorie aus den optimierten Stützstellen berechnen
 % Referenztrajektorie für redundante Koordinate (wie oben). Darum wird noch
 % die Nullraumbewegung durchgeführt.
-
 for i = 1:size(XE,1)-1
   % Referenzwert für die redundante Koordinate bestimmen. Genau wie oben,
   % damit das Ergebnis möglichst identisch ist.
@@ -1456,20 +1453,24 @@ for i = 1:size(XE,1)-1
   if isnan(I_best(i+1))
     break; % Keine Lösung gefunden.
   end
-  % Start- und Ziel-Koordinate für diese Stufe
-  if i == 1
-    phi1 = x0(6);
-  else
-    phi1 = phi_range(I_best(i));
-  end
-  phi2 = phi_range(I_best(i+1));
+  % Start- und Ziel-Koordinate für diese Stufe (bezogen auf diskrete Werte)
+  [~, I_interv1] = min(abs(XE_all(i,I_best(i))-phi_range));
+  phi1 = phi_range(I_interv1);
+  [~, I_interv2] = min(abs(XE_all(i+1,I_best(i+1))-phi_range));
+  phi2 = phi_range(I_interv2);
   % Referenzverlauf bestimmen.
   % Alternative 1: Benutze die angepassten Ist-Werte der Optimierungsvariablen.
 %   [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(i:i+1,6)', i2-i1+1,...
 %     'EndTime',t(i2)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
   % Alternative 2: Benutze die gleichen Referenzwerte wie oben.
-  [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
-    'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+  if abs(phi2-phi1) < 1e-12 % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
+    X_t_in(i1:ii1,6) = phi1;
+    XD_t_in(i1:ii1,6) = 0;
+    XDD_t_in(i1:ii1,6) = 0;
+  else
+    [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
+      'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+  end
   X_t_in(ii1+1:i2,6) = X_t_in(ii1,6); % letzten Wert halten
   XD_t_in(ii1+1:i2,6) = 0;
   XD_t_in(ii1+1:i2,6) = 0;
@@ -1567,12 +1568,17 @@ if s.verbose > 1
   xlabel('Stufe (Rastpose)');
   ylabel('Zustand (Winkel)');
   grid on;
+  XE_best = NaN(length(I_best), 1);
+  for i = 1:size(XE,1)
+    if isnan(I_best(i)), break;end
+    XE_best(i) = XE_all(i,I_best(i));
+  end
   subplot(2,2,2);hold on;
   plot(t, 180/pi*X_t_in(:,6));
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   plot(t(IE), 180/pi*XE(:,6), 'rs');
-  plot(t(IE(I_validstates(2:end))), 180/pi*phi_range(I_best(I_validstates(2:end))), 'co');
+  plot(t(IE(I_validstates(2:end))), 180/pi*XE_best(2:end), 'co');
   legend({'Ref', 'Max', 'Min', 'Result DP', 'Keypoint'});
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
