@@ -42,6 +42,7 @@ function [XE, DPstats, TrajDetail] = dynprog_taskred_ik(R, X_t_in, XD_t_in, ...
 s = struct( ...
   'phi_min', -pi, ... % Untere Grenze für Optimierungsvariable
   'phi_max', pi, ... % Obere Grenze
+  'phi_lim_x0_dependent', true, ... % Diskrete Werte für phi hängen von Anfangswert ab
   'xDlim', R.xDlim, ... % Minimale und maximale EE-Geschw. (6x2). Letzte Zeile für Optimierungsvariable
   'xDDlim', R.xDDlim, ... % Minimale und maximale EE-Beschleunigung.
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
@@ -264,10 +265,15 @@ delta_phi = phi_range_fix(2)-phi_range_fix(1); % Abstand zwischen zwei Zustände
 % Erzeuge den Bereich so, dass der Anfangswert mit vorkommt. Damit ist
 % prinzipiell ein Beibehalten des Anfangswertes in der nicht-redundanten
 % Version möglich.
-phi_range_all = [x0(6):delta_phi:s.phi_max, x0(6):-delta_phi:s.phi_min];
-[~, I] = sort(abs(phi_range_all-x0(6)));
-phi_range = phi_range_all(I(2:end)); % doppelten Startwert entfernen
-phi_range = sort(phi_range); % Reihenfolge wieder aufsteigend machen (besser nachvollziehbar)
+if s.phi_lim_x0_dependent
+  phi_range_all = [x0(6):delta_phi:s.phi_max, x0(6):-delta_phi:s.phi_min];
+  [~, I] = sort(abs(phi_range_all-x0(6)));
+  phi_range = phi_range_all(I(2:end)); % doppelten Startwert entfernen
+  phi_range = sort(phi_range); % Reihenfolge wieder aufsteigend machen (besser nachvollziehbar)
+else
+  % Diskretes Intervall benutzen (Ersteinreichung des LNEE-Papers).
+  phi_range = linspace(s.phi_min, s.phi_max, s.n_phi);
+end
 test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
 assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
   'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
