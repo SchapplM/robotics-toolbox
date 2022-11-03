@@ -274,9 +274,13 @@ else
   % Diskretes Intervall benutzen (Ersteinreichung des LNEE-Papers).
   phi_range = linspace(s.phi_min, s.phi_max, s.n_phi);
 end
-test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:5),X_t_in(1,4:5)')];
-assert(all(abs(test_x0) < 1e-4), sprintf(['q0 und x0 ', ...
-  'stimmen nicht. Fehler: [%s]'], disp_array(test_x0', '%1.2e')));
+% Setze redundante Koordinate der Eingabe-Trajektorie auf NaN. Muss
+% weiter unten überschrieben werden.
+X_t_in(:,6) = NaN;  XD_t_in(:,6) = NaN; XDD_t_in(:,6) = NaN;
+test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:6),X_t_in(1,4:6)')];
+assert(all(abs(test_x0(1:5)) < 1e-4), sprintf(['q0 und x0 ', ...
+  'stimmen nicht. Fehler: [%s]mm, [%s]°'], disp_array(1e3*test_x0(4:5)', '%1.2e'), ...
+  disp_array(180/pi*test_x0(4:5)', '%1.1f')));
 % Weitere Variablen vorbereiten
 IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
 XE = X_t_in(IE,:); % EE-Pose für die Eckpunkte
@@ -413,17 +417,6 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     end
     break;
   end
-  if i == 2
-    % Auf erster Stufe nur Anfangszustand gegeben
-    nz_i = 1;
-    phi_range_i = x0(6);
-  else
-    % Auf folgenden Stufen immer z verschiedene Zustände möglich
-    nz_i = z;
-    phi_range_i = phi_range;
-  end
-  % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
-  n_statechange_total = n_statechange_total + nz_i*z2;
   % Trajektorien-Zeiten für den Übergang von i-1 nach i.
   t_i = t(IE(i-1):IE(i)); % Ausschnitt aus der Gesamt-Trajektorie
   if strcmp(s.cost_mode, 'RMStraj') % Bahnkoordinate für Ausschnitt
@@ -447,7 +440,6 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     if s.verbose
       fprintf('Zustand %d aus Datei geladen. Überspringe Berechnung\n', i);
     end
-    nz_i = 0;
   end
   % Gehe die Zustände nicht nach der Reihe durch, sondern nach Ähnlichkeit
   % zum Startwert. Wähle nur erreichbare Startwerte (nicht unendliche Kosten)
@@ -455,6 +447,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
   fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
     length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
+  % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
+  n_statechange_total = n_statechange_total + length(I_phidistasc)*z2;
   for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
@@ -469,8 +463,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       continue
     end
     if s.verbose
-      fprintf(['Stufe %d: Prüfe Start-Orientierung %d/%d (%1.1f deg', ...
-        ')\n'], i, k, nz_i, 180/pi*z_k);
+      fprintf('Stufe %d: Prüfe Start-Orientierung %d (%d/%d) (%1.1f°)\n', ...
+        i, k, find(k==I_phidistasc), length(I_phidistasc), 180/pi*z_k);
     end
     % Anzahl der zu prüfenden Zustands-Transfers auf nächste Stufe.
     % Je nach Modus anders (siehe oben für Initialisierung der Variablen).
@@ -539,7 +533,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           [~,I_distsort] = sort(abs(YE_stage(k,1:z)-z_l));
           I_distsort = I_distsort(~isnan(YE_stage(k,I_distsort)));
           if isempty(I_distsort)
-             q0_posik= q0;
+            q0_posik = q0;
           else
             q0_posik = [squeeze(QE_stage(:,k,I_distsort)), q0];
           end
@@ -713,8 +707,12 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
         end
       end
-
       X_t_l(ii1+1:end,6) = X_t_l(ii1,6); % letzten Wert halten
+      XD_t_l(ii1+1:end,6) = 0; % ... beim Halten des Wertes keine Geschw. ... 
+      XDD_t_l(ii1+1:end,6) = 0; % ... und Beschleunigung
+      assert(~any(isnan(X_t_l(:))), 'X_t_l enthält NaN. Logik-Fehler');
+      assert(~any(isnan(XD_t_l(:))), 'XD_t_l enthält NaN. Logik-Fehler');
+      assert(~any(isnan(XDD_t_l(:))), 'XDD_t_l enthält NaN. Logik-Fehler');
       % Alternativ (alte Version): Konstante Geschwindigkeit
 %       X_t_l(1:ii1,6) = linspace(z_k, z_l, ii1); % size(X_t_l,1)
 %       % Steuere die Geschwindigkeit der redundanten Koordinate vor.
@@ -1465,7 +1463,7 @@ if s.verbose
       disp_array(I_best(I_validstates)', '%d'));
   end
 end
-assert(~any(isnan(XE(:))), 'Logik-Fehler. XE enthält NaN.');
+assert(~any(isnan(XE(I_validstates,6))), 'Logik-Fehler. angeblich erfolgreiche Stufen in XE enthalten NaN.');
 if ~isempty(s.debug_dir)
   % Speichere detaillierten Zwischen-Zustand ab
   save(fullfile(s.debug_dir, 'dp_final.mat'), 'I_best', 'XE_all', 'QE_all', 'I_all');
@@ -1488,10 +1486,10 @@ for i = 1:size(XE,1)-1
     break; % Keine Lösung gefunden.
   end
   % Start- und Ziel-Koordinate für diese Stufe (bezogen auf diskrete Werte)
-  [~, I_interv1] = min(abs(XE_all(i,I_best(i))-phi_range));
-  phi1 = phi_range(I_interv1);
-  [~, I_interv2] = min(abs(XE_all(i+1,I_best(i+1))-phi_range));
-  phi2 = phi_range(I_interv2);
+  % Nehme die gefundenen Stützstellen und nicht die Mittelpunkte der Inter-
+  % valle
+  phi1 = XE_all(i,I_best(i));
+  phi2 = XE_all(i+1,I_best(i+1));
   % Referenzverlauf bestimmen.
   % Alternative 1: Benutze die angepassten Ist-Werte der Optimierungsvariablen.
 %   [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(i:i+1,6)', i2-i1+1,...
@@ -1507,7 +1505,7 @@ for i = 1:size(XE,1)-1
   end
   X_t_in(ii1+1:i2,6) = X_t_in(ii1,6); % letzten Wert halten
   XD_t_in(ii1+1:i2,6) = 0;
-  XD_t_in(ii1+1:i2,6) = 0;
+  XDD_t_in(ii1+1:i2,6) = 0;
   
   % Prüfe durch Integration die Konsistenz der Trajektorie
   X6_int_ii = X_t_in(i1,6) + cumtrapz(t(i1:i2)-t(i1), XD_t_in(i1:i2,6));
@@ -1520,6 +1518,9 @@ for i = 1:size(XE,1)-1
     XDD_t_in(i1:ii1,6) = 0;
   end
 end
+assert(~any(isnan(X_t_in(:))), 'X_t_in enthält NaN. Logik-Fehler');
+assert(~any(isnan(XD_t_in(:))), 'XD_t_in enthält NaN. Logik-Fehler');
+assert(~any(isnan(XDD_t_in(:))), 'XDD_t_in enthält NaN. Logik-Fehler');
 % % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
 % if any(~isreal(X_t_in(:))) || any(~isreal(XD_t_in(:))) || any(~isreal(XDD_t_in(:)))
 %   X_t_in = real(X_t_in); XD_t_in = real(XD_t_in); XDD_t_in = real(XDD_t_in);
@@ -1578,6 +1579,9 @@ X_neu(:,6) = denormalize_angle_traj(X_neu(:,6));
 if Stats.iter < length(t) && s.verbose
   fprintf(['Trajektorie nicht erfolgreich bei komplettem Durchlauf. ', ...
     'Bis %d/%d gekommen.\n'], Stats.iter, length(t));
+end
+if Stats.iter == 0
+  error('Sofortiger Abbruch der Trajektorie. Darf nicht sein.')
 end
 if s.verbose > 1
   %% Debug: Ergebnis-Bild für Dynamische Programmierung
