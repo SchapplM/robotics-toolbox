@@ -1518,9 +1518,6 @@ for i = 1:size(XE,1)-1
     XDD_t_in(i1:ii1,6) = 0;
   end
 end
-assert(~any(isnan(X_t_in(:))), 'X_t_in enthält NaN. Logik-Fehler');
-assert(~any(isnan(XD_t_in(:))), 'XD_t_in enthält NaN. Logik-Fehler');
-assert(~any(isnan(XDD_t_in(:))), 'XDD_t_in enthält NaN. Logik-Fehler');
 % % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
 % if any(~isreal(X_t_in(:))) || any(~isreal(XD_t_in(:))) || any(~isreal(XDD_t_in(:)))
 %   X_t_in = real(X_t_in); XD_t_in = real(XD_t_in); XDD_t_in = real(XDD_t_in);
@@ -1616,7 +1613,7 @@ if s.verbose > 1
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t, 'spline')));
   plot(t, 180/pi*(X_t_in(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t, 'spline')));
   plot(t(IE), 180/pi*XE(:,6), 'rs');
-  plot(t(IE(I_validstates(2:end))), 180/pi*XE_best(2:end), 'co');
+  plot(t(IE(I_validstates(2:end))), 180/pi*XE_best(2:I_validstates(end)), 'co');
   legend({'Ref', 'Max', 'Min', 'Result DP', 'Keypoint'});
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
