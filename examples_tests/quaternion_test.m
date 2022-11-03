@@ -75,3 +75,27 @@ for j = 2:n
   end
 end
 fprintf('%d Umrechnungen mit quatprod getestet\n', n);
+
+%% Teste Quaternion-Klasse aus Corke-Robotic-Toolbox
+for j = 2:n
+  R1 = R_ges(:,:,j-1);
+  R2 = R_ges(:,:,j);
+  R3 = R1*R2;
+  q1 = r2quat(R1);
+  q2 = r2quat(R2);
+  Q1 = Quaternion(q1(1), q1(2:end));
+  Q2 = Quaternion(q2(1), q2(2:end));
+  q3 = quatprod(q1, q2);
+  Q3 = Q1 * Q2;
+  R3_test1 = quat2r(q3);
+  R3_test2 = quat2r([Q3.s; Q3.v(:)]);
+  test1 = R3_test1 - R3_test2;
+  if any( abs( test1(:) ) > 1e-10 )
+    error('Umrechnung quat2r/r2quat vs Quaternion-Klasse stimmt nicht');
+  end
+  test2 = R3 - R3_test2;
+  if any( abs( test(:) ) > 1e-10 )
+    error('Umrechnung quat2r/r2quat+Quaternion-Klasse stimmt nicht gegen Rotationsmatrix');
+  end
+end
+fprintf('%d Umrechnungen mit Quaternion-Klasse getestet\n', n);
