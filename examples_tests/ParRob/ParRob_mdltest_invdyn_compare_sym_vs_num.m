@@ -80,7 +80,7 @@ for i = 1:length(PNames_Kin)
   PNames_noP{i} = PNames_Kin{i}(1:end-2);
 end
 [~,III] = unique(PNames_noP);
-for DynParMode = 2:4
+for DynParMode = 1:4
   fprintf('Untersuche Dynamik-Parameter Nr. %d\n', DynParMode);
   % 2 = Inertialparameter (kein Regressor)
   % 3 = Inertialparameter-Regressor

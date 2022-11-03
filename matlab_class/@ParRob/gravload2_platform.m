@@ -76,7 +76,7 @@ end
 R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
-if Rob.DynPar.mode == 2
+if any(Rob.DynPar.mode == [1 2])
   Fg_plf = rigidbody_gravloadB_floatb_eulxyz_slag_vp2_mex(xP(4:6), g, m_P, mrS_P) ;
 else
   Fg_plf_reg = rigidbody_gravloadB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6), g);
@@ -89,7 +89,7 @@ Fg_plf_red = Fg_plf(Rob.I_EE);
 ii = 1;
 for i = 1:NLEG
   q_i = q(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  if Rob.DynPar.mode == 2
+  if any(Rob.DynPar.mode == [1 2])
     gq_leg = Rob.Leg(i).gravload(q_i);
   elseif Rob.DynPar.mode == 3
     % Regressorform mit Inertialparametern

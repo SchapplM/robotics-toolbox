@@ -84,15 +84,19 @@ classdef SerRob < RobBase
     ekinfcnhdl4     % ... mit anderen Parametern
     epotfcnhdl2     % Funktions-Handle für potentielle Energie
     epotfcnhdl4     % ... mit anderen Parametern
-    gravlfcnhdl2    % Funktions-Handle für Gelenkkräfte durch Gravitation
+    gravlfcnhdl1    % Funktions-Handle für Gelenkkräfte durch Gravitation
+    gravlfcnhdl2    % ... mit anderen Parametern
     gravlfcnhdl4    % ... mit anderen Parametern
-    inertiafcnhdl2  % Funktions-Handle für Massenmatrix
+    inertiafcnhdl1  % Funktions-Handle für Massenmatrix
+    inertiafcnhdl2  % ... mit anderen Parametern
     inertiafcnhdl4  % ... mit anderen Parametern
-    corvecfcnhdl2   % Funktions-Handle für Gelenkkräfte durch Coriolis- und Fliehkräfte
+    corvecfcnhdl1   % Funktions-Handle für Gelenkkräfte durch Coriolis- und Fliehkräfte
+    corvecfcnhdl2   % ... mit anderen Parametern
     corvecfcnhdl4   % ... mit anderen Parametern
     cormatfcnhdl2   % Funktions-Handle für Coriolis-Matrix
     cormatfcnhdl4   % ... mit anderen Parametern
-    invdynfcnhdl2   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
+    invdynfcnhdl1   % Funktions-Handle für Gelenkkräfte durch inverse Dynamik
+    invdynfcnhdl2   % ... mit anderen Parametern
     invdynfcnhdl4   % ... mit anderen Parametern
     intforcefcnhdl2   % Funktions-Handle für Schnittkräfte durch inverse Dynamik
     intforcemcnhdl2   % Funktions-Handle für Schnittkmomente durch inverse Dynamik
@@ -233,10 +237,14 @@ classdef SerRob < RobBase
       {'invkintrajfcnhdl', 'invkin_traj'}, ...
       {'ekinfcnhdl2', 'energykin_fixb_slag_vp2'}, ...
       {'epotfcnhdl2', 'energypot_fixb_slag_vp2'}, ...
+      {'gravlfcnhdl1', 'gravloadJ_floatb_twist_slag_vp1'}, ...
       {'gravlfcnhdl2', 'gravloadJ_floatb_twist_slag_vp2'}, ...
+      {'inertiafcnhdl1', 'inertiaJ_slag_vp1'}, ...
       {'inertiafcnhdl2', 'inertiaJ_slag_vp2'}, ...
+      {'corvecfcnhdl1', 'coriolisvecJ_fixb_slag_vp1'}, ...
       {'corvecfcnhdl2', 'coriolisvecJ_fixb_slag_vp2'}, ...
       {'cormatfcnhdl2', 'coriolismatJ_fixb_slag_vp2'}, ...
+      {'invdynfcnhdl1', 'invdynJ_fixb_slag_vp1'}, ...
       {'invdynfcnhdl2', 'invdynJ_fixb_slag_vp2'}, ...
       {'intforcefcnhdl2', 'invdynf_fixb_snew_vp2'}, ...
       {'intforcemcnhdl2', 'invdynm_fixb_snew_vp2'}, ...
@@ -884,7 +892,9 @@ classdef SerRob < RobBase
       % Ausgabe:
       % gq: Gravitations-Gelenkmoment
       % gqreg: Regressor-Matrix
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        gq = R.gravlfcnhdl1(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.rSges);
+      elseif R.DynPar.mode == 2
         gq = R.gravlfcnhdl2(q, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges);
       elseif R.DynPar.mode == 3
         gqreg = R.gravlregfcnhdl3(q, R.gravity, R.pkin_gen);
@@ -906,7 +916,9 @@ classdef SerRob < RobBase
       % Ausgabe:
       % Mq: Massenmatrix
       % Mqreg: Regressor-Matrix
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        Mq = R.inertiafcnhdl1(q, R.pkin_gen, R.DynPar.mges, R.DynPar.rSges, R.DynPar.Icges);
+      elseif R.DynPar.mode == 2
         Mq = R.inertiafcnhdl2(q, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 3
         Mqreg = R.inertiaregfcnhdl3(q, R.pkin_gen);
@@ -929,7 +941,9 @@ classdef SerRob < RobBase
       % Ausgabe:
       % cq: Gelenkkräfte für Flieh- und Corioliskräfte
       % cqreg: Regressor-Matrix
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        cq = R.corvecfcnhdl1(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.rSges, R.DynPar.Icges);
+      elseif R.DynPar.mode == 2
         cq = R.corvecfcnhdl2(q, qD, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 3
         cqreg = R.corvecregfcnhdl3(q, qD, R.pkin_gen);
@@ -976,7 +990,9 @@ classdef SerRob < RobBase
       % Ausgabe:
       % tauq: Inverse Dynamik
       % tauqreg: Regressor-Matrix
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        tauq = R.invdynfcnhdl1(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.rSges, R.DynPar.Icges);
+      elseif R.DynPar.mode == 2
         tauq = R.invdynfcnhdl2(q, qD, qDD, R.gravity, R.pkin_gen, R.DynPar.mges, R.DynPar.mrSges, R.DynPar.Ifges);
       elseif R.DynPar.mode == 3
         tauqreg = R.invdynregfcnhdl3(q, qD, qDD, R.gravity, R.pkin_gen);

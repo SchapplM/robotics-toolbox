@@ -102,7 +102,7 @@ R1 =  [Jinv;eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
 R1D = [JinvD; zeros(NLEG)]; % Projektionsmatrix-Zeitableitung, [DT09]/(21)
 
 %% Starrkörper-Dynamik der Plattform
-if Rob.DynPar.mode==2
+if any(Rob.DynPar.mode == [1 2])
   Fc_plf = rigidbody_coriolisvecB_floatb_eulxyz_slag_vp2_mex(xP(4:6), xDP, m_P, mrS_P, If_P) ;
 else
   Fc_plf_reg = rigidbody_coriolisvecB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6), xDP);
@@ -118,7 +118,7 @@ Fc_plf_red = Fc_plf(Rob.I_EE);
 % Coriolis-Komponente aller Beinketten berechnen [DT09]/(6)
 ii = 1;
 for i = 1:NLEG
-  if Rob.DynPar.mode == 2
+  if any(Rob.DynPar.mode == [1 2])
     cq_leg = Rob.Leg(i).corvec(q(Rob.I1J_LEG(i):Rob.I2J_LEG(i)),qD(Rob.I1J_LEG(i):Rob.I2J_LEG(i)));
   elseif Rob.DynPar.mode == 3
     % Regressorform mit Inertialparametern

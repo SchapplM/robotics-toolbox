@@ -87,13 +87,17 @@ classdef ParRob < RobBase
   end
   properties (Access = private)
       jacobi_qa_x_fcnhdl % Funktions-Handle für Jacobi-Matrix zwischen Antrieben und Plattform-KS
-      invdyn_x_fcnhdl2       % Funktions-Handle für Inverse Dynamik in Plattform-Koordinaten
+      invdyn_x_fcnhdl1       % Funktions-Handle für Inverse Dynamik in Plattform-Koordinaten
+      invdyn_x_fcnhdl2       % ... mit anderen Parametern
       invdyn_x_fcnhdl4       % ... mit anderen Parametern
-      inertia_x_fcnhdl2      % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
+      inertia_x_fcnhdl1      % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
+      inertia_x_fcnhdl2      % ... mit anderen Parametern
       inertia_x_fcnhdl4      % ... mit anderen Parametern
-      gravload_x_fcnhdl2     % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
+      gravload_x_fcnhdl1     % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
+      gravload_x_fcnhdl2     % ... mit anderen Parametern
       gravload_x_fcnhdl4     % ... mit anderen Parametern
-      coriolisvec_x_fcnhdl2  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
+      coriolisvec_x_fcnhdl1  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
+      coriolisvec_x_fcnhdl2  % ... mit anderen Parametern
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
@@ -131,9 +135,13 @@ classdef ParRob < RobBase
       % Funktionsdateien (aus Maple-Toolbox)
       R.all_fcn_hdl = { ...
         {'jacobi_qa_x_fcnhdl', 'Jinv'}, ...
+        {'invdyn_x_fcnhdl1', 'invdyn_para_pf_slag_vp1'}, ...
         {'invdyn_x_fcnhdl2', 'invdyn_para_pf_slag_vp2'}, ...
+        {'inertia_x_fcnhdl1', 'inertia_para_pf_slag_vp1'}, ...
         {'inertia_x_fcnhdl2', 'inertia_para_pf_slag_vp2'}, ...
+        {'gravload_x_fcnhdl1', 'gravload_para_pf_slag_vp1'}, ...
         {'gravload_x_fcnhdl2', 'gravload_para_pf_slag_vp2'}, ...
+        {'coriolisvec_x_fcnhdl1', 'coriolisvec_para_pf_slag_vp1'}, ...
         {'coriolisvec_x_fcnhdl2', 'coriolisvec_para_pf_slag_vp2'}, ...
         {'invdyn_x_fcnhdl4', 'invdyn_para_pf_mdp'}, ...
         {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
@@ -587,7 +595,10 @@ classdef ParRob < RobBase
       xPDred = xPD(R.I_EE);
       xPDDred = xPDD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        Fx = R.invdyn_x_fcnhdl1(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
+      elseif R.DynPar.mode == 2
         Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
@@ -771,7 +782,10 @@ classdef ParRob < RobBase
       % Ausgabe:
       % Mx: Massenmatrix
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        Mx = R.inertia_x_fcnhdl1(xPred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
+      elseif R.DynPar.mode == 2
         Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
@@ -791,7 +805,10 @@ classdef ParRob < RobBase
       % Ausgabe:
       % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        Fgx = R.gravload_x_fcnhdl1(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
+          R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:));
+      elseif R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:));
       elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
@@ -811,7 +828,10 @@ classdef ParRob < RobBase
       % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
-      if R.DynPar.mode == 2
+      if R.DynPar.mode == 1
+        Fcx = R.coriolisvec_x_fcnhdl1(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
+          R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
+      elseif R.DynPar.mode == 2
         Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
       elseif R.DynPar.mode == 3 || R.DynPar.mode == 4

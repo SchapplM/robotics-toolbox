@@ -63,7 +63,7 @@ if nargout == 2 % Ausgabe der Regressormatrizen
 end
 
 %% Starrkörper-Dynamik der Plattform
-if Rob.DynPar.mode == 2
+if any(Rob.DynPar.mode == [1 2])
   M_plf_full = rigidbody_inertiaB_floatb_eulxyz_slag_vp2_mex(xP(4:6), m_P, mrSges, Ifges);
 else
   % Regressor-Matrix für allgemeine Starrkörper (nutze nicht-symmetrische
@@ -84,7 +84,7 @@ M_plf_red = M_plf_full (Rob.I_EE, Rob.I_EE);
 % Massenmatrix aller Beinketten berechnen
 for i = 1:NLEG
   q_i = q(Rob.I1J_LEG(i):Rob.I2J_LEG(i));
-  if Rob.DynPar.mode == 2
+  if any(Rob.DynPar.mode == [1 2])
     Mq_Leg = Rob.Leg(i).inertia(q_i);
   else
     [~,Mvec_Leg_reg] = Rob.Leg(i).inertia(q_i);
