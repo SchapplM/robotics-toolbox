@@ -453,18 +453,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   % zum Startwert. Wähle nur erreichbare Startwerte (nicht unendliche Kosten)
   [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
-  fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d\n', length(I_phidistasc), i);
-  if s.debug % Prüfe, ob in jedem Intervall nur ein Anfangswert liegt
-    for jj = 1:length(phi_range)
-      I_in_jj = phi_range(jj)-delta_phi/2 < XE_all(i-1, I_phidistasc) & ...
-                phi_range(jj)+delta_phi/2 > XE_all(i-1, I_phidistasc);
-      if sum(I_in_jj) > 1
-        error('Mehr als ein Startwert in Intervall %d: [%s]', jj, ...
-          disp_array(XE_all(i-1, I_phidistasc(I_in_jj))))
-      end
-    end
-  end
-
+  fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
+    length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
   for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
     t0_k = tic();
     % Eingabe der Stufen. Wert wählen, je nachdem welcher Wert vorher
@@ -1289,8 +1279,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     end
   end % for k (Zustände Stufe i-1)
   F_stage_filt = F_stage;
-  % Prüfe, ob in den Intervallen Zustände mehrfach vorkommen. Damit die Anzahl
-  % der Zustände nicht immer weiter steigt, werden diese hier reduziert.
+  % Prüfe, ob in den Transfers Zustände innerhalb eines Intervalls mehrfach
+  % vorkommen. Damit die Anzahl der Zustände nicht immer weiter steigt,
+  % werden diese hier reduziert.
   if s.use_free_stage_transfer || s.overlap || s.stageopt_posik
     % Gehe die möglichen Intervalle durch für den Ziel-Zustand. Von jedem Start-
     % Zustand nur eine Verbindung zu jedem Ziel-Zustand möglich.
@@ -1316,8 +1307,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
       end % for j
     end % for k
-  end
-  % Füge die Kosten der vorherigen Stufen dazu
+  end % if
+  % Füge die Kosten der vorherigen Stufen dazu (kumulierte Kosten)
   F_stage_sum = NaN(size(F_stage_filt));
   F_stage_max = F_stage_sum;
   for k = 1:z1 % vorherige Stufe
@@ -1398,6 +1389,31 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       XE_all(i, l) = YE_stage(k_best, l); % EE-Drehung
     end
   end % for l
+  % Nochmalige Prüfung auf doppelte Vorkommnisse in Intervall. In jedem
+  % Intervall darf nur ein Startwert für die nächste Stufe liegen.
+  % Bis hier werden zusätzliche Intervalle noch als eigene Zustände gezählt
+  % und nicht mit ursprünglichen Intervallen zusammengelegt (außer für
+  % Transfer von dem selben Start-Zustand aus). Betrifft Modus "overlap".
+  for jj = 1:length(phi_range)
+    I_in_jj = phi_range(jj)-delta_phi/2 < XE_all(i, :) & ...
+              phi_range(jj)+delta_phi/2 > XE_all(i, :);
+    if sum(I_in_jj) > 1
+      % Schlechteren Wert auf unendlich setzen, um ihn zu deaktivieren
+      II_in_jj = find(I_in_jj); % Zähl-Indizes der Zustände im Intervall
+      [~,II_min] = min(F_all(i,I_in_jj)); % bester Wert dafür
+      I_delete_in_jj = I_in_jj; % Binär-Indizes der zu löschenden Zustände
+      I_delete_in_jj(II_in_jj(II_min)) = false; % Behalten des besten
+      if s.verbose
+        fprintf('Mehr als ein Startwert in Intervall %d (%1.1f°...%1.1f°): [%s] (%s)\n', jj, ...
+          180/pi*(phi_range(jj)-delta_phi/2), 180/pi*(phi_range(jj)+delta_phi/2), ...
+          disp_array(180/pi*XE_all(i, I_in_jj), '%1.1f°'), disp_array(II_in_jj, '%d'));
+        fprintf('Behalte Nr. %d (fval=%1.1f). Verwerfe Nr. [%s] mit fval=[%s]\n', ...
+          II_in_jj(II_min), F_all(i,II_in_jj(II_min)), disp_array(find(I_delete_in_jj),'%d'), ...
+          disp_array(F_all(i,I_delete_in_jj), '%1.1f'));
+      end
+      F_all(i,I_delete_in_jj) = inf;
+    end
+  end
   if ~isempty(s.debug_dir)
     % Speichere detaillierten Zwischen-Zustand ab
     save(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
