@@ -375,7 +375,7 @@ Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, NJ), ...
   'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
   'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
   'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', ...
-  NaN, 'mode', uint32(zeros(n_max,1)), 'version', 11);
+  NaN, 'mode', uint32(zeros(n_max,1)), 'version', 12);
 Stats = Stats_default;
 
 %% Iterative Berechnung der inversen Kinematik
@@ -1074,6 +1074,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else
             error('Fall sollte eigentlich nicht vorkommen');
           end
+          % Mache das Kriterium stärker als die bisher aufsummierten Kriterien.
+          % Annahme: xlim_hyp kommt als letztes und muss dominieren, wenn verletzt.
+          h8dq = h8dq / min(abs(h8dq'./v));
         else
           h8dq = (h8_test-h(idx_hn.xlim_hyp))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
         end

@@ -963,6 +963,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else
             error('Fall sollte eigentlich nicht vorkommen');
           end
+          % Mache das Kriterium stärker als die bisher aufsummierten Kriterien.
+          % Annahme: xlim_hyp kommt als letztes und muss dominieren, wenn verletzt.
+          h8dq = h8dq / min(abs(h8dq'./v));
         else
           h8dq = (h8_test-h(idx_hn.xlim_hyp))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
         end

@@ -294,7 +294,7 @@ if nargout == 4
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
     'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
     'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
-    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 7);
+    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 8);
   Stats = Stats_default;
 end
 
@@ -666,7 +666,23 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if wn(idx_wn.xlim_hyp) ~= 0 && all(abs(Phi)<1e-3) % hyperbolische Limitierung der redundanten Koordinate (3T2R)
         % Kriterium für aktuellen Iterationsschritt berechnen
         [h(idx_hn.xlim_hyp), h8drz] = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
-        h8dq = h8drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        if isinf(h(idx_hn.xlim_hyp))
+		  xD_test_limred = [zeros(5,1); 1e-8];
+		  qD_test = Jak \ xD_test_limred;
+          if -delta_phi_z(3) <= s.xlim(6,1) + 1e-6
+            h8dq = -1e6*qD_test';
+          elseif -delta_phi_z(3) >= s.xlim(6,2) - 1e-6
+            h8dq = +1e6*qD_test';
+          else
+            error('Fall sollte eigentlich nicht vorkommen');
+          end
+          % Mache h8dq stärker als die bisher aufsummierten Kriterien.
+          % Annahme: xlim_hyp kommt als letztes und muss dominieren
+          h8dq = h8dq / min(abs(h8dq'./v));
+        else
+          h8dq = h8drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
+        end
+        h8dq(isnan(h8dq)) = 0;
         v = v - wn(idx_wn.xlim_hyp)*h8dq';
       end
       %% Einhaltung der Grenzen der redundanten Koordinate (translatorisch)
