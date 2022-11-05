@@ -24,6 +24,9 @@ Für die Benutzung der ParRob-Klasse müssen vorher einmalig deren mex-Abhängig
 Für die Benutzung der Kollisionserkennung muss einmalig die Funktion dafür kompiliert werden:  
 `matlabfcn2mex({'check_collisionset_simplegeom'});`
 
+Es können alternativ auch alle Abhängigkeiten dieser Toolbox auf einmal kompiliert werden:  
+`robotics_toolbox_compile_dep.m`
+
 ### Modultests
 
 Die einzelnen Funktionen des Repos können über die Modultests aus dem Ordner `examples_tests` gestartet werden. Die Funktionsfähigkeit des Gesamt-Repos kann mit dem Gesamt-Testskript `robotics_toolbox_test_repo.m` aus dem Hauptordner geprüft werden.
