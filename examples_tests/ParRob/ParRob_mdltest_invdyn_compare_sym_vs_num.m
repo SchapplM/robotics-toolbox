@@ -405,10 +405,11 @@ for DynParMode = 1:4
       end
       Jinv_Ptest_full = zeros(size(JinvP_fulls));
       Jinv_Ptest_full(:,RP.I_EE) = Jinv_Ptest;
-      test_JinvP = JinvP - Jinv_Ptest;
-      if any(abs(test_JinvP(:)) > testtol)
+      test_JinvP_abs = JinvP - Jinv_Ptest;
+      test_JinvP_rel = test_JinvP_abs ./ JinvP;
+      if any(abs(test_JinvP_abs(:)) > testtol)
         error(['Selbst bestimmte Jacobi-Matrix bezogen auf xP stimmt ', ...
-          'nicht gegen constr1-Funktion. Fehler: %1.2e'], max(abs(test_JinvP(:))));
+          'nicht gegen constr1-Funktion. Fehler: %1.2e'], max(abs(test_JinvP_abs(:))));
       end
       JinvP_ges(i,:) = JinvP(:); % Für Trajektorien-Funktionen weiter unten
       
@@ -721,7 +722,23 @@ for DynParMode = 1:4
         % testen
         Information_matrix = [Information_matrix; Fx2_reg]; %#ok<AGROW>
       end
-      % Auswertung
+      %% Prüfe, ob die Ausgabe zwischen Parameter 2 und 3 gleich bleibt
+      if DynParMode == 3
+        % Alle Funktionen mit Parameter-Einstellung 3 ausführen
+        Cx3 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
+        % Alle Funktionen mit Parameter-Einstellung 2 ausführen
+        RP.DynPar.mode = 2;
+        for il = 1:RP.NLEG, RP.Leg(il).DynPar.mode = 2; end
+        Cx2 = RP.coriolisvec2_platform(Q_test(i,:)', QD_test(i,:)', XP_test(i,:)', XDP_test(i,:)');
+        % Parameter zurücksetzen
+        RP.DynPar.mode = 3;
+        for il = 1:RP.NLEG, RP.Leg(il).DynPar.mode = 3; end
+        test_C23 = Cx2 - Cx3;
+        if any(abs(test_C23(:)) > 1e-6)
+          error('Coriolis-Kraft unterschiedlich bei Parameter 2 vs 3. Max Fehler %1.1e.', max(abs(test_C23(:))));
+        end
+      end
+      %% Auswertung
       if fail
         n_fail = n_fail + 1;
       else
@@ -732,7 +749,7 @@ for DynParMode = 1:4
       error('Die IK hat für die PKM nie funktioniert. Darf nicht sein');
     end
     % Teste Trajektorien-Funktionen
-    if DynParMode == 2
+    if any(DynParMode == [1 2])
       Fx_traj1 = RP.invdyn2_platform_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
       Fa_traj1 = RP.invdyn2_actjoint_traj(Q_test,QD_test,QDD_test,XP_test,XDP_test,XDDP_test,JinvP_ges);
     else % DynParMode == 3 || DynParMode == 4
