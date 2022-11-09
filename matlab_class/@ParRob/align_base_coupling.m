@@ -6,6 +6,11 @@
 %   Roboter-Klasse
 % method
 %   Nummer der Methode (siehe Quelltext)
+%   1-3: Kreisförmig. Gelenk-Achse Normal (1), Tangential (2), Radial (3)
+%   4: Kegel (z-Achse radial und nach oben)
+%   5-8: Paarweise, sonst wie 1-4
+%   9: Alle Gelenkachsen parallel angeordnet (in der Ebene)
+%   10: parallel senkrecht zur Ebene
 % param
 %   Parameter für diese Methode (siehe Quelltext)
 

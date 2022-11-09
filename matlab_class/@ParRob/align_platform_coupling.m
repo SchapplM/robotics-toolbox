@@ -11,6 +11,7 @@
 %   7: Passend zur Kinematik bei 4-FG-Ketten für 3T0R-PKM. (Falls es nur
 %      eine Möglichkeit für die Orientierung der Beinkette gibt)
 %   8: Alle Gelenkachsen parallel und in Plattform-Ebene (für 3T2R)
+%   9: Gelenkachsen schneiden sich unterhalb der Plattform in der Mitte (wie G4)
 % param
 %   Parameter für diese Methode (siehe Quelltext)
 %   Alle Methoden:
@@ -170,7 +171,25 @@ elseif method == 8
     % drehung der Gelenkachse in der Ebene
     phi_P_Bi = r2eulxyz(roty(pi/2)*rotx(psi_offset));
     phi_P_B_all(:,i) =  phi_P_Bi;
-  end   
+  end
+elseif method == 9
+  % Methode 9: Gelenkachsen schneiden sich unterhalb (oder überhalb) der Plattform
+  n_pf_par = 2;
+  r_PB = param(1);
+  phi = param(2);
+  for i = 1:NLEG
+    if Rob.issym
+      beta_i = 2*sym('pi')/NLEG*(i-1);
+    else
+      beta_i = 2*pi/NLEG*(i-1);
+    end
+    % Kreisförmig außen an Plattform
+    r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
+    % Benutze den Ansatz von P3 und füge noch die Drehung um die x-Achse
+    % hinzu. Dadurch wird die z-Achse mit positivem phi nach unten gekippt 
+    phi_P_Bi = r2eulxyz(rotx(-pi/2)*roty(-pi/2-beta_i)*rotx(-phi));
+    phi_P_B_all(:,i) =  phi_P_Bi;
+  end
 else
   error('Plattform-Koppelgelenk-Methode %d nicht implementiert', method);
 end
