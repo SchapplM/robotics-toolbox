@@ -30,7 +30,7 @@
 % [B] Aufzeichnungen Schappler vom 22.06.2018
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 function [Phi_red, Phi] = constr1_trans(Rob, q, xE, platform_frame)
 
@@ -69,7 +69,7 @@ for iLeg = 1:NLEG
   r_0_0_Ai = Rob.Leg(iLeg).r_W_0;
   phi_0_Ai = Rob.Leg(iLeg).phi_W_0;
   R_0_0i = eul2r(phi_0_Ai, Rob.Leg(iLeg).phiconv_W_0);
-  
+  % Direkte Kinematik der Beinkette
   T_0i_Bi = Rob.Leg(iLeg).fkineEE(qs);
   r_0i_Ai_Bi_q = T_0i_Bi(1:3,4);
   r_0_Ai_Bi_q = R_0_0i*r_0i_Ai_Bi_q;
