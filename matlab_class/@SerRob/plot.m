@@ -22,6 +22,8 @@
 %   jointcolors
 %     'serial': Klasse entspricht einzelnem seriellem/hybridem Roboter
 %     'parallel': Klassen entspricht Beinkette einer PKM
+%   jointsize
+%     Dimension der Gelenke (Länge und Durchmesser)
 %   bodies
 %     Enthält eine Liste der Körper, für die die CAD-Modelle gezeichnet
 %     werden sollen (Standard: alle). Konvention: Basis = 0.
@@ -54,6 +56,7 @@ s_std = struct( ...
              'bodies', 0:Rob.NL, ... % CAD-Modelle für alle Körper
              'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
              'jointcolors', 'serial', ... % Farben für die Gelenke
+             'jointsize', [0.15, 0.04], ... % Höhe und Durchmesser
              'nojoints', false, ...
              'length_frames', 0.20); 
 if nargin < 3
@@ -107,8 +110,8 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
     error('nicht definiert');
   end
   % Gelenke als Objekte. TODO: An Größe des Roboters anpassen
-  gd = 0.04; % Durchmesser der Zylinder und Quader
-  gh = 0.15; % Höhe
+  gd = s.jointsize(2); % Durchmesser der Zylinder und Quader
+  gh = s.jointsize(1); % % Höhe
   
   % Anmerkungen:
   % * Gelenk i bewegt Körper i
@@ -128,6 +131,10 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
       else
         error('Noch nicht definiert');
       end
+    end
+    % Zeichne kein Schubgelenk, wenn ein 3D-Schubzylinder da ist
+    if any(s.mode == 4) && Rob.DesPar.joint_type(i) ==  5
+      continue
     end
     
     R_W_i = T_c_W(1:3,1:3,i+1); % um eins verschoben (Transformations-Index 1 ist Basis)
@@ -415,7 +422,7 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
                 end
               end
             end
-          else % Schubgelenk ist Hubzylinder
+          elseif Rob.DesPar.joint_type(i) ==  5 % Schubgelenk ist Hubzylinder
             if Rob.DesPar.joint_offset(i) ~= 0
               warning('Ser.DesPar.joint_offset noch nicht für diesen Fall implementiert');
             end
@@ -450,6 +457,8 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
                 end
               end
             end
+          else
+            error('Fall nicht definiert')
           end
         end
       end

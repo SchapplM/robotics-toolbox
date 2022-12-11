@@ -38,6 +38,9 @@ end
 % Einstellungs-Struktur für serielle Beinketten
 s_ser = struct('ks', [], 'straight', s.straight, 'jointcolors', 'parallel', ...
   'mode', s.mode, 'nojoints', s.nojoints);
+if isfield(s, 'jointsize')
+  s_ser.jointsize = s.jointsize;
+end
 T_W_0 = Rob.T_W_0;
 %% Koppelpunkte berechnen
 r_A1_ges = NaN(Rob.NLEG, 3);
