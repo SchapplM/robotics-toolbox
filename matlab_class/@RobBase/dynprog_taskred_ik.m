@@ -104,6 +104,10 @@ end
 if strcmp(s.cost_mode, 'RMStraj') && isempty(s.PM_s_ref)
   error('Für Integration über Bahnkoordinate muss PM_s_ref gegeben sein');
 end
+if s.stageopt_posik && all(s.wn==0)
+  warning('Modus stageopt_posik erfordert Angabe von IK-Nebenbedingungen in s.wn');
+  s.stageopt_posik = false;
+end
 %% Roboter-bezogene Variablen initialisieren
 if R.Type == 0
   qlim = R.qlim;
@@ -620,6 +624,12 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           if any(isinf(Stats_PosIK.h(1+Stats_PosIK.iter,:)))
             if s.verbose
               fprintf('Nebenbedingung in zusätzlicher Optimierung überschritten bei %d/%d\n', i, l);
+            end
+            continue
+          end
+          if Stats_PosIK.iter == 1 && all(abs(q_i-q0_posik(:,1))<1e-10)
+            if s.verbose
+              fprintf('Optimierung mit Positions-IK direkt abgebrochen %d/%d\n', i, l-z);
             end
             continue
           end
@@ -1522,25 +1532,32 @@ end
 % if any(~isreal(X_t_in(:))) || any(~isreal(XD_t_in(:))) || any(~isreal(XDD_t_in(:)))
 %   X_t_in = real(X_t_in); XD_t_in = real(XD_t_in); XDD_t_in = real(XDD_t_in);
 % end
-
+% Wenn der zweite Rastpunkt bereits nicht erreicht werden kann, bleibt
+% komplett NaN gesetzt. Damit dann unten kein Fehler aufgeworfen wird, überschreiben
+if all(isnan(X_t_in(:,6)))
+  X_t_in(:,6) = x0(6);
+  XD_t_in(:,6) = 0;
+  XDD_t_in(:,6) = 0;
+end
 % Toleranzband für die Koordinate: Muss genauso wie oben sein, damit
 % ungefähr das gleiche rauskommt.
 xlim6_interp = NaN(3,1+3*(length(IE)-1)); % Spalten: Zeitschritte
 xlim6_interp(:,1) = [t(1);-delta_phi/2; delta_phi/2];
+delta_phi_i = delta_phi;
 for i = 1:size(XE,1)-1
   if ~any(I_validstates==i)
     % Kein gültiger Zustand in DP gefunden. Keine Beschränkung der
     % Koordinate sinnvoll für Gesamt-Trajektorie. Dadurch Kriterium ab dem
     % Zeitpunkt deaktiviert, ab dem keine Aussage mehr möglich ist.
-    delta_phi = inf;
+    delta_phi_i = inf;
   end
   % Zweiter Punkt direkt am Anfang für Steitigkeit (funktioniert nicht bei
   % zusammengesetzten Einzelbewegungen)
 %   xlim6_interp(:,1+3*i-2) = [t(IE(i))+1e-6;-delta_phi/2; delta_phi/2];
   % Aufweitung des Toleranzbandes zur Mitte
-  xlim6_interp(:,1+3*i-1) = [mean(t(IE([i,i+1])));-delta_phi; delta_phi];
+  xlim6_interp(:,1+3*i-1) = [mean(t(IE([i,i+1])));-delta_phi_i; delta_phi_i];
   % Zusammenführen am Ende
-  xlim6_interp(:,1+3*i) = [t(IE(i+1));-delta_phi/2 + 1e-3; delta_phi/2 - 1e-3];
+  xlim6_interp(:,1+3*i) = [t(IE(i+1));-delta_phi_i/2 + 1e-3; delta_phi_i/2 - 1e-3];
 end
 xlim6_interp = xlim6_interp(:, ~any(isnan(xlim6_interp)));
 if s.verbose > 2 % Debug-Plot für die Referenztrajektorie
@@ -1580,7 +1597,7 @@ end
 if Stats.iter == 0
   error('Sofortiger Abbruch der Trajektorie. Darf nicht sein.')
 end
-if s.verbose > 1
+if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. eine Stufe geschafft
   %% Debug: Ergebnis-Bild für Dynamische Programmierung
   dpfinalhdl1 = change_current_figure(199);clf;hold on;
   subplot(2,2,1);hold on;
