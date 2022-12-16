@@ -520,10 +520,14 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           % Benutze den Zielwert der Stufe der vorherigen Ergebnisse
           if isnan(YE_stage(k,l-z))
             if s.verbose
-              fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, keine Lösung\n'], ...
-                i, l-z);
+              fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
+                'keine Lösung\n'], i, l-z);
             end
-            continue
+            if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
+              fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+            else
+              continue
+            end
           end
           % Aufgabenredundanz für Positions-IK benutzen (Annahme: Ist nicht
           % schon gesetzt) und dann wieder zurücksetzen
@@ -533,13 +537,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
           xl_posik = X_t_in(IE(i),:)'; % Letzter Wert der Trajektorie (Rotation wird ignoriert)
           % Anfangswert aus allen schon berechneten Zuständen dieser Stufe
-          % (der Reihe nach durchprobieren).
+          % (der Reihe nach durchprobieren, anfangen bei nächsten).
           [~,I_distsort] = sort(abs(YE_stage(k,1:z)-z_l));
           I_distsort = I_distsort(~isnan(YE_stage(k,I_distsort)));
-          if isempty(I_distsort)
-            q0_posik = q0;
+          if isempty(I_distsort) % Es gibt keine validen Zustände. Nehme Startwert von vorheriger Stufe oder vom Anfang
+            q0_posik = [qs, q0];
           else
-            q0_posik = [squeeze(QE_stage(:,k,I_distsort)), q0];
+            q0_posik = [squeeze(QE_stage(:,k,I_distsort)), qs, q0];
           end
           xl_posik(end) = z_l; % Ist-Rotation. Wird als Mittelpunkt für Grenzen xlim benutzt. Sonst keine Auswirkung, da mit 3T2R gerechnet wird
           if R.Type == 0 % Seriell
@@ -1595,7 +1599,7 @@ if Stats.iter < length(t) && s.verbose
     'Bis %d/%d gekommen.\n'], Stats.iter, length(t));
 end
 if Stats.iter == 0
-  error('Sofortiger Abbruch der Trajektorie. Darf nicht sein.')
+  warning('Sofortiger Abbruch der Trajektorie. Ungültige Startbedingung.');
 end
 if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. eine Stufe geschafft
   %% Debug: Ergebnis-Bild für Dynamische Programmierung
