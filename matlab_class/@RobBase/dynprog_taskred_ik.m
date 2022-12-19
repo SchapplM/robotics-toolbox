@@ -265,7 +265,11 @@ s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
 x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
 % Erzeuge die Werte für die diskreten Stufen der dynamischen Programmierung
 phi_range_fix = linspace(s.phi_min, s.phi_max, s.n_phi); % Theoretische Diskretisierung der Optimierungsvariablen
-delta_phi = phi_range_fix(2)-phi_range_fix(1); % Abstand zwischen zwei Zuständen
+if length(phi_range_fix) == 1
+  delta_phi = 0; % Sonderfall: Nur ein Zustand
+else
+  delta_phi = phi_range_fix(2)-phi_range_fix(1); % Abstand zwischen zwei Zuständen
+end
 % Erzeuge den Bereich so, dass der Anfangswert mit vorkommt. Damit ist
 % prinzipiell ein Beibehalten des Anfangswertes in der nicht-redundanten
 % Version möglich.
@@ -278,6 +282,7 @@ else
   % Diskretes Intervall benutzen (Ersteinreichung des LNEE-Papers).
   phi_range = linspace(s.phi_min, s.phi_max, s.n_phi);
 end
+if isempty(phi_range), phi_range = x0(6); end % Falls es nur einen Zustand gibt
 % Setze redundante Koordinate der Eingabe-Trajektorie auf NaN. Muss
 % weiter unten überschrieben werden.
 X_t_in(:,6) = NaN;  XD_t_in(:,6) = NaN; XDD_t_in(:,6) = NaN;
