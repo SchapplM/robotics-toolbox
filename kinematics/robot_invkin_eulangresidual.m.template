@@ -294,7 +294,7 @@ if nargout == 4
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
     'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
     'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
-    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 8);
+    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 9);
   Stats = Stats_default;
 end
 
@@ -678,7 +678,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
           % Mache h8dq stärker als die bisher aufsummierten Kriterien.
           % Annahme: xlim_hyp kommt als letztes und muss dominieren
-          h8dq = h8dq / min(abs(h8dq'./v));
+          if any(v ~= 0) % nur notwendig, falls es andere Kriterien gibt
+            h8dq = h8dq / min(abs(h8dq'./v));
+          end
         else
           h8dq = h8drz*Jak(end,:); % Siehe [SchapplerOrt2021], Gl. 14
         end
