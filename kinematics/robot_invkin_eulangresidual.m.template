@@ -667,8 +667,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         % Kriterium für aktuellen Iterationsschritt berechnen
         [h(idx_hn.xlim_hyp), h8drz] = invkin_optimcrit_limits2(-delta_phi_z(3), s.xlim(6,1:2), xlim_thr_h8(6,:));
         if isinf(h(idx_hn.xlim_hyp))
-		  xD_test_limred = [zeros(5,1); 1e-8];
-		  qD_test = Jak \ xD_test_limred;
+          xD_test_limred = [zeros(5,1); 1e-8];
+          qD_test = Jak \ xD_test_limred;
           if -delta_phi_z(3) <= s.xlim(6,1) + 1e-6
             h8dq = -1e6*qD_test';
           elseif -delta_phi_z(3) >= s.xlim(6,2) - 1e-6
