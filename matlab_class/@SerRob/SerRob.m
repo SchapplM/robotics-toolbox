@@ -1415,6 +1415,13 @@ classdef SerRob < RobBase
       end
       qlim_out = R.qlim;
     end
+    function q_poserr_out = update_q_poserr(R, q_poserr)
+      % Aktualisiere die Klasseneigenschaft q_poserr (gleiche Methode in ParRob)
+      if nargin == 2
+        R.q_poserr = q_poserr(:);
+      end
+      q_poserr_out = R.q_poserr;
+    end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Schwerpunkt

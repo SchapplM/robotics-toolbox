@@ -92,7 +92,7 @@ s = struct(...
   'Kn', ones(NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(Rob.idx_ik_length.wnpos,1), ... % Gewichtung der Nebenbedingung
   'xlim', Rob.xlim, ... % Begrenzung der Endeffektor-Koordinaten
-  'qa_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
+  'q_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -407,7 +407,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); %  zwischen Null
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... und der
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
-        dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.qa_poserr;
+        dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
         h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
@@ -444,7 +444,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h4dq = (h4_test-h(idx_hn.jac_cond))./qD_test';
             h4dq(isnan(h4dq)) = 0;
             if wn(idx_wn.poserr_ee) ~= 0
-              dx_poserr_test = abs(inv(Jinv_test(I_qa,Rob_I_EE))) * s.qa_poserr;
+              dx_poserr_test = abs(inv(Jinv_test(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
               h11_test = max(dx_poserr_test(Rob_I_EE(1:3)));
               h11dq = (h11_test-h(idx_hn.poserr_ee))./qD_test';
               h11dq(isnan(h11dq)) = 0;
@@ -516,7 +516,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 1.5*s.cond_thresh_jac, s.cond_thresh_jac);
               h4dq_all(kkk,:) = (h4_kkk-h(idx_hn.jac_cond))./qD_test_all(:,kkk)';
               if wn(idx_wn.poserr_ee) ~= 0
-                dx_poserr_kkk = abs(inv(Jinv_kkk(I_qa,Rob_I_EE))) * s.qa_poserr;
+                dx_poserr_kkk = abs(inv(Jinv_kkk(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
                 h11_kkk = max(dx_poserr_kkk(Rob_I_EE(1:3)));
                 h11dq_all(kkk,:) = (h11_kkk-h(idx_hn.poserr_ee))./qD_test_all(:,kkk)';
                 h11dq(isnan(h11dq)) = 0;
@@ -1354,7 +1354,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
     end
     if wn(idx_wn.poserr_ee)
-      dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.qa_poserr;
+      dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
       h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
     end
   end

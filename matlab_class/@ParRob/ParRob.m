@@ -1251,21 +1251,24 @@ classdef ParRob < RobBase
       end
       qlim_out = cat(1, R.Leg.qlim);
     end
-    function qa_poserr_out = update_q_poserr(R, qa_poserr)
+    function [q_poserr_out, qa_poserr_out] = update_q_poserr(R, qa_poserr)
       % Eingabe: 
-      % qa_poserr (Gelenkpositionsfehler (aus Encodern) in Antrieben)
+      % qa_poserr
+      %   Gelenkpositionsfehler (aus Encodern) in Antrieben. Vektor mit
+      %   Eintrag für jedes aktive Gelenk, gekennzeichnet mit R.I_qa.
       % Ausgabe:
-      % qa_poserr_out (Ausgelesener Wert aus Beinketten)
+      % q_poserr_out (Ausgelesener Wert aus Beinketten)
+      % qa_poserr_out (... mit Auswahl aktiver Gelenke)
       if nargin == 2
-        q_poserr_all = zeros(R.NJ, 1); % Passive Gelenke werden bei 0 gelassen.
+        q_poserr_all = inf(R.NJ, 1); % Dann inf/nan, wenn falsch indiziert
         q_poserr_all(R.I_qa) = qa_poserr;
         % Aktualisiere die Variable q_poserr in den Beinketten
         for iLeg = 1:R.NLEG
-          R.Leg(iLeg).q_poserr = q_poserr_all(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg));
+          R.Leg(iLeg).update_q_poserr(q_poserr_all(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)));
         end
       end
-      q_poserr_all_out = cat(1, R.Leg(:).q_poserr);
-      qa_poserr_out = q_poserr_all_out(R.I_qa);
+      q_poserr_out = cat(1, R.Leg(:).q_poserr);
+      qa_poserr_out = q_poserr_out(R.I_qa);
     end
     function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors
