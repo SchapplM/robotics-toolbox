@@ -134,7 +134,7 @@ s_std = struct( ...
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xDDlim', Rob.xDDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xlim6_interp', zeros(3,0), ... % Interpolation der Grenzen für die redundante Koordinate
-  'qa_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
+  'q_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
   'nullspace_maxvel_interp', zeros(2,0), ... % Begrenzung der Nullraumgeschwindigkeit mit Skalierung
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
