@@ -19,7 +19,7 @@
 %   Anfangs-Gelenkwinkel für Algorithmus
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Auswahl:
-%   .wn [23x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [25x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %         (entspricht h(1), idx_hn.qlim_par)
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
@@ -56,6 +56,8 @@
 %    (22) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (hyperbolisch)
 %         (entspricht h(13), idx_hn.instspc_par)
 %    (23) wie 22, aber auf Geschwindigkeitsebene
+%    (24) Positionsfehler am Endeffektor
+%    (25), wie 24, aber auf Geschwindigkeitsebene
 % 
 % Ausgabe:
 % Q
@@ -132,6 +134,7 @@ s_std = struct( ...
   'xDlim', Rob.xDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xDDlim', Rob.xDDlim, ... % Grenzen für EE-Geschwindigkeiten
   'xlim6_interp', zeros(3,0), ... % Interpolation der Grenzen für die redundante Koordinate
+  'qa_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
   'nullspace_maxvel_interp', zeros(2,0), ... % Begrenzung der Nullraumgeschwindigkeit mit Skalierung
   'enforce_qlim', true, ... % Einhaltung der Positionsgrenzen durch Nullraumbewegung (keine Optimierung)
   'enforce_qDlim', true, ... % Einhaltung der Geschwindigkeitsgrenzen durch Nullraumbewegung (keine Optimierung)
@@ -692,13 +695,16 @@ for k = 1:nt
     xD_test = [zeros(5,1);1e-6];
     % Benutze nur für die Jacobi-Matrix die red. Koordinaten (2T1R, 3T0R)
     qD_test = J_x_inv * xD_test(Rob_I_EE); % Gelenkänderung der Nullraumbewegung
+    % Berechne die Jacobi-Matrix (aufwändig wegen Invertierung)
+    if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE) || wn(idx_wnP.poserr_ee) ~= 0
+      J_ax = inv(Jinv_ax);
+    end
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
     % Jacobi gut konditioniert und Antriebe definiert sind.
     if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE)
       Stats.mode(k) = bitset(Stats.mode(k),3);
       % Berechne die Nullraumbewegung im Raum der Antriebskoordinaten
       % Jacobi-Matrix bezogen auf Antriebe und Plattform
-      J_ax = inv(J_x_inv(I_qa,:));
       J_ax_3T3R = zeros(6,sum(I_qa));
       J_ax_3T3R(Rob_I_EE,:) = J_ax;
       v_qaD = zeros(sum(I_qa), 1);
@@ -769,11 +775,14 @@ for k = 1:nt
       else
         h(idx_hn.ikjac_cond) = 0;
       end
-      %% Antriebskoordinaten: Singularitätsvermeidung (PKM-Jacobi)
-      if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
+      %% Antriebskoordinaten: Singularitätsvermeidung (PKM-Jacobi) und Positionsfehler
+      if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac || ...% Konditionszahl der PKM-Jacobi-Matrix
+          wn(idx_wnP.poserr_ee) ~= 0
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+        dx_poserr = abs(J_ax) * s.qa_poserr;
+        h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
         % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
         % Entspricht direkt dem Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
@@ -785,7 +794,14 @@ for k = 1:nt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         % Gradient bzgl. redundanter Koordinate durch Differenzenquotient
         h6drz_v3 = (h6_test_v3-h(idx_hn.jac_cond))/xD_test(6);
-
+        % Das gleiche für den Positionsfehler
+        if wn(idx_wnP.poserr_ee) ~= 0
+          dx_poserr_test = abs(inv(J_x_inv_test_v3(I_qa,Rob_I_EE))) * s.qa_poserr;
+          h14test = max(dx_poserr_test(Rob_I_EE(1:3)));
+          h14drz = (h14test-h(idx_hn.poserr_ee))/xD_test(6);
+        else
+          h14drz = 0;
+        end
         if false && ... % Aus numerischen Gründen liefern alternative Modellierungen manchmal andere Ergebnisse (Rundungsfehler und Konditionsberechnung). TODO: Wirklich nur Numerik?
             debug && abs(h6_test_v3-h(idx_hn.jac_cond))>1e-10 && ... % Vergleich lohnt sich nur, wenn numerisch unterschiedlich
             condJ < 1e2 % funktioniert schlecht bei schlechter Kondition. TODO: Schwellwert zu niedrig.
@@ -857,8 +873,11 @@ for k = 1:nt
         end
         % Projektion in Antriebskoordinaten
         h6dqa = h6drz_v3 * J_ax(end,:);
+        h14dqa = h14drz * J_ax(end,:);
         v_qaD = v_qaD - wn(idx_wnD.jac_cond)*h6dqa(:);
         v_qaDD = v_qaDD - wn(idx_wnP.jac_cond)*h6dqa(:);
+        v_qaD = v_qaD - wn(idx_wnD.poserr_ee)*h14dqa(:);
+        v_qaDD = v_qaDD - wn(idx_wnP.poserr_ee)*h14dqa(:);
       else
         h(idx_hn.jac_cond) = 0;
       end
@@ -1110,11 +1129,16 @@ for k = 1:nt
       else
         h(idx_hn.ikjac_cond) = 0;
       end
-      %% Gelenkkoordinaten: Singularitätsvermeidung (PKM-Jacobi)
-      if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac % Konditionszahl der PKM-Jacobi-Matrix
+      %% Gelenkkoordinaten: Singularitätsvermeidung (PKM-Jacobi) und Positionsfehler
+      if (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac || ... % Konditionszahl der PKM-Jacobi-Matrix
+          wn(idx_wnP.poserr_ee) ~= 0 
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+        if wn(idx_wnP.poserr_ee) ~= 0
+          dx_poserr = abs(J_ax) * s.qa_poserr;
+          h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
+        end
         if nsoptim
         % Siehe gleiche Berechnung oben.
         [~,Phi_q_voll_test] = Rob.constr3grad_q(q_k+qD_test, x_k+xD_test);
@@ -1125,7 +1149,8 @@ for k = 1:nt
         J_x_inv_test = -Phi_q_voll_test\Phi_x_voll_test(:,Rob_I_EE);
         h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
-        
+        dx_poserr_test = abs(inv(J_x_inv_test(I_qa,:))) * s.qa_poserr;
+        h14_test = max(dx_poserr_test(Rob_I_EE(1:3)));
         if debug && abs(h6_test_v1-h(idx_hn.jac_cond)) > 1e-12 && h(idx_hn.jac_cond) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
             cond(Phi_q_voll) < 500 && condJ < 1e3 % IK sollte nicht singulär sein
           % Teste zwei alternative Berechnungen (siehe oben bei Antriebskoord.)
@@ -1153,9 +1178,14 @@ for k = 1:nt
           h6dq = (h6_test_v1-h(idx_hn.jac_cond))./(qD_test');
           h6dq(isnan(h6dq)) = 0; % falls ein qD_test Null ist, nicht sofort abbrechen
         end
+        h14dq = (h14_test-h(idx_hn.poserr_ee))./(qD_test');
+        h14dq(isnan(h14dq)) = 0;
         v_qD = v_qD - wn(idx_wnD.jac_cond)*h6dq(:);
         v_qDD = v_qDD - wn(idx_wnP.jac_cond)*h6dq(:);
         hdq_all(:,idx_hn.jac_cond) = h6dq;
+        v_qD = v_qD - wn(idx_wnD.poserr_ee)*h14dq(:);
+        v_qDD = v_qDD - wn(idx_wnP.poserr_ee)*h14dq(:);
+        hdq_all(:,idx_hn.poserr_ee) = h14dq;
         end % if nsoptim
       else
         h(idx_hn.jac_cond) = 0;
@@ -1770,12 +1800,12 @@ for k = 1:nt
           idx_wnP.qDlim_hyp,idx_wnP.ikjac_cond, idx_wnP.jac_cond,...
           idx_wnP.coll_hyp, idx_wnP.instspc_hyp,idx_wnP.xlim_par,...
           idx_wnP.xlim_hyp, idx_wnP.xDlim_par,  idx_wnP.coll_par, ...
-          idx_wnP.instspc_par];
+          idx_wnP.instspc_par, idx_wnP.poserr_ee];
   I_h =  [idx_hn.qlim_par,  idx_hn.qlim_hyp,    idx_hn.qDlim_par,...
           idx_hn.qDlim_hyp, idx_hn.ikjac_cond,  idx_hn.jac_cond,...
           idx_hn.coll_hyp,  idx_hn.instspc_hyp, idx_hn.xlim_par,...
           idx_hn.xlim_hyp,  idx_hn.xDlim_par,   idx_hn.coll_par, ...
-          idx_hn.instspc_par];
+          idx_hn.instspc_par, idx_hn.poserr_ee];
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt.

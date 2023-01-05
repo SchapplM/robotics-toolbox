@@ -450,7 +450,7 @@ for robnr = 1:5
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 8 9 10 11 12] % Schleife über verschiedene Zielkriterien
+      for ii = 13 % [2 4 6 8 9 10 11 12] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RP.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
@@ -521,6 +521,10 @@ for robnr = 1:5
             wn_traj(RP.idx_iktraj_wnD.coll_par) = 0.1;
             wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 0; % Hyperbolische Gelenkgrenzen ignorieren
             wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 0;
+          case 13 % PD-Regler Positionsfehler
+            wn_traj(RP.idx_iktraj_wnP.qDlim_par) = 0.8;
+            wn_traj(RP.idx_iktraj_wnP.poserr_ee) = 1;
+            wn_traj(RP.idx_iktraj_wnD.poserr_ee) = 0.1;
         end
         % Roboter auf 3T2R einstellen
         RP.update_EE_FG(I_EE_full,I_EE_red);
@@ -566,7 +570,8 @@ for robnr = 1:5
         [Q_ii2, QD_ii2, QDD_ii2, Phi_ii2,~,~,~,Stats_traj2] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii2);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
-        if all(I_noacc)
+        I_noacc2 = all(abs(QDD_ii2)<1e-8,2);
+        if all(I_noacc | I_noacc2)
           if Stats_ep.iter == 1
             warning('Keine Nullraumbewegung in Pos.- oder Traj.-IK. Nebenbedingung im Start bereits optimal.');
             continue

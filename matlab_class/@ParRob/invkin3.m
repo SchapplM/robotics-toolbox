@@ -17,7 +17,7 @@
 % s_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext.
 %   Auswahl der Einstellungen:	
-%   .wn [10x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [11x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
 %     (3) Konditionszahl der geometrischen Matrix der Inv. Kin.
@@ -28,6 +28,7 @@
 %     (8) Abstand von phiz zu xlim (hyperbolisch gewertet)
 %     (9) Abstand der Kollisionskörper voneinander (quadratisch gewertet)
 %    (10) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (quadratisch)
+%    (11) Positionsfehler am Endeffektor (max. Wert für Position)
 % 
 % Ausgabe:
 % q [Nx1]
@@ -91,6 +92,7 @@ s = struct(...
   'Kn', ones(NJ,1), ... % Verstärkung Nullraumbewegung
   'wn', zeros(Rob.idx_ik_length.wnpos,1), ... % Gewichtung der Nebenbedingung
   'xlim', Rob.xlim, ... % Begrenzung der Endeffektor-Koordinaten
+  'qa_poserr', Rob.update_q_poserr(), ... % Positionsfehler an den Antrieben
   'maxstep_ns', 1e-10, ... % Maximale Schrittweite für Nullraum zur Konvergenz (Abbruchbedingung)
   'normalize', true, ...
   'condlimDLS', 1, ... % Grenze der Konditionszahl, ab der die Pseudo-Inverse gedämpft wird (1=immer)
@@ -219,7 +221,7 @@ Phi_alt = zeros(length(Rob.I_constr_red),1); % Altwert für Tiefpassfilter
 delta_Phi_alt = Phi_alt;
 N = NaN(NJ,NJ); % Nullraum-Projektor
 % Gradient von Nebenbedingung 3 bis 5
-h3dq = zeros(1,NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq; h9dq = h3dq; h10dq = h3dq;
+h3dq = zeros(1,NJ); h4dq = h3dq; h5dq = h3dq; h6dq = h3dq; h9dq = h3dq; h10dq = h3dq; h11dq = h3dq;
 h = zeros(Rob.idx_ik_length.hnpos,1); h_alt = inf(Rob.idx_ik_length.hnpos,1); % Speicherung der Werte der Nebenbedingungen
 bestcolldepth = inf; currcolldepth = inf; % Speicherung der Schwere von Kollisionen
 bestinstspcdist = inf; currinstspcdist = inf; % Speicherung des Ausmaßes von Bauraum-Verletzungen
@@ -233,7 +235,7 @@ if isempty(collbodies_ns.type) % Keine Kollisionskörper
   avoid_collision_finish = false;
 end
 if isempty(Rob.collbodies_instspc.type) % Keine Kollisionskörper
-  s.wn(idx_wn.instspc_hyp) = 0; % Deaktivierung der Bauraumprüfung
+  s.wn(idx_wn.instspc_hyp,idx_wn.instspc_par) = 0; % Deaktivierung der Bauraumprüfung
 end
 wn = s.wn;
 if scale_coll || wn(idx_wn.coll_hyp) || wn(idx_wn.coll_par) || avoid_collision_finish
@@ -381,7 +383,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [h(idx_hn.qlim_hyp), h2dq] = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2);
         v = v - wn(idx_wn.qlim_hyp)*h2dq'; % [SchapplerTapOrt2019], Gl. (45)
       end
-      %% Singularitätsvermeidung Jacobi-Matrix (IK- und PKM-Jacobi)
+      %% Singularitätsvermeidung Jacobi-Matrix (IK- und PKM-Jacobi) und Positionsfehler
       Jinv = NaN(NJ, 6);
       % Bestimme Ist-Lage der Plattform (bezogen auf erste Beinkette).
       % Benutze dies für die Berechnung der PKM-Jacobi. Nicht aussage-
@@ -389,7 +391,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       % die Rotation korrekt berücksichtigt.
       xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
       % Bestimme PKM-Jacobi für Iterationsschritt (falls benötigt)
-      if wn(idx_wn.jac_cond) || any(wn(3:end)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
+      if wn(idx_wn.jac_cond) || wn(idx_wn.poserr_ee) || any(wn(3:end)) && taskred_rotsym && all(abs(Phi)<1e-6) || s.debug
         % Benutze einfache Jacobi-Matrix und nicht die constr3grad-
         % Funktionen. Jinv ist zwischen beiden nur identisch, wenn Phi
         % exakt Null ist.
@@ -398,11 +400,15 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         Jinv = -Phi4_q_voll\Phi4_x_voll;
         condJ = cond(Jinv(I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
-      if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac % Singularitäts-Kennzahl aus Konditionszahl
+      if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || ...
+         wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac || ... % Singularitäts-Kennzahl aus Konditionszahl
+         wn(idx_wn.poserr_ee) ~= 0
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Spline-Übergang
           1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); %  zwischen Null
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... und der
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
+        dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.qa_poserr;
+        h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         % Beide Varianten werden im Debug-Modus gegeneinander geprüft.
@@ -427,7 +433,8 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           else
             h3dq(:) = 0;
           end
-          if wn(idx_wn.jac_cond) && condJ < 1e10 && condJ > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(idx_wn.jac_cond) && condJ < 1e10 && condJ > s.cond_thresh_jac || ... % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+             wn(idx_wn.poserr_ee) ~= 0 % Positionsfehler ähnlich wie Jacobi-Singularität zu rechnen
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             [~,Phi4_x_voll_test] = Rob.constr4grad_x(xE_1+xD_test);
             [~,Phi4_q_voll_test] = Rob.constr4grad_q(q1+qD_test);
@@ -436,6 +443,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h4dq = (h4_test-h(idx_hn.jac_cond))./qD_test';
             h4dq(isnan(h4dq)) = 0;
+            if wn(idx_wn.poserr_ee) ~= 0
+              dx_poserr_test = abs(inv(Jinv_test(I_qa,Rob_I_EE))) * s.qa_poserr;
+              h11_test = max(dx_poserr_test(Rob_I_EE(1:3)));
+              h11dq = (h11_test-h(idx_hn.poserr_ee))./qD_test';
+              h11dq(isnan(h11dq)) = 0;
+            end
             if s.debug
               % Benutze Formel für Differential des Matrix-Produkts mit 
               % Matrix-Invertierung zur Bildung des PKM-Jacobi-Inkrements
@@ -475,9 +488,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
             h3dq = mean(h3dq_all(I_qD_test_all,:),1);
           end
-          if wn(idx_wn.jac_cond) && condJ < 1e10 && condJ > s.cond_thresh_jac % bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+          if wn(idx_wn.jac_cond) && condJ < 1e10 && condJ > s.cond_thresh_jac || ...% bezogen auf PKM-Jacobi (geht numerisch nicht in Singularität)
+             wn(idx_wn.poserr_ee) ~= 0
             Stats.mode(jj) = bitset(Stats.mode(jj),9);
             h4dq_all = NaN(NJ,NJ);
+            h11dq_all = NaN(NJ,NJ);
             for kkk = 1:NJ
               if ~I_qD_test_all(kkk), continue; end
               % Nullraumbewegung mit Inkrement. Inkrementelle Bewegung 
@@ -500,6 +515,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h4_kkk = invkin_optimcrit_condsplineact(cond(Jinv_kkk(I_qa,Rob_I_EE)), ...
                 1.5*s.cond_thresh_jac, s.cond_thresh_jac);
               h4dq_all(kkk,:) = (h4_kkk-h(idx_hn.jac_cond))./qD_test_all(:,kkk)';
+              if wn(idx_wn.poserr_ee) ~= 0
+                dx_poserr_kkk = abs(inv(Jinv_kkk(I_qa,Rob_I_EE))) * s.qa_poserr;
+                h11_kkk = max(dx_poserr_kkk(Rob_I_EE(1:3)));
+                h11dq_all(kkk,:) = (h11_kkk-h(idx_hn.poserr_ee))./qD_test_all(:,kkk)';
+                h11dq(isnan(h11dq)) = 0;
+              end
             end
             h4dq = mean(h4dq_all(I_qD_test_all,:),1);
           end
@@ -527,6 +548,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         end
         if wn(idx_wn.ikjac_cond), v = v - wn(idx_wn.ikjac_cond)*h3dq'; end
         if wn(idx_wn.jac_cond), v = v - wn(idx_wn.jac_cond)*h4dq'; end
+        if wn(idx_wn.poserr_ee), v = v - wn(idx_wn.poserr_ee)*h11dq'; end
       end
       %% Kollisionsvermeidung
       if wn(idx_wn.coll_hyp) || wn(idx_wn.coll_par) % Kollisionsprüfung
@@ -965,7 +987,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           end
           % Mache das Kriterium stärker als die bisher aufsummierten Kriterien.
           % Annahme: xlim_hyp kommt als letztes und muss dominieren, wenn verletzt.
-          h8dq = h8dq / min(abs(h8dq'./v));
+          if any(v ~= 0) % nur notwendig, falls es andere Kriterien gibt
+            h8dq = h8dq / min(abs(h8dq'./v));
+          end
         else
           h8dq = (h8_test-h(idx_hn.xlim_hyp))./qD_test'; % Siehe [SchapplerOrt2021], Gl. 28
         end
@@ -1314,7 +1338,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ...
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
   end
-  if wn(idx_wn.jac_cond) % Bestimme PKM-Jacobi für Iterationsschritt
+  if wn(idx_wn.jac_cond) || wn(idx_wn.poserr_ee) % Bestimme PKM-Jacobi für Iterationsschritt
     % Benutze die einfachen Zwangsbedingungen, da vollständige FG.
     xE_1 = xE_soll + [zeros(5,1); Phi_voll(4)];
     [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
@@ -1328,6 +1352,10 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     if condJ > s.cond_thresh_jac
       h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+    end
+    if wn(idx_wn.poserr_ee)
+      dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.qa_poserr;
+      h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
     end
   end
   h([idx_hn.coll_hyp, idx_hn.coll_par]) = 0;

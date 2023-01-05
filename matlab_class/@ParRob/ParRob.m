@@ -1251,6 +1251,22 @@ classdef ParRob < RobBase
       end
       qlim_out = cat(1, R.Leg.qlim);
     end
+    function qa_poserr_out = update_q_poserr(R, qa_poserr)
+      % Eingabe: 
+      % qa_poserr (Gelenkpositionsfehler (aus Encodern) in Antrieben)
+      % Ausgabe:
+      % qa_poserr_out (Ausgelesener Wert aus Beinketten)
+      if nargin == 2
+        q_poserr_all = zeros(R.NJ, 1); % Passive Gelenke werden bei 0 gelassen.
+        q_poserr_all(R.I_qa) = qa_poserr;
+        % Aktualisiere die Variable q_poserr in den Beinketten
+        for iLeg = 1:R.NLEG
+          R.Leg(iLeg).q_poserr = q_poserr_all(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg));
+        end
+      end
+      q_poserr_all_out = cat(1, R.Leg(:).q_poserr);
+      qa_poserr_out = q_poserr_all_out(R.I_qa);
+    end
     function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors
       % Eingabe:
