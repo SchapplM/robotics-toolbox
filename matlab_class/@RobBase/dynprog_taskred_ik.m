@@ -229,14 +229,6 @@ end
 % Eingabe. Kann von in Matlab-Klasse gespeichertem Wert abweichen.
 s_Traj.xDlim = s.xDlim;
 s_Traj.xDDlim = s.xDDlim;
-% Deaktiviere Unendlich-Abbruchbedingungen für Kriterien wieder, bei
-% denen dies nicht erreicht werden kann. Sonst wird zu viel berechnet.
-for f = fields(R.idx_iktraj_hn)'
-  if isinf(s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}))) && ...
-      ~contains(f{1}, '_hyp') % nur hyperbolische Kriterien werden unendlich
-    s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1})) = NaN;
-  end
-end
 task_redundancy = true;
 if R.I_EE_Task(6) == R.I_EE(6)
   % Benutze keine lokale Optimierung mit Aufgabenredundanz, sondern die
@@ -849,6 +841,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if s.verbose
           fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
             Stats.iter, length(t_i), toc(t0_traj), 1e3*toc(t0_traj)/Stats.iter);
+        end
+        if isinf(s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.poserr_ee)) && ... % s.debug && 
+            any(Stats.h(1:Stats.iter,1+R.idx_iktraj_hn.poserr_ee)==0) % Zum Debuggen bei Unstimmigkeiten
+          error('Positionsfehler soll berechnet werden, ist aber Null. Darf nicht sein.')
         end
       end
       assert(all(~isnan(Stats.h(1:Stats.iter,1))), 'Nebenbedingung NaN. Logik-Fehler');
