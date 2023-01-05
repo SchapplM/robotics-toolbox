@@ -110,11 +110,23 @@ CC_ext = zeros(size(X_ext));
 wn_plot = s.wn;
 for iii = 1:length(wn_plot)
   if wn_plot(iii) == 0, continue; end
+  if all(isinf(H_all(:,:,iii)))
+    name_iii = 'unknown';
+    for f = fields(R.idx_ikpos_wn)' % Namen herausfinden
+      if R.idx_ikpos_wn.(f{1}) == iii
+        name_iii = f{1};
+        break; 
+      end
+    end
+    warning('perfmap_plot:allinf', 'Alle Einträge für Kriterium %s (%d) sind unendlich. Weglassen.\n', name_iii, iii);
+    continue
+  end
   CC_ext = CC_ext + wn_plot(iii) * H_all(I_x,I_y,iii)';
 end
-if all(CC_ext(:)==0 | isnan(CC_ext(:))) 
+if all( CC_ext(:)==0 | isnan(CC_ext(:)) | CC_ext(:)==CC_ext(1) | isinf(CC_ext(:)) )
+  warning('perfmap_plot:nocolor', 'Keine Farb-Informationen aus gegebener Redundanzkarte/Gewichtung.\n');
   CC_ext = H_all(I_x,I_y,end)'; % Nur Konditionszahl (direkt)
-  title('Farbe nur illustrativ cond(J). Alle h=0');
+  title('Farbe nur illustrativ cond(J). Alle h gleich');
 end
 %% Begrenzung der Farb-Werte berechnen
 if s.PM_limit
