@@ -384,7 +384,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'errorcode', 0, 'version', 8);
+  'errorcode', 0, 'version', 9);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
