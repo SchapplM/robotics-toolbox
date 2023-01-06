@@ -446,8 +446,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   % zum Startwert. Wähle nur erreichbare Startwerte (nicht unendliche Kosten)
   [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
-  fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
-    length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
+  if s.verbose
+    fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
+      length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
+  end
   % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
   n_statechange_total = n_statechange_total + length(I_phidistasc)*z2;
   for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
@@ -520,7 +522,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
                 'keine Lösung\n'], i, l-z);
             end
-            if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
+            if z_l == z_k && s.verbose % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
               fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
             else
               continue
