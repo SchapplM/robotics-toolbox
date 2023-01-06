@@ -430,7 +430,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
             1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
-        h(idx_hn.poserr_ee) = max(abs(Jgk(1:3,:)) * s.q_poserr);
+        h(idx_hn.poserr_ee) = norm(abs(Jgk(Rob_I_EE(1:3),:)) * s.q_poserr);
         h3dq = NaN(1,NQJ); h4dq = NaN(1,NQJ); h12dq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
@@ -448,7 +448,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h3dq(kkk) = (h3_kkk-h(idx_hn.ikjac_cond))/1e-6;
           h4dq(kkk) = (h4_kkk-h(idx_hn.jac_cond))/1e-6;
-          h12dq(kkk) = (max(abs(Jgk_kkk(1:3,:)) * s.q_poserr)-h(idx_hn.poserr_ee))/1e-6;
+          h12dq(kkk) = (norm(abs(Jgk_kkk(Rob_I_EE(1:3),:)) * s.q_poserr)-h(idx_hn.poserr_ee))/1e-6;
         end
         v = v - wn(idx_wn.ikjac_cond)*h3dq';
         v = v - wn(idx_wn.jac_cond)*h4dq';
@@ -1051,7 +1051,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
   end
   if wn(idx_wn.poserr_ee) ~= 0
-    h(idx_hn.poserr_ee) = max(abs(Jgk(1:3,:)) * s.q_poserr);
+    h(idx_hn.poserr_ee) = norm(abs(Jgk(Rob_I_EE(1:3),:)) * s.q_poserr);
   end
   if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Berechnung muss genauso sein wie oben.
     colldet1 = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...

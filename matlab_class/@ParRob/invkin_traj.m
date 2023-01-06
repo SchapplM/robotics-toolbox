@@ -782,7 +782,7 @@ for k = 1:nt
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         dx_poserr = abs(J_ax) * s.q_poserr(I_qa);
-        h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
+        h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
         % Alternative 3 für Berechnung: Inkrement für beide Gradienten bestimmen.
         % Benutze constr3, da dieser Term schon oben berechnet wurde. Weitere Alternativen siehe Debug-Teil.
         % Entspricht direkt dem Differenzenquotienten (mit Auswertung der inversen Jacobi-Matrix
@@ -797,7 +797,7 @@ for k = 1:nt
         % Das gleiche für den Positionsfehler
         if wn(idx_wnP.poserr_ee) ~= 0
           dx_poserr_test = abs(inv(J_x_inv_test_v3(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-          h14test = max(dx_poserr_test(Rob_I_EE(1:3)));
+          h14test = norm(dx_poserr_test(Rob_I_EE(1:3)));
           h14drz = (h14test-h(idx_hn.poserr_ee))/xD_test(6);
         else
           h14drz = 0;
@@ -1137,7 +1137,7 @@ for k = 1:nt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         if wn(idx_wnP.poserr_ee) ~= 0
           dx_poserr = abs(J_ax) * s.q_poserr(I_qa);
-          h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
+          h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
         end
         if nsoptim
         % Siehe gleiche Berechnung oben.
@@ -1150,7 +1150,7 @@ for k = 1:nt
         h6_test_v1 = invkin_optimcrit_condsplineact(cond(J_x_inv_test(I_qa,:)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
         dx_poserr_test = abs(inv(J_x_inv_test(I_qa,:))) * s.q_poserr(I_qa);
-        h14_test = max(dx_poserr_test(Rob_I_EE(1:3)));
+        h14_test = norm(dx_poserr_test(Rob_I_EE(1:3)));
         if debug && abs(h6_test_v1-h(idx_hn.jac_cond)) > 1e-12 && h(idx_hn.jac_cond) < 1e8 && ...% Näherung nur bei akzeptabler Kondition vergleichbar
             cond(Phi_q_voll) < 500 && condJ < 1e3 % IK sollte nicht singulär sein
           % Teste zwei alternative Berechnungen (siehe oben bei Antriebskoord.)

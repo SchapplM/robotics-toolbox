@@ -408,7 +408,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... und der
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
         dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-        h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
+        h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         % Beide Varianten werden im Debug-Modus gegeneinander geprüft.
@@ -445,7 +445,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h4dq(isnan(h4dq)) = 0;
             if wn(idx_wn.poserr_ee) ~= 0
               dx_poserr_test = abs(inv(Jinv_test(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-              h11_test = max(dx_poserr_test(Rob_I_EE(1:3)));
+              h11_test = norm(dx_poserr_test(Rob_I_EE(1:3)));
               h11dq = (h11_test-h(idx_hn.poserr_ee))./qD_test';
               h11dq(isnan(h11dq)) = 0;
             end
@@ -517,7 +517,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h4dq_all(kkk,:) = (h4_kkk-h(idx_hn.jac_cond))./qD_test_all(:,kkk)';
               if wn(idx_wn.poserr_ee) ~= 0
                 dx_poserr_kkk = abs(inv(Jinv_kkk(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-                h11_kkk = max(dx_poserr_kkk(Rob_I_EE(1:3)));
+                h11_kkk = norm(dx_poserr_kkk(Rob_I_EE(1:3)));
                 h11dq_all(kkk,:) = (h11_kkk-h(idx_hn.poserr_ee))./qD_test_all(:,kkk)';
                 h11dq(isnan(h11dq)) = 0;
               end
@@ -1355,7 +1355,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     end
     if wn(idx_wn.poserr_ee)
       dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-      h(idx_hn.poserr_ee) = max(dx_poserr(Rob_I_EE(1:3)));
+      h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
     end
   end
   h([idx_hn.coll_hyp, idx_hn.coll_par]) = 0;
