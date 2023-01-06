@@ -1224,26 +1224,32 @@ classdef ParRob < RobBase
         R.Leg(i).update_mdh(pkin);
       end
     end
-    function update_qref(R, q)
+    function qref_out = update_qref(R, q)
       % Aktualisiere die Variable qref in den Beinketten
-      for iLeg = 1:R.NLEG
-        R.Leg(iLeg).update_qref(q(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)));
+      if nargin == 2
+        for iLeg = 1:R.NLEG
+          R.Leg(iLeg).update_qref(q(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)));
+        end
       end
+      qref_out = cat(1, R.Leg.qref);
     end
-    function update_qlim(R, qlim, IIjoint)
+    function qlim_out = update_qlim(R, qlim, IIjoint)
       % Aktualisiere die Variable qlim in den Beinketten
       % Eingabe:
       % qlim (NJx2), untere und obere Grenze
       % IIjoint: Indizes, die aktualisiert werden sollen (binär)
-      if nargin < 3
-        IIjoint = true(R.NJ, 1);
+      if nargin >= 2
+        if nargin < 3
+          IIjoint = true(R.NJ, 1);
+        end
+        for iLeg = 1:R.NLEG
+          II_leg = false(R.NJ, 1);
+          II_leg(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)) = true;
+          R.Leg(iLeg).update_qlim(qlim(IIjoint & II_leg, :), ...
+            IIjoint(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg),:));
+        end
       end
-      for iLeg = 1:R.NLEG
-        II_leg = false(R.NJ, 1);
-        II_leg(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg)) = true;
-        R.Leg(iLeg).update_qlim(qlim(IIjoint & II_leg, :), ...
-          IIjoint(R.I1J_LEG(iLeg):R.I2J_LEG(iLeg),:));
-      end
+      qlim_out = cat(1, R.Leg.qlim);
     end
     function update_EE_FG(R, I_EE, I_EE_Task, I_EE_Legs)
       % Aktualisiere die Freiheitsgrade des Endeffektors

@@ -1391,19 +1391,25 @@ classdef SerRob < RobBase
       R.pkin = pkin_neu;
       R.pkin_gen = pkin_gen_neu;
     end
-    function update_qref(R, q)
+    function qref_out = update_qref(R, q)
       % Aktualisiere die Klasseneigenschaft qref (gleiche Methode in ParRob)
-      R.qref = q(:);
+      if nargin == 2
+        R.qref = q(:);
+      end
+      qref_out = R.qref;
     end
-    function update_qlim(R, qlim, IIjoint)
+    function qlim_out = update_qlim(R, qlim, IIjoint)
       % Aktualisiere die Klasseneigenschaft qlim (gleiche Methode in ParRob)
       % Eingabe:
       % qlim (NJx2), untere und obere Grenze
       % IIjoint: Indizes, die aktualisiert werden sollen (binär)
-      if nargin < 3
-        IIjoint = true(R.NJ, 1);
+      if nargin >= 2
+        if nargin < 3
+          IIjoint = true(R.NJ, 1);
+        end
+        R.qlim(IIjoint,:) = qlim;
       end
-      R.qlim(IIjoint,:) = qlim;
+      qlim_out = R.qlim;
     end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
