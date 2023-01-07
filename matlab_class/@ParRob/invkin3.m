@@ -398,6 +398,9 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
         [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
         [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
         Jinv = -Phi4_q_voll\Phi4_x_voll;
+        % Entferne Elemente rechengenauigkeitsbedingt nahe bei Null, die sehr
+        % große Gradienten erzeugen, die aber effektiv keine Wirkung haben.
+        Jinv(abs(Jinv)/max(abs(Jinv(:)))<1e-6) = 0;
         condJ = cond(Jinv(I_qa,Rob_I_EE)); % bezogen auf Antriebe (nicht: Passive Gelenke)
       end
       if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || ...
@@ -429,7 +432,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac);
             h3dq = (h3_test-h(idx_hn.ikjac_cond))./qD_test';
             % Zur Fehlertoleranz (falls bei überbestimmten PKM ein Gelenk keinen Einfluss hat)
-            h3dq(isnan(h3dq)) = 0;
+            h3dq(isnan(h3dq)) = 0; h3dq(isinf(h3dq)) = 0;
           else
             h3dq(:) = 0;
           end
@@ -442,12 +445,12 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             h4_test = invkin_optimcrit_condsplineact(cond(Jinv_test(I_qa,Rob_I_EE)), ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h4dq = (h4_test-h(idx_hn.jac_cond))./qD_test';
-            h4dq(isnan(h4dq)) = 0;
+            h4dq(isnan(h4dq)) = 0; h4dq(isinf(h4dq)) = 0;
             if wn(idx_wn.poserr_ee) ~= 0
               dx_poserr_test = abs(inv(Jinv_test(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
               h11_test = norm(dx_poserr_test(Rob_I_EE(1:3)));
               h11dq = (h11_test-h(idx_hn.poserr_ee))./qD_test';
-              h11dq(isnan(h11dq)) = 0;
+              h11dq(isnan(h11dq)) = 0; h11dq(isinf(h11dq)) = 0;
             end
             if s.debug
               % Benutze Formel für Differential des Matrix-Produkts mit 
@@ -519,10 +522,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
                 dx_poserr_kkk = abs(inv(Jinv_kkk(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
                 h11_kkk = norm(dx_poserr_kkk(Rob_I_EE(1:3)));
                 h11dq_all(kkk,:) = (h11_kkk-h(idx_hn.poserr_ee))./qD_test_all(:,kkk)';
-                h11dq(isnan(h11dq)) = 0;
               end
             end
             h4dq = mean(h4dq_all(I_qD_test_all,:),1);
+            h11dq = mean(h11dq_all(I_qD_test_all,:),1);
           end
           if s.debug
             h3dq_var2 = h3dq;
