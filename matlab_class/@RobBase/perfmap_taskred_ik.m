@@ -349,7 +349,7 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         if j > 1
           delta_x = [zeros(5,1);phiz_range_ii(j)-phiz_range_ii(j-1)];
           if R.Type == 0
-            Ja_PosDiscr = RS.jacobia(Q_all_ii(j-1, :, i)');
+            Ja_PosDiscr = R.jacobia(Q_all_ii(j-1, :, i)');
             q0_j = Q_all_ii(j-1, :, i)' + Ja_PosDiscr\delta_x;  % Ja_PosDiscr wurde/muss invertiert werden
           else
             [~,Phi_q] = R.constr4grad_q(Q_all_ii(j-1, :, i)');
@@ -401,10 +401,16 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         if any(isnan(q0_list(:))), error('An Initial value is NaN'); end % this makes a random new initial seed, which is not desired here
         q_j_list = NaN(size(q0_list));
         for k = 1:size(q0_list,1)
-          [q_k, Phi] = R.invkin2(x_j, q0_list(k,:)', s_ep_glbdscr);
+          if R.Type == 0 % Seriell
+            [q_k, Phi] = R.invkin2(R.x2tr(x_j), q0_list(k,:)', s_ep_glbdscr);
+          else % PKM (andere Schnittstelle)
+            [q_k, Phi] = R.invkin2(x_j, q0_list(k,:)', s_ep_glbdscr);
+          end
           if any(abs(Phi) > 1e-8)
             % Try other IK method
-            [q_k, Phi] = R.invkin4(x_j, q0_list(k,:)', s_ep_glbdscr);
+            if R.Type ~= 0 % Es gibt für PKM eine weitere Methode. Für Seriellroboter nicht.
+              [q_k, Phi] = R.invkin4(x_j, q0_list(k,:)', s_ep_glbdscr);
+            end
             % Mark this as not working, if other method fails as well
             if any(abs(Phi) > 1e-8)
               q_j_list(k,:) = NaN;
@@ -426,7 +432,11 @@ for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
         h_list = NaN(size(q_j_list,1),R.idx_ik_length.hnpos+4);
         for k = 1:size(q_j_list,1)
           % IK benutzen, um Zielfunktionswerte zu bestimmen (ohne Neuberechnung)
-          [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
+          if R.Type == 0 % Seriell
+            [q_dummy, ~,~,Stats_dummy] = R.invkin2(R.x2tr(x_j), q_j_list(k,:)', s_ep_dummy);
+          else % PKM
+            [q_dummy, ~,~,Stats_dummy] = R.invkin4(x_j, q_j_list(k,:)', s_ep_dummy);
+          end
           if any(abs(q_j_list(k,:)' - q_dummy) > 1e-8)
             error('IK-Ergebnis hat sich bei Test verändert');
           end

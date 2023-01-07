@@ -229,14 +229,6 @@ end
 % Eingabe. Kann von in Matlab-Klasse gespeichertem Wert abweichen.
 s_Traj.xDlim = s.xDlim;
 s_Traj.xDDlim = s.xDDlim;
-% Deaktiviere Unendlich-Abbruchbedingungen für Kriterien wieder, bei
-% denen dies nicht erreicht werden kann. Sonst wird zu viel berechnet.
-for f = fields(R.idx_iktraj_hn)'
-  if isinf(s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}))) && ...
-      ~contains(f{1}, '_hyp') % nur hyperbolische Kriterien werden unendlich
-    s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1})) = NaN;
-  end
-end
 task_redundancy = true;
 if R.I_EE_Task(6) == R.I_EE(6)
   % Benutze keine lokale Optimierung mit Aufgabenredundanz, sondern die
@@ -454,8 +446,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   % zum Startwert. Wähle nur erreichbare Startwerte (nicht unendliche Kosten)
   [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
-  fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
-    length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
+  if s.verbose
+    fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
+      length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
+  end
   % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
   n_statechange_total = n_statechange_total + length(I_phidistasc)*z2;
   for k = I_phidistasc % max. z1 unterschiedliche Orientierungen für vorherige Stufe
@@ -528,7 +522,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
                 'keine Lösung\n'], i, l-z);
             end
-            if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
+            if z_l == z_k && s.verbose % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
               fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
             else
               continue
@@ -849,6 +843,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if s.verbose
           fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
             Stats.iter, length(t_i), toc(t0_traj), 1e3*toc(t0_traj)/Stats.iter);
+        end
+        if isinf(s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.poserr_ee)) && ... % s.debug && 
+            any(Stats.h(1:Stats.iter,1+R.idx_iktraj_hn.poserr_ee)==0) % Zum Debuggen bei Unstimmigkeiten
+          error('Positionsfehler soll berechnet werden, ist aber Null. Darf nicht sein.')
         end
       end
       assert(all(~isnan(Stats.h(1:Stats.iter,1))), 'Nebenbedingung NaN. Logik-Fehler');
