@@ -45,6 +45,8 @@ s = struct( ...
   'phi_lim_x0_dependent', true, ... % Diskrete Werte für phi hängen von Anfangswert ab
   'xDlim', R.xDlim, ... % Minimale und maximale EE-Geschw. (6x2). Letzte Zeile für Optimierungsvariable
   'xDDlim', R.xDDlim, ... % Minimale und maximale EE-Beschleunigung.
+  'constraint_qDlim', true, ... % Breche ab bei Verletzung der Gelenk-Geschw.-Grenze
+  'constraint_qDDlim', true, ... % Breche ab bei Verletzung der Gelenk-Beschl.-Grenze
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
   'cost_mode', 'RMStime', ... 
@@ -940,6 +942,20 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           fprintf('Fehler ist sehr groß. Vermutlich inkonsistente Daten\n');
         end
       end
+      % Berechne Verletzung der Geschw.- oder Beschleunigungs-Grenzen.
+      % Positionsgrenzen werden über eigene Zielkriterien beachtet.
+      limviol_qD = false;
+      if s.constraint_qDlim
+        if any(max(abs(QD))' > qDlim(:,2))
+          limviol_qD = true;
+        end
+      end
+      limviol_qDD = false;
+      if s.constraint_qDDlim
+        if any(max(abs(QDD))' > qDDlim(:,2))
+          limviol_qDD = true;
+        end
+      end
       if Stats.iter < length(t_i) % Trajektorie nicht erfolgreich
         % Setze Strafterm unendlich
         F_stage(k,l) = inf;
@@ -947,6 +963,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         % Wert für die redundante Koordinate ist außerhalb des Zielbereichs
         % Kann gelegentlich passieren, wenn enforce_xlim nicht richtig funktioniert.
         F_stage(k,l) = inf;
+        Stats.errorcode = 3; % entspricht dem Wert aus der Funktion
+      elseif limviol_qD
+        F_stage(k,l) = inf;
+        Stats.errorcode = 4; % zur korrekten Verarbeitung weiter unten
+      elseif limviol_qDD
+        F_stage(k,l) = inf;
+        Stats.errorcode = 5; % zur korrekten Verarbeitung weiter unten
       else % Erfolgreich berechnet
         % Kostenfunktion für DP aus IK-Zielfunktion bestimmen:
         % Bedingung: Kriterium ist addierbar über die gestückelte Trajektorie
@@ -1123,8 +1146,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         set(fighdl_trajdbg, 'NumberTitle', 'off', 'Name', sprintf(...
           'i%d_k%d_l%d_TrajDbg', i, k, l));
       end
-      % Speichere Ergebnis für bei Erfolg Trajektorie ab. Sonst NaN lassen.
-      if ~isinf(F_stage(k,l))
+      % Speichere Ergebnis bei Erfolg der Trajektorie ab. Sonst NaN lassen.
+      if ~isinf(F_stage(k,l)) % || any(Stats.errorcode==[3 4 5]) % evtl. doch speichern, falls Nutzung geplant
         QE_stage(:, k, l) = Q(end,:)'; % Gelenkkonfiguration (Vermeidung von Umklappen)
         YE_stage(k, l) = X_l(end,6); % EE-Drehung / kontinuierliche Optimierungsvariable
       end
@@ -1195,6 +1218,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               % Steht im Zusammenhang zu einer IK-Singularität, aber
               % anderer Marker
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
+              break;
+            elseif any(Stats.errorcode == [4 5]) % Geschw.-Beschl.-Verletzung
+              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'kx');
               break;
             elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) >= ...
