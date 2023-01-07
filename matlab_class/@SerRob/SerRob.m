@@ -42,6 +42,7 @@ classdef SerRob < RobBase
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
     qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
+    q_poserr % Encoderfehler der Antriebe (für Berechnung des EE-Positionsfehlers)
     taulim % Minimale und maximale Gelenkkräfte zeilenweise
     descr % Beschreibung des Roboters (Längerer, ausführlicher Name)
     phiconv_N_E % Winkelkonvention der Euler-Winkel vom EE-Körper-KS zum EE
@@ -210,6 +211,7 @@ classdef SerRob < RobBase
       R.qlim = repmat([-inf, inf], R.NQJ,1);
       R.qDlim = repmat([-inf, inf], R.NQJ,1);
       R.qDDlim = repmat([-inf, inf], R.NQJ,1);
+      R.q_poserr = ones(R.NQJ, 1);
       R.r_N_E = zeros(3,1);
       R.phi_N_E = zeros(3,1);
       R.T_N_E = eye(4);
@@ -668,6 +670,7 @@ classdef SerRob < RobBase
         'sigmaJ', sigmaJ, ... % Marker für Schubgelenke der Minimalkoordinaten (für hybride Roboter wichtig)
         'qlim', R.qlim, ... % Gelenkwinkel-Grenzen
         'xlim', R.xlim, ... % Endeffektor-Positionsgrenzen
+        'q_poserr', R.q_poserr, ... % Encoder-Fehler der Antriebe
         'I_EE', R.I_EE_Task, ... % Indizes der EE-FG der Aufgabe
         'phiconv_W_E', R.phiconv_W_E, ... % Euler-Winkel-Konvention
         'I_EElink', uint8(R.I_EElink), ... % Nummer des EE-Segments
@@ -782,6 +785,7 @@ classdef SerRob < RobBase
          'xDDlim', R.xDDlim, ...
          ... % Interpolation der Grenzen für die redundante Koordinate
          'xlim6_interp', zeros(3,0), ...
+         'q_poserr', R.q_poserr, ...
          ... % Standardmäßig keine Begrenzung der Nullraumgeschwindigkeit
          ... %  bei Rastpunkten o.ä. Mit dieser Option einstellbar:
          'nullspace_maxvel_interp', zeros(2,0), ...
@@ -1240,6 +1244,10 @@ classdef SerRob < RobBase
         R.I_constr_red = [1 2 3 5 6];
         R.I_constr_t_red = [1 2 3];
         R.I_constr_r_red = [4 5];
+      elseif all(I_EE_Task == [1 1 1 0 0 1]) && all(R.I_EE == [1 1 1 0 0 1]) % 3T1R
+        R.I_constr_red = [1 2 3 6];
+        R.I_constr_t_red = [1 2 3];
+        R.I_constr_r_red = 6; % bzgl. der nicht-reziproken Winkel
       elseif all(I_EE_Task == [1 1 0 1 1 0]) % 2T2R
         R.I_constr_red = [1 2 5 6];
         R.I_constr_t_red = [1 2];
@@ -1410,6 +1418,13 @@ classdef SerRob < RobBase
         R.qlim(IIjoint,:) = qlim;
       end
       qlim_out = R.qlim;
+    end
+    function q_poserr_out = update_q_poserr(R, q_poserr)
+      % Aktualisiere die Klasseneigenschaft q_poserr (gleiche Methode in ParRob)
+      if nargin == 2
+        R.q_poserr = q_poserr(:);
+      end
+      q_poserr_out = R.q_poserr;
     end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von

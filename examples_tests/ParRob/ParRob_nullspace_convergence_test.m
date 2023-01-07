@@ -450,7 +450,7 @@ for robnr = 1:5
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 8 9 10 11 12] % Schleife über verschiedene Zielkriterien
+      for ii = [2 4 6 8 9 10 11 12 13] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RP.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
@@ -521,6 +521,10 @@ for robnr = 1:5
             wn_traj(RP.idx_iktraj_wnD.coll_par) = 0.1;
             wn_traj(RP.idx_iktraj_wnP.qlim_hyp) = 0; % Hyperbolische Gelenkgrenzen ignorieren
             wn_traj(RP.idx_iktraj_wnD.qlim_hyp) = 0;
+          case 13 % PD-Regler Positionsfehler
+            wn_traj(RP.idx_iktraj_wnP.qDlim_par) = 0.8;
+            wn_traj(RP.idx_iktraj_wnP.poserr_ee) = 1;
+            wn_traj(RP.idx_iktraj_wnD.poserr_ee) = 0.1;
         end
         % Roboter auf 3T2R einstellen
         RP.update_EE_FG(I_EE_full,I_EE_red);
@@ -538,7 +542,7 @@ for robnr = 1:5
         % IK mit Trajektorien-Verfahren berechnen. Setze virtuelle
         % Trajektorie, die keine Soll-Vorgaben hat. Dadurch entsteht eine
         % reine Nullraumbewegung.
-        n = 2000; dt = 5e-3; % Länge der Trajektorie
+        n = 4000; dt = 5e-3; % Länge der Trajektorie
         Traj_t = (0:dt:(n-1)*dt)';
         assert(length(Traj_t)==n, 'Zeit-Basis der virtuellen Trajektorie ist falsch');
         Traj_X = repmat(x_l', n, 1);
@@ -566,7 +570,8 @@ for robnr = 1:5
         [Q_ii2, QD_ii2, QDD_ii2, Phi_ii2,~,~,~,Stats_traj2] = RP.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii2);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
-        if all(I_noacc)
+        I_noacc2 = all(abs(QDD_ii2)<1e-8,2);
+        if all(I_noacc | I_noacc2)
           if Stats_ep.iter == 1
             warning('Keine Nullraumbewegung in Pos.- oder Traj.-IK. Nebenbedingung im Start bereits optimal.');
             continue
@@ -808,7 +813,7 @@ for robnr = 1:5
           % Bild: Zielkriterien (Zeitverlauf)
           fhdl=change_current_figure(2);clf;set(fhdl,'Name','h','NumberTitle','off');
           for i = 1:length(I_wn_ep)
-            subplot(3,3,i); hold on;
+            subplot(4,3,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_wn_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
             plot(100*progr_traj, Stats_traj2.h(:,1+I_stats_traj(i)));
@@ -912,14 +917,14 @@ for robnr = 1:5
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
           fhdl=change_current_figure(20);clf;set(fhdl,'Name','h_x6','NumberTitle','off');
           for jj = 1:length(I_wn_ep)
-            subplot(3,3,jj); hold on; grid on;
+            subplot(4,3,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,I_wn_ep(jj)));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj}), 'interpreter', 'none'); grid on;
             xlabel('x6 in deg');
           end
           for jj = 1:length(I_wn_ep)
             if s_ep_ii.wn(I_wn_ep(jj))==0, continue; end
-            subplot(3,3,jj); hold on;
+            subplot(4,3,jj); hold on;
             % Debug: Ortskurve der Zwischenzustände einzeichnen
             hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_stats_traj(jj)), 'r+-');
             hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+I_wn_ep(jj)), 'gx-');
@@ -1001,7 +1006,7 @@ for robnr = 1:5
     'h_err_abs: Fehler zwischen Einzelpunkt- und Trajektorienmethode\n', ...
     'h_err_rel: Relativer Fehler\n', ...
     'h_step_traj: Änderung des Optimierungskriteriums bei Trajektorien-Methode (negativ ist gut)\n', ...
-    'h_step_ep: Änderung bei Einzepunkt-Methode\n', ...
+    'h_step_ep: Änderung bei Einzelpunkt-Methode\n', ...
     'Error: Fehlercodes\n', ...
     '\t0: Kein Fehler. Alles in Ordnung\n', ...
     '\t1: Verschlechterung in Trajektorien-IK\n', ...
@@ -1012,6 +1017,7 @@ for robnr = 1:5
     '\t6: Verletzung der Gelenkwinkelgrenzen in Traj.-IK\n', ...
     '\t10: Ungültiges Ergebnis in IK\n']);
   fclose(fid);
+  fprintf('Ergebnisse für Rob. %d (%s) gespeichert: %s\n', robnr, RP.mdlname, respath);
   % Ergebnisse prüfen: Bei zu vielen Fehlern Abbruch.
   IK_success_ratio_start = sum(ResStat_Start.Erfolg==1)/size(ResStat_Start,1);
   fprintf('Die IK-Erfolgsquote liegt bei %1.1f%% (%d/%d Konfigurationen)\n', ...

@@ -9,7 +9,7 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext und SerRob/invkin2
 %   Auswahl der Einstellungen:	
-%   .wn [12x1] Gewichtungen der Zielfunktionen für Nullraumbewegung.
+%   .wn [13x1] Gewichtungen der Zielfunktionen für Nullraumbewegung.
 %     Indiziert mit idx_ikpos_wn aus ik_optimcrit_index.m
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %     (2) Hyperbolischer Abstand der Gelenkkoordinaten von ihren Grenzen
@@ -23,6 +23,7 @@
 %    (10) Abstand zur Bauraumgrenze voneinander (quadratisch gewertet)
 %    (11) Abstand von phiz_trans zur Grenze xlim (quadratisch gewertet)
 %    (12) Abstand von phiz_trans zur Grenze xlim (hyperbolisch gewertet)
+%    (13) Positionsfehler am Endeffektor
 %
 % Ausgabe:
 % q [%NQJ% x 1]
@@ -77,6 +78,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs          'sigmaJ', zeros(%NQJ%,1),
 %$cgargs            'qlim', zeros(%NQJ%,2),
 %$cgargs            'xlim', zeros(6,2),
+%$cgargs        'q_poserr', ones(%NQJ%,1),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
 %$cgargs        'I_EElink', uint8(0),
@@ -84,7 +86,7 @@ function [q, Phi, Tc_stack, Stats] = %RN%_invkin_eulangresidual(Tr0E_soll, Q0, s
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs              'Kn', zeros(%NQJ%,1),
-%$cgargs              'wn', zeros(12,1),
+%$cgargs              'wn', zeros(13,1),
 %$cgargs      'maxstep_ns', 0,
 %$cgargs       'scale_lim', 0,
 %$cgargs      'scale_coll', 0,
@@ -294,7 +296,7 @@ if nargout == 4
     'PHI', NaN(1+n_max, 6), 'iter', n_max, 'retry_number', retry_limit, ...
     'condJ', NaN(1+n_max,2), 'lambda', NaN(n_max,2), 'rejcount', NaN(n_max,1), ...
     'h', NaN(1+n_max,1+idx_ik_length.hnpos), 'coll', false, 'instspc_mindst', NaN(1+n_max,2), ...
-    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 9);
+    'maxcolldepth', NaN(1+n_max,2), 'h_instspc_thresh', NaN, 'h_coll_thresh', NaN, 'version', 11);
   Stats = Stats_default;
 end
 
@@ -420,13 +422,16 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       end
       %% Singularitätsvermeidung Jacobi-Matrix (Aufgaben- und Roboter-FG)
       h([idx_hn.ikjac_cond, idx_hn.jac_cond]) = 0;
+      h(idx_hn.poserr_ee) = 0;
       if wn(idx_wn.ikjac_cond) ~= 0 && condJik > s.cond_thresh_ikjac || ...
-         wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac
+         wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac || ...
+         wn(idx_wn.poserr_ee) ~= 0 % Translatorischer Positionsfehler ist ähnlich
         h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
             1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
             1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
-        h3dq = NaN(1,NQJ); h4dq = NaN(1,NQJ);
+        h(idx_hn.poserr_ee) = norm(abs(Jgk(Rob_I_EE(1:3),:)) * s.q_poserr);
+        h3dq = NaN(1,NQJ); h4dq = NaN(1,NQJ); h12dq = NaN(1,NQJ);
         for kkk = 1:NQJ % Differenzenquotient für jede Gelenkkoordinate
           q_test = q1; % ausgehend von aktueller Konfiguration
           q_test(kkk) = q_test(kkk) + 1e-6; % minimales Inkrement
@@ -443,9 +448,11 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
           h3dq(kkk) = (h3_kkk-h(idx_hn.ikjac_cond))/1e-6;
           h4dq(kkk) = (h4_kkk-h(idx_hn.jac_cond))/1e-6;
+          h12dq(kkk) = (norm(abs(Jgk_kkk(Rob_I_EE(1:3),:)) * s.q_poserr)-h(idx_hn.poserr_ee))/1e-6;
         end
         v = v - wn(idx_wn.ikjac_cond)*h3dq';
         v = v - wn(idx_wn.jac_cond)*h4dq';
+        v = v - wn(idx_wn.poserr_ee)*h12dq';
       end
  
       %% Kollisionsvermeidung
@@ -1042,6 +1049,9 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
   if wn(idx_wn.jac_cond) ~= 0 && condJ > s.cond_thresh_jac
     h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+  end
+  if wn(idx_wn.poserr_ee) ~= 0
+    h(idx_hn.poserr_ee) = norm(abs(Jgk(Rob_I_EE(1:3),:)) * s.q_poserr);
   end
   if wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0 % Berechnung muss genauso sein wie oben.
     colldet1 = check_collisionset_simplegeom(collbodies_ns, s.collchecks, ...

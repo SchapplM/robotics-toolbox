@@ -145,16 +145,19 @@ for robnr = 1:2
   % Reihenfolge: Siehe RS.idx_ikpos_wn.
   I_wn_ep = 1:RS.idx_ik_length.wnpos;
   I_wn_traj = zeros(RS.idx_ik_length.wnpos,1);
+  hnames = {};
   i=0;
   for f = fields(RS.idx_ikpos_wn)'
     i=i+1;
     % Es können unterschiedliche Kriterien definiert sein bei PTP- und
     % Traj.-IK.
     if ~isfield(RS.idx_iktraj_wnP, f{1})
+      fprintf('Methode %s nicht benutzen.\n', f{1});
       I_wn_ep(RS.idx_ikpos_wn.(f{1})) = 0;
       continue;
     end
     I_wn_traj(i) = RS.idx_iktraj_wnP.(f{1});
+    hnames{i} = f{1}; %#ok<SAGROW> 
   end
   % Einträge entfernen, die nicht in beiden IK-Methoden implementiert sind
   I_wn_ep = I_wn_ep(I_wn_ep~=0);
@@ -169,9 +172,8 @@ for robnr = 1:2
   end
   I_stats_traj = I_stats_traj(I_stats_traj~=0);
   I_stats_ep = I_wn_ep;
-  % Namen der Optimierungskriterien der IK (für Diagramme)
-  hnames = intersect(fields(RS.idx_ikpos_hn)',fields(RS.idx_iktraj_hn)');
-  
+  assert(length(I_wn_ep)==length(I_wn_traj), 'Logik-Fehler bzgl. I_wn');
+  assert(length(I_stats_traj)==length(I_stats_ep), 'Logik-Fehler bzgl. I_stats');
   %% Eckpunkte bestimmen, die angefahren werden
   % Orientierung nicht exakt senkrecht, da das oft singulär ist.
   X0 = [ [0.5;0.5;0.6]; [2;-3;0]*pi/180 ];
@@ -330,7 +332,7 @@ for robnr = 1:2
       x_test_ges = x_test_ges(Isort,:);
       h_ges = h_ges(Isort,:);
       %% Verschiedene IK-Zielfunktionen durchgehen
-      for ii = [2 4 6 7 8 9 10 11] % Schleife über verschiedene Zielkriterien
+      for ii = [2 4 6 7 8 9 10 11 12] % Schleife über verschiedene Zielkriterien
         filename_pre = sprintf('Rob%d_Fall%d_%s_%s', robnr, ii, RS.mdlname);
         s_ep_ii = s_ep;
         if usr_save_anim % sehr feinschrittige Bewegungen (für flüssige Animation)
@@ -393,6 +395,9 @@ for robnr = 1:2
           case 11 % PD-Regler Jacobi-Konditionszahl
             wn_traj(RS.idx_iktraj_wnP.jac_cond) = 1;
             wn_traj(RS.idx_iktraj_wnD.jac_cond) = 0.2;
+          case 12 % PD-Regler Positionsfehler
+            wn_traj(RS.idx_iktraj_wnP.poserr_ee) = 1;
+            wn_traj(RS.idx_iktraj_wnD.poserr_ee) = 0.2;
         end
         if any(ii == [7 8]) && x_l(6) == 0
           continue;% keine Bewegung, wenn bereits in der Mitte
@@ -417,7 +422,7 @@ for robnr = 1:2
         % IK mit Trajektorien-Verfahren berechnen. Setze virtuelle
         % Trajektorie, die keine Soll-Vorgaben hat. Dadurch entsteht eine
         % reine Nullraumbewegung.
-        n = 2000; dt = 5e-3; % Länge der Trajektorie
+        n = 4000; dt = 5e-3; % Länge der Trajektorie
         Traj_t = (0:dt:(n-1)*dt)';
         assert(length(Traj_t)==n, 'Zeit-Basis der virtuellen Trajektorie ist falsch');
         Traj_X = repmat(x_l', n, 1);
@@ -432,7 +437,8 @@ for robnr = 1:2
         s_traj_ii.xlim = xlim_l;
         s_traj_ii.optimcrit_limits_hyp_deact = optimcrit_limits_hyp_deact;
         t1 = tic();
-        [Q_ii, QD_ii, QDD_ii, Phi_ii,~,Stats_traj] = RS.invkin2_traj(Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
+        [Q_ii, QD_ii, QDD_ii, Phi_ii,~,Stats_traj] = RS.invkin2_traj( ...
+          Traj_X, Traj_XD, Traj_XDD, Traj_t, qs, s_traj_ii);
         t_traj = toc(t1);
         % Kürze die Trajektorie, falls Bewegung vorzeitig abgeklungen ist
         I_noacc = all(abs(QDD_ii)<1e-8,2);
@@ -634,7 +640,7 @@ for robnr = 1:2
           % Bild: Zielkriterien (Zeitverlauf)
           fhdl=change_current_figure(2);clf;set(fhdl,'Name','h','NumberTitle','off');
           for i = 1:length(I_wn_ep)
-            subplot(3,3,i); hold on;
+            subplot(4,3,i); hold on;
             plot(100*progr_ep(1:end-1), Stats_ep.h(1:Stats_ep.iter,1+I_stats_ep(i)));
             plot(100*progr_traj, Stats_traj.h(:,1+I_stats_traj(i)));
             ylabel(sprintf('h %d (%s) (wn=%1.1f)', i, hnames{i}, s_ep_ii.wn(I_wn_ep(i))), 'interpreter', 'none'); grid on;
@@ -687,14 +693,14 @@ for robnr = 1:2
         if usr_plot_objfun || (raise_error_h && usr_plot_on_err)
           fhdl=change_current_figure(20);clf;set(fhdl,'Name','h_x6','NumberTitle','off');
           for jj = 1:length(I_wn_ep)
-            subplot(3,3,jj); hold on; grid on;
+            subplot(4,3,jj); hold on; grid on;
             plot(x_test_ges(:,6)*180/pi, h_ges(:,I_stats_ep(jj)));
             ylabel(sprintf('h %d (%s)', jj, hnames{jj}), 'interpreter', 'none'); grid on;
             xlabel('x6 in deg');
           end
           for jj = 1:length(I_wn_ep)
             if s_ep_ii.wn(I_wn_ep(jj))==0, continue; end
-            subplot(3,3,jj); hold on;
+            subplot(4,3,jj); hold on;
             % Debug: Ortskurve der Zwischenzustände einzeichnen
             hdl3=plot(X_ii(:,6)*180/pi,Stats_traj.h(:,1+I_stats_traj(jj)), 'r+-');
             hdl4=plot(Stats_ep.X(:,6)*180/pi,Stats_ep.h(:,1+I_wn_ep(jj)), 'gx-');

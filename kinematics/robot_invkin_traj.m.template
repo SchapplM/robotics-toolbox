@@ -23,7 +23,7 @@
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext dieser Funktion und
 %   von `%RN%_invkin_eulangresidual` sowie aufrufende Methode aus
 %   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
-%   .wn [23x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
+%   .wn [25x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     Indiziert mit idx_iktraj_wnP und idx_iktraj_wnD aus ik_optimcrit_index.m
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
 %         (zu h(1))
@@ -61,6 +61,8 @@
 %    (22) Abstand von Prüfkörpern des Roboters zur Bauraumgrenze (quadratisch)
 %         (zu h(13))
 %    (23) wie 22, aber auf Geschwindigkeitsebene
+%    (24) Positionsfehler am Endeffektor
+%    (25) Wie 20, aber D-Anteil
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -128,6 +130,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs           'xDlim', zeros(6,2),
 %$cgargs          'xDDlim', zeros(6,2),
 %$cgargs 'xlim6_interp', coder.newtype('double',[3,inf]),
+%$cgargs        'q_poserr', ones(%NQJ%,1),
 %$cgargs 'nullspace_maxvel_interp', coder.newtype('double',[2,inf]),
 %$cgargs            'I_EE', true(1,6),
 %$cgargs     'phiconv_W_E', uint8(2),
@@ -141,8 +144,8 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs           'T_N_E', zeros(4,4),
 %$cgargs               'K', zeros(%NQJ%,1),
 %$cgargs           'debug', false,
-%$cgargs              'wn', zeros(23,1),
-%$cgargs  'abort_thresh_h', zeros(13,1),
+%$cgargs              'wn', zeros(25,1),
+%$cgargs  'abort_thresh_h', zeros(14,1),
 %$cgargs      'maxrelstep', 0.1,
 %$cgargs       'normalize', false,
 %$cgargs           'n_min', 0,
@@ -314,6 +317,7 @@ s_pik = struct( ...
   'sigmaJ', s.sigmaJ, ...
   'qlim', s.qlim, ...
   'xlim', s.xlim, ... % hat keinen Einfluss (ohne Nullraumbewegung)
+  'q_poserr', s.q_poserr, ...
   'I_EE', s.I_EE, ...
   'phiconv_W_E', s.phiconv_W_E, ...
   'I_EElink', s.I_EElink, ...
@@ -357,8 +361,8 @@ s_pik = struct( ...
 % Gelenkkonfiguration, bei der Nebenbed. 5 (Kondition) das letzte mal
 % berechnet wurde
 q_wn5 = inf(NQJ,1);
-% Gradient von Nebenbedingung 5, 6, 7, 8 und 13
-h5dq = NaN(1,NQJ); h6dq=h5dq; h7dq=h5dq; h8dq=h5dq; h13dq = h5dq;
+% Gradient von Nebenbedingung 5, 6, 7, 8 und 13 und 24
+h5dq = NaN(1,NQJ); h6dq=h5dq; h7dq=h5dq; h8dq=h5dq; h13dq = h5dq; h24dq = h5dq;
 % Zuweisung notwendig für mex (u.a. k-Schleife wird nicht vollständig erkannt)
 qk0 = q0;
 qDNk0 = zeros(NQJ,1);
@@ -380,7 +384,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'errorcode', 0, 'version', 7);
+  'errorcode', 0, 'version', 9);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -564,11 +568,13 @@ for k = 1:nt
     end
     %% Singularitätsvermeidung IK-Jacobi-Matrix (Aufgaben-FG) und geom. Jacobi-Matrix (Roboter-FG)
     if (wn(idx_wnP.ikjac_cond) ~= 0 || wn(idx_wnD.ikjac_cond) ~= 0) && condJik > s.cond_thresh_ikjac || ... % IK-Jacobi-Matrix (Aufgaben-FG)
-       (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac % geom. Jacobi-Matrix (Roboter-FG)
+       (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac || ...% geom. Jacobi-Matrix (Roboter-FG)
+        wn(idx_wnP.poserr_ee) ~= 0 % Positionsfehler ist ähnlich
       h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
           1.5*s.cond_thresh_jac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
       h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); % mit Spline-Aktivierung
+      h(idx_hn.poserr_ee) = norm(abs(Jg(Rob_I_EE(1:3),:)) * s.q_poserr);
       if nsoptim
       if NQJ - sum(I_EE) == 1 && ~I_EE(end)
         % Redundanz ist reine Aufgabenredundanz mit Rotationssymmetrie
@@ -581,12 +587,15 @@ for k = 1:nt
           1.5*s.cond_thresh_jac, s.cond_thresh_ikjac);
         h6test = invkin_optimcrit_condsplineact(cond(Jg_test(Rob_I_EE,:)), ...
           1.5*s.cond_thresh_jac, s.cond_thresh_jac);
+        h24test = norm(abs(Jg_test(Rob_I_EE(1:3),:)) * s.q_poserr);
         % Gradient bezüglich Redundanz-FG (letzter Euler-Winkel)
         h5drz = (h5test-h(idx_hn.ikjac_cond))/1e-6;
         h6drz = (h6test-h(idx_hn.jac_cond))/1e-6;
+        h24drz = (h24test-h(idx_hn.poserr_ee))/1e-6;
         % Umrechnung auf Gelenke mit Jacobi-Matrix
         h5dq = h5drz*J_x(end,:);
         h6dq = h6drz*J_x(end,:);
+        h24dq = h24drz*J_x(end,:);
       else
         % Allgemeiner Fall von Redundanz (nicht nur Drehung um die zE-Achse)
         % Bilde Differenzenquotient in allen Gelenkachsen
@@ -602,6 +611,7 @@ for k = 1:nt
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
             h5dq(kkk) = (h5_kkk-h(idx_hn.ikjac_cond))/1e-6;
             h6dq(kkk) = (h6_kkk-h(idx_hn.jac_cond))/1e-6;
+            h24dq(kkk) = (norm(abs(Jg_kkk(Rob_I_EE(1:3),:)) * s.q_poserr)-h(idx_hn.poserr_ee))/1e-6;
           end
           q_wn5 = q_k;
         end
@@ -610,6 +620,8 @@ for k = 1:nt
       v_qDD = v_qDD - wn(idx_wnP.ikjac_cond)*h5dq';
       v_qD = v_qD - wn(idx_wnD.jac_cond)*h6dq';
       v_qDD = v_qDD - wn(idx_wnP.jac_cond)*h6dq';
+      v_qD = v_qD - wn(idx_wnD.poserr_ee)*h24dq';
+      v_qDD = v_qDD - wn(idx_wnP.poserr_ee)*h24dq';
       end % if nsoptim
     else
       h(idx_hn.jac_cond) = 0; % Wenn Schwellwert nicht überschritten, Wert auf Null setzen
@@ -1273,16 +1285,16 @@ for k = 1:nt
   end
   % Beschleunigung aus Aufgabe und Nullraumbewegung, [RMG16]/(20)
   qDD_k = qDD_k_T + qDD_N_post2;
-  I_wn = [idx_wnP.qlim_par, idx_wnP.qlim_hyp,   idx_wnP.qDlim_par,...
-          idx_wnP.qDlim_hyp,idx_wnP.ikjac_cond, idx_wnP.jac_cond,...
-          idx_wnP.coll_hyp, idx_wnP.instspc_hyp,idx_wnP.xlim_par,...
-          idx_wnP.xlim_hyp, idx_wnP.xDlim_par,  idx_wnP.coll_par, ...
-          idx_wnP.instspc_par];
-  I_h =  [idx_hn.qlim_par,  idx_hn.qlim_hyp,    idx_hn.qDlim_par,...
-          idx_hn.qDlim_hyp, idx_hn.ikjac_cond,  idx_hn.jac_cond,...
-          idx_hn.coll_hyp,  idx_hn.instspc_hyp, idx_hn.xlim_par,...
-          idx_hn.xlim_hyp,  idx_hn.xDlim_par,   idx_hn.coll_par, ...
-          idx_hn.instspc_par];
+  I_wn = [idx_wnP.qlim_par,   idx_wnP.qlim_hyp,   idx_wnP.qDlim_par,...
+          idx_wnP.qDlim_hyp,  idx_wnP.ikjac_cond, idx_wnP.jac_cond,...
+          idx_wnP.coll_hyp,   idx_wnP.instspc_hyp,idx_wnP.xlim_par,...
+          idx_wnP.xlim_hyp,   idx_wnP.xDlim_par,  idx_wnP.coll_par, ...
+          idx_wnP.instspc_par,idx_wnP.poserr_ee];
+  I_h =  [idx_hn.qlim_par,    idx_hn.qlim_hyp,    idx_hn.qDlim_par,...
+          idx_hn.qDlim_hyp,   idx_hn.ikjac_cond,  idx_hn.jac_cond,...
+          idx_hn.coll_hyp,    idx_hn.instspc_hyp, idx_hn.xlim_par,...
+          idx_hn.xlim_hyp,    idx_hn.xDlim_par,   idx_hn.coll_par, ...
+          idx_hn.instspc_par, idx_hn.poserr_ee];
   Stats.h(k,:) = [sum(wn(I_wn).*h(I_h)),h'];
   %% Anfangswerte für Positionsberechnung in nächster Iteration
   % Berechne Geschwindigkeit aus Linearisierung für nächsten Zeitschritt
