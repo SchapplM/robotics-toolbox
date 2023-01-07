@@ -100,6 +100,9 @@ if s_user.wn(R.idx_ikpos_wn.coll_hyp) && (isempty(R.collchecks) || isempty(R.col
   s_user.scale_coll = 0;
   s_user.avoid_collision_finish = false;
 end
+I_nonnan = all(~isnan(s_user.xlim),2);
+assert(all(s_user.xlim(I_nonnan,1)<s_user.xlim(I_nonnan,2)), ...
+  'Reihenfolge der Grenzen für xlim ist falsch');
 %% Eingabe-Struktur mit PKM-Parametern zusammenstellen
 % Diese Reihenfolge ermöglicht für Kompilierung geforderte gleichbleibende 
 % Feldreihenfolge in Eingabevariablen

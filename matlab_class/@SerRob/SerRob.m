@@ -737,6 +737,9 @@ classdef SerRob < RobBase
         s.wn(R.idx_ikpos_wn.instspc_hyp) = 0;
         s.wn(R.idx_ikpos_wn.instspc_par) = 0;
       end
+      I_nonnan = all(~isnan(s.xlim),2);
+      assert(all(s.xlim(I_nonnan,1)<s.xlim(I_nonnan,2)), ...
+        'Reihenfolge der Grenzen für xlim ist falsch');
       % Funktionsaufruf. Entspricht robot_invkin_eulangresidual.m.template
       if nargout == 3
         [q, Phi, Tc_stack0] = R.invkinfcnhdl(Tr0E_soll, q0, s);
@@ -830,6 +833,10 @@ classdef SerRob < RobBase
           end
         end
       end
+      % Eingaben nochmal prüfen
+      I_nonnan = all(~isnan(s.xlim),2);
+      assert(all(s.xlim(I_nonnan,1)<s.xlim(I_nonnan,2)), ...
+        'Reihenfolge der Grenzen für xlim ist falsch');
       % Funktionsaufruf. Entspricht robot_invkin_traj.m.template
       [Q,QD,QDD,PHI,JointPos_all,Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s);
     end

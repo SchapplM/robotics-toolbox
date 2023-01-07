@@ -310,10 +310,8 @@ if s.stageopt_posik
   % Begrenzung der redundanten Koordinate wieder einsetzen
   s_Pos.wn(R.idx_ikpos_wn.xlim_hyp) = 1e4; % sehr stark von Grenzen abstoßen
   s_Pos.wn(R.idx_ikpos_wn.xlim_par) = 0; %  ohne linearen Term
-  % Intervall für redundante Koordinate. Bis zum Rand des
-  % Nachbar-Intervalls und etwas weiter, da das hyperbolische Kriterium bei
-  % 80% der Spannweite aktiv wird.
-  s_Pos.xlim = [NaN(5,2); [-1, 1]*1.2 * delta_phi/2];
+  % Die Grenzen xlim müssen unten in Abhängigkeit des Startwertes
+  % festgelegt werden, da die Angabe relativ dazu ist.
 end
 % Endwerte für die Gelenkkonfiguration der optimalen Teilstrategie für jede
 % Stufe (aus Vorwärts-Iteration). Setze eine virtuelle Stufe 0 in die
@@ -544,7 +542,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           else
             q0_posik = [squeeze(QE_stage(:,k,I_distsort)), qs, q0];
           end
+          s_Pos.retry_limit = size(q0_posik,2); % Keine darüber hinausgehenden zufälligen Neuversuche
           xl_posik(end) = z_l; % Ist-Rotation. Wird als Mittelpunkt für Grenzen xlim benutzt. Sonst keine Auswirkung, da mit 3T2R gerechnet wird
+          % Intervall für redundante Koordinate. Muss aktualisiert werden.
+          if length(phi_range_fix) == 1 % Sonderfall: Nur ein Zustand (in Haupt-Modus)
+            % Nehme den kompletten erlaubten Bereich als Grenze
+            s_Pos.xlim = [NaN(5,2); xl_posik(6)-s.phi_max, xl_posik(6)-s.phi_min];
+          else
+            % Bis zum Rand des Nachbar-Intervalls
+            s_Pos.xlim = [NaN(5,2); [-1, 1]* 1.2 * delta_phi/2];
+          end
           if R.Type == 0 % Seriell
             [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
           else % PKM
@@ -580,10 +587,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
                 legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
               end
               plot(Iter, 180/pi*Stats_X(:,6), 'k-');
-              legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3'};
-              legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
-              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
+              legdhl(4) = plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
               plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
+              legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3', 'Limit'};
+              legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
               xlabel('Iterationen'); grid on;
               ylabel('phi_z in deg');
               qlim = cat(1,R.Leg(:).qlim);
@@ -607,11 +614,12 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               xlabel('Iterationen'); grid on;
               ylabel('diff h');
               subplot(3,3,8);
-              plot(Stats.h(Iter,[true,s_Pos.wn'~=0]));
-              critnames = fields(R.idx_ikpos_wn)';
+              plot(Stats_PosIK.h(Iter,[true,s_Pos.wn'~=0]));
+              critnames = fields(R.idx_ikpos_hn)';
               legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
               xlabel('Iterationen'); grid on;
               ylabel('h');
+              linkxaxes
             end
           end
           if ~task_redundancy % Wieder auf nicht-redundant zurücksetzen
@@ -626,7 +634,14 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
           if any(isinf(Stats_PosIK.h(1+Stats_PosIK.iter,:)))
             if s.verbose
-              fprintf('Nebenbedingung in zusätzlicher Optimierung überschritten bei %d/%d\n', i, l);
+              critviol = {};
+              for f = fields(R.idx_ikpos_hn)'
+                if isinf(Stats_PosIK.h(1+Stats_PosIK.iter,1+R.idx_ikpos_hn.(f{1})))
+                  critviol = [critviol, f{1}]; %#ok<AGROW> 
+                end
+              end
+              fprintf(['Nebenbedingung (%s) in zusätzlicher Optimierung ', ...
+                'überschritten bei %d/%d\n'], disp_array(critviol, '%s'), i, l);
             end
             continue
           end

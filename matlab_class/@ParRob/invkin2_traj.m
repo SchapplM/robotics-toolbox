@@ -178,7 +178,10 @@ end
 if length(s_ser.K) == R.NJ
   s_ser.K = s_ser.K(1:R.Leg(1).NQJ);
 end
-
+% Eingaben nochmal prüfen
+I_nonnan = all(~isnan(s.xlim),2);
+assert(all(s.xlim(I_nonnan,1)<s.xlim(I_nonnan,2)), ...
+  'Reihenfolge der Grenzen für xlim ist falsch');
 %% Funktionsaufruf. 
 % Entspricht robot_invkin_eulangresidual.m.template
 [Q, QD, QDD, Phi, Jinv_ges, JinvD_ges, JointPos_all, Stats] = R.invkintrajfcnhdl(X, XD, XDD, T, q0, s, s_ser);
