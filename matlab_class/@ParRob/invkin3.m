@@ -55,6 +55,10 @@
 %     Negative Werte sind keine Kollision (gut)
 %   .instspc_mindst (n+1x2): Überschreitungsdistanz des Bauraums. Erste Spalte
 %     alle, zweite nur beeinflussbare Prüfungen. Negative Werte sind im Bauraum (gut)
+% Jinv_out
+%   Inverse PKM-Jacobi-Matrix
+%   (Jacobi zwischen allen Gelenkgeschwindigkeiten qD und EE-geschwindigkeit xDE)
+%   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
 % 
 % Quelle:
 % [SchapplerTapOrt2019] Schappler, M. et al.: Modeling Parallel Robot Kine-
@@ -70,7 +74,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-07/2019-06
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin3(Rob, xE_soll, Q0, s_in)
+function [q, Phi, Tc_stack_PKM, Stats, Jinv_out] = invkin3(Rob, xE_soll, Q0, s_in)
 
 %% Initialisierung
 % Variablen so initialisieren, dass Code gleich mit Vorlagen-Funktion
@@ -276,6 +280,7 @@ Tc_stack_PKM = NaN((NL+NLEG+1)*3,4); % siehe fkine_legs; dort aber leicht anders
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 condJ = NaN; condJik = NaN;
+Jinv_out = NaN(NJ, sum(Rob_I_EE));
 
 Stats_default = struct('file', 'pkm_invkin_eul', 'Q', NaN(1+n_max, NJ), ...
   'PHI', NaN(1+n_max, 6*NLEG), 'iter', n_max, 'retry_number', retry_limit, ...
@@ -290,7 +295,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
   q1 = q0;
   % Grad der Nicht-Erfüllung der Zwangsbedingungen (Fehler)
   [Phi, Phi_voll] = Rob.constr3(q1, xE_soll);
-  if nargout == 4 % Anfangswerte eintragen
+  if nargout >= 4 % Anfangswerte eintragen
     % Zurücksetzen der Statistik (falls mehrere Wiederholungen gemacht werden
     Stats = Stats_default;
     Stats.PHI(1,:) = Phi_voll;
@@ -735,7 +740,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
               h9dq_var2 = h9dq;
             end
           end
-          if nargout == 4
+          if nargout >= 4
             Stats.maxcolldepth(jj,:) = [-min(colldist_test(1,:)),-mincolldist_test(1)];
           end
           if s.debug && all(abs(Phi)<1e-6) && taskred_rotsym && ...
@@ -942,7 +947,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
             end
           end
         end
-        if nargout == 4
+        if nargout >= 4
           % Bestimme auch den Abstand ohne Berücksichtigung der
           % beeinflussbaren Prüfungen
           mindist_all = -inf; % ähnliche Rechnung wie oben
@@ -1154,7 +1159,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
 
     if any(isnan(q2)) || any(isinf(q2))
-      if nargout == 4
+      if nargout >= 4
         Stats.iter = jj;
       end
       break; % ab hier kann das Ergebnis nicht mehr besser werden wegen NaN/Inf
@@ -1228,13 +1233,13 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
       if condJik <= condlimDLS && ~nsoptim || ... % Keine Verbesserung der Konvergenz trotz guter Konditionszahl.
        rejcount > 50 % Stillstand zu lange trotz exponentieller Erhöhung von lambda.
         % Abbruch. Keine Verbesserung mit Algorithmus möglich.
-        if nargout == 4
+        if nargout >= 4
           Stats.iter = jj;
         end
         break;
       end
     end
-    if nargout == 4
+    if nargout >= 4
       Stats.Q(1+jj,:) = q1;
       Stats.PHI(1+jj,:) = Phi_voll;
       Stats.h(jj,:) = [sum(wn.*h),h'];
@@ -1292,7 +1297,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           continue
         end
       end
-      if nargout == 4
+      if nargout >= 4
         Stats.iter = jj;
       end
       break;
@@ -1304,7 +1309,7 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
     end
   end
   if success
-    if nargout == 4
+    if nargout >= 4
       Stats.retry_number = rr;
     end
     if ~s.retry_on_limitviol || s.retry_on_limitviol && all(q1>=qmin) && all(q1<=qmax)
@@ -1327,7 +1332,7 @@ end
 if nargout >= 3 || nargout >= 4 && (wn(idx_wn.coll_hyp) ~= 0 || wn(idx_wn.coll_par) ~= 0)
   Tc_stack_PKM = Rob.fkine_coll(q1);
 end
-if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
+if nargout >= 4 % Berechne Leistungsmerkmale für letzten Schritt
   h(:)=0; % Damit kein NaN bleibt, was die Gesamtsumme NaN werden lässt.
   if wn(idx_wn.qlim_par) ~= 0, h(idx_hn.qlim_par) = invkin_optimcrit_limits1(q1, qlim); end
   if wn(idx_wn.qlim_hyp) ~= 0, h(idx_hn.qlim_hyp) = invkin_optimcrit_limits2(q1, qlim, qlim_thr_h2); end
@@ -1347,6 +1352,7 @@ if nargout == 4 % Berechne Leistungsmerkmale für letzten Schritt
     [~, Phi4_x_voll] = Rob.constr4grad_x(xE_1);
     [~, Phi4_q_voll] = Rob.constr4grad_q(q1);
     Jinv = -Phi4_q_voll\Phi4_x_voll; % bezogen auf 3T3R
+    Jinv_out = Jinv(:, Rob_I_EE);
     if ~any(isnan(Jinv(:))) && ~any(isinf(Jinv(:)))
       condJ = cond(Jinv(I_qa,Rob_I_EE));
     else

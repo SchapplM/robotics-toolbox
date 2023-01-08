@@ -29,6 +29,12 @@
 %   * Für jede Beinkette: Basis und alle bewegten Körper-KS. Ohne
 %     virtuelles EE-KS
 %   * Kein Plattform-KS
+% Stats
+%   Statistik
+% Jinv
+%   Inverse PKM-Jacobi-Matrix
+%   (Jacobi zwischen allen Gelenkgeschwindigkeiten qD und EE-geschwindigkeit xDE)
+%   (Nicht: Nur Bezug zu Antriebsgeschwindigkeiten qaD)
 
 % Quelle:
 % [2] Aufzeichnungen Schappler vom 11.12.2018
@@ -36,7 +42,7 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2020-05
 % (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
-function [q, Phi, Tc_stack_PKM, Stats] = invkin4(R, xE_soll, q0, s_in)
+function [q, Phi, Tc_stack_PKM, Stats, Jinv] = invkin4(R, xE_soll, q0, s_in)
 
 %% Standardwerte für vom Benutzer setzbare Einstellungen
 s_user = struct(...
@@ -173,5 +179,5 @@ if nargout == 3
 elseif nargout <= 2
   [q, Phi] = R.invkin3fcnhdl(xE_soll, q0, s);
 else
-  [q, Phi, Tc_stack_PKM, Stats] = R.invkin3fcnhdl(xE_soll, q0, s);
+  [q, Phi, Tc_stack_PKM, Stats, Jinv] = R.invkin3fcnhdl(xE_soll, q0, s);
 end
