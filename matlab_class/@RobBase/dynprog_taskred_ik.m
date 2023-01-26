@@ -387,6 +387,10 @@ if s.verbose > 1
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
       'PM_limit', s.PM_limit, ...
       'markermindist', [max(t)/200, 1])); % leichtes Ausdünnen der Marker
+    % Grenzen für Zustände einzeichnen
+    for v = [s.phi_min, s.phi_max]*180/pi
+      plot(t_tref([1; end]), repmat(v,2,1), 'k--');
+    end
     cbtext = sprintf('h=%s(%s)', s.cost_mode, disp_array(wn_names, '%s'));
     if any(PlotData.I_exc(:))
       cbtext = [cbtext, sprintf('; Log: h>%1.0f', PlotData.condsat_limit_rel)];
