@@ -526,8 +526,18 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
                 'keine Lösung\n'], i, l-z);
             end
-            if z_l == z_k && s.verbose % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
-              fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+            % Bei der Stufenoptimierung kann es passieren, dass die
+            % konstante Orientierung nicht mehr versucht wird, weil auf der
+            % vorherigen Stufe schon ein Optimierungs-Wert abseits der
+            % konstanten Zustände genommen wurde. Einmal probieren.
+            if all(isnan(YE_stage(k,1:z))) && ... % vorher kein Erfolg auf der Stufe mit vorgegebenen Stufen
+                mod(k,z)==l-z % Passende Zuordnung der Nummern (Annahme: Erste z Zustände normal, zweite z Zustände mit StageOpt)
+              z_l = z_k;
+            end
+            if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
+              if s.verbose
+                fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+              end
             else
               continue
             end
@@ -558,76 +568,120 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             % Bis zum Rand des Nachbar-Intervalls
             s_Pos.xlim = [NaN(5,2); [-1, 1]* 1.2 * delta_phi/2];
           end
-          if R.Type == 0 % Seriell
-            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
-          else % PKM
-            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
-            if false % Debug Pos.-IK
-              figure(2000);clf;
-              Iter = 1:1+Stats_PosIK.iter;
-              if R.Type == 0, I_constr_red = [1 2 3 5 6];
-              else,           I_constr_red = R.I_constr_red; end
-              subplot(3,3,1);
-              plot(Stats_PosIK.condJ(Iter,:));
-              xlabel('Iterationen'); grid on;
-              ylabel('cond(J)');
-              legend({'IK-Jacobi', 'Jacobi'});
-              subplot(3,3,2);
-              plot([diff(Stats_PosIK.Q(Iter,:),1,1);NaN(1,R.NJ)]);
-              xlabel('Iterationen'); grid on;
-              ylabel('diff q');
-              subplot(3,3,3); hold on;
-              Stats_X = R.fkineEE2_traj(Stats_PosIK.Q(Iter,:));
-              Stats_X(:,6) = denormalize_angle_traj(Stats_X(:,6));
-              I_Phi_iO = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-6,2);
-              I_Phi_med = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-3,2)&~I_Phi_iO;
-              I_Phi_niO = ~I_Phi_iO & ~I_Phi_med;
-              legdhl = NaN(3,1);
-              if any(I_Phi_iO)
-                legdhl(1)=plot(Iter(I_Phi_iO), 180/pi*Stats_X(I_Phi_iO,6), 'gv');
+          % Beschränke die Grenzen für die Koordinate noch weiter basierend
+          % auf der maximalen Geschwindigkeit und Beschleunigung. Angabe
+          % von Grenzen relativ zum aktuellen Wert
+          xlim_from_vmax = [-1;1]*s.xDlim(6,2)/(t_i(end)-t_i(1));
+          % Maximales Bang-Bang-Beschleunigungs-Rechteck. +amax dann -amax
+          % Nutze dafür die Zeit die effektiv für die Bewegung vorgesehen ist.
+          % Sollte konsistent zur ähnlichen Prüfung unten sein.
+          ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
+          xlim_from_amax = [-1;1]*2*0.5*s.xDDlim(6,2)*((t_i(ii1)-t_i(1))/2)^2; % 1/2*a*t²
+          % Bestimme neue Grenzen
+          s_Pos.xlim(6,1) = max([s_Pos.xlim(6,1);xlim_from_vmax(1);xlim_from_amax(1)]);
+          s_Pos.xlim(6,2) = min([s_Pos.xlim(6,2);xlim_from_vmax(2);xlim_from_amax(2)]);
+          calc_posik = true;
+          if ~isempty(s.debug_dir)
+            resfile_2 = fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+              'to%d_stageopt_result.mat'], i-1, k, l));
+            if exist(resfile_2, 'file')
+              d = load(resfile_2);
+              if any(abs(d.xl_posik - xl_posik) > 1e-6) ||...
+                 all(size(d.q0_posik)==size(q0_posik)) && ...
+                 any(abs(d.q0_posik(:) - q0_posik(:)) > 1e-6) && ...
+                 any(abs(s_Pos.xlim(6,:)-d.s_Pos.xlim(6,:)) > 1e-6)
+                if s.verbose && calc_posik
+                  fprintf(['Geladene Daten passen nicht zu den Startwerten. ', ...
+                    'Kein weiteres Laden von Ergebnissen versuchen.\n']);
+                  s.continue_saved_state = false;
+                end
+              else % Laden die gespeicherten Daten
+                q_i = d.q_i;
+                Phi_i = d.Phi_i;
+                Stats_PosIK = d.Stats_PosIK;
+                calc_posik = false;
               end
-              if any(I_Phi_med)
-                legdhl(2)=plot(Iter(I_Phi_med), 180/pi*Stats_X(I_Phi_med,6), 'mo');
-              end
-              if any(I_Phi_niO)
-                legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
-              end
-              plot(Iter, 180/pi*Stats_X(:,6), 'k-');
-              legdhl(4) = plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
-              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
-              legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3', 'Limit'};
-              legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
-              xlabel('Iterationen'); grid on;
-              ylabel('phi_z in deg');
-              qlim = cat(1,R.Leg(:).qlim);
-              qlim_range = qlim(:,2)-qlim(:,1);
-              Stats_Q_norm = (Stats_PosIK.Q(Iter,:)-repmat(qlim(:,1)',1+Stats_PosIK.iter,1))./ ...
-                              repmat(qlim_range',1+Stats_PosIK.iter,1);
-              subplot(3,3,4);
-              plot([Stats_Q_norm(Iter,:);NaN(1,R.NJ)]);
-              xlabel('Iterationen'); grid on;
-              ylabel('q norm');
-              subplot(3,3,5);
-              plot([diff(Stats_PosIK.PHI(Iter,I_constr_red));NaN(1,length(I_constr_red))]);
-              xlabel('Iterationen'); grid on;
-              ylabel('diff Phi');
-              subplot(3,3,6);
-              plot(Stats_PosIK.PHI(Iter,I_constr_red));
-              xlabel('Iterationen'); grid on;
-              ylabel('Phi');
-              subplot(3,3,7);
-              plot(diff(Stats_PosIK.h(Iter,[true,s_Pos.wn'~=0])));
-              xlabel('Iterationen'); grid on;
-              ylabel('diff h');
-              subplot(3,3,8);
-              plot(Stats_PosIK.h(Iter,[true,s_Pos.wn'~=0]));
-              critnames = fields(R.idx_ikpos_hn)';
-              legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
-              xlabel('Iterationen'); grid on;
-              ylabel('h');
-              linkxaxes
             end
           end
+          if calc_posik
+            if R.Type == 0 % Seriell
+              [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
+            else % PKM
+              [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
+            end
+            if ~isempty(s.debug_dir)
+              % Speichere Zustands-Transfer ab
+              Stats_PosIK_full = Stats_PosIK;
+              % Reduziere Felder, sonst werden die tmp-Dateien zu groß.
+              Stats_PosIK = struct('h', Stats_PosIK_full.h, 'iter', Stats_PosIK_full.iter);
+              save(resfile_2, 'q_i', 'Phi_i', 'xl_posik', 'q0_posik', 's_Pos', 'Stats_PosIK');
+            end
+          end
+          if false && R.Type == 2 % Debug Pos.-IK für PKM
+            figure(2000);clf;
+            Iter = 1:1+Stats_PosIK_full.iter;
+            if R.Type == 0, I_constr_red = [1 2 3 5 6];
+            else,           I_constr_red = R.I_constr_red; end
+            subplot(3,3,1);
+            plot(Stats_PosIK_full.condJ(Iter,:));
+            xlabel('Iterationen'); grid on;
+            ylabel('cond(J)');
+            legend({'IK-Jacobi', 'Jacobi'});
+            subplot(3,3,2);
+            plot([diff(Stats_PosIK_full.Q(Iter,:),1,1);NaN(1,R.NJ)]);
+            xlabel('Iterationen'); grid on;
+            ylabel('diff q');
+            subplot(3,3,3); hold on;
+            Stats_X = R.fkineEE2_traj(Stats_PosIK_full.Q(Iter,:));
+            Stats_X(:,6) = denormalize_angle_traj(Stats_X(:,6));
+            I_Phi_iO = all(abs(Stats_PosIK_full.PHI(Iter,I_constr_red))<1e-6,2);
+            I_Phi_med = all(abs(Stats_PosIK_full.PHI(Iter,I_constr_red))<1e-3,2)&~I_Phi_iO;
+            I_Phi_niO = ~I_Phi_iO & ~I_Phi_med;
+            legdhl = NaN(3,1);
+            if any(I_Phi_iO)
+              legdhl(1)=plot(Iter(I_Phi_iO), 180/pi*Stats_X(I_Phi_iO,6), 'gv');
+            end
+            if any(I_Phi_med)
+              legdhl(2)=plot(Iter(I_Phi_med), 180/pi*Stats_X(I_Phi_med,6), 'mo');
+            end
+            if any(I_Phi_niO)
+              legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
+            end
+            plot(Iter, 180/pi*Stats_X(:,6), 'k-');
+            legdhl(4) = plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
+            plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
+            legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3', 'Limit'};
+            legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
+            xlabel('Iterationen'); grid on;
+            ylabel('phi_z in deg');
+            qlim = cat(1,R.Leg(:).qlim);
+            qlim_range = qlim(:,2)-qlim(:,1);
+            Stats_Q_norm = (Stats_PosIK_full.Q(Iter,:)-repmat(qlim(:,1)',1+Stats_PosIK_full.iter,1))./ ...
+                            repmat(qlim_range',1+Stats_PosIK_full.iter,1);
+            subplot(3,3,4);
+            plot([Stats_Q_norm(Iter,:);NaN(1,R.NJ)]);
+            xlabel('Iterationen'); grid on;
+            ylabel('q norm');
+            subplot(3,3,5);
+            plot([diff(Stats_PosIK_full.PHI(Iter,I_constr_red));NaN(1,length(I_constr_red))]);
+            xlabel('Iterationen'); grid on;
+            ylabel('diff Phi');
+            subplot(3,3,6);
+            plot(Stats_PosIK_full.PHI(Iter,I_constr_red));
+            xlabel('Iterationen'); grid on;
+            ylabel('Phi');
+            subplot(3,3,7);
+            plot(diff(Stats_PosIK_full.h(Iter,[true,s_Pos.wn'~=0])));
+            xlabel('Iterationen'); grid on;
+            ylabel('diff h');
+            subplot(3,3,8);
+            plot(Stats_PosIK_full.h(Iter,[true,s_Pos.wn'~=0]));
+            critnames = fields(R.idx_ikpos_hn)';
+            legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
+            xlabel('Iterationen'); grid on;
+            ylabel('h');
+            linkxaxes
+          end % debug-plot
           if ~task_redundancy % Wieder auf nicht-redundant zurücksetzen
             R.update_EE_FG(R.I_EE, R.I_EE);
           end
@@ -662,11 +716,17 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               x_i_neu(end) > xl_posik(end) + s_Pos.xlim(6,2)
             if s.verbose
               fprintf(['Optimierung mit Positions-IK führt zu unzulässigem ', ...
-                'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: %1.1f°\n'], ...
+                'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: ', ...
+                '%1.1f°. Setze auf Grenze.\n'], ...
                 i, l, 180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), ...
                 180/pi*(xl_posik(end) + s_Pos.xlim(6,2)), 180/pi*x_i_neu(end));
             end
-            continue
+            % Setze auf die Grenzen
+            if x_i_neu(end) < xl_posik(end) + s_Pos.xlim(6,1)
+              x_i_neu(end) = xl_posik(end) + s_Pos.xlim(6,1);
+            else
+              x_i_neu(end) = xl_posik(end) + s_Pos.xlim(6,2);
+            end
           end
           % Nehme mit Positions-IK berechneten neuen Wert als Zielwert
           if s.verbose
