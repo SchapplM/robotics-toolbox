@@ -96,6 +96,8 @@
 %     1: Fehler Positions-IK
 %     2: Ungültiger Wert für nächste Iteration (NaN im Nullraum)
 %     3: Abbruch durch Überschreitung von Zielkriterien
+%     4: Abbruch wegen Verletzung der Gelenk-Geschwindigkeitsgrenze (Platzhalter)
+%     5: Abbruch wegen Verletzung der Gelenk-Beschleunigungsgrenze (Platzhalter)
 
 % Diese Datei ist identisch mit: ParRob/invkin_traj.m
 % Generierung einer kompilierbaren Matlab-Funktion aus Vorlage.

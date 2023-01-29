@@ -45,6 +45,8 @@ s = struct( ...
   'phi_lim_x0_dependent', true, ... % Diskrete Werte für phi hängen von Anfangswert ab
   'xDlim', R.xDlim, ... % Minimale und maximale EE-Geschw. (6x2). Letzte Zeile für Optimierungsvariable
   'xDDlim', R.xDDlim, ... % Minimale und maximale EE-Beschleunigung.
+  'constraint_qDlim', true, ... % Breche ab bei Verletzung der Gelenk-Geschw.-Grenze
+  'constraint_qDDlim', true, ... % Breche ab bei Verletzung der Gelenk-Beschl.-Grenze
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
   'cost_mode', 'RMStime', ... 
@@ -280,7 +282,7 @@ if isempty(phi_range), phi_range = x0(6); end % Falls es nur einen Zustand gibt
 X_t_in(:,6) = NaN;  XD_t_in(:,6) = NaN; XDD_t_in(:,6) = NaN;
 test_x0 = [x0(1:3)-X_t_in(1,1:3)'; angleDiff(x0(4:6),X_t_in(1,4:6)')];
 assert(all(abs(test_x0(1:5)) < 1e-4), sprintf(['q0 und x0 ', ...
-  'stimmen nicht. Fehler: [%s]mm, [%s]°'], disp_array(1e3*test_x0(4:5)', '%1.2e'), ...
+  'stimmen nicht. Fehler: [%s]mm, [%s]°'], disp_array(1e3*test_x0(1:3)', '%1.2e'), ...
   disp_array(180/pi*test_x0(4:5)', '%1.1f')));
 % Weitere Variablen vorbereiten
 IE = s.IE; % Indizes der Eckpunkte (DP-Zustände)
@@ -310,10 +312,8 @@ if s.stageopt_posik
   % Begrenzung der redundanten Koordinate wieder einsetzen
   s_Pos.wn(R.idx_ikpos_wn.xlim_hyp) = 1e4; % sehr stark von Grenzen abstoßen
   s_Pos.wn(R.idx_ikpos_wn.xlim_par) = 0; %  ohne linearen Term
-  % Intervall für redundante Koordinate. Bis zum Rand des
-  % Nachbar-Intervalls und etwas weiter, da das hyperbolische Kriterium bei
-  % 80% der Spannweite aktiv wird.
-  s_Pos.xlim = [NaN(5,2); [-1, 1]*1.2 * delta_phi/2];
+  % Die Grenzen xlim müssen unten in Abhängigkeit des Startwertes
+  % festgelegt werden, da die Angabe relativ dazu ist.
 end
 % Endwerte für die Gelenkkonfiguration der optimalen Teilstrategie für jede
 % Stufe (aus Vorwärts-Iteration). Setze eine virtuelle Stufe 0 in die
@@ -387,6 +387,10 @@ if s.verbose > 1
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
       'PM_limit', s.PM_limit, ...
       'markermindist', [max(t)/200, 1])); % leichtes Ausdünnen der Marker
+    % Grenzen für Zustände einzeichnen
+    for v = [s.phi_min, s.phi_max]*180/pi
+      plot(t_tref([1; end]), repmat(v,2,1), 'k--');
+    end
     cbtext = sprintf('h=%s(%s)', s.cost_mode, disp_array(wn_names, '%s'));
     if any(PlotData.I_exc(:))
       cbtext = [cbtext, sprintf('; Log: h>%1.0f', PlotData.condsat_limit_rel)];
@@ -522,8 +526,18 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
                 'keine Lösung\n'], i, l-z);
             end
-            if z_l == z_k && s.verbose % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
-              fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+            % Bei der Stufenoptimierung kann es passieren, dass die
+            % konstante Orientierung nicht mehr versucht wird, weil auf der
+            % vorherigen Stufe schon ein Optimierungs-Wert abseits der
+            % konstanten Zustände genommen wurde. Einmal probieren.
+            if all(isnan(YE_stage(k,1:z))) && ... % vorher kein Erfolg auf der Stufe mit vorgegebenen Stufen
+                mod(k,z)==l-z % Passende Zuordnung der Nummern (Annahme: Erste z Zustände normal, zweite z Zustände mit StageOpt)
+              z_l = z_k;
+            end
+            if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
+              if s.verbose
+                fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+              end
             else
               continue
             end
@@ -544,76 +558,130 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           else
             q0_posik = [squeeze(QE_stage(:,k,I_distsort)), qs, q0];
           end
+          s_Pos.retry_limit = size(q0_posik,2); % Keine darüber hinausgehenden zufälligen Neuversuche
           xl_posik(end) = z_l; % Ist-Rotation. Wird als Mittelpunkt für Grenzen xlim benutzt. Sonst keine Auswirkung, da mit 3T2R gerechnet wird
-          if R.Type == 0 % Seriell
-            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
-          else % PKM
-            [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
-            if false % Debug Pos.-IK
-              figure(2000);clf;
-              Iter = 1:1+Stats_PosIK.iter;
-              if R.Type == 0, I_constr_red = [1 2 3 5 6];
-              else,           I_constr_red = R.I_constr_red; end
-              subplot(3,3,1);
-              plot(Stats_PosIK.condJ(Iter,:));
-              xlabel('Iterationen'); grid on;
-              ylabel('cond(J)');
-              legend({'IK-Jacobi', 'Jacobi'});
-              subplot(3,3,2);
-              plot([diff(Stats_PosIK.Q(Iter,:),1,1);NaN(1,R.NJ)]);
-              xlabel('Iterationen'); grid on;
-              ylabel('diff q');
-              subplot(3,3,3); hold on;
-              Stats_X = R.fkineEE2_traj(Stats_PosIK.Q(Iter,:));
-              Stats_X(:,6) = denormalize_angle_traj(Stats_X(:,6));
-              I_Phi_iO = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-6,2);
-              I_Phi_med = all(abs(Stats_PosIK.PHI(Iter,I_constr_red))<1e-3,2)&~I_Phi_iO;
-              I_Phi_niO = ~I_Phi_iO & ~I_Phi_med;
-              legdhl = NaN(3,1);
-              if any(I_Phi_iO)
-                legdhl(1)=plot(Iter(I_Phi_iO), 180/pi*Stats_X(I_Phi_iO,6), 'gv');
+          % Intervall für redundante Koordinate. Muss aktualisiert werden.
+          if length(phi_range_fix) == 1 % Sonderfall: Nur ein Zustand (in Haupt-Modus)
+            % Nehme den kompletten erlaubten Bereich als Grenze
+            s_Pos.xlim = [NaN(5,2); xl_posik(6)-s.phi_max, xl_posik(6)-s.phi_min];
+          else
+            % Bis zum Rand des Nachbar-Intervalls
+            s_Pos.xlim = [NaN(5,2); [-1, 1]* 1.2 * delta_phi/2];
+          end
+          % Beschränke die Grenzen für die Koordinate noch weiter basierend
+          % auf der maximalen Geschwindigkeit und Beschleunigung. Angabe
+          % von Grenzen relativ zum aktuellen Wert
+          xlim_from_vmax = [-1;1]*s.xDlim(6,2)/(t_i(end)-t_i(1));
+          % Maximales Bang-Bang-Beschleunigungs-Rechteck. +amax dann -amax
+          % Nutze dafür die Zeit die effektiv für die Bewegung vorgesehen ist.
+          % Sollte konsistent zur ähnlichen Prüfung unten sein.
+          ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
+          xlim_from_amax = [-1;1]*2*0.5*s.xDDlim(6,2)*((t_i(ii1)-t_i(1))/2)^2; % 1/2*a*t²
+          % Bestimme neue Grenzen
+          s_Pos.xlim(6,1) = max([s_Pos.xlim(6,1);xlim_from_vmax(1);xlim_from_amax(1)]);
+          s_Pos.xlim(6,2) = min([s_Pos.xlim(6,2);xlim_from_vmax(2);xlim_from_amax(2)]);
+          calc_posik = true;
+          if ~isempty(s.debug_dir)
+            resfile_2 = fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+              'to%d_stageopt_result.mat'], i-1, k, l));
+            if exist(resfile_2, 'file')
+              d = load(resfile_2);
+              if any(abs(d.xl_posik - xl_posik) > 1e-6) ||...
+                 all(size(d.q0_posik)==size(q0_posik)) && ...
+                 any(abs(d.q0_posik(:) - q0_posik(:)) > 1e-6) && ...
+                 any(abs(s_Pos.xlim(6,:)-d.s_Pos.xlim(6,:)) > 1e-6)
+                if s.verbose && calc_posik
+                  fprintf(['Geladene Daten passen nicht zu den Startwerten. ', ...
+                    'Kein weiteres Laden von Ergebnissen versuchen.\n']);
+                  s.continue_saved_state = false;
+                end
+              else % Laden die gespeicherten Daten
+                q_i = d.q_i;
+                Phi_i = d.Phi_i;
+                Stats_PosIK = d.Stats_PosIK;
+                calc_posik = false;
               end
-              if any(I_Phi_med)
-                legdhl(2)=plot(Iter(I_Phi_med), 180/pi*Stats_X(I_Phi_med,6), 'mo');
-              end
-              if any(I_Phi_niO)
-                legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
-              end
-              plot(Iter, 180/pi*Stats_X(:,6), 'k-');
-              legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3'};
-              legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
-              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
-              plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
-              xlabel('Iterationen'); grid on;
-              ylabel('phi_z in deg');
-              qlim = cat(1,R.Leg(:).qlim);
-              qlim_range = qlim(:,2)-qlim(:,1);
-              Stats_Q_norm = (Stats_PosIK.Q(Iter,:)-repmat(qlim(:,1)',1+Stats_PosIK.iter,1))./ ...
-                              repmat(qlim_range',1+Stats_PosIK.iter,1);
-              subplot(3,3,4);
-              plot([Stats_Q_norm(Iter,:);NaN(1,R.NJ)]);
-              xlabel('Iterationen'); grid on;
-              ylabel('q norm');
-              subplot(3,3,5);
-              plot([diff(Stats_PosIK.PHI(Iter,I_constr_red));NaN(1,length(I_constr_red))]);
-              xlabel('Iterationen'); grid on;
-              ylabel('diff Phi');
-              subplot(3,3,6);
-              plot(Stats_PosIK.PHI(Iter,I_constr_red));
-              xlabel('Iterationen'); grid on;
-              ylabel('Phi');
-              subplot(3,3,7);
-              plot(diff(Stats_PosIK.h(Iter,[true,s_Pos.wn'~=0])));
-              xlabel('Iterationen'); grid on;
-              ylabel('diff h');
-              subplot(3,3,8);
-              plot(Stats.h(Iter,[true,s_Pos.wn'~=0]));
-              critnames = fields(R.idx_ikpos_wn)';
-              legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
-              xlabel('Iterationen'); grid on;
-              ylabel('h');
             end
           end
+          if calc_posik
+            if R.Type == 0 % Seriell
+              [q_i, Phi_i, ~, Stats_PosIK] = R.invkin2(R.x2tr(xl_posik), q0_posik, s_Pos);
+            else % PKM
+              [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
+            end
+            if ~isempty(s.debug_dir)
+              % Speichere Zustands-Transfer ab
+              Stats_PosIK_full = Stats_PosIK;
+              % Reduziere Felder, sonst werden die tmp-Dateien zu groß.
+              Stats_PosIK = struct('h', Stats_PosIK_full.h, 'iter', Stats_PosIK_full.iter);
+              save(resfile_2, 'q_i', 'Phi_i', 'xl_posik', 'q0_posik', 's_Pos', 'Stats_PosIK');
+            end
+          end
+          if false && R.Type == 2 % Debug Pos.-IK für PKM
+            figure(2000);clf;
+            Iter = 1:1+Stats_PosIK_full.iter;
+            if R.Type == 0, I_constr_red = [1 2 3 5 6];
+            else,           I_constr_red = R.I_constr_red; end
+            subplot(3,3,1);
+            plot(Stats_PosIK_full.condJ(Iter,:));
+            xlabel('Iterationen'); grid on;
+            ylabel('cond(J)');
+            legend({'IK-Jacobi', 'Jacobi'});
+            subplot(3,3,2);
+            plot([diff(Stats_PosIK_full.Q(Iter,:),1,1);NaN(1,R.NJ)]);
+            xlabel('Iterationen'); grid on;
+            ylabel('diff q');
+            subplot(3,3,3); hold on;
+            Stats_X = R.fkineEE2_traj(Stats_PosIK_full.Q(Iter,:));
+            Stats_X(:,6) = denormalize_angle_traj(Stats_X(:,6));
+            I_Phi_iO = all(abs(Stats_PosIK_full.PHI(Iter,I_constr_red))<1e-6,2);
+            I_Phi_med = all(abs(Stats_PosIK_full.PHI(Iter,I_constr_red))<1e-3,2)&~I_Phi_iO;
+            I_Phi_niO = ~I_Phi_iO & ~I_Phi_med;
+            legdhl = NaN(3,1);
+            if any(I_Phi_iO)
+              legdhl(1)=plot(Iter(I_Phi_iO), 180/pi*Stats_X(I_Phi_iO,6), 'gv');
+            end
+            if any(I_Phi_med)
+              legdhl(2)=plot(Iter(I_Phi_med), 180/pi*Stats_X(I_Phi_med,6), 'mo');
+            end
+            if any(I_Phi_niO)
+              legdhl(3)=plot(Iter(I_Phi_niO), 180/pi*Stats_X(I_Phi_niO,6), 'rx');
+            end
+            plot(Iter, 180/pi*Stats_X(:,6), 'k-');
+            legdhl(4) = plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,1))*[1;1], 'k--');
+            plot(Iter([1, end])', 180/pi*(xl_posik(end) + s_Pos.xlim(6,2))*[1;1], 'k--');
+            legstr = {'Phi<1e-6', 'Phi<1e-3', 'Phi>1e-3', 'Limit'};
+            legend(legdhl(~isnan(legdhl)), legstr(~isnan(legdhl)));
+            xlabel('Iterationen'); grid on;
+            ylabel('phi_z in deg');
+            qlim = cat(1,R.Leg(:).qlim);
+            qlim_range = qlim(:,2)-qlim(:,1);
+            Stats_Q_norm = (Stats_PosIK_full.Q(Iter,:)-repmat(qlim(:,1)',1+Stats_PosIK_full.iter,1))./ ...
+                            repmat(qlim_range',1+Stats_PosIK_full.iter,1);
+            subplot(3,3,4);
+            plot([Stats_Q_norm(Iter,:);NaN(1,R.NJ)]);
+            xlabel('Iterationen'); grid on;
+            ylabel('q norm');
+            subplot(3,3,5);
+            plot([diff(Stats_PosIK_full.PHI(Iter,I_constr_red));NaN(1,length(I_constr_red))]);
+            xlabel('Iterationen'); grid on;
+            ylabel('diff Phi');
+            subplot(3,3,6);
+            plot(Stats_PosIK_full.PHI(Iter,I_constr_red));
+            xlabel('Iterationen'); grid on;
+            ylabel('Phi');
+            subplot(3,3,7);
+            plot(diff(Stats_PosIK_full.h(Iter,[true,s_Pos.wn'~=0])));
+            xlabel('Iterationen'); grid on;
+            ylabel('diff h');
+            subplot(3,3,8);
+            plot(Stats_PosIK_full.h(Iter,[true,s_Pos.wn'~=0]));
+            critnames = fields(R.idx_ikpos_hn)';
+            legend(['w.sum',critnames(s_Pos.wn'~=0)], 'interpreter', 'none');
+            xlabel('Iterationen'); grid on;
+            ylabel('h');
+            linkxaxes
+          end % debug-plot
           if ~task_redundancy % Wieder auf nicht-redundant zurücksetzen
             R.update_EE_FG(R.I_EE, R.I_EE);
           end
@@ -626,7 +694,14 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
           if any(isinf(Stats_PosIK.h(1+Stats_PosIK.iter,:)))
             if s.verbose
-              fprintf('Nebenbedingung in zusätzlicher Optimierung überschritten bei %d/%d\n', i, l);
+              critviol = {};
+              for f = fields(R.idx_ikpos_hn)'
+                if isinf(Stats_PosIK.h(1+Stats_PosIK.iter,1+R.idx_ikpos_hn.(f{1})))
+                  critviol = [critviol, f{1}]; %#ok<AGROW> 
+                end
+              end
+              fprintf(['Nebenbedingung (%s) in zusätzlicher Optimierung ', ...
+                'überschritten bei %d/%d\n'], disp_array(critviol, '%s'), i, l);
             end
             continue
           end
@@ -641,11 +716,17 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               x_i_neu(end) > xl_posik(end) + s_Pos.xlim(6,2)
             if s.verbose
               fprintf(['Optimierung mit Positions-IK führt zu unzulässigem ', ...
-                'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: %1.1f°\n'], ...
+                'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: ', ...
+                '%1.1f°. Setze auf Grenze.\n'], ...
                 i, l, 180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), ...
                 180/pi*(xl_posik(end) + s_Pos.xlim(6,2)), 180/pi*x_i_neu(end));
             end
-            continue
+            % Setze auf die Grenzen
+            if x_i_neu(end) < xl_posik(end) + s_Pos.xlim(6,1)
+              x_i_neu(end) = xl_posik(end) + s_Pos.xlim(6,1);
+            else
+              x_i_neu(end) = xl_posik(end) + s_Pos.xlim(6,2);
+            end
           end
           % Nehme mit Positions-IK berechneten neuen Wert als Zielwert
           if s.verbose
@@ -751,7 +832,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       nullspace_maxvel_interp(:,3) = [max(t_i(end)-s.Tv, nullspace_maxvel_interp(1,2)+eps); 0];
       % Bei Null bleiben bis zum Ende
       nullspace_maxvel_interp(:,4) = [t_i(end); 0];
-      s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
+      if R.I_EE_Task(end) == 0
+        s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
+      end
       % Grenzen für die redundante Koordinate erst schmal, dann weit und
       % dann wieder eng
       xlim6_interp = NaN(3,5); % Spalten: Zeitschritte
@@ -779,7 +862,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i)));
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)));
 %       grid on;
-      s_Traj.xlim6_interp = xlim6_interp;
+      if R.I_EE_Task(end) == 0
+        s_Traj.xlim6_interp = xlim6_interp;
+      end
       end % ~free_stage_transfer
       s_Traj_l = s_Traj;
       if free_stage_transfer
@@ -925,6 +1010,20 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           fprintf('Fehler ist sehr groß. Vermutlich inkonsistente Daten\n');
         end
       end
+      % Berechne Verletzung der Geschw.- oder Beschleunigungs-Grenzen.
+      % Positionsgrenzen werden über eigene Zielkriterien beachtet.
+      limviol_qD = false;
+      if s.constraint_qDlim
+        if any(max(abs(QD))' > qDlim(:,2))
+          limviol_qD = true;
+        end
+      end
+      limviol_qDD = false;
+      if s.constraint_qDDlim
+        if any(max(abs(QDD))' > qDDlim(:,2))
+          limviol_qDD = true;
+        end
+      end
       if Stats.iter < length(t_i) % Trajektorie nicht erfolgreich
         % Setze Strafterm unendlich
         F_stage(k,l) = inf;
@@ -932,6 +1031,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         % Wert für die redundante Koordinate ist außerhalb des Zielbereichs
         % Kann gelegentlich passieren, wenn enforce_xlim nicht richtig funktioniert.
         F_stage(k,l) = inf;
+        Stats.errorcode = 3; % entspricht dem Wert aus der Funktion
+      elseif limviol_qD
+        F_stage(k,l) = inf;
+        Stats.errorcode = 4; % zur korrekten Verarbeitung weiter unten
+      elseif limviol_qDD
+        F_stage(k,l) = inf;
+        Stats.errorcode = 5; % zur korrekten Verarbeitung weiter unten
       else % Erfolgreich berechnet
         % Kostenfunktion für DP aus IK-Zielfunktion bestimmen:
         % Bedingung: Kriterium ist addierbar über die gestückelte Trajektorie
@@ -1108,8 +1214,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         set(fighdl_trajdbg, 'NumberTitle', 'off', 'Name', sprintf(...
           'i%d_k%d_l%d_TrajDbg', i, k, l));
       end
-      % Speichere Ergebnis für bei Erfolg Trajektorie ab. Sonst NaN lassen.
-      if ~isinf(F_stage(k,l))
+      % Speichere Ergebnis bei Erfolg der Trajektorie ab. Sonst NaN lassen.
+      if ~isinf(F_stage(k,l)) % || any(Stats.errorcode==[3 4 5]) % evtl. doch speichern, falls Nutzung geplant
         QE_stage(:, k, l) = Q(end,:)'; % Gelenkkonfiguration (Vermeidung von Umklappen)
         YE_stage(k, l) = X_l(end,6); % EE-Drehung / kontinuierliche Optimierungsvariable
       end
@@ -1180,6 +1286,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               % Steht im Zusammenhang zu einer IK-Singularität, aber
               % anderer Marker
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
+              break;
+            elseif any(Stats.errorcode == [4 5]) % Geschw.-Beschl.-Verletzung
+              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'kx');
               break;
             elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) >= ...
@@ -1580,10 +1689,12 @@ if s.verbose > 2 % Debug-Plot für die Referenztrajektorie
   plot(t, XDD_t_in(:,6));
 end
 % Eintragen der Verläufe von Optimierungsvariable und ihrer Geschwindigkeit
-s_Traj.xlim6_interp = xlim6_interp;
-nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
-  IE, s.Tv, s.T_dec_ns , diff(t(1:2)));
-s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
+if R.I_EE_Task(6) == 0
+  s_Traj.xlim6_interp = xlim6_interp;
+  nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
+    IE, s.Tv, s.T_dec_ns , diff(t(1:2)));
+  s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
+end
 % Kein Abbrechen der Trajektorie mehr, wenn Toleranzband verletzt wird.
 % Dieses war nur Mittel zum Zweck für die DP (bzw. dort auch deaktiviert)
 % TODO: enforce_xlim hier wieder deaktivieren?
@@ -1642,7 +1753,9 @@ if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. ei
   grid on; ylabel('phi z optimal, Stützstellen');
   xlabel('Zeit in s');
   subplot(2,2,3);hold on;
-  plot(t, interp1(nullspace_maxvel_interp(1,:),nullspace_maxvel_interp(2,:), t));
+  if R.I_EE_Task(6) == 0
+    plot(t, interp1(nullspace_maxvel_interp(1,:),nullspace_maxvel_interp(2,:), t));
+  end
   plot(t(IE), zeros(length(IE),1), 'rs');
   grid on; ylabel('Geschwindigkeitsgrenze, Nullraum, norm');
   sgtitle(dpfinalhdl1, 'Soll-Trajektorie aus Dynamischer Programmierung');
