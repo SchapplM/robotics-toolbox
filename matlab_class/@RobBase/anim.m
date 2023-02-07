@@ -320,7 +320,8 @@ if ~isempty(s_anim.mp4_name)
   compress_video_file(s_anim.avi_name, avi_only_temp, 1);
   % Verschiebe die erzeugte mp4-Datei an den gewünschten Zielort
   [~,d] = fileparts(s_anim.avi_name);
-  if ~isempty(s_anim.tmpdir)
-    movefile(fullfile(s_anim.tmpdir, [d, '.mp4']), s_anim.mp4_name);
+  mp4file = fullfile(s_anim.tmpdir, [d, '.mp4']);
+  if ~isempty(s_anim.tmpdir) && exist(mp4file, 'file')
+    movefile(mp4file, s_anim.mp4_name);
   end
 end
