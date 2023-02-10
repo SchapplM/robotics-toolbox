@@ -30,6 +30,7 @@
 %   nojoints
 %     0: Gelenke werden gezeichnet (Zylinder/Quader) [standard]
 %     1: Keine Gelenke zeichnen, nur Segmente
+%     2: Quader für Schubgelenke nicht weglassen (alter Modus)
 %   length_frames
 %     Länge der Koordinatensysteme im Plot
 % 
@@ -57,7 +58,7 @@ s_std = struct( ...
              'only_bodies', false, ... % Nur Körper zeichnen (STL/Ellipsoid); keine Gelenke/Sonstiges
              'jointcolors', 'serial', ... % Farben für die Gelenke
              'jointsize', [0.15, 0.04], ... % Höhe und Durchmesser
-             'nojoints', false, ...
+             'nojoints', 0, ...
              'length_frames', 0.20); 
 if nargin < 3
   % Keine Einstellungen übergeben. Standard-Einstellungen
@@ -97,7 +98,7 @@ q_JV = Rob.jointvar(qJ);
 
 %% Gelenke zeichnen (als Zylinder oder Quader)
 % Wenn CAD-Modell vorliegt, brauchen die Gelenke nicht gezeichnet werden.
-if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
+if ~s.only_bodies && all(s.mode ~= 2) && s.nojoints ~= 1
   % Verschiedene Gelenkfarben für serielle/hybride Roboter und PKM
   % Ursache: Für PKM wird mu=2 für aktive Gelenke gesetzt. Bei
   % seriell-hybriden Ketten ist noch entscheidend, ob ein Gelenk abhängig
@@ -133,7 +134,7 @@ if ~s.only_bodies && all(s.mode ~= 2) && ~s.nojoints
       end
     end
     % Zeichne kein Schubgelenk, wenn ein 3D-Schubzylinder da ist
-    if any(s.mode == 4) && Rob.DesPar.joint_type(i) ==  5
+    if any(s.mode == 4) && Rob.DesPar.joint_type(i) ==  5 && s.nojoints ~= 2
       continue
     end
     
