@@ -21,13 +21,15 @@ function [I_rel] = get_relevant_pkin(Rob, I_EE)
 I_rel = false(length(Rob.pkin),1);
 % zufällige Gelenkwinkel
 q = rand(Rob.NJ,1);
+% Parameter festlegen
+pkin = Rob.pkin;
+pkin(isnan(pkin)) = rand(sum(isnan(pkin)),1);
 for i = 1:length(Rob.pkin)
   % Zufälliges Variieren des Parameters
-
-  T_EE_orig = Rob.fkineEE(q);
+  T_EE_orig = Rob.fkineEE_vp(q, pkin);
   x_orig = [T_EE_orig(1:3,4); r2eul(T_EE_orig(1:3,1:3), Rob.phiconv_W_E)];
   for j = 1:3 % drei Versuche zum Ausprobieren
-    pkin_test = Rob.pkin;
+    pkin_test = pkin;
     pkin_test(i) = pkin_test(i) + rand(1,1);
     % Vergleich, ob Parameter Einfluss hatte
     T_EE_test = Rob.fkineEE_vp(q, pkin_test);
