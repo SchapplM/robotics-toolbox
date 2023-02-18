@@ -11,7 +11,7 @@
 %   4 a
 %   5 theta
 %   6 d
-%   7 offset (TODO: Noch nicht implementiert)
+%   7 offset
 % jointnumber
 %   Nummer des Gelenks in der MDH-Tabelle, das der Parameter beschreibt
 
@@ -32,12 +32,13 @@ pkin(3,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(
 pkin(4,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
 pkin(5,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
 pkin(6,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, zeros(Rob.NJ,1)); 
+pkin(7,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1), ones(Rob.NJ,1)*NaN); 
 
 % Übersetze die Parameter zwischen Varianten und allgemeinem Modell
 if ~strcmp(Rob.mdlname, Rob.mdlname_var)
   gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', Rob.mdlname_var));
   pkin_var = NaN(6,length(Rob.pkin));
-  for i = 1:6
+  for i = 1:7
     pkin_var(i,:) = gen2var_hdl(pkin(i,:));
   end
 else
@@ -45,8 +46,10 @@ else
 end
 
 % Erkenne Pameter-Typ durch Ort der NaN in der Matrix
+% Offset-Parameter hat Einfluss auf theta- und auf Offset-Spalte. Da Offset
+% am Ende kommt, wird die Zuweisung 5 (theta) dann korrekt überschrieben mit 7
 types = zeros(size(pkin_var,2),1);
-for i = 1:6
+for i = 1:7
   types(isnan(pkin_var(i,:))) = uint8(i);
 end
 
