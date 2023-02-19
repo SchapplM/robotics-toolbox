@@ -147,8 +147,11 @@ classdef SerRob < RobBase
       %   wurde (bildet den Präfix aller Funktionsdateien)
       % mdlname_var:
       %   Name der Variante, die dieser Roboter bezüglich mdlname darstellt
-
+      if nargin == 0
+        return
+      end
       R.mdlname = mdlname;
+
       if nargin < 3
         mdlname_var = mdlname;
       end
