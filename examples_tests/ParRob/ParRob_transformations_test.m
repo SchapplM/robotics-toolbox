@@ -13,7 +13,7 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 0.5, 0.2);
+RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', '', 0.5, 0.2);
 RP.fill_fcn_handles(false);
 RP.align_platform_coupling(4, [0.2;0.1]);
 

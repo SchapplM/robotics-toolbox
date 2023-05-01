@@ -117,7 +117,7 @@ for DynParMode = 1:4
     paramfile_robot = fullfile(tmpdir_params, sprintf('%s_params.mat', PName));
     parroblib_update_template_functions({PName}, true);
     %% Roboter Initialisieren
-    RP = parroblib_create_robot_class(PName, 1, 0.3);
+    RP = parroblib_create_robot_class(PName, '', 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
     files_missing = RP.fill_fcn_handles(false, false);
     % Prüfe, ob die Dynamik-Implementierung in symbolischer Form vorliegt

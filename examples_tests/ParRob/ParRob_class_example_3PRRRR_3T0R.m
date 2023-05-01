@@ -55,7 +55,7 @@ for PKMName = PKM_selection
   %% Klasse für PKM erstellen
   % PKM laden (aus Bibliothek)
   parroblib_update_template_functions(PKMName(1));
-  RP = parroblib_create_robot_class(PKMName{1}, 0.5, 0.2);
+  RP = parroblib_create_robot_class(PKMName{1}, '', 0.5, 0.2);
   RP.fill_fcn_handles(true, true);
   % Kinematik-Parameter belegen
   fprintf('Kinematik-Parameter von %s:\n', RP.Leg(1).mdlname);

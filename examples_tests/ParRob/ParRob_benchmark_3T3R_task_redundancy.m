@@ -73,7 +73,7 @@ format_mlines = { 'r', 'v', '-', 8; ...
 for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
   %% Klasse für PKM erstellen (basierend auf PKM-Bibliothek)
   if robnr == 1
-    RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
+    RP = parroblib_create_robot_class('P3RRR1G1P1A1', '', 1.0, 0.2);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     % Nachbearbeitung einiger Kinematikparameter
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.6;
@@ -82,9 +82,9 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       RP.Leg(i).update_mdh(pkin_gen);
     end
   elseif robnr == 2
-    RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', 1.0, 0.2);
+    RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', '', 1.0, 0.2);
   elseif robnr == 3
-    RP = parroblib_create_robot_class('P6PRRRRR6V4G8P1A1', [0.8;0.3;pi/3], 0.2);
+    RP = parroblib_create_robot_class('P6PRRRRR6V4G8P1A1', '', [0.8;0.3;pi/3], 0.2);
     pkin_6_PUS = zeros(length(RP.Leg(1).pkin),1); % Namen, siehe RP.Leg(1).pkin_names
     pkin_6_PUS(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.2;
     pkin_6_PUS(strcmp(RP.Leg(1).pkin_names,'theta1')) = -pi/2; % So drehen, dass a2 nach oben zeigt
@@ -96,7 +96,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
       RP.Leg(i).update_EE(zeros(3,1),zeros(3,1));
     end
   elseif robnr == 4
-    RP = parroblib_create_robot_class('P6RRRRRR10G1P1A1', 1.3, 0.3);
+    RP = parroblib_create_robot_class('P6RRRRRR10G1P1A1', '', 1.3, 0.3);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     % Nachbearbeitung einiger Kinematikparameter
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'d1')) = 0.0; % Ergibt kein Sinn für PKM
@@ -114,7 +114,7 @@ for robnr = 1:5 % 1: 3RRR; 2: 6UPS; 3: 6PUS; 4:6RRRRRR; 5: 3T1R-PKM
     end
   elseif robnr == 5 % 3T1R-PKM mit Drehgelenken
     % Parameter aus Maßsynthese
-    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', 0.64, 0.23);
+    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', '', 0.64, 0.23);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'d1')) = 0.0;
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = -0.42;

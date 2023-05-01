@@ -23,7 +23,7 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbaRP.');
   return
 end
-RP = parroblib_create_robot_class('P3RRR1G1P1A1', 0.75, 0.25);
+RP = parroblib_create_robot_class('P3RRR1G1P1A1', '', 0.75, 0.25);
 parroblib_update_template_functions({'P3RRR1G1P1A1'});
 RP.fill_fcn_handles(usr_use_mex, true);
 pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);

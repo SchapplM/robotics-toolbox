@@ -108,7 +108,7 @@ for i_FG = 1:size(EEFG_Ges,1)
 %     matlabfcn2mex({[PName_Legs,'_invkin']});
 %     matlabfcn2mex({[PName_Legs,'_invkin_traj']});
     
-    RP = parroblib_create_robot_class(PName, 1, 0.3);
+    RP = parroblib_create_robot_class(PName, '', 1, 0.3);
     % Initialisierung der Funktionen: Kompilierte Funktionen nehmen
     files_missing = RP.fill_fcn_handles(true, true);
 

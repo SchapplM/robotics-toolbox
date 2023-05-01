@@ -18,7 +18,7 @@ if isempty(which('parroblib_path_init.m'))
   warning('Repo mit parallelen Robotermodellen ist nicht im Pfad. Beispiel nicht ausführbar.');
   return
 end
-RP = parroblib_create_robot_class('P6RRRRRR10V3G1P1A2', 1.5, 0.3);
+RP = parroblib_create_robot_class('P6RRRRRR10V3G1P1A2', '', 1.5, 0.3);
 RP.fill_fcn_handles(false, false); % keine mex-Funktionen, einfache Rechnung
 % Lade Kinematik-Parameter des KR 30-3 und schreibe sie in die
 % Kinematikparameter dieses Robotermodells. Durch Umweg über das allgemeine

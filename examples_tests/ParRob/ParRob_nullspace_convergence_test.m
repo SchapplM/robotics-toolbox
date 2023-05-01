@@ -59,7 +59,7 @@ end
 for robnr = 1:5
   %% Initialisierung
   if robnr == 1 % 3RRR
-    RP = parroblib_create_robot_class('P3RRR1G1P1A1', 1.0, 0.2);
+    RP = parroblib_create_robot_class('P3RRR1G1P1A1', '', 1.0, 0.2);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     % Nachbearbeitung einiger Kinematikparameter
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.6;
@@ -68,9 +68,9 @@ for robnr = 1:5
       RP.Leg(i).update_mdh(pkin_gen);
     end
   elseif robnr == 2 % 6UPS
-    RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', 1.0, 0.2);
+    RP = parroblib_create_robot_class('P6RRPRRR14V3G1P4A1', '', 1.0, 0.2);
   elseif robnr == 3 % 6PUS
-    RP = parroblib_create_robot_class('P6PRRRRR6V4G8P1A1', [0.8;0.3;pi/3], 0.2);
+    RP = parroblib_create_robot_class('P6PRRRRR6V4G8P1A1', '', [0.8;0.3;pi/3], 0.2);
     pkin = zeros(length(RP.Leg(1).pkin),1); % Namen, siehe RP.Leg(1).pkin_names
     pkin(strcmp(RP.Leg(1).pkin_names,'a2')) = 0.2;
     pkin(strcmp(RP.Leg(1).pkin_names,'theta1')) = -pi/2; % So drehen, dass a2 nach oben zeigt
@@ -80,7 +80,7 @@ for robnr = 1:5
       RP.Leg(i).update_mdh(pkin);
     end
   elseif robnr == 4 % 6RUS (Hexa)
-    RP = parroblib_create_robot_class('P6RRRRRR10V6G6P4A1', [0.2; 0.1], [0.2; 0.1]);
+    RP = parroblib_create_robot_class('P6RRRRRR10V6G6P4A1', '', [0.2; 0.1], [0.2; 0.1]);
     pkin = NaN(length(RP.Leg(1).pkin_names),1);
     pkin(strcmp(RP.Leg(1).pkin_names, 'd1')) = 0;
     pkin(strcmp(RP.Leg(1).pkin_names, 'a2')) = 0.4;
@@ -94,7 +94,7 @@ for robnr = 1:5
     end
   elseif robnr == 5 % 3T1R-PKM mit Drehgelenken
     % Parameter aus Maßsynthese
-    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', 0.64, 0.23);
+    RP = parroblib_create_robot_class('P4RRRRR5V1G2P1A1', '', 0.64, 0.23);
     pkin_gen = zeros(length(RP.Leg(1).pkin_names),1);
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'d1')) = 0.0;
     pkin_gen(strcmp(RP.Leg(1).pkin_names,'a2')) = -0.42;
