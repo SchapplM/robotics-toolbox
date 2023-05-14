@@ -18,26 +18,12 @@ if isempty(which('parroblib_path_init.m'))
   return
 end
 serroblib_update_template_functions({'S6RRRRRR10V3'});
-parroblib_update_template_functions({'P6RRRRRR10V3G6P4'});
-RP = parroblib_create_robot_class('P6RRRRRR10V3G6P4A1', '', [0.2; 0.1], [0.2; 0.1]);
+parroblib_update_template_functions({'P6RRRRRR10V6G6P4'});
+% Lade Parameter des Hexa2 (TU Braunschweig)
+% Die Ellenbogen dürfen nicht die Plattform-Ebene durchqueren. Daher
+% Gelenkgrenzen aus Modelldatenbank geladen.
+RP = parroblib_create_robot_class('P6RRRRRR10V6G6P4A1', 'P6RRRRRR10V6G6P4A1_TUBS_Hexa2');
 RP.fill_fcn_handles(true, true); % keine mex-Funktionen, einfache Rechnung
-
-pkin = NaN(length(RP.Leg(1).pkin_names),1);
-pkin(strcmp(RP.Leg(1).pkin_names, 'd1')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'a2')) = 0.3;
-pkin(strcmp(RP.Leg(1).pkin_names, 'd2')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'alpha2')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'a3')) = 0; % für Kardan-Gelenk
-pkin(strcmp(RP.Leg(1).pkin_names, 'd3')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'alpha3')) = pi/2;
-pkin(strcmp(RP.Leg(1).pkin_names, 'a4')) = 0.4;
-pkin(strcmp(RP.Leg(1).pkin_names, 'alpha4')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'd4')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'd6')) = 0;
-pkin(strcmp(RP.Leg(1).pkin_names, 'a6')) = 0;
-for i = 1:RP.NLEG
-  RP.Leg(i).update_mdh(pkin);
-end
 
 % Markiere Kardan- und Kugelgelenk (zum Plotten)
 for i = 1:RP.NLEG
@@ -47,14 +33,11 @@ end
 %% Grenzen für die Gelenkpositionen setzen
 % Dadurch wird die Schrittweite bei der inversen Kinematik begrenzt (auf 5%
 % der Spannbreite der Gelenkgrenzen) und die Konfiguration klappt nicht um.
-for i = 1:RP.NLEG
-  % Begrenze die Winkel der Kugel- und Kardangelenke auf +/- 360°
-  RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
-end
-qlim_pkm = cat(1, RP.Leg.qlim);
+% (bereits in gespeicherten Modelldaten hinterlegt)
+qlim_pkm = RP.update_qlim();
 %% Startpose bestimmen
 % Mittelstellung im Arbeitsraum
-X = [ [0.15;0.05;0.3]; [10;-10;5]*pi/180 ];
+X = [ [0.15;0.05;0.45]; [10;-10;5]*pi/180 ];
 q0 = qlim_pkm(:,1)+rand(36,1).*(qlim_pkm(:,2)-qlim_pkm(:,1));
 q0(1:6:end) = 60*pi/180; % Erstes Gelenk sollte nach außen zeigen
 q0(2:6:end) = -120*pi/180; % damit Außenstellung gelingt
@@ -62,7 +45,11 @@ q0(3:6:end) = 0;
 q0(4:6:end) = 0;
 q0(5:6:end) = 0;
 q0(6:6:end) = 0;
-[q, Phis, ~, Stats] = RP.invkin_ser(X, q0);
+% Die Gelenke sollen innerhalb der Grenzen bleiben
+s_ik = struct('retry_on_limitviol', true);
+[q, Phis, ~, Stats] = RP.invkin_ser(X, q0, s_ik);
+q_legs = reshape(q, RP.NLEG, RP.NJ/RP.NLEG)*180/pi;
+
 %% Zwangsbedingungen in Startpose testen
 Phi1=RP.constr1(q, X);
 Phit1=RP.constr1_trans(q, X);

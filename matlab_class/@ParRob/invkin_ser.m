@@ -11,9 +11,11 @@
 % Q0 [N x N_init]
 %   Anfangs-Gelenkwinkel für Algorithmus (werden nacheinander ausprobiert)
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
-% s
+% s_ser_in
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext. Identisch mit
-%   Feldern aus SerRob/invkin.m
+%   Feldern aus SerRob/invkin2.m
+% s_par_in
+%   Eingabedaten spezifisch für parallele Anordnung. Felder s.u.
 %
 % Ausgabe:
 % q [Nx1]
@@ -35,7 +37,8 @@
 %     Kondititionszahl im Verlauf der IK-Berechnung für alle Beinketten.
 %     Zuerst IK-Jacobi (erste Spalten), dann geom. Jacobi (letzte Spalten)
 %
-% Siehe auch: SerRob/invkin.m
+% Siehe auch: SerRob/invkin2.m
+% Identische Implementierung mit Funktionsaufruf: ParRob/invkin2.m
 %
 % TODO: Wenn die IK für die Beinkette funktioniert, aber dies keiner
 % gültigen IK für die PKM entspricht, wird ein Fehler aufgeworfen.
