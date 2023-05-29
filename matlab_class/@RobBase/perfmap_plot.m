@@ -18,7 +18,7 @@
 %   .PM_limit [true, false]
 %     Begrenze die Farben mit einem oberen Wert
 %   .s_range_plot
-%     Grenzen für die senkrechte Achse (redundante Koordinate)
+%     Grenzen für die waagerechte Achse (Zeit oder Trajektorienfortschritt)
 %   .phiz_range_plot
 %     Grenzen für die senkrechte Achse (redundante Koordinate)
 %   .wn [NK x 1]
