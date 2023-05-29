@@ -752,30 +752,95 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Finde den Index bis zum Zeitpunkt, ab dem die Bewegung aufhören
       % soll, damit noch die Verzögerungszeiten eingehalten werden können
       ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
-      % Prüfe, ob die Geschwindigkeit überhaupt realisierbar ist. Gehe nicht vom
-      % günstigsten Fall aus, dass das obere und untere Ende des Toleranz-
-      % bandes genutzt werden. Für Geschwindigkeits-Profil wichtig.
-      v = (abs(z_l - z_k))/(t_i(end)-t_i(1));
-      if v > s.xDlim(6,2)
-        if s.verbose
-          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
-            'erfordert Geschw. %1.1f rad/s größer als Grenze %1.1f rad/s.\n'], ...
-            i-1, k, 180/pi*z_k, i, l, 180/pi*z_l, (t_i(end)-t_i(1)), v, s.xDlim(6,2));
+      % Prüfe ob der Zustandswechsel mit einem Bang-Bang-Profil erreichbar ist.
+      q_test1 = z_l-z_k; qd_test1 = 0; qdd_test1 = 0; t_test1 = 0; % Init.
+      if abs(z_k-z_l) < 1e-12 % Keine Rechnung notwendig
+        % Benutze Null-Profil von oben zum Überspringen der Prüfung
+      else % Probeweise Berechnung der Trajektorie
+        try
+          [q_test1,qd_test1,qdd_test1,t_test1] = trapveltraj([0,z_l-z_k],ii1,...
+            'PeakVelocity',s.xDlim(6,2), 'Acceleration', s.xDDlim(6,2));
+        catch
+          % Für Fehler "The selected parameter combination for
+          % wayPoints(1,1:2) must satisfy the following constraint: 
+          % Velocity*EndTime/2 must be less than or equal to q(end)-q(0)."
+          try % Andere Eingabe ausprobieren
+            [q_test1,qd_test1,qdd_test1,t_test1] = trapveltraj([0,z_l-z_k],ii1,...
+              'EndTime',(t_i(ii1)-t_i(1)), 'Acceleration', s.xDDlim(6,2));
+          catch err
+            warning(sprintf(['Nicht behandelter Fehler in trapveltraj. ' ...
+              'Ignoriere Test. %s\n'], err.message)); %#ok<SPWRN> 
+          end
         end
-        continue
       end
-      % Prüfe, ob bei maximalem Bang-Bang-Beschleunigungs-Rechteck die Zeit
-      % ausreichen würde. Halbe Zeitspanne +amax, andere hälfte -amax.
-      deltaphi_bb = 2 * 0.5*s.xDDlim(6,2)*((t_i(ii1)-t_i(1))/2)^2; % 1/2*a*t²
-      if deltaphi_bb < abs(z_l - z_k)
+      z_l_changed = false;
+      if all(qdd_test1(1:end-1)~=0) && t_test1(end)>(t_i(ii1)-t_i(1))
+        % Trajektorie besteht nur aus -amax und +amax. 
+        % Reduziere den Weg auf den maximal damit möglichen
+        deltaphi_bb = 2 * 0.5*s.xDDlim(6,2)*((t_i(ii1)-t_i(1))/2)^2; % 1/2*a*t²
+        if s.stageopt_posik && l > z
+          warning(['Notwendige Beschleunigung zu groß nach Zustands', ...
+            'optimierung, obwohl die Grenzen angepasst sein sollten']);
+        end
+        % Korrigiere Zielwert
+        z_l_orig2 = z_l;
+        z_l = z_k + deltaphi_bb * sign(z_l_orig2 - z_k);
+        z_l_changed = true;
         if s.verbose
           fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
             'aufgrund Beschleunigungsgrenze %1.1fs rad/s² nicht möglich. ', ...
-            'Erlaubt nur Distanz %1.1f°\n'], i-1, k, 180/pi*z_k, i, l, ...
-            180/pi*z_l, (t_i(end)-t_i(1)), s.xDDlim(6,2), deltaphi_bb*180/pi);
+            'Erlaubt nur Distanz %1.1f°. Korrigiere Ziel auf %1.2f°\n'], ...
+            i-1, k, 180/pi*z_k, i, l, 180/pi*z_l_orig2, (t_i(end)-t_i(1)), ...
+            s.xDDlim(6,2), deltaphi_bb*180/pi, 180/pi*z_l);
         end
-        continue
+      elseif any(abs(qdd_test1) == s.xDDlim(6,2)) && t_test1(end)>(t_i(ii1)-t_i(1))
+        % Maximale Beschleunigung wird erreicht. Phase konstanter
+        % Geschwindigkeit würde zu lange dauern
+        I_a0 = qdd_test1==0;
+        % Dauer der Phase mit Beschleunigung=0
+        T_a0 = t_test1(find(I_a0,1,'last'))-t_test1(find(I_a0,1,'first'));
+        % Dauer der Beschleunigungsphase
+        T_a = 2*t_test1(find(I_a0,1,'first'));
+        % Neue Dauer mit Beschleunigung=0
+        T_a0_neu = (t_i(ii1)-t_i(1)-T_a);
+        if T_a0_neu < 0, T_a0_neu = 0; end % teilweise aufgrund der Diskretisierung keine Phase konstanter Geschw. mehr möglich.
+        % Damit zurücklegbarer Weg neu berechnen
+        deltaphi_i = abs(q_test1(find(I_a0,1,'first'))) + ... % Aus Beschl.-Phase
+          T_a0_neu * s.xDlim(6,2); % Aus neuer Phase konstanter Geschw.
+        z_l_orig = z_l;
+        z_l = z_k + deltaphi_i * sign(z_l_orig - z_k);
+        z_l_changed = true;
+        if s.verbose
+          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
+            'erfordert Phase konst. Geschw. (%1.2frad/s) von %1.2fs. Nach Abzug konst. ' ...
+            'Beschl. in %1.2fs nur %1.2fs verfügbar. Reduziere Ziel auf %1.2f°\n'], ...
+            i-1, k, 180/pi*z_k, i, l, 180/pi*z_l_orig, (t_i(end)-t_i(1)), ...
+            s.xDlim(6,2), T_a0, T_a, T_a0_neu, 180/pi*z_l);
+        end
+      elseif t_test1(end)>(t_i(ii1)-t_i(1)) || ...
+          any(abs(qd_test1)>s.xDlim(6,2)) || any(abs(qdd_test1)>s.xDDlim(6,2))
+        if s.verbose
+          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
+            'würde %1.2fs dauern (Geschw. %1.2frad/s, Beschl. %1.2frad/s²). ' ...
+            'Fall noch nicht abgefangen\n'], i-1, k, 180/pi*z_k, i, l, 180/pi*z_l, ...
+            t_i(end)-t_i(1), t_test1(end), max(abs(qd_test1)), max(abs(qdd_test1)));
+          continue
+        end
       end
+      % Vermeide doppelte Prüfungen aufgrund der geänderten Ziele wegen
+      % Geschwindigkeits- und Beschleunigungsgrenzen (bei Zustands- 
+      % optimierung nicht notwendig, da das Problem gar nicht auftreten kann)
+      if z_l_changed && l <= z % Normales Intervall / Zustand
+        if z_l < (phi_range(l) - delta_phi/2) || ...
+            z_l> (phi_range(l) + delta_phi/2)
+          if s.verbose
+            fprintf(['Nach der Änderung des Ziels auf %1.2f° liegt das Ziel ' ...
+              'in einem anderen Intervall. Vermeide doppelte Prüfung.\n'], 180/pi*z_l);
+          end
+          continue
+        end
+      end
+
       % Berechne eine Geschwindigkeits-Trapez-Trajektorie zur Annäherung an
       % eine Vorsteuerungs-Trajektorie (für die Mitte des Toleranzbandes).
       % Damit muss die Transition zwischen zwei Winkeln nicht nur über die
@@ -1288,8 +1353,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               % anderer Marker
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'gh');
               break;
-            elseif any(Stats.errorcode == [4 5]) % Geschw.-Beschl.-Verletzung
+            elseif Stats.errorcode == 4 % Gelenk-Geschw.-Verletzung
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'kx');
+              break;
+            elseif Stats.errorcode == 5 % Gelenk-Beschl.-Verletzung
+              plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'k+');
               break;
             elseif kk < length(PM_formats) && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) >= ...
