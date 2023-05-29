@@ -371,8 +371,8 @@ if s.verbose > 1
   PM_legtxt = {'Local Opt.', 'Invalid', 'Valid', 'Optimal', ... % für Trajektorien
     'DP', ... % Eckpunkte für DP (Endergebnis)
     'Joint Lim', 'Act. Sing.', 'IK Sing.', ... % Marker für Nebenbedingungs-Verletzung ...
-    'Collision', 'Install. Space', 'Out of Range'}; % ... aus Redundanzkarte
-  PM_formats = {'bx', 'g*', 'g^', 'co', 'gv', 'm+'}; % NB-Marker
+    'Collision', 'Install. Space', 'Position Error', 'Out of Range'}; % ... aus Redundanzkarte ...
+  PM_formats = {'bx', 'g*', 'g^', 'co', 'gv', 'go', 'm+'}; % ... dazu konsistente NB-Marker
   %% Redundanzkarte einzeichen (falls gegeben)
   if ~isempty(s.PM_H_all) && ~s.fastdebug
     abort_thresh_hpos = NaN(R.idx_ik_length.hnpos, 1);
@@ -399,7 +399,7 @@ if s.verbose > 1
       cbtext = [cbtext, sprintf('; h>%1.1e black', PlotData.colorlimit_rel)];
     end
     ylabel(Hdl_all.cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
-      PM_hdl(5+(1:6)) = Hdl_all.VM;
+      PM_hdl(5+(1:length(PM_formats))) = Hdl_all.VM;
   end
   xlabel('Zeit in s');
   ylabel('Redundante Koordinate in deg');
@@ -1272,15 +1272,16 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           % "Erkunde" zusätzlich die Zielfunktion und zeichne die Marker für
           % die Verletzung ein. Dann ist der Abbruchgrund der Trajektorie
           % direkt erkennbar. Es muss nur der letzte Bahnpunkt geprüft werden
-          for kk = 1:7 % über mögliche Fälle für den Abbruchgrund
+          for kk = 1:length(PM_formats)+1 % über mögliche Fälle für den Abbruchgrund
             switch kk % siehe gleiche Schleife oben
               case 1, hname = 'qlim_hyp';
               case 2, hname = 'jac_cond';
               case 3, hname = 'ikjac_cond';
               case 4, hname = 'coll_hyp';
               case 5, hname = 'instspc_hyp';
-              case 6, hname = ''; % IK ungültig / nicht lösbar (Reichweite)
-              case 7 % Zum Abfangen sonstiger Abbruchgründe 
+              case 6, hname = 'poserr_ee';
+              case length(PM_formats), hname = ''; % IK ungültig / nicht lösbar (Reichweite)
+              case length(PM_formats)+1 % Zum Abfangen sonstiger Abbruchgründe 
             end
             if any(Stats.errorcode == [1 2]) % IK-Fehler
               % Steht im Zusammenhang zu einer IK-Singularität, aber
@@ -1290,11 +1291,11 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             elseif any(Stats.errorcode == [4 5]) % Geschw.-Beschl.-Verletzung
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), 'kx');
               break;
-            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
+            elseif kk < length(PM_formats) && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) >= ...
                 s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))
               % Kriterium kk wurde überschritten. Weiter zum Plot.
-            elseif kk < 6 && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
+            elseif kk < length(PM_formats) && Stats.errorcode == 3 && ... % Abbruchgrund muss die Überschreitung sein
                 ( Stats.h(iter_l,1+R.idx_iktraj_hn.(hname)) < ...
                 s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname)) || ...
                 isnan(s_Traj.abort_thresh_h(R.idx_iktraj_hn.(hname))) )
@@ -1314,7 +1315,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               end
               plot(t_i(iter_l), 180/pi*X_l(iter_l,6), marker);
               break;
-            elseif kk == 6 && ~isnan(Stats.h(iter_l,1))
+            elseif kk == length(PM_formats) && ~isnan(Stats.h(iter_l,1))
               continue
             else % Keiner der vorherigen Fälle hat gepasst. Unklar, was passiert ist
               if ~isempty(s.debug_dir)
