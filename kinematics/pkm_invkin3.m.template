@@ -510,8 +510,10 @@ for rr = 0:retry_limit % Schleife über Neu-Anfänge der Berechnung
           1.5*s.cond_thresh_ikjac, s.cond_thresh_ikjac); %  zwischen Null
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... und der
           1.5*s.cond_thresh_jac, s.cond_thresh_jac); %      Konditionszahl
-        dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
-        h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
+        if wn(idx_wn.poserr_ee) ~= 0
+          dx_poserr = abs(inv(Jinv(I_qa,Rob_I_EE))) * s.q_poserr(I_qa);
+          h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
+        end
         % Zwei verschiedene Arten zur Berechnung der Nullraumbewegung, je
         % nachdem, ob die Beinketten schon geschlossen sind, oder nicht.
         % Beide Varianten werden im Debug-Modus gegeneinander geprüft.
