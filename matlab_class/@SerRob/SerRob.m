@@ -1188,6 +1188,13 @@ classdef SerRob < RobBase
       % Die resultierende Gl. ist M*qDD+...+K*(q-q0) = tau_ext
       tau_s = R.DesPar.joint_stiffness(:).*(q-R.DesPar.joint_stiffness_qref(:));
     end
+    function TAU_s = springtorque_traj(R, Q)
+      % Trajektorie von Gelenkfeder-Momenten
+      TAU_s = NaN(size(Q));
+      for i = 1:size(Q,1)
+        TAU_s(i,:) = R.springtorque(Q(i,:)');
+      end
+    end
     function U_s = epotspring(R, q)
       % Energie der in der in Gelenken angebrachten Drehfeder
       % Eingabe:

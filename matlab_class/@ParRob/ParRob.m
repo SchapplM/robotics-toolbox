@@ -583,6 +583,57 @@ classdef ParRob < RobBase
       JinvD_num_voll = G_q\(GD_q*(G_q\G_x)) - G_q\GD_x;
       JinvD_qD_xD = JinvD_num_voll(R.I_qa,:);
     end
+    function JinvP = jacobi_q_xE_2_jacobi_q_xP(R, Jinv_E, xE, xP)
+      % Umrechnung der Jacobi-Matrix von EE- in Plattform-Koordinaten
+      % Eingabe:
+      % Jinv_E: Inverse Jacobi-Matrix (Verhältnis Antriebs-Geschw. zu
+      % Endeffektor-Geschw. mit Euler-Zeitableitung)
+      % xE: EE-Koordinaten (6x1) (im Basis-KS)
+      % xP: Plattform-Koordinaten (6x1) (im Basis-KS)
+      % Ausgabe:
+      % Jinv_E: Inverse Jacobi-Matrix (Verhältnis Antriebs-Geschw. zu
+      % Plattform-Geschw. mit Euler-Zeitableitung)
+      if nargin < 3
+        xP = R.xE2xP(xE);
+      end
+      % Bezogen auf EE-Position, Euler-Winkel als Rotation
+      JinvE_fullx = zeros(R.NJ, 6);
+      JinvE_fullx(:,R.I_EE) = Jinv_E;
+      H_xE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE(4:6), R.phiconv_W_E)];
+      % Bezogen auf EE-Position, geometrische Rotation
+      JinvE_fulls = JinvE_fullx / H_xE;
+      % Umrechnung der geometrischen Jacobi auf die Plattform (statt EE)
+      T_0_E = R.x2t(xE);
+      r_P_P_E = R.T_P_E(1:3,4);
+      r_E_P_E = R.T_P_E(1:3,1:3)' * r_P_P_E;
+      r_0_P_E = T_0_E(1:3,1:3)*r_E_P_E;
+      A_E_P = adjoint_jacobian(r_0_P_E);
+      JinvP_fulls = JinvE_fulls * A_E_P;
+      % Zurückrechnen auf die Euler-Winkel-Rotation (Plattform)
+      H_xP = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+      JinvP_fullx = JinvP_fulls * H_xP;
+      JinvP = JinvP_fullx(:,R.I_EE);
+    end
+    function JinvP_ges = jacobi_q_xE_2_jacobi_q_xP_traj(R, JinvE_ges, XE, XP)
+      % Umrechnung der Jacobi-Matrix von EE- in Plattform-Koordinaten als
+      % Trajektorie
+      % Eingabe:
+      % JinvE_ges: Zeilenweise EE-Jacobi-Matrizen (bezogen auf EE-Koord.)
+      % XE: Zeilenweise EE-Posen
+      % XP: Zeilenweise dazugehörige Plattform-Posen
+      %
+      % Ausgabe:
+      % JinvP_ges: Zeilenweise Jacobi-Matrizen bezogen auf Plattform-Koord.
+      if nargin < 3
+        XP = R.xE2xP_traj(XE);
+      end
+      JinvP_ges = NaN(size(JinvE_ges));
+      for i = 1:size(JinvE_ges)
+        JinvE_i = reshape(JinvE_ges(i,:), R.NJ, sum(R.I_EE));
+        JinvP_i = R.jacobi_q_xE_2_jacobi_q_xP(JinvE_i, XE(i,:)', XP(i,:)');
+        JinvP_ges(i,:) = JinvP_i(:);
+      end
+    end
     function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
       % Inverse Dynamik bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten

@@ -47,6 +47,10 @@ s = struct( ...
   'xDDlim', R.xDDlim, ... % Minimale und maximale EE-Beschleunigung.
   'constraint_qDlim', true, ... % Breche ab bei Verletzung der Gelenk-Geschw.-Grenze
   'constraint_qDDlim', true, ... % Breche ab bei Verletzung der Gelenk-Beschl.-Grenze
+  ... Grundlage der Berechnung der Kostenfunktion. Möglich: 
+  ... ik_criterion (skalares Kriterium aus der inversen Kinematik),
+  ... actvelo (Antriebsgeschwindigkeit)
+  'cost_criterion', 'ik_criterion', ...
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
   'cost_mode', 'RMStime', ... 
@@ -115,10 +119,12 @@ if R.Type == 0
   qlim = R.qlim;
   qDlim = R.qDlim;
   qDDlim = R.qDDlim;
+  use_spring_torque = any(R.DesPar.joint_stiffness);
 else
   qlim = cat(1,R.Leg.qlim);
   qDlim = cat(1,R.Leg.qDlim);
   qDDlim = cat(1,R.Leg.qDDlim);
+  use_spring_torque = any(R.Leg(1).DesPar.joint_stiffness);
 end
 if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
   if ~isempty(s.PM_H_all)
@@ -955,6 +961,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if exist(resfile_l, 'file')
           d = load(resfile_l);
           if ~isfield(d, 'z_l') || ... % Altes Speicherformat. Daten fehlen.
+              ~isfield(d, 'JinvE_ges') || ... , ...
               size(d.Q,1) ~= length(t_i) || ... % Länge ist falsch.
               abs(d.X6_traj(1) - z_k) > 1e-6 || ... % Anfangswert ist anders. Passt nicht.
               any(abs(d.Q(1,:) - qs')>1e-8) || ... % Startkonfiguration stimmt nicht überein
@@ -968,6 +975,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             Q = d.Q;
             QD = d.QD;
             QDD = d.QDD;
+            JinvE_ges = d.JinvE_ges;
             Stats = d.Stats;
             calc_traj = false;
           end
@@ -987,8 +995,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       if calc_traj
         if R.Type == 0 % Seriell
           [Q, QD, QDD, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
+          JinvE_ges = []; % Platzhalter
         else % PKM
-          [Q, QD, QDD, ~, ~, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
+          [Q, QD, QDD, ~, JinvE_ges, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
         end
         if s.verbose
           fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
@@ -1109,7 +1118,34 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         % Es wird nicht die Summe `Stats.h(:,1)` aus der
         % Trajektorien-Funktion benutzt, da diese auch die DP-Kriterien 
         % xlim_hyp und xlim_par enthält. Diese sind später bedeutungslos.
-        hsum = sum(repmat(wn_hcost, Stats.iter, 1) .* Stats.h(:,2:end), 2);
+        if strcmp(s.cost_criterion, 'ik_criterion')
+          hsum = sum(repmat(wn_hcost, Stats.iter, 1) .* Stats.h(:,2:end), 2);
+        elseif strcmp(s.cost_criterion, 'actvelo')
+          % Berechne maximale Antriebsgeschwindigkeit in der Trajektorie
+          if R.Type == 0,     QD_a = QD; % Seriell
+          elseif R.Type == 1, QD_a = QD(:,R.MDH.mu==1); % Hybrid
+          else,               QD_a = QD(:,R.I_qa); % Parallel
+          end
+          hsum = max(abs(QD_a),[],2); % Maximum aller Antriebe für jeden Zeitschritt
+        elseif strcmp(s.cost_criterion, 'actforce')
+          % Berechne maximale Antriebskraft in der Trajektorie
+          if R.Type == 0
+            TAU_a = R.invdyn2_traj(Q, QD, QDD);
+            if use_spring_torque
+              TAU_a = TAU_a + R.springtorque_traj(Q);
+            end
+          else
+            [XP_t_l, XDP_t_l, XDDP_t_l] = R.xE2xP_traj(X_t_l, XD_t_l, XDD_t_l);
+            JinvP_ges = R.jacobi_q_xE_2_jacobi_q_xP_traj(JinvE_ges, X_t_l, XP_t_l);
+            TAU_a = R.invdyn2_actjoint_traj(Q, QD, QDD, XP_t_l, XDP_t_l, XDDP_t_l, JinvP_ges);
+            if use_spring_torque
+              TAU_a = TAU_a + R.jointtorque_actjoint_traj(Q, XP_t_l, R.springtorque_traj(Q), JinvP_ges);
+            end
+          end
+          hsum = max(abs(TAU_a),[],2); % Maximum aller Antriebe für jeden Zeitschritt
+        else
+          error('Fall %s nicht definiert', s.cost_criterion);
+        end
         if strcmp(s.cost_mode, 'average')
           F_stage(k,l) = mean(hsum);
         elseif strcmp(s.cost_mode, 'RMStime') % Integration über Zeit
@@ -1117,7 +1153,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         elseif strcmp(s.cost_mode, 'RMStraj') % Integration über Bahnkoordinate
           F_stage(k,l) =  sqrt(trapz(s_i, hsum.^2)/s_i(end));
         else
-         F_stage(k,l) = max(hsum);
+          F_stage(k,l) = max(hsum);
         end
         % Mittlere Konditionszahl als weiteres Entscheidungskriterium
         F_stage_cond(k,l) = mean(Stats.condJ(:,2)); % Aktuierungs-J. / geom. J.
@@ -1290,7 +1326,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         X6_traj_ref = X_t_l(:,6);
         save(fullfile(s.debug_dir, sprintf('dp_stage%d_state%d_to%d_result.mat', ...
           i-1, k, l)), 'Q', 'QD', 'QDD', 'Stats', 'X6_traj', 'i', 'k', 'l', ...
-          's_Traj_l', 'z_l', 'X6_traj_ref', 'xlim6_interp');
+          's_Traj_l', 'z_l', 'X6_traj_ref', 'xlim6_interp', 'JinvE_ges');
       end
       % Eintragen der Linie in die Redundanzkarte
       if s.verbose > 1 && iter_l > 0 % Debug-Plot
