@@ -367,7 +367,7 @@ if s.verbose > 1
   sgtitle(figikhdl, sprintf('Redundanzkarte für alle Stufen'));
   set(figikhdl, 'Name', sprintf('DynProg_PerfMap'), 'NumberTitle', 'off');
   % Handles für Linien und Marker vorbereiten. Für Legende ganz am Ende.
-  PM_hdl = NaN(10,1);
+  PM_hdl = NaN(12,1);
   % Dummy-Einträge für eingezeichnete Linien in Redundanzkarte
   PM_hdl(1) = plot(NaN,NaN,'c-');
   PM_hdl(2) = plot(NaN,NaN,'k-');
@@ -388,7 +388,7 @@ if s.verbose > 1
           s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}));
       end
     end
-    [Hdl_all, ~, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
+    [Hdl_all, s_pmp, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
       t_tref, struct( ...
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
       'PM_limit', s.PM_limit, ...
@@ -405,7 +405,13 @@ if s.verbose > 1
       cbtext = [cbtext, sprintf('; h>%1.1e black', PlotData.colorlimit_rel)];
     end
     ylabel(Hdl_all.cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
-      PM_hdl(5+(1:length(PM_formats))) = Hdl_all.VM;
+    PM_hdl(6) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'qlim_hyp'));
+    PM_hdl(7) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'jac_cond'));
+    PM_hdl(8) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'ikjac_cond'));
+    PM_hdl(9) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'coll_hyp'));
+    PM_hdl(10) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'instspc_hyp'));
+    % Nr. 11 (Position Error) wird nicht in perfmap_plot eingezeichnet
+    PM_hdl(12) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'invalid'));
   end
   xlabel('Zeit in s');
   ylabel('Redundante Koordinate in deg');
@@ -1896,10 +1902,14 @@ if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. ei
     % Zeichne Stützstellen aus DP ein. Dadurch Abweichung der finalen
     % Trajektorie zu Rast-zu-Rast-Trajektorie aus DP deutlich
     plot(t(IE(I_validstates)), 180/pi*XE(I_validstates,6), 'rs');
-    % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
-    I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
-    legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
   end
+end
+% Legende immer zeichnen (auch wenn keine Lösung vorliegt)
+if s.verbose > 1
+  change_current_figure(figikhdl);
+  % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
+  I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
+  legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
 end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
