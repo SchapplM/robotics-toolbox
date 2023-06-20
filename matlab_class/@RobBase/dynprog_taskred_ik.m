@@ -766,7 +766,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
       % Prüfe ob der Zustandswechsel mit einem Bang-Bang-Profil erreichbar ist.
       q_test1 = z_l-z_k; qd_test1 = 0; qdd_test1 = 0; t_test1 = 0; % Init.
-      if abs(z_k-z_l) < 1e-12 % Keine Rechnung notwendig
+      if abs(z_k-z_l) < 1e-10 % Keine Rechnung notwendig (Toleranz muss konsistent mit trapveltraj sein)
         % Benutze Null-Profil von oben zum Überspringen der Prüfung
       else % Probeweise Berechnung der Trajektorie
         try
@@ -858,24 +858,31 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Damit muss die Transition zwischen zwei Winkeln nicht nur über die
       % Nullraumbewegung gemacht werden. Darauf aufbauend sind trotzdem
       % Nullraum-Bewegungen möglich.
-      if abs(z_k-z_l) < 1e-12 % bei 3T3R-IK auch exakt gleiche Werte
+      if abs(z_k-z_l) < 1e-10 % bei 3T3R-IK auch exakt gleiche Werte
         % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
         X_t_l(1:ii1,6) = z_k;
         XD_t_l(1:ii1,6) = 0;
         XDD_t_l(1:ii1,6) = 0;
       else
-        [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
-          'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
-        if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
-          if ~isempty(s.debug_dir)
-            save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
-              'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+        try
+          [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
+            'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+          if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
+            if ~isempty(s.debug_dir)
+              save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+                'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+            end
+            error('Profilzeiten stimmen nicht');
           end
-          error('Profilzeiten stimmen nicht');
-        end
-        % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
-        if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
-          X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
+          % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
+          if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
+            X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
+          end
+        catch err
+          X_t_l(1:ii1,6) = z_k;
+          XD_t_l(1:ii1,6) = 0;
+          XDD_t_l(1:ii1,6) = 0;
+          warning(sprintf('Fehler bei trapveltraj: %s', err.message)); %#ok<SPWRN> 
         end
       end
       X_t_l(ii1+1:end,6) = X_t_l(ii1,6); % letzten Wert halten
