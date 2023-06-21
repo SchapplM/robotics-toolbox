@@ -50,6 +50,7 @@ s = struct( ...
   ... Grundlage der Berechnung der Kostenfunktion. Möglich: 
   ... ik_criterion (skalares Kriterium aus der inversen Kinematik),
   ... actvelo (Antriebsgeschwindigkeit)
+  ... actforce (Antriebskraft)
   'cost_criterion', 'ik_criterion', ...
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
@@ -77,6 +78,7 @@ s = struct( ...
   ... % Indizes für Eckpunkte der Trajektorie. Eckpunkte sind Rastpunkte und
   ... % Optimierungs-Zustände in der DP. Indizes bezogen auf `X_t_in` usw.
   'IE', [1, size(X_t_in,1)], ... 
+  'Fext', NaN(size(X_t_in,1), 6), ... % Falls Kräfte berechnet werden auch basierend auf externer Kraft möglich
   'debug_dir', '', ... % Verzeichnis zum Speichern aller Zwischenzustände
   'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
@@ -125,6 +127,11 @@ else
   qDlim = cat(1,R.Leg.qDlim);
   qDDlim = cat(1,R.Leg.qDDlim);
   use_spring_torque = any(R.Leg(1).DesPar.joint_stiffness);
+end
+if isfield(s, 'Fext') && any(s.Fext(:))
+  use_external_force = true;
+  assert(size(s.Fext,1)==size(X_t_in,1) && size(s.Fext,2)==6, ...
+    'Externe Kraft ist nicht konsistent zur Trajektorie');
 end
 if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
   if ~isempty(s.PM_H_all)
@@ -1147,12 +1154,30 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             if use_spring_torque
               TAU_a = TAU_a + R.springtorque_traj(Q);
             end
+            if use_external_force % siehe cds_obj_dependencies
+              TAU_a_ext = NaN(size(TAU_a));
+              for jj = 1:size(X_t_l,1)
+                J = R.jacobig(Q(jj,:)');
+                TAU_a_ext(jj,:) = - J' * s.Fext(jj,:)';
+              end
+              TAU_a = TAU_a + TAU_a_ext;
+            end
           else
             [XP_t_l, XDP_t_l, XDDP_t_l] = R.xE2xP_traj(X_t_l, XD_t_l, XDD_t_l);
             JinvP_ges = R.jacobi_q_xE_2_jacobi_q_xP_traj(JinvE_ges, X_t_l, XP_t_l);
             TAU_a = R.invdyn2_actjoint_traj(Q, QD, QDD, XP_t_l, XDP_t_l, XDDP_t_l, JinvP_ges);
             if use_spring_torque
               TAU_a = TAU_a + R.jointtorque_actjoint_traj(Q, XP_t_l, R.springtorque_traj(Q), JinvP_ges);
+            end
+            if use_external_force
+              TAU_a_ext = NaN(size(TAU_a));
+              for jj = 1:size(X_t_l,1)
+                Ja_inv_E = reshape(JinvE_ges(jj,:), R.NJ, sum(R.I_EE));
+                Tw = [eye(3,3), zeros(3,3); zeros(3,3), euljac(X_t_l(jj,4:6)', R.phiconv_W_E)];
+                F0_Eul = Tw' * s.Fext(jj,:)';
+                TAU_a_ext(jj,:) = - (Ja_inv_E(R.I_qa,:))' \ (F0_Eul(R.I_EE));
+              end
+              TAU_a = TAU_a + TAU_a_ext;
             end
           end
           hsum = max(abs(TAU_a),[],2); % Maximum aller Antriebe für jeden Zeitschritt
