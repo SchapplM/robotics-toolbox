@@ -1764,13 +1764,19 @@ for i = 1:size(XE,1)-1
 %   [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(i:i+1,6)', i2-i1+1,...
 %     'EndTime',t(i2)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
   % Alternative 2: Benutze die gleichen Referenzwerte wie oben.
-  if abs(phi2-phi1) < 1e-12 % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
-    X_t_in(i1:ii1,6) = phi1;
-    XD_t_in(i1:ii1,6) = 0;
-    XDD_t_in(i1:ii1,6) = 0;
+  X_t_in(i1:ii1,6) = phi1;
+  XD_t_in(i1:ii1,6) = 0;
+  XDD_t_in(i1:ii1,6) = 0;
+  if abs(phi2-phi1) < 1e-10 % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
+    % Nehme Werte von oben
   else
-    [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
-      'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+    try
+      [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
+        'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+    catch err % Nehme auch hier konstante Anfangswert an
+      warning(sprintf(['Nicht behandelter Fehler in trapveltraj %1.2f°->%1.2f°. ' ...
+        'Nehme konstante Geschw. an. %s\n'], 180/pi*phi1, 180/pi*phi2, err.message)); %#ok<SPWRN> 
+    end
   end
   X_t_in(ii1+1:i2,6) = X_t_in(ii1,6); % letzten Wert halten
   XD_t_in(ii1+1:i2,6) = 0;
