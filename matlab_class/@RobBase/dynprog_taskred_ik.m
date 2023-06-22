@@ -180,7 +180,7 @@ s_Traj = struct('enforce_qlim', false, ... % hier nicht relevant bzw. anderweiti
   ... % Plattform-Trajektorie in Toleranzband erzwingen. Sollte eigentlich
   ... % durch Kriterium xlim_hyp erreicht werden. Ist nur Rückfallebene
   'enforce_xlim', true, ... 
-  'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % hohe Genauigkeit für Positionskorrektur
+  'Phit_tol', 1e-11, 'Phir_tol', 1e-11); % hohe Genauigkeit für Positionskorrektur (1e-12 kann bei 3T1R-PKM teilw. numerisch nicht erreicht werden)
 % Gewichtungen der Nullraumoptimierung einstellen.
 s_Traj.wn = zeros(R.idx_ik_length.wntraj,1);
 wn_names = {}; % Namen der aktiven Nebenbedingungen
@@ -236,7 +236,7 @@ s_Traj.ik_solution_min_norm = false;
 for f = fields(s.settings_ik)'
   if any(strcmp(f{1}, {'cond_thresh_ikjac', 'optimcrit_limits_hyp_deact', ...
       'collbodies_thresh', 'installspace_thresh', 'cond_thresh_jac', ...
-      'thresh_ns_qa'}))
+      'thresh_ns_qa', 'Phit_tol', 'Phir_tol'}))
     s_Traj.(f{1}) = s.settings_ik.(f{1});
   end
 end
