@@ -58,8 +58,6 @@ s = struct( ...
   ... % Kriterium zur Entscheidung, falls mehrere Pfade hinsichtlich 
   ... % cost_mode gleich gut sind. Möglich: motion_redcoord, cond
   'cost_mode2', 'cond', ...
-  ... % Schwellwert zum Abbruch der Trajektorien-Kinematik
-  'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
   'use_free_stage_transfer', true, ...
   'overlap', false, ... % Die Zustände bei Redundanz-Optimierung werden zusätzlich überlappend gewählt
@@ -115,6 +113,10 @@ end
 if s.stageopt_posik && all(s.wn==0)
   warning('Modus stageopt_posik erfordert Angabe von IK-Nebenbedingungen in s.wn');
   s.stageopt_posik = false;
+end
+if ~isfield(s_in.settings_ik, 'abort_thresh_h')
+  % Schwellwert zum Abbruch der Trajektorien-Kinematik
+  s.settings_ik.abort_thresh_h = inf(R.idx_ik_length.hntraj, 1); % Standardmäßig alle Kriterien nutzen, die berechnet werden
 end
 %% Roboter-bezogene Variablen initialisieren
 if R.Type == 0
@@ -218,7 +220,7 @@ s_Traj.wn(R.idx_iktraj_wnP.xDlim_par) = 0.8;
 s_Traj.enforce_xDlim = true;
 % Sofort abbrechen, wenn eine der Nebenbedingungen verletzt wurde. Dadurch
 % schnellere Berechnung. Konfiguration über Eingabe möglich.
-s_Traj.abort_thresh_h = s.abort_thresh_h;
+s_Traj.abort_thresh_h = s.settings_ik.abort_thresh_h;
 % Einhaltung der Grenzen der Optimierungsvariable nicht erzwingen. Wird mit
 % enforce_xlim gemacht und so wird eine kurze, geringfügige Überschreitung
 % erlaubt. Falls inf gesetzt wird, erfolgt sofort ein Abbruch wenn die Traj.
@@ -970,7 +972,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         s_Traj_l.wn(R.idx_iktraj_wnP.xDlim_par) = 0;
         s_Traj_l.enforce_xlim = false;
         s_Traj_l.enforce_xDlim = false;
-        s_Traj_l.abort_thresh_h = s.abort_thresh_h;
+        s_Traj_l.abort_thresh_h = s.settings_ik.abort_thresh_h;
         s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = NaN;
         s_Traj_l.ik_solution_min_norm = true;
       end
