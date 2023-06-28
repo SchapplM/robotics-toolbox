@@ -923,7 +923,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       nullspace_maxvel_interp(:,3) = [max(t_i(end)-s.Tv, nullspace_maxvel_interp(1,2)+eps); 0];
       % Bei Null bleiben bis zum Ende
       nullspace_maxvel_interp(:,4) = [t_i(end); 0];
-      if R.I_EE_Task(end) == 0
+      if R.I_EE_Task(end) == 0 && s.T_dec_ns + s.Tv > 1e-10
         s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
       end
       % Grenzen für die redundante Koordinate erst schmal, dann weit und
@@ -953,7 +953,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i)));
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)));
 %       grid on;
-      if R.I_EE_Task(end) == 0
+      if s.T_dec_ns + s.Tv < 1e-10
+        % Passe so an, dass gültiges Plotten möglich ist
+        xlim6_interp = unique(xlim6_interp', 'rows')';
+      elseif R.I_EE_Task(end) == 0
         s_Traj.xlim6_interp = xlim6_interp;
       end
       end % ~free_stage_transfer
@@ -1838,7 +1841,7 @@ if s.verbose > 2 % Debug-Plot für die Referenztrajektorie
   plot(t, XDD_t_in(:,6));
 end
 % Eintragen der Verläufe von Optimierungsvariable und ihrer Geschwindigkeit
-if R.I_EE_Task(6) == 0
+if R.I_EE_Task(6) == 0 && s.T_dec_ns + s.Tv > 1e-10
   s_Traj.xlim6_interp = xlim6_interp;
   nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
     IE, s.Tv, s.T_dec_ns , diff(t(1:2)));
