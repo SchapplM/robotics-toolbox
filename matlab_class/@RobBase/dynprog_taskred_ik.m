@@ -50,6 +50,7 @@ s = struct( ...
   ... Grundlage der Berechnung der Kostenfunktion. Möglich: 
   ... ik_criterion (skalares Kriterium aus der inversen Kinematik),
   ... actvelo (Antriebsgeschwindigkeit)
+  ... actforce (Antriebskraft)
   'cost_criterion', 'ik_criterion', ...
   ... % Zusammensetzung der Kostenfunktion der Dynamischen Programmierung
   ... % über die Stufen. Möglich: average, max, RMStime, RMStraj
@@ -57,8 +58,6 @@ s = struct( ...
   ... % Kriterium zur Entscheidung, falls mehrere Pfade hinsichtlich 
   ... % cost_mode gleich gut sind. Möglich: motion_redcoord, cond
   'cost_mode2', 'cond', ...
-  ... % Schwellwert zum Abbruch der Trajektorien-Kinematik
-  'abort_thresh_h', inf(R.idx_ik_length.hntraj, 1), ... % Standardmäßig alle Kriterien nutzen, die berechnet werden
   ... % Freie Bewegung zusätzlich zu vorgegebenen Ziel-Intervallen zulassen
   'use_free_stage_transfer', true, ...
   'overlap', false, ... % Die Zustände bei Redundanz-Optimierung werden zusätzlich überlappend gewählt
@@ -77,6 +76,7 @@ s = struct( ...
   ... % Indizes für Eckpunkte der Trajektorie. Eckpunkte sind Rastpunkte und
   ... % Optimierungs-Zustände in der DP. Indizes bezogen auf `X_t_in` usw.
   'IE', [1, size(X_t_in,1)], ... 
+  'Fext', NaN(size(X_t_in,1), 6), ... % Falls Kräfte berechnet werden auch basierend auf externer Kraft möglich
   'debug_dir', '', ... % Verzeichnis zum Speichern aller Zwischenzustände
   'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
@@ -114,6 +114,10 @@ if s.stageopt_posik && all(s.wn==0)
   warning('Modus stageopt_posik erfordert Angabe von IK-Nebenbedingungen in s.wn');
   s.stageopt_posik = false;
 end
+if ~isfield(s_in.settings_ik, 'abort_thresh_h')
+  % Schwellwert zum Abbruch der Trajektorien-Kinematik
+  s.settings_ik.abort_thresh_h = inf(R.idx_ik_length.hntraj, 1); % Standardmäßig alle Kriterien nutzen, die berechnet werden
+end
 %% Roboter-bezogene Variablen initialisieren
 if R.Type == 0
   qlim = R.qlim;
@@ -125,6 +129,11 @@ else
   qDlim = cat(1,R.Leg.qDlim);
   qDDlim = cat(1,R.Leg.qDDlim);
   use_spring_torque = any(R.Leg(1).DesPar.joint_stiffness);
+end
+if isfield(s, 'Fext') && any(s.Fext(:))
+  use_external_force = true;
+  assert(size(s.Fext,1)==size(X_t_in,1) && size(s.Fext,2)==6, ...
+    'Externe Kraft ist nicht konsistent zur Trajektorie');
 end
 if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
   if ~isempty(s.PM_H_all)
@@ -173,7 +182,7 @@ s_Traj = struct('enforce_qlim', false, ... % hier nicht relevant bzw. anderweiti
   ... % Plattform-Trajektorie in Toleranzband erzwingen. Sollte eigentlich
   ... % durch Kriterium xlim_hyp erreicht werden. Ist nur Rückfallebene
   'enforce_xlim', true, ... 
-  'Phit_tol', 1e-12, 'Phir_tol', 1e-12); % hohe Genauigkeit für Positionskorrektur
+  'Phit_tol', 1e-11, 'Phir_tol', 1e-11); % hohe Genauigkeit für Positionskorrektur (1e-12 kann bei 3T1R-PKM teilw. numerisch nicht erreicht werden)
 % Gewichtungen der Nullraumoptimierung einstellen.
 s_Traj.wn = zeros(R.idx_ik_length.wntraj,1);
 wn_names = {}; % Namen der aktiven Nebenbedingungen
@@ -211,7 +220,7 @@ s_Traj.wn(R.idx_iktraj_wnP.xDlim_par) = 0.8;
 s_Traj.enforce_xDlim = true;
 % Sofort abbrechen, wenn eine der Nebenbedingungen verletzt wurde. Dadurch
 % schnellere Berechnung. Konfiguration über Eingabe möglich.
-s_Traj.abort_thresh_h = s.abort_thresh_h;
+s_Traj.abort_thresh_h = s.settings_ik.abort_thresh_h;
 % Einhaltung der Grenzen der Optimierungsvariable nicht erzwingen. Wird mit
 % enforce_xlim gemacht und so wird eine kurze, geringfügige Überschreitung
 % erlaubt. Falls inf gesetzt wird, erfolgt sofort ein Abbruch wenn die Traj.
@@ -229,7 +238,7 @@ s_Traj.ik_solution_min_norm = false;
 for f = fields(s.settings_ik)'
   if any(strcmp(f{1}, {'cond_thresh_ikjac', 'optimcrit_limits_hyp_deact', ...
       'collbodies_thresh', 'installspace_thresh', 'cond_thresh_jac', ...
-      'thresh_ns_qa'}))
+      'thresh_ns_qa', 'Phit_tol', 'Phir_tol'}))
     s_Traj.(f{1}) = s.settings_ik.(f{1});
   end
 end
@@ -367,7 +376,7 @@ if s.verbose > 1
   sgtitle(figikhdl, sprintf('Redundanzkarte für alle Stufen'));
   set(figikhdl, 'Name', sprintf('DynProg_PerfMap'), 'NumberTitle', 'off');
   % Handles für Linien und Marker vorbereiten. Für Legende ganz am Ende.
-  PM_hdl = NaN(10,1);
+  PM_hdl = NaN(12,1);
   % Dummy-Einträge für eingezeichnete Linien in Redundanzkarte
   PM_hdl(1) = plot(NaN,NaN,'c-');
   PM_hdl(2) = plot(NaN,NaN,'k-');
@@ -388,7 +397,7 @@ if s.verbose > 1
           s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}));
       end
     end
-    [Hdl_all, ~, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
+    [Hdl_all, s_pmp, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
       t_tref, struct( ...
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
       'PM_limit', s.PM_limit, ...
@@ -405,7 +414,13 @@ if s.verbose > 1
       cbtext = [cbtext, sprintf('; h>%1.1e black', PlotData.colorlimit_rel)];
     end
     ylabel(Hdl_all.cb, cbtext, 'Rotation', 90, 'interpreter', 'none');
-      PM_hdl(5+(1:length(PM_formats))) = Hdl_all.VM;
+    PM_hdl(6) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'qlim_hyp'));
+    PM_hdl(7) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'jac_cond'));
+    PM_hdl(8) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'ikjac_cond'));
+    PM_hdl(9) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'coll_hyp'));
+    PM_hdl(10) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'instspc_hyp'));
+    % Nr. 11 (Position Error) wird nicht in perfmap_plot eingezeichnet
+    PM_hdl(12) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'invalid'));
   end
   xlabel('Zeit in s');
   ylabel('Redundante Koordinate in deg');
@@ -760,7 +775,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       ii1 = floor( interp1(t_i, 1:length(t_i), t_i(end)-s.Tv-s.T_dec_ns) );
       % Prüfe ob der Zustandswechsel mit einem Bang-Bang-Profil erreichbar ist.
       q_test1 = z_l-z_k; qd_test1 = 0; qdd_test1 = 0; t_test1 = 0; % Init.
-      if abs(z_k-z_l) < 1e-12 % Keine Rechnung notwendig
+      if abs(z_k-z_l) < 1e-10 % Keine Rechnung notwendig (Toleranz muss konsistent mit trapveltraj sein)
         % Benutze Null-Profil von oben zum Überspringen der Prüfung
       else % Probeweise Berechnung der Trajektorie
         try
@@ -852,24 +867,31 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Damit muss die Transition zwischen zwei Winkeln nicht nur über die
       % Nullraumbewegung gemacht werden. Darauf aufbauend sind trotzdem
       % Nullraum-Bewegungen möglich.
-      if abs(z_k-z_l) < 1e-12 % bei 3T3R-IK auch exakt gleiche Werte
+      if abs(z_k-z_l) < 1e-10 % bei 3T3R-IK auch exakt gleiche Werte
         % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
         X_t_l(1:ii1,6) = z_k;
         XD_t_l(1:ii1,6) = 0;
         XDD_t_l(1:ii1,6) = 0;
       else
-        [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
-          'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
-        if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
-          if ~isempty(s.debug_dir)
-            save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
-              'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+        try
+          [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
+            'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+          if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
+            if ~isempty(s.debug_dir)
+              save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+                'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
+            end
+            error('Profilzeiten stimmen nicht');
           end
-          error('Profilzeiten stimmen nicht');
-        end
-        % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
-        if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
-          X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
+          % Fehlerkorrektur der Funktion. Manchmal sehr kleine Imaginärteile
+          if any(~isreal(X_t_l(:))) || any(~isreal(XD_t_l(:))) || any(~isreal(XDD_t_l(:)))
+            X_t_l = real(X_t_l); XD_t_l = real(XD_t_l); XDD_t_l = real(XDD_t_l);
+          end
+        catch err
+          X_t_l(1:ii1,6) = z_k;
+          XD_t_l(1:ii1,6) = 0;
+          XDD_t_l(1:ii1,6) = 0;
+          warning(sprintf('Fehler bei trapveltraj: %s', err.message)); %#ok<SPWRN> 
         end
       end
       X_t_l(ii1+1:end,6) = X_t_l(ii1,6); % letzten Wert halten
@@ -903,7 +925,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       nullspace_maxvel_interp(:,3) = [max(t_i(end)-s.Tv, nullspace_maxvel_interp(1,2)+eps); 0];
       % Bei Null bleiben bis zum Ende
       nullspace_maxvel_interp(:,4) = [t_i(end); 0];
-      if R.I_EE_Task(end) == 0
+      if R.I_EE_Task(end) == 0 && s.T_dec_ns + s.Tv > 1e-10
         s_Traj.nullspace_maxvel_interp = nullspace_maxvel_interp;
       end
       % Grenzen für die redundante Koordinate erst schmal, dann weit und
@@ -933,7 +955,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(2,:), t_i)));
 %       plot(t_i, 180/pi*(X_t_l(:,6)+interp1(xlim6_interp(1,:), xlim6_interp(3,:), t_i)));
 %       grid on;
-      if R.I_EE_Task(end) == 0
+      if s.T_dec_ns + s.Tv < 1e-10
+        % Passe so an, dass gültiges Plotten möglich ist
+        xlim6_interp = unique(xlim6_interp', 'rows')';
+      elseif R.I_EE_Task(end) == 0
         s_Traj.xlim6_interp = xlim6_interp;
       end
       end % ~free_stage_transfer
@@ -947,7 +972,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         s_Traj_l.wn(R.idx_iktraj_wnP.xDlim_par) = 0;
         s_Traj_l.enforce_xlim = false;
         s_Traj_l.enforce_xDlim = false;
-        s_Traj_l.abort_thresh_h = s.abort_thresh_h;
+        s_Traj_l.abort_thresh_h = s.settings_ik.abort_thresh_h;
         s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.xlim_hyp) = NaN;
         s_Traj_l.ik_solution_min_norm = true;
       end
@@ -1134,12 +1159,30 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             if use_spring_torque
               TAU_a = TAU_a + R.springtorque_traj(Q);
             end
+            if use_external_force % siehe cds_obj_dependencies
+              TAU_a_ext = NaN(size(TAU_a));
+              for jj = 1:size(X_t_l,1)
+                J = R.jacobig(Q(jj,:)');
+                TAU_a_ext(jj,:) = - J' * s.Fext(jj,:)';
+              end
+              TAU_a = TAU_a + TAU_a_ext;
+            end
           else
             [XP_t_l, XDP_t_l, XDDP_t_l] = R.xE2xP_traj(X_t_l, XD_t_l, XDD_t_l);
             JinvP_ges = R.jacobi_q_xE_2_jacobi_q_xP_traj(JinvE_ges, X_t_l, XP_t_l);
             TAU_a = R.invdyn2_actjoint_traj(Q, QD, QDD, XP_t_l, XDP_t_l, XDDP_t_l, JinvP_ges);
             if use_spring_torque
               TAU_a = TAU_a + R.jointtorque_actjoint_traj(Q, XP_t_l, R.springtorque_traj(Q), JinvP_ges);
+            end
+            if use_external_force
+              TAU_a_ext = NaN(size(TAU_a));
+              for jj = 1:size(X_t_l,1)
+                Ja_inv_E = reshape(JinvE_ges(jj,:), R.NJ, sum(R.I_EE));
+                Tw = [eye(3,3), zeros(3,3); zeros(3,3), euljac(X_t_l(jj,4:6)', R.phiconv_W_E)];
+                F0_Eul = Tw' * s.Fext(jj,:)';
+                TAU_a_ext(jj,:) = - (Ja_inv_E(R.I_qa,:))' \ (F0_Eul(R.I_EE));
+              end
+              TAU_a = TAU_a + TAU_a_ext;
             end
           end
           hsum = max(abs(TAU_a),[],2); % Maximum aller Antriebe für jeden Zeitschritt
@@ -1726,13 +1769,19 @@ for i = 1:size(XE,1)-1
 %   [X_t_in(i1:i2,6),XD_t_in(i1:i2,6),XDD_t_in(i1:i2,6)] = trapveltraj(XE(i:i+1,6)', i2-i1+1,...
 %     'EndTime',t(i2)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
   % Alternative 2: Benutze die gleichen Referenzwerte wie oben.
-  if abs(phi2-phi1) < 1e-12 % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
-    X_t_in(i1:ii1,6) = phi1;
-    XD_t_in(i1:ii1,6) = 0;
-    XDD_t_in(i1:ii1,6) = 0;
+  X_t_in(i1:ii1,6) = phi1;
+  XD_t_in(i1:ii1,6) = 0;
+  XDD_t_in(i1:ii1,6) = 0;
+  if abs(phi2-phi1) < 1e-10 % Funktion trapveltraj erzeugt Fehler bei gleichem Start und Ziel
+    % Nehme Werte von oben
   else
-    [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
-      'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+    try
+      [X_t_in(i1:ii1,6),XD_t_in(i1:ii1,6),XDD_t_in(i1:ii1,6)] = trapveltraj([phi1,phi2], ii1-i1+1,...
+        'EndTime',t(ii1)-t(i1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
+    catch err % Nehme auch hier konstante Anfangswert an
+      warning(sprintf(['Nicht behandelter Fehler in trapveltraj %1.2f°->%1.2f°. ' ...
+        'Nehme konstante Geschw. an. %s\n'], 180/pi*phi1, 180/pi*phi2, err.message)); %#ok<SPWRN> 
+    end
   end
   X_t_in(ii1+1:i2,6) = X_t_in(ii1,6); % letzten Wert halten
   XD_t_in(ii1+1:i2,6) = 0;
@@ -1794,7 +1843,7 @@ if s.verbose > 2 % Debug-Plot für die Referenztrajektorie
   plot(t, XDD_t_in(:,6));
 end
 % Eintragen der Verläufe von Optimierungsvariable und ihrer Geschwindigkeit
-if R.I_EE_Task(6) == 0
+if R.I_EE_Task(6) == 0 && s.T_dec_ns + s.Tv > 1e-10
   s_Traj.xlim6_interp = xlim6_interp;
   nullspace_maxvel_interp = nullspace_maxvel_from_tasktraj(t, ...
     IE, s.Tv, s.T_dec_ns , diff(t(1:2)));
@@ -1896,10 +1945,14 @@ if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. ei
     % Zeichne Stützstellen aus DP ein. Dadurch Abweichung der finalen
     % Trajektorie zu Rast-zu-Rast-Trajektorie aus DP deutlich
     plot(t(IE(I_validstates)), 180/pi*XE(I_validstates,6), 'rs');
-    % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
-    I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
-    legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
   end
+end
+% Legende immer zeichnen (auch wenn keine Lösung vorliegt)
+if s.verbose > 1
+  change_current_figure(figikhdl);
+  % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
+  I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
+  legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
 end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
