@@ -548,6 +548,17 @@ classdef SerRob < RobBase
       % Jg: Jacobi-Matrix
       Jg = R.jacobigfcnhdl(q, uint8(R.I_EElink), R.r_N_E, R.pkin_gen);
     end
+    function Jg_C = jacobig_refpoint(R, q, link_index, r_i_i_C)
+      % Jacobi-Matrix zu einem Bezugspunkt, der nicht EE ist
+      % Eingabe:
+      % q: Gelenkpositionen
+      % link_index: Nummer des Robotersegments (0=Basis)
+      % r_i_i_C: Referenzpunkt. Im jew. Körper-KS
+      %
+      % Ausgabe:
+      % Jg_C: Jacobi-Matrix bezogen auf Bezugspunkt C
+      Jg_C = R.jacobigfcnhdl(q, uint8(link_index), r_i_i_C, R.pkin_gen);
+    end
     function Jt = jacobit(R, q)
       % Translatorischer Teil der geometrischen Jacobi-Matrix (Zusammenhang
       % zwischen translatorischer Geschwindigkeit des EE und Gelenkgeschwindigkeit)
@@ -1176,6 +1187,19 @@ classdef SerRob < RobBase
         W_reg_i = reshape(W_traj_reg(i,:), R.NL*6, length(R.DynPar.ipv_floatb));
         W_traj(i,:) = W_reg_i*R.DynPar.ipv_floatb;
       end
+    end
+    function tau_ext = jointtorque_ext(R, q, F_ext, link_index, r_i_i_C)
+      % Gelenkmomente resultierend aus externen Kräften
+      % Eingabe:
+      % q: Gelenkpositionen
+      % F_ext [6x1]: Externe Kraft und Moment (im Basis-KS)
+      % link_index: Nummer des Robotersegments, an dem die Kraft angreift (0=Basis)
+      % r_i_i_C: Punkt, an dem die Kraft angreift. Im jew. Körper-KS
+      %
+      % Ausgabe:
+      % tau_ext: Gelenkmomente aufgrund der externen Kraft
+      Jg_C = R.jacobigfcnhdl(q, uint8(link_index), r_i_i_C, R.pkin_gen);
+      tau_ext = Jg_C' * F_ext;
     end
     function tau_s = springtorque(R, q)
       % Federmoment einer in den Gelenken angebrachten Drehfeder
