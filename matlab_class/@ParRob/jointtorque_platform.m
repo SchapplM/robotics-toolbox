@@ -7,8 +7,9 @@
 %   Alle Gelenkwinkel aller serieller Beinketten der PKM
 % xP [6x1]
 %   Plattform-Pose des Roboters bezüglich des Basis-KS (Nicht: EE-KS)
-% tau [Nx1]
-%   Gelenkmomente in den Gelenken der Beinketten
+% tau [N x NTau]
+%   Gelenkmomente in den Gelenken der Beinketten. Entweder eine Spalte (NTau=1)
+%   oder mehrere zur effizienten Berechnung mehrerer Kräfte für eine Pose.
 % Jinv [N x Nx] (optional zur Rechenersparnis)
 %   Vollständige Inverse Jacobi-Matrix der PKM (bezogen auf alle N aktiven
 %   und passiven Gelenke und die bewegliche Plattform-Koordinaten xP).
@@ -38,8 +39,8 @@ assert(isreal(q) && all(size(q) == [Rob.NJ 1]), ...
   'ParRob/jointtorque_platform: q muss %dx1 sein', Rob.NJ);
 assert(isreal(xP) && all(size(xP) == [6 1]), ...
   'ParRob/jointtorque_platform: xP muss 6x1 sein');
-assert(isreal(tau) && all(size(tau) == [Rob.NJ 1]), ...
-  'ParRob/jointtorque_platform: tau muss %dx1 sein', Rob.NJ);
+assert(isreal(tau) && all(size(tau,1) == [Rob.NJ]), ...
+  'ParRob/jointtorque_platform: tau muss %dxNTau sein', Rob.NJ);
 if nargin == 5
   assert(isreal(Jinv) && all(size(Jinv) == [Rob.NJ sum(Rob.I_EE)]), ...
     'ParRob/jointtorque_platform: Jinv muss %dx%d sein', Rob.NJ, sum(Rob.I_EE));
