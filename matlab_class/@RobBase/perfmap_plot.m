@@ -69,7 +69,7 @@ s = struct( ...
   'clabel', 'Performance criterion', ... % Beschriftung Farbskala
   'ylabel', 'Redundant coordinate in deg'); % Plot-Beschriftung
 s.violation_markers = [{'qlim_hyp';'bx'}, {'jac_cond';'g*'}, {'ikjac_cond';'g^'}, ...
-  {'coll_hyp'; 'co'}, {'instspc_hyp'; 'gv'}, {'invalid'; 'm+'}]; % NB-Marker
+  {'coll_hyp'; 'co'}, {'instspc_hyp'; 'gv'}, {'poserr_ee'; 'go'}, {'invalid'; 'm+'}]; % NB-Marker
 if nargin == 5
   for f = fields(s_in)'
     if isfield(s, f{1})
@@ -205,7 +205,7 @@ if s.extend_map
 end
 
 %% Zusätzliche Marker für Nebenbedingungsverletzungen setzen
-Hdl_all.VM = NaN(6,1);
+Hdl_all.VM = NaN(length(s.violation_markers),1);
 for kk = 1:size(s.violation_markers,2)
   % Bestimme Indizes für bestimmte Sonderfälle, wie Gelenküberschreitung,
   % Singularität, Kollision, Bauraumverletzung.

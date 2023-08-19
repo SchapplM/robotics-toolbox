@@ -419,7 +419,7 @@ if s.verbose > 1
     PM_hdl(8) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'ikjac_cond'));
     PM_hdl(9) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'coll_hyp'));
     PM_hdl(10) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'instspc_hyp'));
-    % Nr. 11 (Position Error) wird nicht in perfmap_plot eingezeichnet
+    PM_hdl(11) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'poserr_ee'));
     PM_hdl(12) = Hdl_all.VM(strcmp(s_pmp.violation_markers(1,:), 'invalid'));
   end
   xlabel('Zeit in s');
