@@ -1289,6 +1289,10 @@ classdef SerRob < RobBase
         R.I_constr_red = [1 2 3 6];
         R.I_constr_t_red = [1 2 3];
         R.I_constr_r_red = 6; % bzgl. der nicht-reziproken Winkel
+      elseif all(I_EE_Task == [1 1 1 0 0 1]) && all(R.I_EE(1:5) == 1) % 3T2R- oder 3T3R-Roboter in 3T1R-Aufgabe
+        R.I_constr_red = 1:6;
+        R.I_constr_t_red = R.I_constr_t;
+        R.I_constr_r_red = R.I_constr_r;
       elseif all(I_EE_Task == [1 1 0 1 1 0]) % 2T2R
         R.I_constr_red = [1 2 5 6];
         R.I_constr_t_red = [1 2];
@@ -1297,7 +1301,7 @@ classdef SerRob < RobBase
         R.I_constr_red = [1 2 4 5 6];
         R.I_constr_t_red = [1 2];
         R.I_constr_r_red = [3 4 5];
-      elseif all(I_EE_Task == [1 1 1 0 0 0]) % 3T3R
+      elseif all(I_EE_Task == [1 1 1 0 0 0]) % 3T0R
         if all(R.I_EE == [1 1 1 0 0 1]) || all(R.I_EE == [1 1 1 0 0 0])
           % Aufgabenredundanz oder Übereinstimmung der FG
           R.I_constr_red = 1:3;
