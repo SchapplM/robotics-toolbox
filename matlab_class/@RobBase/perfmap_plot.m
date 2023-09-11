@@ -86,6 +86,8 @@ elseif strcmp(s.reference, 'time') && strcmp(s.xlabel, '#AUTO')
 end
 assert(length(s.wn)==R.idx_ik_length.hnpos, 'Eingabe s.wn muss Länge von hnpos haben');
 assert(length(s.abort_thresh_h)==R.idx_ik_length.hnpos, 'Eingabe s.abort_thresh_h muss Länge von hnpos haben');
+assert(length(s_ref)==size(H_all,1), 's_ref muss konsistent mit H_all sein');
+assert(length(phiz_range)==size(H_all,2), 'phiz_range muss konsistent mit H_all sein');
 
 if all(isnan(s.wn))
   s.wn(:) = 0;
@@ -110,7 +112,7 @@ CC_ext = zeros(size(X_ext));
 wn_plot = s.wn;
 for iii = 1:length(wn_plot)
   if wn_plot(iii) == 0, continue; end
-  if all(isinf(H_all(:,:,iii)))
+  if all(all(isinf(H_all(:,:,iii))))
     name_iii = 'unknown';
     for f = fields(R.idx_ikpos_wn)' % Namen herausfinden
       if R.idx_ikpos_wn.(f{1}) == iii
