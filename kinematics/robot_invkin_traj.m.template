@@ -386,7 +386,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'errorcode', 0, 'version', 9);
+  'errorcode', 0, 'version', 10);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -571,7 +571,7 @@ for k = 1:nt
     %% Singularitätsvermeidung IK-Jacobi-Matrix (Aufgaben-FG) und geom. Jacobi-Matrix (Roboter-FG)
     if (wn(idx_wnP.ikjac_cond) ~= 0 || wn(idx_wnD.ikjac_cond) ~= 0) && condJik > s.cond_thresh_ikjac || ... % IK-Jacobi-Matrix (Aufgaben-FG)
        (wn(idx_wnP.jac_cond) ~= 0 || wn(idx_wnD.jac_cond) ~= 0) && condJ > s.cond_thresh_jac || ...% geom. Jacobi-Matrix (Roboter-FG)
-        wn(idx_wnP.poserr_ee) ~= 0 % Positionsfehler ist ähnlich
+        wn(idx_wnP.poserr_ee) ~= 0 || ~isnan(s.abort_thresh_h(idx_hn.poserr_ee)) % Positionsfehler ist ähnlich
       h(idx_hn.ikjac_cond) = invkin_optimcrit_condsplineact(condJik, ... %  Konditionszahl
           1.5*s.cond_thresh_jac, s.cond_thresh_ikjac); % mit Spline-Aktivierung
       h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ... %  Konditionszahl

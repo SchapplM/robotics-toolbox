@@ -696,7 +696,8 @@ for k = 1:nt
     % Benutze nur für die Jacobi-Matrix die red. Koordinaten (2T1R, 3T0R)
     qD_test = J_x_inv * xD_test(Rob_I_EE); % Gelenkänderung der Nullraumbewegung
     % Berechne die Jacobi-Matrix (aufwändig wegen Invertierung)
-    if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE) || wn(idx_wnP.poserr_ee) ~= 0
+    if condJ < thresh_ns_qa && sum(I_qa) == sum(Rob_I_EE) || ...
+        wn(idx_wnP.poserr_ee) ~= 0 || ~isnan(s.abort_thresh_h(idx_hn.poserr_ee)) % Jacobi-Matrix für Berechnung des Positionsfehlers benötigt
       J_ax = inv(Jinv_ax);
     end
     % Führe Nullraumbewegung in Antriebskoordinaten durch. Geht nur, wenn
@@ -1135,7 +1136,7 @@ for k = 1:nt
         Stats.mode(k) = bitset(Stats.mode(k),9);
         h(idx_hn.jac_cond) = invkin_optimcrit_condsplineact(condJ, ...
               1.5*s.cond_thresh_jac, s.cond_thresh_jac);
-        if wn(idx_wnP.poserr_ee) ~= 0
+        if wn(idx_wnP.poserr_ee) ~= 0 || ~isnan(s.abort_thresh_h(idx_hn.poserr_ee))
           dx_poserr = abs(J_ax) * s.q_poserr(I_qa);
           h(idx_hn.poserr_ee) = norm(dx_poserr(Rob_I_EE(1:3)));
         end

@@ -1030,6 +1030,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
         if isinf(s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.poserr_ee)) && ... % s.debug && 
             any(Stats.h(1:Stats.iter,1+R.idx_iktraj_hn.poserr_ee)==0) % Zum Debuggen bei Unstimmigkeiten
+          if ~isempty(s.debug_dir)
+            save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
+              'to%d_error_positionerrorzero.mat'], i-1, k, l)));
+          end
           error('Positionsfehler soll berechnet werden, ist aber Null. Darf nicht sein.')
         end
       end
