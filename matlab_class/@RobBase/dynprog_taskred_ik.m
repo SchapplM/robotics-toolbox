@@ -269,7 +269,20 @@ if R.I_EE_Task(6) == R.I_EE(6)
 end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
-
+% Reduziere die Geschwindigkeits- und Beschleunigungsgrenzen in der IK.
+% Aufgrund von numerischen Ungenauigkeiten können die Grenzen dort
+% teilweise überschritten werden.
+if R.Type == 2 % Spezielles Datenformat für PKM. Siehe invkin2_traj
+  s_Traj.Leg_qDlim = zeros(6,2*R.NLEG);
+  s_Traj.Leg_qDDlim = zeros(6,2*R.NLEG);
+  for i = 1:R.NLEG
+    s_Traj.Leg_qDlim( 1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = 0.99 * ...
+      qDlim(R.I1J_LEG(i):R.I2J_LEG(i),:);
+    s_Traj.Leg_qDDlim(1:R.Leg(i).NJ,(1+2*(i-1)):(2+2*(i-1))) = 0.98 * ...
+      qDDlim(R.I1J_LEG(i):R.I2J_LEG(i),:);
+  end
+else % Für serielle Roboter noch nicht ausprobiert.
+end
 %% Dynamische Programmierung vorbereiten
 x0 = R.fkineEE2_traj(q0')'; % Start-Pose für Zustand auf erster Stufe
 % Erzeuge die Werte für die diskreten Stufen der dynamischen Programmierung
