@@ -78,7 +78,7 @@ for f = fields(s_std)'
   end
 end
 % Transformationsmatrizen zu allen Körper-KS bestimmen (Basis-KS)
-T_c_0 = Rob.fkine(qJ);
+[T_c_0, ~, T_c_0_stack] = Rob.fkine(qJ);
 % Umrechnen in das Welt-Koordinatensystem. Benutze nicht das in der
 % Roboterklasse eingespeicherte, sondern ein extern vorgegebenes. Dadurch
 % für PKM einfachere Implementierung für Darstellung der Beinketten
@@ -240,9 +240,14 @@ end
 % Siehe dazu auch check_collisionset_simplegeom.m
 if any(s.mode == 5) || any(s.mode == 6)
   for cbtype = 1:2
+    I_coll = [];
     if cbtype == 1
       collbodies = Rob.collbodies;
-      color = 'b';
+      color = 'b'; % Wird bei Kollision überschrieben
+      if ~isempty(Rob.collchecks)
+        I_coll = check_collisionset_simplegeom_mex(Rob.collbodies, Rob.collchecks, ...
+          T_c_0_stack(:,4)', struct('collsearch', true));
+      end
       if ~any(s.mode == 5)
         % Keine Kollisionskörper zeichnen, sondern nur Bauraumobjekt
         continue
@@ -260,6 +265,18 @@ if any(s.mode == 5) || any(s.mode == 6)
       if ~any(s.bodies == i)
         continue % Dieser Körper soll nicht gezeichnet werden
       end
+      % Prüfe ob Körper eine Kollision hat
+      if ~isempty(I_coll) && any(I_coll) && cbtype == 1
+        for kk = find(I_coll)
+          I_collbodies = Rob.collchecks(kk,:);
+          if any(I_collbodies == j)
+            color = 'r'; % Kollision erkannt
+          else
+            color = 'b';
+          end
+        end
+      end
+
       T_body_i = T_c_W(:,:,i+1);
       if collbodies.type(j) == 6 % Kapsel zum vorherigen
         T_body_iv = T_c_W(:,:,v(i)+1);
