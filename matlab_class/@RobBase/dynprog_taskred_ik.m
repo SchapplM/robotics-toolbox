@@ -1073,7 +1073,8 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       % Startwert >180° nicht möglich, der aber vorgegeben werden kann.
       assert(angleDiff(z_k, X_l(1,6)) < 1e-6, 'Startwert inkonsistent');
       if s.debug && ~task_redundancy
-        test_X = X_l - X_t_l(1:iter_l,:);
+        test_X =   [X_l(:,1:3) - X_t_l(1:iter_l,1:3), ...
+          angleDiff(X_l(:,4:6),  X_t_l(1:iter_l,4:6))];
         assert(all(abs(test_X(:)) < 1e-6), sprintf( ...
           'X-Traj. stimmt nicht. Fehler max %1.1e', max(abs(test_X(:)))));
       end
@@ -1255,7 +1256,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
       end
       % Prüfe Konsistenz von zurückgegebenen Daten
-      if s.debug
+      if s.debug && iter_l > 1
         % Position neu mit Trapezregel berechnen (Integration)
         Q_num = repmat(Q(1,:),iter_l,1)+cumtrapz(t_i(1:iter_l), QD(1:iter_l,:));
         % das gleiche für die Geschwindigkeit
@@ -1263,7 +1264,6 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         QDD_num = zeros(size(Q_num));
         QDD_num(2:iter_l,:) = diff(QD(1:iter_l,:))./...
           repmat(diff(t_i(1:iter_l)), 1, size(Q,2)); % Differenzenquotient
-        
         % Bestimme Korrelation zwischen den Verläufen (1 ist identisch)
         corrQD = diag(corr(QD_num, QD(1:iter_l,:)));
         corrQ = diag(corr(Q_num, Q(1:iter_l,:)));
@@ -1884,7 +1884,15 @@ if Stats.iter < length(t) && s.verbose
     'Bis %d/%d gekommen.\n'], Stats.iter, length(t));
 end
 if Stats.iter == 0
-  warning('Sofortiger Abbruch der Trajektorie. Ungültige Startbedingung.');
+  failstr = '';
+  for f = fields(R.idx_iktraj_hn)'
+    if Stats.h(1,1+R.idx_iktraj_hn.(f{1})) >= s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}))
+      if ~isempty(failstr), failstr = [failstr, ', ']; end %#ok<AGROW> 
+      failstr = [failstr, sprintf('%s: %1.2e>%1.2e', f{1}, ...
+        Stats.h(1,1+R.idx_iktraj_hn.(f{1})), s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1})))]; %#ok<AGROW> 
+    end
+  end
+  warning('Sofortiger Abbruch der Trajektorie. Ungültige Startbedingung:\n%s', failstr);
 end
 if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. eine Stufe geschafft
   %% Debug: Ergebnis-Bild für Dynamische Programmierung
