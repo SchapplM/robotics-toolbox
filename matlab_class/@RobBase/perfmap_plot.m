@@ -131,6 +131,10 @@ if all( CC_ext(:)==0 | isnan(CC_ext(:)) | CC_ext(:)==CC_ext(1) | isinf(CC_ext(:)
   title('Farbe nur illustrativ cond(J). Alle h gleich');
 end
 %% Begrenzung der Farb-Werte berechnen
+I_exc = false(size(CC_ext)); % Standardwerte: Keine Sättigung/Abschneidung
+I_colorlim = false(size(CC_ext));
+condsat_limit_rel = NaN;
+colorlimit_rel = NaN;
 if s.PM_limit
   % Begrenze die Farb-Werte im Plot. Logik für Farben noch unfertig
   % Der Farbbereich für die interessanten Werte wird besser ausgenutzt.
@@ -140,7 +144,10 @@ if s.PM_limit
     colorlimit = 1e3;
   end
   % Sättige alle Werte oberhalb einer Grenze
-  condsat_limit = min(colorlimit-10, 1e4);
+  condsat_limit = min(colorlimit-10, 1e4); % TODO: Passt nicht immer.
+  if condsat_limit < 0
+    condsat_limit = 0.8 * colorlimit;
+  end
   assert(colorlimit > condsat_limit, 'colorlimit muss größer als condsat_limit sein');
   % Begrenze den Farbraum. Bezieht sich auf Werte oberhalb der Sättigung.
   % Diese werden unten logarithmisch behandelt.
@@ -153,16 +160,16 @@ if s.PM_limit
     colorlimit_rel = colorlimit;
   end
   assert(colorlimit_rel > condsat_limit_rel, 'colorlimit_rel muss größer als condsat_limit_rel sein');
-  % Begrenze die Farbwerte (siehe oben, Beschreibung von colorlimit)
-  I_colorlim = CC_ext>=colorlimit_rel;
-  CC_ext(I_colorlim) = colorlimit_rel;
-  I_exc = CC_ext >= condsat_limit_rel;
-  CC_ext(I_exc) = condsat_limit_rel+10*log10(CC_ext(I_exc)/condsat_limit_rel);
-else
-  I_exc = false(size(CC_ext));
-  I_colorlim = false(size(CC_ext));
-  condsat_limit_rel = NaN;
-  colorlimit_rel = NaN;
+  if condsat_limit_rel < 0
+    % Passiert bspw.
+    warning('Grenzwerte für Farben unlogisch. Keine Sättigung möglich.');
+  else
+    % Begrenze die Farbwerte (siehe oben, Beschreibung von colorlimit)
+    I_colorlim = CC_ext>=colorlimit_rel;
+    CC_ext(I_colorlim) = colorlimit_rel;
+    I_exc = CC_ext >= condsat_limit_rel;
+    CC_ext(I_exc) = condsat_limit_rel+10*log10(CC_ext(I_exc)/condsat_limit_rel);
+  end
 end
 %% Zeichne die Farbkarte
 Hdl_all.surf = surf(X_ext,Y_ext,zeros(size(X_ext)),CC_ext, 'EdgeColor', 'none');
