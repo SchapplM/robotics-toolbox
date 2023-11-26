@@ -394,7 +394,7 @@ classdef SerRob < RobBase
     end
 
     
-    function [Tc_0, Tc_W, Tc_stack] = fkine(R, q)
+    function [Tc_0, Tc_W, Tc_stack, Tc_W_stack] = fkine(R, q)
       % Direkte Kinematik vom Inertial-KS zu den Körper-KS
       % Eingabe:
       % q: Gelenkkoordinaten
@@ -403,7 +403,7 @@ classdef SerRob < RobBase
       % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
       % Tc_W: Bezugssystem ist das Welt-KS
       % Tc_stack: Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
-      if nargout == 3
+      if nargout >= 3
         [Tc_0, Tc_stack] = R.fkinfcnhdl(q, R.pkin_gen);
       else
         Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
@@ -412,6 +412,12 @@ classdef SerRob < RobBase
         Tc_W = Tc_0;
         for i = 1:size(Tc_0,3)
           Tc_W(:,:,i) = R.T_W_0 * Tc_0(:,:,i);
+        end
+      end
+      if nargout == 4
+        Tc_W_stack = NaN(size(Tc_stack));
+        for i = 1:size(Tc_0,3)
+          Tc_W_stack(3*i-2:3*i,:) = Tc_W(1:3,:,i);
         end
       end
     end
@@ -1467,6 +1473,7 @@ classdef SerRob < RobBase
     function q_poserr_out = update_q_poserr(R, q_poserr)
       % Aktualisiere die Klasseneigenschaft q_poserr (gleiche Methode in ParRob)
       if nargin == 2
+        assert(length(q_poserr)==R.NQJ, 'Eingabe q_poserr muss Dimension von NQJ haben');
         R.q_poserr = q_poserr(:);
       end
       q_poserr_out = R.q_poserr;
