@@ -81,6 +81,7 @@ s = struct( ...
   'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
   'fastdebug', false, ... % Einige Prüfungen wieder deaktivieren, damit es schneller geht
+  'save_video', false, ... % Speichere das schrittweise Ausfüllen des Redundanzkarten-Bildes als Video
   'verbose', 0); % Stufen: 1=Text, 2=Zusammenfassungs-Bilder, 3=alle Bilder
 % Vorgegebene Einstellungen laden
 if nargin == 7
@@ -113,6 +114,16 @@ end
 if s.stageopt_posik && all(s.wn==0)
   warning('Modus stageopt_posik erfordert Angabe von IK-Nebenbedingungen in s.wn');
   s.stageopt_posik = false;
+end
+if s.save_video
+  if isempty(s.debug_dir)
+    warning('Für ein Video wird debug_dir benötigt, ist aber nicht angegeben.')
+    s.save_video = false;
+  end
+  if s.verbose < 2 && s.save_video
+    warning('Für die Aufzeichnung des Videos wird das Gesamt-Bild aktiviert');
+    s.verbose = 2;
+  end
 end
 if ~isfield(s_in.settings_ik, 'abort_thresh_h')
   % Schwellwert zum Abbruch der Trajektorien-Kinematik
@@ -403,7 +414,7 @@ if s.verbose > 1
     'Collision', 'Install. Space', 'Position Error', 'Out of Range'}; % ... aus Redundanzkarte ...
   PM_formats = {'bx', 'g*', 'g^', 'co', 'gv', 'go', 'm+'}; % ... dazu konsistente NB-Marker
   %% Redundanzkarte einzeichen (falls gegeben)
-  if ~isempty(s.PM_H_all) && ~s.fastdebug
+  if ~isempty(s.PM_H_all) && (~s.fastdebug || s.save_video)
     abort_thresh_hpos = NaN(R.idx_ik_length.hnpos, 1);
     for f = fields(R.idx_ikpos_hn)'
       if isfield(R.idx_iktraj_hn, f{1})
@@ -438,6 +449,13 @@ if s.verbose > 1
   end
   xlabel('Zeit in s');
   ylabel('Redundante Koordinate in deg');
+  if s.save_video % Video vorbereiten
+    set(figikhdl,'color','w'); % Zum späteren autom. Schneiden des Videos
+    v = VideoWriter(fullfile(s.debug_dir, 'dp_anim.avi'), 'Uncompressed AVI');
+    v.FrameRate = 30;
+    open(v);
+    writeVideo(v,getframe(figikhdl));
+  end
 end
 %% Dynamische Programmierung berechnen
 t0 = tic();
@@ -1497,6 +1515,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end % for kk (Fälle für Plot)
         end % if isinf...
         drawnow(); % Sonst wird das Bild nicht aktualisiert
+        if s.save_video
+          writeVideo(v,getframe(figikhdl)); % Schreibe Frame des Videos
+        end
         %% Debug-Bild für Redundanzkarte speziell für xlim_hyp und xlim_par
         if s.debug && ~isempty(s.PM_H_all) && false % manuell untersuchen
           s.PM_H_all(:,:,R.idx_ikpos_hn.xlim_hyp) = inf;
@@ -1713,7 +1734,6 @@ end % for i (Schleife über Stufen)
 if s.verbose
   fprintf('Schleife durchgelaufen. Bis hier %1.1fs.\n', toc(t0));
 end
-
 %% Ergebnis nachverarbeiten, gestückelte Trajektorie zusammensetzen.
 % Trajektorie neu generieren anstatt für alle Zwischenschritte die Größen
 % zu speichern
@@ -1979,6 +1999,9 @@ if s.verbose > 1
   % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
   I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
   legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
+  if s.save_video
+    writeVideo(v,getframe(figikhdl)); % Schreibe Frame des Videos
+  end
 end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
@@ -1994,4 +2017,8 @@ if s.verbose > 1 && ~isempty(s.debug_dir)
 end
 if ~isempty(s.debug_dir)
   save(fullfile(s.debug_dir, 'dp_output.mat'), 'DPstats', 'TrajDetail');
+end
+if s.save_video
+  close(v);
+  compress_video_file(fullfile(s.debug_dir, 'dp_anim.avi'), true, 1);
 end
