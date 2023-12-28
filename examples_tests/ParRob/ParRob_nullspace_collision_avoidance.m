@@ -93,7 +93,7 @@ Phir1=RP.constr1_rot(q0, x0);
 assert(all(abs(Phis)<1e-6), 'IK in Startpose nicht erfolgreich');
 %% Definition der Kollisionskörper
 collbodies_empty = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'link', [], ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers
         'params', []); % Parameter des jeweiligen Ersatzkörpers
 % Kollisionskörper der Beinketten eintragen
@@ -106,7 +106,7 @@ for j = 1:RP.NLEG
       continue
     end
     % Schräge Verbindung mit Kapseln in Matlab-Klasse berechnen
-    collbodies_j.link = [collbodies_j.link; uint8([i,i-1])];
+    collbodies_j.link = [collbodies_j.link; uint16([i,i-1])];
     collbodies_j.type = [collbodies_j.type; uint8(6)];
     collbodies_j.params = [collbodies_j.params; [10e-3,NaN(1,9)]];
   end
@@ -122,14 +122,14 @@ collbodies = collbodies_empty;
 % den Vorgänger auf die jeweiligen Basiskörper der einzelnen Beinketten.
 % Kapseln verbinden die Koppelgelenke.
 collbodies.link = [collbodies.link; ...
-  uint8([zeros(RP.NLEG,1), RP.I1L_LEG-(I1-1)])];
+  uint16([zeros(RP.NLEG,1), RP.I1L_LEG-(I1-1)])];
 collbodies.type = [collbodies.type; repmat(uint8(6),RP.NLEG,1)];
 collbodies.params = [collbodies.params; ...
   [repmat(10e-3, RP.NLEG, 1), NaN(RP.NLEG, 9)]];
 % Ringförmige Basis; verbindet die Basis der Beinketten mit der jeweils
 % vorherigen
 collbodies.link = [collbodies.link; ...
-  uint8([RP.I1L_LEG(I1)-(I1-1), RP.I1L_LEG(I2)-(I2-1)])];
+  uint16([RP.I1L_LEG(I1)-(I1-1), RP.I1L_LEG(I2)-(I2-1)])];
 collbodies.type = [collbodies.type; repmat(uint8(6),RP.NLEG,1)];
 collbodies.params = [collbodies.params; ...
   [repmat(10e-3, RP.NLEG, 1), NaN(RP.NLEG, 9)]];
@@ -139,7 +139,7 @@ I_cb_base = 1:size(collbodies.type,1); % Indizes der Basis-Koll.-körper
 % Verbindung zum jeweils vorherigen Koppelgelenk. Erzeugt Ring an der
 % Plattform
 collbodies.link = [collbodies.link; ...
-  uint8([RP.I2L_LEG(I1)-(I1-1)-1, RP.I2L_LEG(I2)-(I2-1)-1])];
+  uint16([RP.I2L_LEG(I1)-(I1-1)-1, RP.I2L_LEG(I2)-(I2-1)-1])];
 collbodies.type = [collbodies.type; repmat(uint8(6),RP.NLEG,1)];
 collbodies.params = [collbodies.params; ...
   [repmat(10e-3, RP.NLEG, 1), NaN(RP.NLEG, 9)]];

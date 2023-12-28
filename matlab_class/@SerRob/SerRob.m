@@ -332,7 +332,7 @@ classdef SerRob < RobBase
       % * 8 Kapsel als gewinkelte DH-Verbindung (1 Parameter: Radius)
       % * 9 Punkt am DH-KS-Ursprung (0 Parameter)
       R.collbodies = struct( ...
-        'link', uint8(zeros(0,2)), ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
+        'link', uint16(zeros(0,2)), ... % nx2 uint16, Nummer der zugehörigen Segmente (0=Basis).
         'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
         'params', zeros(0,10)); % Parameter des jeweiligen Ersatzkörpers
       % Liste der Kollisionsprüfungen. Enthält zwei Spalten mit Index der

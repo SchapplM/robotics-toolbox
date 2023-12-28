@@ -68,7 +68,7 @@ Phir1=RP.constr1_rot(q, X);
 
 %% Definition der Kollisionskörper für Bauraumprüfung
 collbodies_empty = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'link', [], ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers
         'params', []); % Parameter des jeweiligen Ersatzkörpers
 % Bauraumprüfungs-Kollisionskörper der Beinketten eintragen
@@ -77,7 +77,7 @@ for j = 1:RP.NLEG
   a = [RP.Leg(j).MDH.a;0];
   for i = 1:RP.Leg(j).NJ
     % Punkte im Gelenk
-    collbodies_instspc_j.link = [collbodies_instspc_j.link; uint8([i,i])];
+    collbodies_instspc_j.link = [collbodies_instspc_j.link; uint16([i,i])];
     collbodies_instspc_j.type = [collbodies_instspc_j.type; uint8(9)]; % Punkt
     collbodies_instspc_j.params = [collbodies_instspc_j.params; NaN(1,10)]; % keine Parameter
   end

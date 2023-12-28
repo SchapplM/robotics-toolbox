@@ -180,7 +180,7 @@ for robnr = 1:5
   xlim_abs(6,:) = [-45, 45]*pi/180;
   % Kollisionsobjekte (siehe: ParRob_nullspace_collision_avoidance.m)
   collbodies_empty = struct( ...
-          'link', uint8(zeros(0,2)), ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+          'link', uint16(zeros(0,2)), ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
           'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
           'params', []); % Parameter des jeweiligen Ersatzkörpers
   % Kollisionskörper der Beinketten eintragen
@@ -193,7 +193,7 @@ for robnr = 1:5
         continue
       end
       % Schräge Verbindung mit Kapseln in Matlab-Klasse berechnen
-      collbodies_j.link = [collbodies_j.link; uint8([ii,ii-1])];
+      collbodies_j.link = [collbodies_j.link; uint16([ii,ii-1])];
       collbodies_j.type = [collbodies_j.type; uint8(6)];
       collbodies_j.params = [collbodies_j.params; [10e-3,NaN(1,9)]];
     end

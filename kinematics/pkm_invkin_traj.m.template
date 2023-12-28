@@ -142,7 +142,7 @@ function [Q, QD, QDD, PHI, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs  'cond_thresh_ikjac', 1,
 %$cgargs  'cond_thresh_jac', 1,
 %$cgargs      'collbodies', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
@@ -150,7 +150,7 @@ function [Q, QD, QDD, PHI, Jinv_ges, JinvD_ges, JointPos_all, Stats] = %PN%_invk
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs  'collbodies_instspc', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]),
@@ -465,7 +465,7 @@ s_tpl = struct(...
   'retry_on_limitviol', false, ... % keine Neuversuche
      'retry_limit', 0,... % keine Neuversuche (würde Sprung erzeugen)
       'collbodies', struct(... % Dummy-Kollisionskörper in Einzelpunkt-IK...
-               'link', uint8(zeros(1,2)), ... % ... wird nicht benutzt
+               'link', uint16(zeros(1,2)), ... % ... wird nicht benutzt
                'type', uint8(zeros(1,1)), ... % ... (keine Nullraumbewegung)
                'params', zeros(1,10)), ...
 'collbodies_thresh', 1.5, ... % keine Wirkung
@@ -473,7 +473,7 @@ s_tpl = struct(...
       'collchecks', uint8(zeros(1,2)), ... % Dummy-Eintrag
 'installspace_thresh', 0, ... % keine Wirkung
 'collbodies_instspc', struct(... % Dummy-Kollisionskörper in Einzelpunkt-IK...
-               'link', uint8(zeros(1,2)), ... % ... wird nicht benutzt
+               'link', uint16(zeros(1,2)), ... % ... wird nicht benutzt
                'type', uint8(zeros(1,1)), ... % ... (keine Nullraumbewegung)
                'params', zeros(1,10)), ...
 'collchecks_instspc', uint8(zeros(1,2)), ... % Dummy-Eintrag
@@ -605,7 +605,7 @@ vmax_rel_lastvel = 1; % Skalierung der Geschwindigkeitsgrenzen
 dt = 0; % Initialisierung, wird überschrieben.
 Stats = struct('file', 'pkm_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'mode', uint32(zeros(nt,1)), 'errorcode', 0, 'version', 11);
+  'mode', uint32(zeros(nt,1)), 'errorcode', 0, 'version', 12);
 h = zeros(idx_ik_length.hntraj,1);
 
 for k = 1:nt

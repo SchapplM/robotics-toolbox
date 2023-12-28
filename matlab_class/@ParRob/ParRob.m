@@ -159,7 +159,7 @@ classdef ParRob < RobBase
       % Struktur der Kollisions-Ersatzkörper. Siehe SerRob-Klasse.
       % Hier werden nur Kollisionskörper der PKM gelistet.
       R.collbodies_nonleg = struct( ...
-        'link', uint8(zeros(0,2)), ... % nx2 uint8, Nummer der zugehörigen Segmente (0=Basis).
+        'link', uint16(zeros(0,2)), ... % nx2 uint16, Nummer der zugehörigen Segmente (0=Basis).
         'type', uint8(zeros(0,1)), ... % nx1 uint8, Art des Ersatzkörpers
         'params', zeros(0,10)); % Parameter des jeweiligen Ersatzkörpers
       % Platzhalter-Variable aller Kollisionskörper (auch der Beinketten)
@@ -1955,7 +1955,7 @@ classdef ParRob < RobBase
             NLoffset = 1+R.I2L_LEG(i-1)-(i-1); % in I1L wird auch Basis und EE-Link noch mitgezählt. Hier nicht.
           end
           R_collbodies.link = [R_collbodies.link; ...
-            R_Leg_i_collbodies.link + uint8(repmat(NLoffset,size(R_Leg_i_collbodies.link,1),2))];
+            R_Leg_i_collbodies.link + uint16(repmat(NLoffset,size(R_Leg_i_collbodies.link,1),2))];
           % Modifiziere die Kollisionskörper: Zuordnung von Körpern der Bein-
           % ketten-Basis zur PKM-Basis (betrifft Führungsschienen).
           % (ist für Implementierung der Kollisionserkennung besser).

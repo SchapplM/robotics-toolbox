@@ -114,7 +114,7 @@ for robnr = 1:2
   xlim_abs(6,:) = [-45, 45]*pi/180;
   % Kollisionsobjekte (siehe: SerRob_nullspace_collision_avoidance.m)
   collbodies = struct( ...
-          'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+          'link', [], ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
           'type', [], ... % nx1 uint8, Art des Ersatzkörpers
           'params', []); % Parameter des jeweiligen Ersatzkörpers
   % Arbeitsraum-Kollisionsobjekt definieren: Kugel vor der Basis des Roboters
@@ -123,7 +123,7 @@ for robnr = 1:2
   collbodies.params = [collbodies.params; [0.4, 0, 0, 0.1, NaN(1,6)]]; % Position und Radius
   for i = 1:RS.NJ
     % Schräge Verbindung mit Kapseln in Matlab-Klasse berechnen
-    collbodies.link = [collbodies.link; uint8([i,i-1])];
+    collbodies.link = [collbodies.link; uint16([i,i-1])];
     collbodies.type = [collbodies.type; uint8(6)];
     collbodies.params = [collbodies.params; [50e-3,NaN(1,9)]];
   end

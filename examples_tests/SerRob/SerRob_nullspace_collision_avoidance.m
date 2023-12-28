@@ -33,13 +33,13 @@ serroblib_update_template_functions({SName}, false);
 RS.fill_fcn_handles(true, true); % kompilierte Funktionen nehmen (schneller)
 %% Definition der Kollisionskörper
 collbodies = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'link', [], ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers
         'params', []); % Parameter des jeweiligen Ersatzkörpers
 a = [RS.MDH.a;0];
 for i = 1:RS.NJ
   % Schräge Verbindung mit Kapseln in Matlab-Klasse berechnen
-  collbodies.link = [collbodies.link; uint8([i,i-1])];
+  collbodies.link = [collbodies.link; uint16([i,i-1])];
   collbodies.type = [collbodies.type; uint8(6)];
   collbodies.params = [collbodies.params; [50e-3,NaN(1,9)]];
   % Alternative für Kollisionskörper:
@@ -51,14 +51,14 @@ for i = 1:RS.NJ
   % alle Rotationsmatrizen der Körper des Roboters).
   % Für d-Parameter:
 %   if RS.MDH.d(i) ~= 0
-%     collbodies.link = [collbodies.link; uint8(i)];
+%     collbodies.link = [collbodies.link; uint16(i)];
 %     collbodies.type = [collbodies.type; uint8(3)]; % Kapsel
 %     collbodies.params = [collbodies.params; [[0,0,0], ...
 %       [0,0,-RS.MDH.d(i)],70e-3,NaN(1,3)]];
 %   end
 %   % Für a-Parameter:
 %   if a(i+1) ~= 0
-%     collbodies.link = [collbodies.link; uint8(i)];
+%     collbodies.link = [collbodies.link; uint16(i)];
 %     collbodies.type = [collbodies.type; uint8(3)]; % Kapsel
 %     collbodies.params = [collbodies.params; [[0,0,0], ...
 %       [a(i+1),0,0],70e-3,NaN(1,3)]];

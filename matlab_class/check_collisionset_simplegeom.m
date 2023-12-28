@@ -6,7 +6,7 @@
 % Eingabe:
 % cb (collbodies)
 %   Struktur der M Kollisionskörper des Roboters mit Feldern:
-%   link [M X 2 uint8]
+%   link [M X 2 uint16]
 %     Erster Eintrag: Nummer des zugehörigen Starrkörpers des Roboters.
 %     Zweiter Eintrag: Zweiter zugehöriger Starrkörper. Normalfall: Vor-
 %     gänger-Indizes für alle N Koordinatensysteme des Roboters.
@@ -82,7 +82,7 @@
 
 function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, Set)
 %#codegen
-%$cgargs {struct('link', coder.newtype('uint8',[inf,2]),
+%$cgargs {struct('link', coder.newtype('uint16',[inf,2]),
 %$cgargs 'type', coder.newtype('uint8',[inf,1]),
 %$cgargs 'params', coder.newtype('double',[inf,10])),
 %$cgargs coder.newtype('uint8',[inf,2]),

@@ -40,13 +40,13 @@ RS.fill_fcn_handles(true, true); % true: kompilierte Funktionen nehmen (schnelle
 %% Definition der Kollisionskörper für Bauraumprüfung
 % Reine Prüfung von Punkten in den Gelenken reicht aus für Plausibilität
 collbodies = struct( ...
-        'link', [], ... % nx1 uint8, Nummer des zugehörigen Segments (0=Basis)
+        'link', [], ... % nx1 uint16, Nummer des zugehörigen Segments (0=Basis)
         'type', [], ... % nx1 uint8, Art des Ersatzkörpers
         'params', []); % Parameter des jeweiligen Ersatzkörpers
 a = [RS.MDH.a;0];
 for i = 1:RS.NJ
   % Punkte im Gelenk
-  collbodies.link = [collbodies.link; uint8([i,i])];
+  collbodies.link = [collbodies.link; uint16([i,i])];
   collbodies.type = [collbodies.type; uint8(9)]; % Punkt
   collbodies.params = [collbodies.params; NaN(1,10)]; % keine Parameter
 end

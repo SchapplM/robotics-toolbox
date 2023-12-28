@@ -156,7 +156,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs        'Phit_tol', 1.0000e-10,
 %$cgargs        'Phir_tol', 1.0000e-10,
 %$cgargs      'collbodies', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
@@ -164,7 +164,7 @@ function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs  'collbodies_instspc', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]))}
@@ -348,7 +348,7 @@ s_pik = struct( ...
   'retry_on_limitviol', false, ... % nicht sinnvoll
   'retry_limit', 0, ...
   'collbodies', struct(... % Dummy-Eintrag für Kompilierbarkeit
-    'link', uint8(zeros(1,2)), ...
+    'link', uint16(zeros(1,2)), ...
     'type', uint8(zeros(1,1)), ...
     'params', zeros(1,10)), ...
   'collbodies_thresh', 1.5, ... % keine Wirkung
@@ -356,7 +356,7 @@ s_pik = struct( ...
   'collchecks', uint8(zeros(1,2)), ... % Dummy-Eintrag
   'installspace_thresh', 0.100, ... % keine Wirkung
   'collbodies_instspc', struct(... % Dummy-Eintrag für Kompilierbarkeit
-    'link', uint8(zeros(1,2)), ... %
+    'link', uint16(zeros(1,2)), ... %
     'type', uint8(zeros(1,1)), ... %
     'params', zeros(1,10)), ...
   'collchecks_instspc', uint8(zeros(1,2))); % Dummy-Eintrag
@@ -386,7 +386,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'errorcode', 0, 'version', 10);
+  'errorcode', 0, 'version', 11);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt

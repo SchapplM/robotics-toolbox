@@ -109,7 +109,7 @@ function [q, Phi, Tc_stack_PKM, Stats, Jinv_out] = %PN%_invkin3(xE_soll, Q0, s)
 %$cgargs'retry_on_limitviol', false,
 %$cgargs     'retry_limit', 100,
 %$cgargs      'collbodies', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collbodies_thresh', 1.5, 
@@ -117,7 +117,7 @@ function [q, Phi, Tc_stack_PKM, Stats, Jinv_out] = %PN%_invkin3(xE_soll, Q0, s)
 %$cgargs      'collchecks', coder.newtype('uint8',[inf,2]),
 %$cgargs 'installspace_thresh', 0.1, 
 %$cgargs 'collbodies_instspc', struct(
-%$cgargs                    'link',   coder.newtype('uint8',[inf,2]),
+%$cgargs                    'link',   coder.newtype('uint16',[inf,2]),
 %$cgargs                    'type',   coder.newtype('uint8',[inf,1]),
 %$cgargs                    'params', coder.newtype('double',[inf,10])),
 %$cgargs 'collchecks_instspc', coder.newtype('uint8',[inf,2]),
