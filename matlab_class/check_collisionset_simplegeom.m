@@ -197,10 +197,19 @@ function [coll, dist, dist_rel, p] = check_collisionset_simplegeom(cb, cc, JP, S
       end
       continue
       %% Debug: Situation zeichnen
-      figure(); clf; view(3); grid on; axis equal; %#ok<UNRCH>
+      figure(); clf; view(3); grid on; axis equal; hold on; %#ok<UNRCH>
       if collcase == 1
         drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
         drawCapsule(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
+      elseif collcase == 2
+        plot3(b1_cbparam(1), b1_cbparam(2), b1_cbparam(3), 'bx', 'MarkerSize', 10);
+        q_W = eye(3,4)*[b2_cbparam(1:3)';1]; u1_W = b2_cbparam(4:6)'; 
+        u2_W = b2_cbparam(7:9)'; u3_W = b2_cbparam(10:12);
+        % Umrechnen in Format der plot-Funktion
+        cubpar_c = q_W(:)+(u1_W(:)+u2_W(:)+u3_W(:))/2; % Mittelpunkt des Quaders
+        cubpar_l = [norm(u1_W); norm(u2_W); norm(u3_W)]; % Dimension des Quaders
+        cubpar_a = 180/pi*tr2rpy([u1_W(:)/norm(u1_W), u2_W(:)/norm(u2_W), u3_W(:)/norm(u3_W)],'zyx')'; % Orientierung des Quaders
+        drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'r', 'FaceAlpha', 0.1);
       elseif collcase == 5
         drawCapsule(b1_cbparam,'FaceColor', 'b', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', ':');
         drawSphere(b2_cbparam,'FaceColor', 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'k', 'LineStyle', '--');
