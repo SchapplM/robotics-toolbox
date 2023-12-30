@@ -161,12 +161,12 @@ G_qD = Rob.constr1gradD_q(q, qD, xP, xDP, true);
 G_xD = Rob.constr1gradD_x(q, qD, xP, xDP, true);
 JinvD = G_q\G_qD/G_q*G_x - G_q\G_xD; % Siehe: ParRob/jacobiD_qa_x
 if nargout == 1
-  M_full = inertia2_platform_full(Rob, q, xP);
+  M_full = Rob.inertia2_platform_full(q, xP);
   Fc = Rob.coriolisvec2_platform(q, qD, xP, xDP, Jinv, JinvD, M_full);
   M  = Rob.inertia2_platform(q, xP, Jinv, M_full);
   Fg = Rob.gravload2_platform(q, xP, Jinv);
 else
-  [M_full, M_full_reg] = inertia2_platform_full(Rob, q, xP);
+  [M_full, M_full_reg] = Rob.inertia2_platform_full(q, xP);
   [Fc, Fc_reg] = Rob.coriolisvec2_platform(q, qD, xP, xDP, Jinv, JinvD, M_full, M_full_reg);
   [M, M_reg] = Rob.inertia2_platform(q, xP, Jinv, M_full, M_full_reg);
   [Fg, Fg_reg] = Rob.gravload2_platform(q, xP, Jinv);
