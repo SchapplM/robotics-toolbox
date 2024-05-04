@@ -90,15 +90,19 @@ classdef ParRob < RobBase
       invdyn_x_fcnhdl1       % Funktions-Handle für Inverse Dynamik in Plattform-Koordinaten
       invdyn_x_fcnhdl2       % ... mit anderen Parametern
       invdyn_x_fcnhdl4       % ... mit anderen Parametern
+      invdyn_x_fcnhdl_reg    % ... Regressormatrix für Dynamik-Min.Par.
       inertia_x_fcnhdl1      % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
       inertia_x_fcnhdl2      % ... mit anderen Parametern
       inertia_x_fcnhdl4      % ... mit anderen Parametern
+      inertia_x_fcnhdl_reg   % ... Regressormatrix für Dynamik-Min.Par.
       gravload_x_fcnhdl1     % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
       gravload_x_fcnhdl2     % ... mit anderen Parametern
       gravload_x_fcnhdl4     % ... mit anderen Parametern
+      gravload_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Min.Par.
       coriolisvec_x_fcnhdl1  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl2  % ... mit anderen Parametern
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
+      coriolisvec_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Min.Par.
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
       fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
@@ -147,6 +151,10 @@ classdef ParRob < RobBase
         {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
+        {'invdyn_x_fcnhdl_reg', 'invdyn_para_pf_regmin'}, ...
+        {'inertia_x_fcnhdl_reg', 'inertia_para_pf_regmin'}, ...
+        {'gravload_x_fcnhdl_reg', 'gravload_para_pf_regmin'}, ...
+        {'coriolisvec_x_fcnhdl_reg', 'coriolisvec_para_pf_regmin'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'},...
         {'fkintrajfcnhdl', 'fkineEE_traj'},...
         {'fkincollfcnhdl', 'fkine_coll'},...
@@ -634,7 +642,7 @@ classdef ParRob < RobBase
         JinvP_ges(i,:) = JinvP_i(:);
       end
     end
-    function Fx = invdyn_platform(R, q, xP, xPD, xPDD)
+    function [Fx, Fx_reg] = invdyn_platform(R, q, xP, xPD, xPDD)
       % Inverse Dynamik bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
@@ -643,6 +651,7 @@ classdef ParRob < RobBase
       %
       % Ausgabe:
       % Fx: Kraft auf Plattform aus Inverser Dynamik (nicht: Endeffektor)
+      % Fx_reg: Minimalparameter-Regressormatrix von Fx
       xPDred = xPD(R.I_EE);
       xPDDred = xPDD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
@@ -657,6 +666,9 @@ classdef ParRob < RobBase
           R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+      if nargout == 2 % Gibt es nur für MPV
+        Fx_reg = R.invdyn_x_fcnhdl_reg(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
       end
     end
     function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xP, xDP, xDDP, JinvP)
@@ -825,13 +837,14 @@ classdef ParRob < RobBase
         Fa_traj(i,:) = Fa_traj_reg_i*dpv;
       end
     end
-    function Mx = inertia_platform(R, q, xP)
+    function [Mx, Mx_reg] = inertia_platform(R, q, xP)
       % Massenmatrix bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
       % Mx: Massenmatrix
+      % Mx_reg: Minimalparameter-Regressormatrix der Massenmatrix (gestapelt)
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 1
         Mx = R.inertia_x_fcnhdl1(xPred, qJ, legFrame, koppelP, pkin, ...
@@ -847,14 +860,18 @@ classdef ParRob < RobBase
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
+      if nargout == 2 % Gibt es nur für MPV
+        Mx_reg = R.inertia_x_fcnhdl_reg(xPred, qJ, legFrame, koppelP, pkin);
+      end
     end
-    function Fgx = gravload_platform(R, q, xP)
+    function [Fgx, Fgx_reg] = gravload_platform(R, q, xP)
       % Gravitationskraft bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
       % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
+      % Fgx_reg: Minimalparameter-Regressormatrix von Fgx
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 1
         Fgx = R.gravload_x_fcnhdl1(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
@@ -868,8 +885,11 @@ classdef ParRob < RobBase
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
+      if nargout == 2 % Gibt es nur für MPV
+        Fgx_reg = R.gravload_x_fcnhdl_reg(xPred, qJ, R.gravity, legFrame, koppelP, pkin);
+      end
     end
-    function Fcx = coriolisvec_platform(R, q, xP, xPD)
+    function [Fcx, Fcx_reg] = coriolisvec_platform(R, q, xP, xPD)
       % Corioliskraft bezogen auf Plattformkoordinaten
       % q: Gelenkkoordinaten
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
@@ -877,6 +897,7 @@ classdef ParRob < RobBase
       %
       % Ausgabe:
       % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
+      % Fcx_reg: Minimalparameter-Regressormatrix von Fcx
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
       if R.DynPar.mode == 1
@@ -890,6 +911,9 @@ classdef ParRob < RobBase
           R.DynPar.mpv_sym);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+      if nargout == 2 % Gibt es nur für MPV
+        Fcx_reg = R.coriolisvec_x_fcnhdl_reg(xPred, xPDred, qJ, legFrame, koppelP, pkin);
       end
     end
     function [T_ges, T_legs, T_plattform] = ekin(R, q, qD, xP, xPD)
