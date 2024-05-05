@@ -90,19 +90,23 @@ classdef ParRob < RobBase
       invdyn_x_fcnhdl1       % Funktions-Handle für Inverse Dynamik in Plattform-Koordinaten
       invdyn_x_fcnhdl2       % ... mit anderen Parametern
       invdyn_x_fcnhdl4       % ... mit anderen Parametern
-      invdyn_x_fcnhdl_reg    % ... Regressormatrix für Dynamik-Min.Par.
+      invdyn_x_fcnhdl_reg    % ... Regressormatrix für Dynamik-Inertial-Par.
+      invdyn_x_fcnhdl_regmin % ... Regressormatrix für Dynamik-Min.Par.
       inertia_x_fcnhdl1      % Funktions-Handle für Massenmatrix in Plattform-Koordinaten
       inertia_x_fcnhdl2      % ... mit anderen Parametern
       inertia_x_fcnhdl4      % ... mit anderen Parametern
-      inertia_x_fcnhdl_reg   % ... Regressormatrix für Dynamik-Min.Par.
+      inertia_x_fcnhdl_reg   % ... Regressormatrix für Dynamik-Inertial-Par.
+      inertia_x_fcnhdl_regmin% ... Regressormatrix für Dynamik-Min.Par.
       gravload_x_fcnhdl1     % Funktions-Handle für Gravitationslast in Plattform-Koordinaten
       gravload_x_fcnhdl2     % ... mit anderen Parametern
       gravload_x_fcnhdl4     % ... mit anderen Parametern
-      gravload_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Min.Par.
+      gravload_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Inertial-Par.
+      gravload_x_fcnhdl_regmin% ... Regressormatrix für Dynamik-Min.Par.
       coriolisvec_x_fcnhdl1  % Funktions-Handle für Corioliskraft in Plattform-Koordinaten
       coriolisvec_x_fcnhdl2  % ... mit anderen Parametern
       coriolisvec_x_fcnhdl4  % ... mit anderen Parametern
-      coriolisvec_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Min.Par.
+      coriolisvec_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Inertial-Par.
+      coriolisvec_x_fcnhdl_regmin% ...Regressormatrix für Dynamik-Min.Par.
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
       fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
@@ -151,10 +155,14 @@ classdef ParRob < RobBase
         {'inertia_x_fcnhdl4', 'inertia_para_pf_mdp'}, ...
         {'gravload_x_fcnhdl4', 'gravload_para_pf_mdp'}, ...
         {'coriolisvec_x_fcnhdl4', 'coriolisvec_para_pf_mdp'}, ...
-        {'invdyn_x_fcnhdl_reg', 'invdyn_para_pf_regmin'}, ...
-        {'inertia_x_fcnhdl_reg', 'inertia_para_pf_regmin'}, ...
-        {'gravload_x_fcnhdl_reg', 'gravload_para_pf_regmin'}, ...
-        {'coriolisvec_x_fcnhdl_reg', 'coriolisvec_para_pf_regmin'}, ...
+        {'invdyn_x_fcnhdl_reg', 'invdyn_para_pf_reg2'}, ...
+        {'inertia_x_fcnhdl_reg', 'inertia_para_pf_reg2'}, ...
+        {'gravload_x_fcnhdl_reg', 'gravload_para_pf_reg2'}, ...
+        {'coriolisvec_x_fcnhdl_reg', 'coriolisvec_para_pf_reg2'}, ...
+        {'invdyn_x_fcnhdl_regmin', 'invdyn_para_pf_regmin'}, ...
+        {'inertia_x_fcnhdl_regmin', 'inertia_para_pf_regmin'}, ...
+        {'gravload_x_fcnhdl_regmin', 'gravload_para_pf_regmin'}, ...
+        {'coriolisvec_x_fcnhdl_regmin', 'coriolisvec_para_pf_regmin'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'},...
         {'fkintrajfcnhdl', 'fkineEE_traj'},...
         {'fkincollfcnhdl', 'fkine_coll'},...
@@ -661,14 +669,17 @@ classdef ParRob < RobBase
       elseif R.DynPar.mode == 2
         Fx = R.invdyn_x_fcnhdl2(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3
+        Fx_reg = R.invdyn_x_fcnhdl_reg(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
+        Fx = Fx_reg*R.DynPar.ipv_sym;
+      elseif R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
+        if nargout == 2 % Gibt es nur für MPV
+          Fx_reg = R.invdyn_x_fcnhdl_regmin(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
+        end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
-      end
-      if nargout == 2 % Gibt es nur für MPV
-        Fx_reg = R.invdyn_x_fcnhdl_reg(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
       end
     end
     function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xP, xDP, xDDP, JinvP)
@@ -852,16 +863,18 @@ classdef ParRob < RobBase
       elseif R.DynPar.mode == 2
         Mx = R.inertia_x_fcnhdl2(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
-        % Benutze immer Modus 4 (Minimalparameter), auch wenn Inertial-
-        % parameter velangt ist
+      elseif R.DynPar.mode == 3
+        Mx_reg = R.inertia_x_fcnhdl_reg(xPred, qJ, legFrame, koppelP, pkin);
+        Mx_vec = Mx_reg*R.DynPar.ipv_sym;
+        Mx = reshape(Mx_vec, sum(R.I_EE), sum(R.I_EE))';
+      elseif R.DynPar.mode == 4
         Mx = R.inertia_x_fcnhdl4(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
+        if nargout == 2
+          Mx_reg = R.inertia_x_fcnhdl_regmin(xPred, qJ, legFrame, koppelP, pkin);
+        end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
-      end
-      if nargout == 2 % Gibt es nur für MPV
-        Mx_reg = R.inertia_x_fcnhdl_reg(xPred, qJ, legFrame, koppelP, pkin);
       end
     end
     function [Fgx, Fgx_reg] = gravload_platform(R, q, xP)
@@ -879,14 +892,17 @@ classdef ParRob < RobBase
       elseif R.DynPar.mode == 2
         Fgx = R.gravload_x_fcnhdl2(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:));
-      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3
+        Fgx_reg = R.gravload_x_fcnhdl_reg(xPred, qJ, R.gravity, legFrame, koppelP, pkin);
+        Fgx = Fgx_reg*R.DynPar.ipv_sym;
+      elseif R.DynPar.mode == 4
         Fgx = R.gravload_x_fcnhdl4(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
+        if nargout == 2 % Gibt es nur für MPV
+          Fgx_reg = R.gravload_x_fcnhdl_regmin(xPred, qJ, R.gravity, legFrame, koppelP, pkin);
+        end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
-      end
-      if nargout == 2 % Gibt es nur für MPV
-        Fgx_reg = R.gravload_x_fcnhdl_reg(xPred, qJ, R.gravity, legFrame, koppelP, pkin);
       end
     end
     function [Fcx, Fcx_reg] = coriolisvec_platform(R, q, xP, xPD)
@@ -906,14 +922,17 @@ classdef ParRob < RobBase
       elseif R.DynPar.mode == 2
         Fcx = R.coriolisvec_x_fcnhdl2(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.mrSges(Idp,:), R.DynPar.Ifges(Idp,:));
-      elseif R.DynPar.mode == 3 || R.DynPar.mode == 4
+      elseif R.DynPar.mode == 3
+        Fcx_reg = R.coriolisvec_x_fcnhdl_reg(xPred, xPDred, qJ, legFrame, koppelP, pkin);
+        Fcx = Fcx_reg*R.DynPar.ipv_sym;
+      elseif R.DynPar.mode == 4
         Fcx = R.coriolisvec_x_fcnhdl4(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
+        if nargout == 2 % Gibt es nur für MPV
+          Fcx_reg = R.coriolisvec_x_fcnhdl_regmin(xPred, xPDred, qJ, legFrame, koppelP, pkin);
+        end
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
-      end
-      if nargout == 2 % Gibt es nur für MPV
-        Fcx_reg = R.coriolisvec_x_fcnhdl_reg(xPred, xPDred, qJ, legFrame, koppelP, pkin);
       end
     end
     function [T_ges, T_legs, T_plattform] = ekin(R, q, qD, xP, xPD)
@@ -1615,7 +1634,7 @@ classdef ParRob < RobBase
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
       % Umwandlung der Dynamik-Parameter (Masse, erstes Moment, zweites
       % Moment) in Minimalparameter-Vektor
-      [mpv_num, mpv_sym] = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
+      [mpv_num, mpv_sym, ipv_sym] = R.dynpar_convert_par2_mpv(mges, mrSges, Ifges);
       
       % Aktualisiere die gespeicherten Dynamikparameter aller Beinketten
       for i = 1:R.NLEG
@@ -1633,6 +1652,7 @@ classdef ParRob < RobBase
       R.DynPar.Icges  = Icges;
       R.DynPar.mrSges = mrSges;
       R.DynPar.Ifges  = Ifges;
+      R.DynPar.ipv_sym= ipv_sym;
       R.DynPar.mpv_sym= mpv_sym;
       R.DynPar.mpv_n1s= mpv_num;
       R.DynPar.ipv_n1s= ipv_num;
@@ -1696,7 +1716,7 @@ classdef ParRob < RobBase
       ipv_platform = [Ifges(end,[1 4 5 2 6 3])'; mrSges(end,:)'; mges(end)'];
       ipv_num = [ipv_leg; ipv_platform(R.I_platform_dynpar)];
     end
-    function [mpv_num, mpv_sym] = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
+    function [mpv_num, mpv_sym, ipv_sym] = dynpar_convert_par2_mpv(R, mges, mrSges, Ifges)
       % Konvertiere die Dynamikparameter zum Minimalparametervektor
       % Eingabe:
       % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
@@ -1704,25 +1724,21 @@ classdef ParRob < RobBase
       % Ifges: Trägheitstensoren der Robotersegmente (bezogen auf KS-Ursprung)
       % Ausgabe:
       % mpv: Dynamik-Minimalparametervektor
+      % ipv: Dynamik-Inertialparametervektor
       
       % MPV für symbolisch generierten Code: Annahme ist, dass hinter den
       % Koppelgelenken keine Segmente mit Masseneigenschaften sind
-      if ~R.extfcn_available(10)
-        % Funktion zur Umwandlung nach MPV wurde nicht generiert. Leer lassen.
+      I = [1:R.NQJ_LEG_bc,R.Leg(1).NJ+1];
+      mges_sym = mges(I);
+      mrSges_sym = mrSges(I,:);
+      Ifges_sym = Ifges(I,:);
+      if any(mges(R.NQJ_LEG_bc+1:end-1) ~= 0) || ~R.extfcn_available(10)
+        % Parameter sind nicht für symbolisch generierten Code zulässig,
+        % wenn Segmente hinter dem definierte Koppelgelenk Masse haben
         mpv_sym = [];
       else
-        I = [1:R.NQJ_LEG_bc,R.Leg(1).NJ+1];
-        mges_sym = mges(I);
-        mrSges_sym = mrSges(I,:);
-        Ifges_sym = Ifges(I,:);
-        if any(mges(R.NQJ_LEG_bc+1:end-1) ~= 0)
-          % Parameter sind nicht für symbolisch generierten Code zulässig
-          mpv_sym = [];
-        else
-          mpv_sym = R.dynparconvfcnhdl(R.Leg(1).pkin, mges_sym, mrSges_sym, Ifges_sym, R.r_P_B_all');
-        end
+        mpv_sym = R.dynparconvfcnhdl(R.Leg(1).pkin, mges_sym, mrSges_sym, Ifges_sym, R.r_P_B_all');
       end
-      
       % MPV für numerischen Ansatz der inversen Dynamik
       % Dynamik-Parameter der Plattform (vollständig). TODO: Anpassung an
       % reduzierte FG je nach EE
@@ -1734,7 +1750,15 @@ classdef ParRob < RobBase
       Ifges_leg = [zeros(1,6); Ifges(1:end-1,:)];
       mpv_leg = R.Leg(1).dynpar_convert_par2_mpv(mges_leg, mrSges_leg, Ifges_leg);
       mpv_num = [mpv_leg; pv2_platform(R.I_platform_dynpar)];
-      % TODO: Behandlung des Falls eines nicht symmetrischen Roboters
+      ipv_leg = NaN(10*R.NQJ_LEG_bc,1);
+      for i = 1:R.NQJ_LEG_bc
+        % Ifges_num_mdh: XX,YY,ZZ,XY,XZ,YZ
+        % ipv_leg: XX,XY,XZ,YY,YZ,ZZ
+        ipv_leg((1:6) +10*(i-1)) = Ifges_leg(1+i,[1,4,5,2,6,3]);
+        ipv_leg((1:3) +10*(i-1)+6) = mrSges_leg(1+i,:);
+        ipv_leg(10*i) = mges_leg(1+i);
+      end
+      ipv_sym = [ipv_leg; pv2_platform(R.I_platform_dynpar)];
     end
     function update_gravity(R, g_world)
       % Aktualisiere den Gravitationsvektor für den Roboter
