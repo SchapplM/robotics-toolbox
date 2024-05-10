@@ -26,6 +26,8 @@
 %   3: Dynamik-Parametervektor (ohne Minimierung);
 %   4: Dynamik-Minimalparametervektor
 %   6: Dynamik-MPV mit Regressor-Matrix als Eingang
+%   7: Dynamik-Minimalparametervektor-Regressor (keine Berechnung der
+%      Kraft, sondern nur der Regressormatrix; noch nicht implementiert)
 
 %   Quellen
 %   [Rob1] Robotik 1 Skript

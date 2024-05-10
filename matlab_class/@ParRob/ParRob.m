@@ -33,6 +33,8 @@
 %   2: Dynamik-Parameter bezogen auf Körper-KS-Ursprung m,mrS,If (inertial)
 %   3: Dynamik-Parametervektor (ohne Minimierung);
 %   4: Dynamik-Minimalparametervektor
+%   7: Dynamik-Minimalparametervektor-Regressor (keine Berechnung der
+%      Kraft, sondern nur der Regressormatrix)
 % 
 % Siehe auch: SerRob.m (SerRob-Klasse)
 %
@@ -675,11 +677,62 @@ classdef ParRob < RobBase
       elseif R.DynPar.mode == 4
         Fx = R.invdyn_x_fcnhdl4(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mpv_sym);
-        if nargout == 2 % Gibt es nur für MPV
+        if nargout == 2
           Fx_reg = R.invdyn_x_fcnhdl_regmin(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
         end
+      elseif R.DynPar.mode == 7
+        Fx = NaN(sum(R.I_EE),1); % wird nicht berechnet, um Zeit zu sparen (ca. 30% bei Hexa-PKM)
+        Fx_reg = R.invdyn_x_fcnhdl_regmin(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
+      end
+    end
+    function [Fa, Fa_reg] = invdyn_actjoint(R, q, xP, xPD, xPDD, JinvP)
+      % Inverse Dynamik bezogen auf Antriebskoordinaten
+      % q: Gelenkkoordinaten
+      % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
+      % xPD: Plattform-Geschwindigkeit (im Basis-KS)
+      % xPDD: Plattform-Beschleunigung (im Basis-KS)
+      % JinvP: Inverse Jacobi-Matrix (bezogen auf Plattform-Koordinaten und
+      % alle Gelenke). Siehe ParRob/jacobi_qa_x.
+      % Auch Eingabe der Jacobi für Antriebe anstatt alle Gelenke möglich
+      %
+      % Ausgabe:
+      % Fa: Kraft auf Antriebe aus Inverser Dynamik (nicht: Endeffektor)
+      % Fa_reg: Minimalparameter-Regressormatrix von Fa
+      
+      % Umrechnen der vollständigen inversen Jacobi
+      if nargin < 6 % Jacobi-Matrix fehlt. Neu berechnen
+        Jinv_qaD_xD = R.jacobi_qa_x(q, xP, true);
+      elseif size(JinvP, 1) == sum(R.I_qa)
+        Jinv_qaD_xD = JinvP; % Es wurde die Antriebs-Jacobi übergeben
+      else
+        Jinv_qaD_xD = JinvP(R.I_qa,:);
+      end
+      % Jacobi-Matrix auf Winkelgeschwindigkeiten beziehen. Siehe ParRob/jacobi_qa_x
+      if size(Jinv_qaD_xD,2) == 6
+        T = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP(4:6), R.phiconv_W_E)];
+        Jinv_qaD_sD = Jinv_qaD_xD / T;
+      else
+        % Nehme an, dass keine räumliche Drehung vorliegt. TODO: Fall 3T2R
+        % genauer prüfen, wenn Roboter verfügbar sind.
+        Jinv_qaD_sD = Jinv_qaD_xD;
+      end
+      % Invers-Dynamik in Plattform-Koordinaten aufrufen
+      % Umrechnen auf Antriebskoordinaten. [AbdellatifHei2009], Text nach Gl. (37)
+      if nargout <= 1
+        Fx = invdyn_platform(R, q, xP, xPD, xPDD);
+      else
+        [Fx, Fx_reg] = invdyn_platform(R, q, xP, xPD, xPDD);
+      end
+      if R.DynPar.mode == 7
+        Fa = NaN(sum(R.I_EE), 1); % wird nicht berechnet
+      else
+        Fa = Jinv_qaD_sD' \ Fx;
+      end
+      % Umrechnen der Regressor-Matrix
+      if nargout == 2
+        Fa_reg = Jinv_qaD_sD' \ Fx_reg;
       end
     end
     function [Fa, Fa_reg] = invdyn2_actjoint(Rob, q, qD, qDD, xP, xDP, xDDP, JinvP)
