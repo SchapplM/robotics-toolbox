@@ -110,7 +110,8 @@ for i = 1:length(R.all_fcn_hdl)
       if parrob % PKM ist aus ParRobLib
         mdlname_j = PName_Legs;
       else % nicht aus ParRobLib
-        continue; % es gibt keine IK-Funktionen aus parroblib_create_template_functions
+        % Die Funktionen werden seit Mai 2024 auch in der Maple-Toolbox
+        % erzeugt. Für manuell erstellte Roboter fehlen sie dann.
       end
     end
     if mex == 0
