@@ -519,7 +519,7 @@ classdef ParRob < RobBase
         % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
         if platform_frame, xP = xE;
         else,              xP = R.xE2xP(xE); end
-        [qJ, xPred, pkin, koppelP, legFrame] = convert_parameter_class2toolbox(R, q, xP);
+        [qJ, xPred, pkin, koppelP, legFrame] = R.convert_parameter_class2toolbox(q, xP);
         % Aufruf der symbolisch generierten Funktion. Diese enthält den
         % Bezug von Antriebsgeschwindigkeiten zur Plattform-Geschwindigkeit.
         Jinv_qD_sDred = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
@@ -664,7 +664,7 @@ classdef ParRob < RobBase
       % Fx_reg: Minimalparameter-Regressormatrix von Fx
       xPDred = xPD(R.I_EE);
       xPDDred = xPDD(R.I_EE);
-      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Fx = R.invdyn_x_fcnhdl1(xPred, xPDred, xPDDred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
@@ -909,7 +909,7 @@ classdef ParRob < RobBase
       % Ausgabe:
       % Mx: Massenmatrix
       % Mx_reg: Minimalparameter-Regressormatrix der Massenmatrix (gestapelt)
-      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Mx = R.inertia_x_fcnhdl1(xPred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
@@ -926,6 +926,9 @@ classdef ParRob < RobBase
         if nargout == 2
           Mx_reg = R.inertia_x_fcnhdl_regmin(xPred, qJ, legFrame, koppelP, pkin);
         end
+      elseif R.DynPar.mode == 7
+        Mx = NaN(sum(R.I_EE), sum(R.I_EE)); % wird nicht berechnet
+        Mx_reg = R.inertia_x_fcnhdl_regmin(xPred, qJ, legFrame, koppelP, pkin);
       else
         error('Modus %d noch nicht implementiert', R.DynPar.mode);
       end
@@ -938,7 +941,7 @@ classdef ParRob < RobBase
       % Ausgabe:
       % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
       % Fgx_reg: Minimalparameter-Regressormatrix von Fgx
-      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Fgx = R.gravload_x_fcnhdl1(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:));
@@ -968,7 +971,7 @@ classdef ParRob < RobBase
       % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
       % Fcx_reg: Minimalparameter-Regressormatrix von Fcx
       xPDred = xPD(R.I_EE);
-      [qJ, xPred, pkin, koppelP, legFrame, Idp] = convert_parameter_class2toolbox(R, q, xP);
+      [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Fcx = R.coriolisvec_x_fcnhdl1(xPred, xPDred, qJ, legFrame, koppelP, pkin, ...
           R.DynPar.mges(Idp), R.DynPar.rSges(Idp,:), R.DynPar.Icges(Idp,:));
@@ -1640,6 +1643,8 @@ classdef ParRob < RobBase
       % pkin: Kinematik-Parameter für die Funktionen aus der Toolbox
       % koppelP: Plattform-Koppelpunkt-Koordinaten im Toolbox-Format
       % legFrame: Ausrichtung der Beinketten-Basis-KS im Toolbox-Format
+      % I_dynpar: Indizes zum Auswählen der Dynamikparameter (entfernt die
+      %           Parameter zu den Körpern hinter Plattform-Koppelgelenken)
       assert(all(size(q) == [R.NJ 1]), 'convert_parameter_class2toolbox: q muss %dx1 sein', R.NJ);
       assert(all(size(x) == [6 1]), 'convert_parameter_class2toolbox: x muss 6x1 sein');
       pkin = R.Leg(1).pkin;
