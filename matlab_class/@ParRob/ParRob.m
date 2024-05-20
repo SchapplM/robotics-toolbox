@@ -434,7 +434,7 @@ classdef ParRob < RobBase
       if nargin == 5 && ~isempty(s_in_par)
         for ff = fields(s_in_par)'
           if ~isfield(s_par, ff{1})
-            error('Feld %s kann nicht übergeben werden');
+            error('Feld %s kann nicht übergeben werden', ff{1});
           else
             s_par.(ff{1}) = s_in_par.(ff{1});
           end
@@ -1680,8 +1680,16 @@ classdef ParRob < RobBase
       % Prüfung der Eingabe: Dynamik-Parameter für alle Segmente der
       % Beinkette und für die Plattform. Annahme: Kinematisch symmetrischer
       % Roboter
-      if length(mges) ~= (R.Leg(1).NL-1)+1
+      if nargin < 2 || isempty(mges)
+        mges = R.DynPar.mges;
+      elseif length(mges) ~= (R.Leg(1).NL-1)+1
         error('Es müssen Dynamikparameter für %d Körper übergeben werden', (R.Leg(1).NL-1)+1);
+      end
+      if nargin < 3 || isempty(rSges)
+        rSges = R.DynPar.rSges;
+      end
+      if nargin < 4 || isempty(Icges)
+        Icges = R.DynPar.Icges;
       end
         
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
