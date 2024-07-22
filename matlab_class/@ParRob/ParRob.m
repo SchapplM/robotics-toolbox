@@ -110,6 +110,7 @@ classdef ParRob < RobBase
       coriolisvec_x_fcnhdl_reg  % ... Regressormatrix für Dynamik-Inertial-Par.
       coriolisvec_x_fcnhdl_regmin% ...Regressormatrix für Dynamik-Min.Par.
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+      dynpartrafofcnhdl      % Funktions-Handle für weitere MPV-Transformationsmatrizen
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
       fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
       constr4Dtrajfcnhdl % F.H. zum Aufruf der Zwangsbedingungs-Zeitableitung als Trajektorie
@@ -166,6 +167,7 @@ classdef ParRob < RobBase
         {'gravload_x_fcnhdl_regmin', 'gravload_para_pf_regmin'}, ...
         {'coriolisvec_x_fcnhdl_regmin', 'coriolisvec_para_pf_regmin'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'},...
+        {'dynpartrafofcnhdl', 'PV2_MPV_transformations_fixb'}, ...
         {'fkintrajfcnhdl', 'fkineEE_traj'},...
         {'fkincollfcnhdl', 'fkine_coll'},...
         {'constr4Dtrajfcnhdl', 'constr4D_traj'}, ...
@@ -1825,6 +1827,19 @@ classdef ParRob < RobBase
         ipv_leg(10*i) = mges_leg(1+i);
       end
       ipv_sym = [ipv_leg; pv2_platform(R.I_platform_dynpar)];
+    end
+    function [K, K_d, P_b, P_d] = dynpar_mpv_transformation(R, pkin)
+      % Gebe Transformationen zu den Dynamik-Minimalparametern aus
+      % Eingabe:
+      % pkin (optional): Andere Kinematikparameter als die gespeicherten
+      % Ausgabe:
+      % K: Matrix mit linearer Abhängigkeit zu den Inertialparametern
+      % K_d, P_b, P_d: Weitere Permutationsmatrizen, siehe Sousa2014.
+      if nargin == 1
+        [K, K_d, P_b, P_d] = R.dynpartrafofcnhdl(R.Leg(1).pkin);
+      else
+        [K, K_d, P_b, P_d] = R.dynpartrafofcnhdl(pkin);
+      end
     end
     function update_gravity(R, g_world)
       % Aktualisiere den Gravitationsvektor für den Roboter

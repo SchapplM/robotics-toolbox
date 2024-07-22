@@ -114,7 +114,14 @@ for i = 1:length(R.all_fcn_hdl)
         % erzeugt. Für manuell erstellte Roboter fehlen sie dann.
       end
     end
-    if mex == 0
+    % Bei einigen Funktionen soll nicht die mex-Funktion gewählt werden. 
+    % (bspw. da sie sehr klein sind und der Aufruf nicht lohnt, oder 
+    % weil damit auch symbolisch gerechnet werden soll).
+    fcn_j_nomex = false;
+    if any(strcmp(fcnname_tmp, {'PV2_MPV_transformations_fixb', 'minimal_parameter_para'}))
+      fcn_j_nomex = true;
+    end
+    if mex == 0 || fcn_j_nomex
       robfcnname = sprintf('%s_%s', mdlname_j, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname_j, fcnname_tmp);

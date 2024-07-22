@@ -135,6 +135,7 @@ classdef SerRob < RobBase
     invkintrajfcnhdl% Funktions-Handle für inverse Kinematik einer Trajektorie
     jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     dynparconvfcnhdl% Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
+    dynpartrafofcnhdl % Funktions-Handle für weitere MPV-Transformationsmatrizen
     fkintrajfcnhdl  % Funktions-Handle zum Aufruf der direkten Kinematik als Trajektorie
   end
 
@@ -282,6 +283,7 @@ classdef SerRob < RobBase
       {'invdyntrajfcnhdl4', 'invdynJ_fixb_mdp_slag_vp_traj'}, ...
       {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
       {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
+      {'dynpartrafofcnhdl', 'PV2_MPV_transformations_fixb'}, ...
       {'fkintrajfcnhdl', 'fkineEE_traj'}, ... 
       {'fkincollfcnhdl', 'fkine_coll'},...
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
@@ -1605,6 +1607,19 @@ classdef SerRob < RobBase
         mpv = [];
       else
         mpv = R.dynparconvfcnhdl(R.pkin_gen, mges, mrSges, Ifges);
+      end
+    end
+    function [K, K_d, P_b, P_d] = dynpar_mpv_transformation(R, pkin)
+      % Gebe Transformationen zu den Dynamik-Minimalparametern aus
+      % Eingabe:
+      % pkin (optional): Andere Kinematikparameter als die gespeicherten
+      % Ausgabe:
+      % K: Matrix mit linearer Abhängigkeit zu den Inertialparametern
+      % K_d, P_b, P_d: Weitere Permutationsmatrizen, siehe Sousa2014.
+      if nargin == 1
+        [K, K_d, P_b, P_d] = R.dynpartrafofcnhdl(R.pkin_gen);
+      else
+        [K, K_d, P_b, P_d] = R.dynpartrafofcnhdl(pkin);
       end
     end
     function update_gravity(R, g_world)
