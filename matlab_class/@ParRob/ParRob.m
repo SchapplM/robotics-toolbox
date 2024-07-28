@@ -628,7 +628,7 @@ classdef ParRob < RobBase
         XP = R.xE2xP_traj(XE);
       end
       JinvP_ges = NaN(size(JinvE_ges));
-      for i = 1:size(JinvE_ges)
+      for i = 1:size(JinvE_ges,1)
         JinvE_i = reshape(JinvE_ges(i,:), R.NJ, sum(R.I_EE));
         JinvP_i = R.jacobi_q_xE_2_jacobi_q_xP(JinvE_i, XE(i,:)', XP(i,:)');
         JinvP_ges(i,:) = JinvP_i(:);
