@@ -909,8 +909,11 @@ classdef ParRob < RobBase
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
-      % Mx: Massenmatrix
+      % Mx: Massenmatrix (Multiplikation mit Beschleunigung in
+      % x-Koordinaten (keine Winkelbeschleunigung) ergibt kartesische Kräfte und Momente)
       % Mx_reg: Minimalparameter-Regressormatrix der Massenmatrix (gestapelt)
+      % 
+      % Siehe auch: ParRob/inertia2_platform
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Mx = R.inertia_x_fcnhdl1(xPred, qJ, legFrame, koppelP, pkin, ...
@@ -941,8 +944,10 @@ classdef ParRob < RobBase
       % xP: Plattform-Koordinaten (6x1) (nicht: End-Effektor-Koordinaten) (im Basis-KS)
       %
       % Ausgabe:
-      % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM)
+      % Fgx: Gravitationskräfte (bezogen auf EE-Koordinaten der PKM, kartesische Momente)
       % Fgx_reg: Minimalparameter-Regressormatrix von Fgx
+      % 
+      % Siehe auch: ParRob/gravload2_platform
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
         Fgx = R.gravload_x_fcnhdl1(xPred, qJ, R.gravity, legFrame, koppelP, pkin, ...
@@ -970,8 +975,10 @@ classdef ParRob < RobBase
       % xPD: Plattform-Geschwindigkeit (im Basis-KS)
       %
       % Ausgabe:
-      % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM)
+      % Fcx: Coriolis-Kräfte (bezogen auf EE-Koordinaten der PKM, kartesische Momente)
       % Fcx_reg: Minimalparameter-Regressormatrix von Fcx
+      % 
+      % Siehe auch: ParRob/coriolisvec2_platform
       xPDred = xPD(R.I_EE);
       [qJ, xPred, pkin, koppelP, legFrame, Idp] = R.convert_parameter_class2toolbox(q, xP);
       if R.DynPar.mode == 1
