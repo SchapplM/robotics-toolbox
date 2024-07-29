@@ -1751,8 +1751,8 @@ classdef ParRob < RobBase
         if any(abs(test_m)>1e-10)
           warning('Masse kann nicht passend zu symbolisch generierten Funktionen gesetzt werden');
         end
-        test_rS = rSges - rSges2;
-        if any(abs(test_rS(:))>1e-10)
+        test_mrS = (rSges - rSges2) .* repmat(mges, 1, 3);
+        if any(abs(test_mrS(:))>1e-10) % Nur warnen, wenn falscher Schwerpunkt auch massebehaftet ist
           warning('Schwerpunkt kann nicht passend zu symbolisch generierten Funktionen gesetzt werden');
         end
         test_Ic = Icges - Icges2;
