@@ -111,6 +111,7 @@ classdef ParRob < RobBase
       coriolisvec_x_fcnhdl_regmin% ...Regressormatrix für Dynamik-Min.Par.
       dynparconvfcnhdl       % Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
       dynpartrafofcnhdl      % Funktions-Handle für weitere MPV-Transformationsmatrizen
+      dynparreducefcnhdl % Funktions-Handle zum Reduzieren der Dynamikparameter wegen des symbolisch generierten Codes
       fkintrajfcnhdl % Funktions-Handle zum Aufruf der direkten Kinematik aller Beinketten als Trajektorie
       fkincollfcnhdl % ... für direkte Kinematik mit Ausgabe der Kollisions-KS und Gelenkpositionen
       constr4Dtrajfcnhdl % F.H. zum Aufruf der Zwangsbedingungs-Zeitableitung als Trajektorie
@@ -168,6 +169,7 @@ classdef ParRob < RobBase
         {'coriolisvec_x_fcnhdl_regmin', 'coriolisvec_para_pf_regmin'}, ...
         {'dynparconvfcnhdl', 'minimal_parameter_para'},...
         {'dynpartrafofcnhdl', 'PV2_MPV_transformations_fixb'}, ...
+        {'dynparreducefcnhdl', 'dynamics_parameters_modification'}, ...
         {'fkintrajfcnhdl', 'fkineEE_traj'},...
         {'fkincollfcnhdl', 'fkine_coll'},...
         {'constr4Dtrajfcnhdl', 'constr4D_traj'}, ...
@@ -1682,6 +1684,34 @@ classdef ParRob < RobBase
       end
       I_dynpar = [1:R.NQJ_LEG_bc,length(R.DynPar.mges)];
     end
+    function [mges2, rSges2, Icges2] = modify_dynpar1(R, mges, rSges, Icges)
+      % Wandle gegebene Dynamikparameter entsprechend der Einschränkungen
+      % des symbolisch generierten Dynamikmodells um.
+      % Eingabe:
+      % mges: Massen aller Robotersegmente (inkl Plattform, exkl Basis)
+      % rSges: Schwerpunktskoordinaten aller Robotersegmente (Körper-KS)
+      % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
+      % Ausgabe:
+      % mges2, rSges2, Icges2: Modifizierte Eingabe
+      if ~isempty(R.dynparreducefcnhdl) % Die Funktion wird in der Maple-Dynamik-Toolbox generiert
+        I = [1:R.NQJ_LEG_bc,R.Leg(1).NJ+1]; % Indizes für Dynamikparameter der Toolbox
+        mges_sym = mges(I);
+        rSges_sym = rSges(I,:);
+        Icges_sym = Icges(I,:);
+        [mges_sym2, rSges_sym2, Icges_sym2] = R.dynparreducefcnhdl( ...
+          R.Leg(1).pkin, mges_sym, rSges_sym, Icges_sym);
+        mges2 = zeros(size(mges));
+        mges2(I) = mges_sym2;
+        rSges2 = zeros(size(rSges));
+        rSges2(I,:) = rSges_sym2;
+        Icges2 = zeros(size(Icges));
+        Icges2(I,:) = Icges_sym2;
+      else % Funktion nicht vorhanden. Keine Modifikation.
+        mges2 = mges;
+        rSges2 = rSges;
+        Icges2 = Icges;
+      end
+    end
     function update_dynpar1(R, mges, rSges, Icges)
       % Aktualisiere die hinterlegten Dynamikparameter ausgehend von
       % gegebenen Parametern bezogen auf den Körper-KS-Ursprung
@@ -1704,6 +1734,25 @@ classdef ParRob < RobBase
       end
       if nargin < 4 || isempty(Icges)
         Icges = R.DynPar.Icges;
+      end
+      % Prüfung der Parameter, ob diese im generierten Code so vorgesehen
+      % sind. Falls nicht, stimmen die symbolisch generierten Funktionen 
+      % (invdyn_platform) nicht mit den numerischen (invdyn2_platform) überein
+      if ~isempty(R.dynparreducefcnhdl)
+        [mges2, rSges2, Icges2] = R.modify_dynpar1(mges, rSges, Icges);
+        % [mges, rSges_sym2, Icges_sym2] = R.dynparreducefcnhdl(R.Leg(1).pkin, mges_sym, rSges_sym, Icges_sym);
+        test_m = mges - mges2;
+        if any(abs(test_m)>1e-10)
+          warning('Masse kann nicht passend zu symbolisch generierten Funktionen gesetzt werden');
+        end
+        test_rS = rSges - rSges2;
+        if any(abs(test_rS(:))>1e-10)
+          warning('Schwerpunkt kann nicht passend zu symbolisch generierten Funktionen gesetzt werden');
+        end
+        test_Ic = Icges - Icges2;
+        if any(abs(test_Ic(:))>1e-10)
+          warning('Trägheitstensor kann nicht passend zu symbolisch generierten Funktionen gesetzt werden');
+        end
       end
         
       [mrSges, Ifges] = inertial_parameters_convert_par1_par2(rSges, Icges, mges);
