@@ -142,7 +142,9 @@ for i = 1:length(R.all_fcn_hdl)
     % Speichere das Funktions-Handle in der Roboterklasse
     eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
   end
-  R.extfcn_available(i) = ~missing_i;
+  I_extfcn = strcmp(R.extfcn_available(:,1), hdlname);
+  assert(sum(I_extfcn)==1, 'Logik-Fehler bei Zuordnung von Fcn-Handle');
+  R.extfcn_available{I_extfcn,2} = ~missing_i;
 end
 
 % Stelle auch mex-Funktionen für die Beinketten ein, falls das für die PKM

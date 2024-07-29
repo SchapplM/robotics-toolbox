@@ -118,7 +118,7 @@ classdef ParRob < RobBase
       invkinfcnhdl % Funktions-Handle für IK (führt zu pkm_invkin.m.template)
       invkintrajfcnhdl % Funktions-Handle für Trajektorien-IK (zu pkm_invkin_traj.m.template)
       invkin3fcnhdl % Funktions-Handle für IK (zu pkm_invkin3_tpl.m.template)
-      extfcn_available % Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
+      extfcn_available % Cell-Array mit Markern, welche Funktion aus all_fcn_hdl verfügbar ist.
   end
   methods
     % Konstruktor
@@ -176,7 +176,11 @@ classdef ParRob < RobBase
         {'invkinfcnhdl', 'invkin'},...
         {'invkintrajfcnhdl', 'invkin_traj'},...
         {'invkin3fcnhdl', 'invkin3'}};
-      R.extfcn_available = false(length(R.all_fcn_hdl),1);
+      R.extfcn_available = cell(length(R.all_fcn_hdl),2);
+      for i = 1:length(R.all_fcn_hdl)
+        R.extfcn_available{i,1} = R.all_fcn_hdl{i}{1}; % zum Indizieren gegen all_fcn_hdl
+        R.extfcn_available{i,2} = false;
+      end
       R.I_platform_dynpar = true(1,10);
       % Struktur der Kollisions-Ersatzkörper. Siehe SerRob-Klasse.
       % Hier werden nur Kollisionskörper der PKM gelistet.
@@ -518,8 +522,8 @@ classdef ParRob < RobBase
       % Jinv_num_voll: Vollständige Jacobi-Matrix bezogen auf alle Gelenke
       
       if nargin == 3, platform_frame = false; end
-      
-      if R.extfcn_available(1) && nargout ~= 2
+      I_extfcn = strcmp(R.extfcn_available(:,1),'jacobi_qa_x_fcnhdl');
+      if R.extfcn_available{I_extfcn,2} && nargout ~= 2
         % Berechnung der geometrischen Jacobi-Matrix aus Funktionsaufruf
         if platform_frame, xP = xE;
         else,              xP = R.xE2xP(xE); end
@@ -1693,7 +1697,8 @@ classdef ParRob < RobBase
       % Icges: Trägheitstensoren der Robotersegmente (bezogen auf Schwerpkt)
       % Ausgabe:
       % mges2, rSges2, Icges2: Modifizierte Eingabe
-      if ~isempty(R.dynparreducefcnhdl) % Die Funktion wird in der Maple-Dynamik-Toolbox generiert
+      I_extfcn = strcmp(R.extfcn_available(:,1), 'dynparreducefcnhdl');
+      if R.extfcn_available{I_extfcn,2} % Die Funktion wird in der Maple-Dynamik-Toolbox generiert
         I = [1:R.NQJ_LEG_bc,R.Leg(1).NJ+1]; % Indizes für Dynamikparameter der Toolbox
         mges_sym = mges(I);
         rSges_sym = rSges(I,:);
@@ -1738,7 +1743,8 @@ classdef ParRob < RobBase
       % Prüfung der Parameter, ob diese im generierten Code so vorgesehen
       % sind. Falls nicht, stimmen die symbolisch generierten Funktionen 
       % (invdyn_platform) nicht mit den numerischen (invdyn2_platform) überein
-      if ~isempty(R.dynparreducefcnhdl)
+      I_extfcn = strcmp(R.extfcn_available(:,1), 'dynparreducefcnhdl');
+      if R.extfcn_available{I_extfcn,2}
         [mges2, rSges2, Icges2] = R.modify_dynpar1(mges, rSges, Icges);
         % [mges, rSges_sym2, Icges_sym2] = R.dynparreducefcnhdl(R.Leg(1).pkin, mges_sym, rSges_sym, Icges_sym);
         test_m = mges - mges2;
@@ -1856,7 +1862,8 @@ classdef ParRob < RobBase
       mges_sym = mges(I);
       mrSges_sym = mrSges(I,:);
       Ifges_sym = Ifges(I,:);
-      if any(mges(R.NQJ_LEG_bc+1:end-1) ~= 0) || ~R.extfcn_available(10)
+      I_extfcn = strcmp(R.extfcn_available(:,1), 'dynparconvfcnhdl');
+      if any(mges(R.NQJ_LEG_bc+1:end-1) ~= 0) || ~R.extfcn_available{I_extfcn,2}
         % Parameter sind nicht für symbolisch generierten Code zulässig,
         % wenn Segmente hinter dem definierte Koppelgelenk Masse haben
         mpv_sym = [];
