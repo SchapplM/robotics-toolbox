@@ -30,7 +30,8 @@ for i = 1:length(R.all_fcn_hdl)
     fcnname_tmp = ca{j};
     % Bei einigen Funktionen soll nicht die mex-Funktion gewählt werden.
     fcn_j_nomex = false;
-    if any(strcmp(ca{j}, {'PV2_MPV_transformations_fixb', 'convert_par2_MPV_fixb'}))
+    if any(strcmp(ca{j}, {'PV2_MPV_transformations_fixb', 'convert_par2_MPV_fixb', ...
+        'structural_kinematic_parameters'}))
       fcn_j_nomex = true;
     end
     if mex == 0 || fcn_j_nomex

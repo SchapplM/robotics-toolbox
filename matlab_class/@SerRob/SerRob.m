@@ -136,6 +136,7 @@ classdef SerRob < RobBase
     jointvarfcnhdl  % Funktions-Handle für Werte der Gelenkvariablen (bei hybriden Robotern)
     dynparconvfcnhdl% Funktions-Handle zur Umwandlung von DynPar 2 zu MPV
     dynpartrafofcnhdl % Funktions-Handle für weitere MPV-Transformationsmatrizen
+    structkinparfcnhdl % Funktions-Handle für Ausgabe der Kinematikparameter (aus der Maple-Toolbox)
     fkintrajfcnhdl  % Funktions-Handle zum Aufruf der direkten Kinematik als Trajektorie
   end
 
@@ -184,6 +185,8 @@ classdef SerRob < RobBase
           R.MDH.(f{1}) = Par_struct_default.(f{1});
         end
       end
+      R.structkinparfcnhdl = eval(sprintf('@%s_structural_kinematic_parameters', ...
+        R.mdlname)); % wird schon hier benötigt, nicht erst wenn fill_fcn_handles gemacht wurde.
       R.pkin = Par_struct.pkin;
       if isempty(R.pkin)
         % Keine pkin-Werte gegeben. Initialisiere Variable aus
@@ -284,6 +287,7 @@ classdef SerRob < RobBase
       {'invdyntrajfcnhdl6', 'invdynJ_fixb_mdp_slag_vr_traj'}, ...
       {'dynparconvfcnhdl', 'convert_par2_MPV_fixb'}, ...
       {'dynpartrafofcnhdl', 'PV2_MPV_transformations_fixb'}, ...
+      {'structkinparfcnhdl', 'structural_kinematic_parameters'}, ...
       {'fkintrajfcnhdl', 'fkineEE_traj'}, ... 
       {'fkincollfcnhdl', 'fkine_coll'},...
       {'jointvarfcnhdl', 'kinconstr_expl_mdh_sym_varpar', 'kinconstr_expl_mdh_num_varpar'}};
@@ -309,9 +313,8 @@ classdef SerRob < RobBase
       R.qunitmult_eng_sci = qunitmult_eng_sci;
       R.tauunit_sci = tauunit_sci;
       R.CADstruct = struct('filepath', {}, 'link', [], 'T_body_visual', NaN(4,4,0), 'color', {});
-      structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
       try
-        [~,~,~,~,~,~,pkin_names] = structkinpar_hdl();
+        [~,~,~,~,~,~,pkin_names] = R.structural_kinematic_parameters();
         if ~strcmp(R.mdlname, R.mdlname_var)
           % Parameternamen für Variante anpassen (weniger Parameter)
           gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
@@ -319,7 +322,7 @@ classdef SerRob < RobBase
         end
         R.pkin_names = pkin_names;
       catch
-        warning('Funktion %s ist nicht aktuell', char(structkinpar_hdl));
+        warning('Funktion structural_kinematic_parameters nicht aufrufbar');
         R.pkin_names = cell(1,length(R.pkin));
       end
       R.islegchain = false;
@@ -348,7 +351,9 @@ classdef SerRob < RobBase
       R.collbodies_instspc = R.collbodies;
       R.collchecks_instspc = R.collchecks;
     end
-    
+    function [v_mdh, sigma_mdh, mu_mdh, NL, NKP, NQJ, pkin_names] = structural_kinematic_parameters(R)
+      [v_mdh, sigma_mdh, mu_mdh, NL, NKP, NQJ, pkin_names] = R.structkinparfcnhdl();
+    end
     function mex_dep(R, force)
       % Kompiliere alle abhängigen Funktionen dieses Roboters
       % Eingabe:
@@ -1364,8 +1369,7 @@ classdef SerRob < RobBase
       % Das ist insbesondere für hybride Systeme wichtig, bei denen die
       % MDH-Parameter nicht alle Kinematikparameter enthalten
       if isempty(R.pkin)
-        structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname));
-        [~,~,~,~,NKP] = structkinpar_hdl();
+        [~,~,~,~,NKP] = R.structural_kinematic_parameters();
         R.pkin_gen = NaN(NKP,1);
         if ~strcmp(R.mdlname, R.mdlname_var)
           gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', R.mdlname_var));
