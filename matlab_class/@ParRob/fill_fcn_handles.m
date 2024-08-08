@@ -110,10 +110,18 @@ for i = 1:length(R.all_fcn_hdl)
       if parrob % PKM ist aus ParRobLib
         mdlname_j = PName_Legs;
       else % nicht aus ParRobLib
-        continue; % es gibt keine IK-Funktionen aus parroblib_create_template_functions
+        % Die Funktionen werden seit Mai 2024 auch in der Maple-Toolbox
+        % erzeugt. Für manuell erstellte Roboter fehlen sie dann.
       end
     end
-    if mex == 0
+    % Bei einigen Funktionen soll nicht die mex-Funktion gewählt werden. 
+    % (bspw. da sie sehr klein sind und der Aufruf nicht lohnt, oder 
+    % weil damit auch symbolisch gerechnet werden soll).
+    fcn_j_nomex = false;
+    if any(strcmp(fcnname_tmp, {'PV2_MPV_transformations_fixb', 'minimal_parameter_para'}))
+      fcn_j_nomex = true;
+    end
+    if mex == 0 || fcn_j_nomex
       robfcnname = sprintf('%s_%s', mdlname_j, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname_j, fcnname_tmp);
@@ -134,7 +142,9 @@ for i = 1:length(R.all_fcn_hdl)
     % Speichere das Funktions-Handle in der Roboterklasse
     eval(sprintf('R.%s = @%s;', hdlname, robfcnname));
   end
-  R.extfcn_available(i) = ~missing_i;
+  I_extfcn = strcmp(R.extfcn_available(:,1), hdlname);
+  assert(sum(I_extfcn)==1, 'Logik-Fehler bei Zuordnung von Fcn-Handle');
+  R.extfcn_available{I_extfcn,2} = ~missing_i;
 end
 
 % Stelle auch mex-Funktionen für die Beinketten ein, falls das für die PKM

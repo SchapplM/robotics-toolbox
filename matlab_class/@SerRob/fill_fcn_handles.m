@@ -12,7 +12,9 @@
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
 function fill_fcn_handles(R, mex, compile_missing)
-
+if nargin < 2
+  mex = false;
+end
 if nargin < 3
   compile_missing = false;
 end
@@ -28,10 +30,11 @@ for i = 1:length(R.all_fcn_hdl)
     fcnname_tmp = ca{j};
     % Bei einigen Funktionen soll nicht die mex-Funktion gewählt werden.
     fcn_j_nomex = false;
-    if strcmp(ca{j}, 'convert_par2_MPV_fixb')
+    if any(strcmp(ca{j}, {'PV2_MPV_transformations_fixb', 'convert_par2_MPV_fixb', ...
+        'structural_kinematic_parameters'}))
       fcn_j_nomex = true;
     end
-    if nargin == 1 || mex == 0 || fcn_j_nomex
+    if mex == 0 || fcn_j_nomex
       robfcnname = sprintf('%s_%s', mdlname, fcnname_tmp);
     else
       robfcnname = sprintf('%s_%s_mex', mdlname, fcnname_tmp);

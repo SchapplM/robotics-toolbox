@@ -30,6 +30,8 @@
 function robot_paramlin_test_reg_num(plin_num_test_struct)
 
 %% Initialisierung
+assert(isa(plin_num_test_struct, 'struct') && all(size(plin_num_test_struct)==1), ...
+  'Eingabe plin_num_test_struct muss struct sein, kein struct-array');
 % Variablen aus Eingabestruktur laden
 PV2 = plin_num_test_struct.PV2;
 W_g = plin_num_test_struct.W; % Informationsmatrix
@@ -40,6 +42,7 @@ K_dsym = plin_num_test_struct.K_dsym; % Lineare Zuordnungsmatrix der abhängigen
 MPVsym = plin_num_test_struct.MPV; % Minimalparameter (aus symbolischer Berechnung, zum Vergleich)
 NQ = plin_num_test_struct.NQ; % Anzahl der Freiheitsgrade (allgemein, damit für fixed und floating base funktionierend)
 PV2_Names = plin_num_test_struct.PV2_Names;
+assert(length(PV2_Names)==length(PV2), 'Dimension von PV2_Names und PV2 ist inkonsistent');
 if isfield(plin_num_test_struct, 'qr_tolerance')
   qr_tolerance = plin_num_test_struct.qr_tolerance;
 else
