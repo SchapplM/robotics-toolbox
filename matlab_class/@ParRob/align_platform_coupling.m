@@ -11,7 +11,9 @@
 %   7: Passend zur Kinematik bei 4-FG-Ketten für 3T0R-PKM. (Falls es nur
 %      eine Möglichkeit für die Orientierung der Beinkette gibt)
 %   8: Alle Gelenkachsen parallel und in Plattform-Ebene (für 3T2R)
-%   9: Gelenkachsen schneiden sich unterhalb der Plattform in der Mitte (wie G4)
+%   9: Gelenkachsen schneiden sich unterhalb der Plattform in der Mitte
+%      (wie G4; also radial und geneigt
+%  10: Tangential und geneigt
 % param
 %   Parameter für diese Methode (siehe Quelltext)
 %   Alle Methoden:
@@ -21,6 +23,8 @@
 %     2: Abstand der Gelenke eines Paares
 %   Methode 8:
 %     2: Winkel der Gelenkachsen gegen die x-Achse der Plattform
+%   Methode 9-10:
+%     2: Neigungswinkel gegen die Plattform
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-10
 % (C) Institut für mechatronische Systeme, Universität Hannover
@@ -172,8 +176,9 @@ elseif method == 8
     phi_P_Bi = r2eulxyz(roty(pi/2)*rotx(psi_offset));
     phi_P_B_all(:,i) =  phi_P_Bi;
   end
-elseif method == 9
+elseif any(method == [9 10])
   % Methode 9: Gelenkachsen schneiden sich unterhalb (oder überhalb) der Plattform
+  % Methode 10: Gelenkachsen tangential und geneigt
   n_pf_par = 2;
   r_PB = param(1);
   phi = param(2);
@@ -185,9 +190,15 @@ elseif method == 9
     end
     % Kreisförmig außen an Plattform
     r_P_P_Bi_ges(:,i) = rotz(beta_i)*[r_PB;0;0];
-    % Benutze den Ansatz von P3 und füge noch die Drehung um die x-Achse
-    % hinzu. Dadurch wird die z-Achse mit positivem phi nach unten gekippt 
-    phi_P_Bi = r2eulxyz(rotx(-pi/2)*roty(-pi/2-beta_i)*rotx(-phi));
+    if method == 9
+      % Benutze den Ansatz von P3 und füge noch die Drehung um die x-Achse
+      % hinzu. Dadurch wird die z-Achse mit positivem phi nach unten gekippt 
+      phi_P_Bi = r2eulxyz(rotx(-pi/2)*roty(-pi/2-beta_i)*rotx(-phi));
+    else
+      % Benutze den Ansatz von P2 und füge Drehung um y-Achse hinzu.
+      % Ein positiver Winkel kippt die Gelenkachse nach unten
+      phi_P_Bi = r2eulxyz(rotx(-pi/2)*roty(-beta_i)*rotz(-pi/2)*roty(-phi));
+    end
     phi_P_B_all(:,i) =  phi_P_Bi;
   end
 else
