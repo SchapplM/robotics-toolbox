@@ -82,8 +82,8 @@ if method <= 3 % Kreisförmig
   end
 elseif method == 4
   n_base_par = 2;  
-  % Methode 4: Zentral (Kegel); aktuell pi/4 Steigungswinkel
-  % Parameter: Abstand (Radius des Plattform-Kreises)
+  % Methode 4: Zentral (Kegel);
+  % Parameter: Abstand (Radius des Plattform-Kreises), Neigung.
   r_0A = param(1);
   alpha_cone = param(2);
   for i = 1:NLEG
