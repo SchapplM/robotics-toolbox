@@ -1472,7 +1472,7 @@ classdef SerRob < RobBase
       % IIjoint: Indizes, die aktualisiert werden sollen (binär)
       if nargin >= 2
         if nargin < 3
-          IIjoint = true(R.NJ, 1);
+          IIjoint = true(R.NQJ, 1);
         end
         R.qlim(IIjoint,:) = qlim;
       end

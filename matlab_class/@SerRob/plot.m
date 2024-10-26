@@ -125,10 +125,12 @@ if ~s.only_bodies && all(s.mode ~= 2) && s.nojoints ~= 1
 
     if any(s.mode == 4)
       % Passe zu zeichnendes Gelenk von der Größe her an
-      if Rob.DesPar.seg_type(i+1) == 1
+      if i < Rob.NL && Rob.DesPar.seg_type(i+1) == 1
         % Das Gelenk sollte etwas größer sein als das skizzierte Segment
         gh = max(Rob.DesPar.seg_par(i+1,2)*2, gh);
         gd = gh/4; % Gleiche Proportion des Gelenks
+      elseif i >= Rob.NL
+        % Kein reales Segment, nur virtuelles Gelenk.
       else
         error('Noch nicht definiert');
       end
@@ -174,13 +176,31 @@ if ~s.only_bodies && all(s.mode ~= 2) && s.nojoints ~= 1
         % steht das Gelenk sonst in der Luft.
         r_W_Gi = r_W_Oi;
       end
+      % Das erste eines Mehrfach-Treffers
       if Rob.DesPar.joint_type(i) == 2 % Kardangelenk 
         gh_plot = gh*0.7; % Zylinder kleiner zeichnen
       else
         gh_plot = gh; % normale Größe für Drehgelenk
       end
-      r_W_P1 = r_W_Gi + R_W_i*[0;0;-gh_plot/2];
-      r_W_P2 = r_W_Gi + R_W_i*[0;0; gh_plot/2];
+      % Wenn zwei Gelenke auf der gleichen Position liegen würden, versetze
+      % sie jeweils etwas entlang der Gelenkachse (bei seriell-hybrid)
+      I_ident = false(Rob.NJ,1);
+      for kk = 1:min(Rob.NJ, Rob.NL)
+        deltaT = invtr(T_c_W(:,:,kk+1)) * T_c_W(:,:,i+1);
+        if all(abs(deltaT(1:3,4))<1e-8) && all(abs(deltaT(1:3,3)-[0;0;1])<1e-8)
+          I_ident(kk) = true; % Gelenkposition und Richtung (z-Achse) identisch
+        end
+      end
+      II_ident = find(I_ident);
+      if length(II_ident) > 1 % es gibt immer einen Treffer mit eigenem Index i (für i<=Rob.NL)
+        offsetsign = (-1)^(find(II_ident == i));
+        zoffset = offsetsign * gh_plot/4;
+      else
+        zoffset = 0;
+      end
+      % Setze Plot-Position des Gelenks und plotte
+      r_W_P1 = r_W_Gi + R_W_i*[0;0;zoffset-gh_plot/2];
+      r_W_P2 = r_W_Gi + R_W_i*[0;0;zoffset+gh_plot/2];
       if Rob.DesPar.joint_type(i) == 3  && ...% Kugelgelenk
           ... % 3 Einzelgelenke zu Kugelgelenk zusammengefasst. Zeichne mittleres.
           i>1 && i<Rob.NJ && all(Rob.DesPar.joint_type([i-1,i+1])==3)
@@ -262,9 +282,11 @@ if any(s.mode == 5) || any(s.mode == 6)
     end
     for j = 1:size(collbodies.type,1)
       i = collbodies.link(j,1);
-      if ~any(s.bodies == i)
-        continue % Dieser Körper soll nicht gezeichnet werden
-      end
+      % Keine Begrenzung der zu zeichnenden Körper, da bei seriell-hybrid auch
+      % Kollisionskörper Segmenten zugeordnet sind, die keine Masse haben.
+      % if ~any(s.bodies == i)
+      %   continue % Dieser Körper soll nicht gezeichnet werden
+      % end
       % Prüfe ob Körper eine Kollision hat
       if ~isempty(I_coll) && any(I_coll) && cbtype == 1
         for kk = find(I_coll)
@@ -340,67 +362,94 @@ end
 %% Segmente, also Verbindungen der einzelnen Gelenke zeichnen
 if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
   any(s.mode == 1) && s.straight
-    % hybride Roboter: Die Koordinatentransformationen sind eventuell nicht
-    % einzeln bestimmbar. TODO: Prüfung für hybride Roboter
-    for i = 1:Rob.NJ
-      hdl_link_i = []; hdl_link_im1 = [];
-      j = v(i)+1; % Körper-Index (Vorgänger)
-      T1 = T_c_W(:,:,j);
-      T2 = T_c_W(:,:,i+1);
-      if any(s.mode == 1) && s.straight
-        % Als Linie zeichnen
-        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-          'LineWidth',4,'Color','k')
-      elseif all(s.mode == 3) && s.straight
-        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-          'LineWidth',1,'Color','k')
-      elseif all(s.mode == 4)
-        if Rob.MDH.sigma(i) == 0 % Drehgelenk
-          % Als Zylinder entsprechend der Entwurfsparameter zeichnen
-          % Bei Drehgelenken wird das aktuelle Gelenk direkt mit dem
-          % vorherigen verbunden
-          if Rob.DesPar.seg_type(i) == 1
-            hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
-              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-              'EdgeAlpha', 0.1);  %#ok<AGROW>
-          else
-            error('Segmenttyp ist nicht definiert');
-          end
-        else % Schubgelenk
-          r_W_Gi_offsetkorr = T2(1:3,1:3)*[0;0;Rob.DesPar.joint_offset(i)];
-          % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
-          % berücksichtigt.
-          % Transformation zu Anfangs- und Endlage des Schubgelenkes
-          T_qmin = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
-          T_qmax = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
-          if abs(Rob.qlim(i,1)) < abs(Rob.qlim(i,2))
-            % Untere Grenze ist betragsmäßig kleiner als obere Grenze.
-            % Normaler Fall mit positiven Koordinaten. Wähle qmin als nahen
-            % und qmax als fernen Punkt von Führungsschiene/Hubzylinder
-            T_qdist = T_qmax;
-            T_qprox = T_qmin;
-          else
-            % Negative Koordinaten. Untere Grenze hat betragsgrößeren (aber
-            % negativen) Wert und ist deshalb weiter vom vorherigen Gelenk
-            % weg. Intuitiver ist das Vertauschen der beiden Grenzen für
-            % Plot.
-            T_qdist = T_qmin;
-            T_qprox = T_qmax;
-          end
-          % Debug:
+  for i = 1:Rob.NJ
+    mode_i = s.mode;
+    if i > Rob.NL
+      mode_i = 1;  % Für virtuelle Koppelgelenke nichts zeichnen. ToDo: Noch unstimmig.
+    end
+    hdl_link_i = []; hdl_link_im1 = [];
+    % Zeichne die Segmente als Verbindung vom vorherigen zum nächsten
+    % Segment. Bei seriell-hybriden funktioniert das nicht, da weniger
+    % Körper als Gelenke definiert sind. Die Körper haben daher eine andere
+    % Ausrichtung bzgl. der Koordinatensysteme.
+    if Rob.Type == 0 || i == 1 % seriell oder erstes Segment bei hybrid.
+      j_list = v(i)+1; % Körper-Index (Vorgänger)
+    else
+      j_list = [];
+    end
+    if Rob.Type == 1 % seriell-hybrid
+      j_list = [j_list, find(v' == (i))+1]; %#ok<AGROW> % Körper-Index (Nachfolger)
+    end
+    for j = j_list
+    T1 = T_c_W(:,:,j);
+    T2 = T_c_W(:,:,i+1);
+    if any(mode_i == 1) && s.straight
+      % Als Linie zeichnen
+      plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+        'LineWidth',4,'Color','k')
+    elseif all(mode_i == 3) && s.straight
+      plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+        'LineWidth',1,'Color','k')
+    elseif all(mode_i == 4)
+      if Rob.MDH.sigma(i) == 0 % Drehgelenk
+        % Als Zylinder entsprechend der Entwurfsparameter zeichnen
+        % Bei Drehgelenken wird das aktuelle Gelenk direkt mit dem
+        % vorherigen verbunden
+        if Rob.DesPar.seg_type(i) == 1
+          hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+            'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+            'EdgeAlpha', 0.1);  %#ok<AGROW>
+        else
+          error('Segmenttyp ist nicht definiert');
+        end
+      else % Schubgelenk
+        r_W_Gi_offsetkorr = T2(1:3,1:3)*[0;0;Rob.DesPar.joint_offset(i)];
+        % Bei Schubgelenken wird die Konstruktionsart des Schubgelenkes
+        % berücksichtigt.
+        % Transformation zu Anfangs- und Endlage des Schubgelenkes
+        T_qmin = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,1)]); % Lage von T2, wenn q=qmin wäre
+        T_qmax = T2 * transl([0;0;-q_JV(i)+Rob.qlim(i,2)]); % Lage von T2, wenn q=qmax wäre
+        if abs(Rob.qlim(i,1)) < abs(Rob.qlim(i,2))
+          % Untere Grenze ist betragsmäßig kleiner als obere Grenze.
+          % Normaler Fall mit positiven Koordinaten. Wähle qmin als nahen
+          % und qmax als fernen Punkt von Führungsschiene/Hubzylinder
+          T_qdist = T_qmax;
+          T_qprox = T_qmin;
+        else
+          % Negative Koordinaten. Untere Grenze hat betragsgrößeren (aber
+          % negativen) Wert und ist deshalb weiter vom vorherigen Gelenk
+          % weg. Intuitiver ist das Vertauschen der beiden Grenzen für
+          % Plot.
+          T_qdist = T_qmin;
+          T_qprox = T_qmax;
+        end
+        % Debug:
 %           trplot(T_qmin, 'frame', sprintf('qmin%d', i), 'rgb', 'length', 0.2);
 %           trplot(T_qmax, 'frame', sprintf('qmax%d', i), 'rgb', 'length', 0.2);
-          if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
-            % Zeichne Linearführung als Quader. TODO: Benutze T_qprox/T_qdist
-            cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2-r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
-            cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
-            cubpar_a = rotation3dToEulerAngles(T_qmin(1:3,1:3))'; % Orientierung des Quaders
-            drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
-            % Normales Segment zum Start der Linearführung
-            if Rob.DesPar.seg_type(i) == 1
-              if Rob.qlim(i,1)*Rob.qlim(i,2)< 0 % Führung liegt auf der Höhe
-                % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
-                hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+        if Rob.DesPar.joint_type(i) ==  4 % Schubgelenk ist Linearführung
+          % Zeichne Linearführung als Quader. TODO: Benutze T_qprox/T_qdist
+          cubpar_c = (T_qmin(1:3,4)+T_qmax(1:3,4))/2-r_W_Gi_offsetkorr; % Mittelpunkt des Quaders
+          cubpar_l = [Rob.DesPar.seg_par(i,2)*0.25*[1;1];Rob.qlim(i,2)-Rob.qlim(i,1)]; % Dimension des Quaders
+          cubpar_a = rotation3dToEulerAngles(T_qmin(1:3,1:3))'; % Orientierung des Quaders
+          drawCuboid([cubpar_c', cubpar_l', cubpar_a'], 'FaceColor', 'b', 'FaceAlpha', 0.3);
+          % Normales Segment zum Start der Linearführung
+          if Rob.DesPar.seg_type(i) == 1
+            if Rob.qlim(i,1)*Rob.qlim(i,2)< 0 % Führung liegt auf der Höhe
+              % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
+              hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+                'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                'EdgeAlpha', 0.1);  %#ok<AGROW>
+              if Rob.DesPar.joint_offset(i) ~= 0
+                % TODO: Für diesen Fall noch nicht ausreichend getestet
+                hdl_link_im1(end+1) = drawCylinder([T2(1:3,4)', ...
+                  T_qmax(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
+                  'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                  'EdgeAlpha', 0.1);  %#ok<AGROW>
+              end
+            else
+              % Keine senkrechte Verbindung (Schiene fängt woanders an)
+              if Rob.qlim(i,2) < 0 % Schiene liegt komplett "links" vom KS. Gehe zum Endpunkt
+                hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', T_qmax(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
                   'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                   'EdgeAlpha', 0.1);  %#ok<AGROW>
                 if Rob.DesPar.joint_offset(i) ~= 0
@@ -410,124 +459,112 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
                     'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                     'EdgeAlpha', 0.1);  %#ok<AGROW>
                 end
-              else
-                % Keine senkrechte Verbindung (Schiene fängt woanders an)
-                if Rob.qlim(i,2) < 0 % Schiene liegt komplett "links" vom KS. Gehe zum Endpunkt
-                  hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', T_qmax(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
-                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-                    'EdgeAlpha', 0.1);  %#ok<AGROW>
-                  if Rob.DesPar.joint_offset(i) ~= 0
-                    % TODO: Für diesen Fall noch nicht ausreichend getestet
-                    hdl_link_im1(end+1) = drawCylinder([T2(1:3,4)', ...
-                      T_qmax(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
-                      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-                      'EdgeAlpha', 0.1);  %#ok<AGROW>
-                  end
-                else % Schiene liegt "rechts" vom KS. Gehe zum Startpunkt
-                  hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', ...
-                    T_qmin(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
-                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-                    'EdgeAlpha', 0.1);  %#ok<AGROW>
-                  % Zusätzliches Segment nach dem Schubgelenk (mit Offset)
-                  if Rob.DesPar.joint_offset(i) ~= 0
-                    % Das Offset-Segment fängt in der Mitte des durch den
-                    % Quader symbolisierten Gelenks an (damit konstant lang)
-                    hdl_link_im1(end+1) = drawCylinder([T2(1:3,4)', ...
-                      T2(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
-                      'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-                      'EdgeAlpha', 0.1);  %#ok<AGROW>
-                  end
-                end
-              end
-            end
-          elseif Rob.DesPar.joint_type(i) ==  5 % Schubgelenk ist Hubzylinder
-            if Rob.DesPar.joint_offset(i) ~= 0
-              warning('Ser.DesPar.joint_offset noch nicht für diesen Fall implementiert');
-            end
-            % Großer Zylinder, muss so lang sein wie maximaler Hub.
-            T_grozylstart = T_qprox * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
-            hdl_link_im1(end+1) = drawCylinder([T_grozylstart(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
-              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 1 0], ...
-              'EdgeAlpha', 0.1);  %#ok<AGROW>
-            % Kleinerer Zylinder, der herauskommt (aber so lang ist, wie
-            % der maximale Hub)
-            T_klezylstart = T2 * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
-            hdl_link_i(end+1) = drawCylinder([T_klezylstart(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/3], ...
-              'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 0 0], ...
-              'EdgeAlpha', 0.1);  %#ok<AGROW>
-            % Normales Segment zum Start des Hubzylinders.
-            if Rob.DesPar.seg_type(i) == 1
-              if Rob.qlim(i,2) > 2*Rob.qlim(i,1) && Rob.qlim(i,2) > 0 % Zylinder liegt auf der Höhe des KS
-                % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
-                hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+              else % Schiene liegt "rechts" vom KS. Gehe zum Startpunkt
+                hdl_link_i(end+1) = drawCylinder([T1(1:3,4)', ...
+                  T_qmin(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
                   'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                   'EdgeAlpha', 0.1);  %#ok<AGROW>
-              else
-                % Keine senkrechte Verbindung (Zylinder fängt woanders an)
-                if Rob.qlim(i,2) < 0 % Großer Zylinder liegt komplett "links" (von x-Achse schauend)
-                  hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
-                    'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-                    'EdgeAlpha', 0.1);  %#ok<AGROW>
-                else % Großer Zylinder liegt komplett "rechts"
-                  hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_grozylstart(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                % Zusätzliches Segment nach dem Schubgelenk (mit Offset)
+                if Rob.DesPar.joint_offset(i) ~= 0
+                  % Das Offset-Segment fängt in der Mitte des durch den
+                  % Quader symbolisierten Gelenks an (damit konstant lang)
+                  hdl_link_im1(end+1) = drawCylinder([T2(1:3,4)', ...
+                    T2(1:3,4)'-r_W_Gi_offsetkorr', Rob.DesPar.seg_par(i,2)/2], ...
                     'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
                     'EdgeAlpha', 0.1);  %#ok<AGROW>
                 end
               end
             end
-          else
-            error('Fall nicht definiert')
           end
-        end
-      end
-      % Benennung der gezeichneten 3D-Körper. Es werden die Vorgänger- 
-      % Segmente und die vom aktuellen Gelenk bewegten Teile getrennt.
-      for kk = 1:length(hdl_link_im1) % Vorgänger
-        set(hdl_link_im1(kk), 'DisplayName', sprintf('Link_%d', i-1));
-      end
-      for kk = 1:length(hdl_link_i) % vom Gelenk bewegt
-        set(hdl_link_i(kk), 'DisplayName', sprintf('Link_%d', i));
-      end
-    end % for i = 1:Rob.NJ
-end
-if ~s.only_bodies && ~s.straight && isempty(intersect(s.mode,[2 4 5]))
-    for i = 1:Rob.NJ
-      j = v(i)+1;
-      % MDH-Transformation in einzelnen Schritten nachrechnen, damit diese
-      % geplottet werden können.
-      T_k = NaN(4,4,3);
-      T_k(:,:,1) = T_c_W(:,:,j);
-      T_k(:,:,2) = T_k(:,:,1) * trotz(Rob.MDH.beta(i)) * transl([0;0;Rob.MDH.b(i)]);
-      T_k(:,:,3) = T_k(:,:,2) * trotx(Rob.MDH.alpha(i)) * transl([Rob.MDH.a(i);0;0]);
-      if Rob.MDH.sigma(i) == 0 % Drehgelenk
-        theta = q_JV(i) + Rob.MDH.offset(i);
-        d = Rob.MDH.d(i);
-      elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
-        theta = Rob.MDH.theta(i);
-        d = q_JV(i) + Rob.MDH.offset(i);
-      else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
-        theta = Rob.MDH.theta(i);
-        d = Rob.MDH.d(i);
-      end
-      T_k(:,:,4) = T_k(:,:,3) * trotz(theta) * transl([0;0;d]);
-
-      for k = 1:3
-        T1 = T_k(:,:,k);
-        T2 = T_k(:,:,k+1);
-        if abs(T1(1:3,4)-T2(1:3,4)) < 1e-10
-          continue % nicht zeichnen, wenn keine Veränderung
-        end
-        if any(s.mode == 1)
-          % Strichmodell: Dicke Linie zeichnen
-          plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-            'LineWidth',4,'Color','k');
-        elseif any(s.mode == 3)
-          % Trägheitsellipsen: Dünnere Linie zeichnen
-          plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
-            'LineWidth',1,'Color','k');
+        elseif Rob.DesPar.joint_type(i) ==  5 % Schubgelenk ist Hubzylinder
+          if Rob.DesPar.joint_offset(i) ~= 0
+            warning('Ser.DesPar.joint_offset noch nicht für diesen Fall implementiert');
+          end
+          % Großer Zylinder, muss so lang sein wie maximaler Hub.
+          T_grozylstart = T_qprox * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+          hdl_link_im1(end+1) = drawCylinder([T_grozylstart(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+            'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 1 0], ...
+            'EdgeAlpha', 0.1);  %#ok<AGROW>
+          % Kleinerer Zylinder, der herauskommt (aber so lang ist, wie
+          % der maximale Hub)
+          T_klezylstart = T2 * transl([0;0;-sign(q_JV(i))*(Rob.qlim(i,2)-Rob.qlim(i,1))]);
+          hdl_link_i(end+1) = drawCylinder([T_klezylstart(1:3,4)', T2(1:3,4)', Rob.DesPar.seg_par(i,2)/3], ...
+            'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[1 0 0], ...
+            'EdgeAlpha', 0.1);  %#ok<AGROW>
+          % Normales Segment zum Start des Hubzylinders.
+          if Rob.DesPar.seg_type(i) == 1
+            if Rob.qlim(i,2) > 2*Rob.qlim(i,1) && Rob.qlim(i,2) > 0 % Zylinder liegt auf der Höhe des KS
+              % Als senkrechte Verbindung unter Benutzung des a-Parameters der DH-Notation
+              hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', (eye(3,4)*T1*[Rob.MDH.a(i);0;0;1])', Rob.DesPar.seg_par(i,2)/2], ...
+                'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                'EdgeAlpha', 0.1);  %#ok<AGROW>
+            else
+              % Keine senkrechte Verbindung (Zylinder fängt woanders an)
+              if Rob.qlim(i,2) < 0 % Großer Zylinder liegt komplett "links" (von x-Achse schauend)
+                hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_qprox(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                  'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                  'EdgeAlpha', 0.1);  %#ok<AGROW>
+              else % Großer Zylinder liegt komplett "rechts"
+                hdl_link_im1(end+1) = drawCylinder([T1(1:3,4)', T_grozylstart(1:3,4)', Rob.DesPar.seg_par(i,2)/2], ...
+                  'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+                  'EdgeAlpha', 0.1);  %#ok<AGROW>
+              end
+            end
+          end
+        else
+          error('Fall nicht definiert')
         end
       end
     end
+    % Benennung der gezeichneten 3D-Körper. Es werden die Vorgänger- 
+    % Segmente und die vom aktuellen Gelenk bewegten Teile getrennt.
+    for kk = 1:length(hdl_link_im1) % Vorgänger
+      set(hdl_link_im1(kk), 'DisplayName', sprintf('Link_%d', i-1));
+    end
+    for kk = 1:length(hdl_link_i) % vom Gelenk bewegt
+      set(hdl_link_i(kk), 'DisplayName', sprintf('Link_%d', i));
+    end
+    end % for j = j_list
+  end % for i = 1:Rob.NJ
+end
+if ~s.only_bodies && ~s.straight && isempty(intersect(s.mode,[2 4 5]))
+  for i = 1:Rob.NJ
+    j = v(i)+1;
+    % MDH-Transformation in einzelnen Schritten nachrechnen, damit diese
+    % geplottet werden können.
+    T_k = NaN(4,4,3);
+    T_k(:,:,1) = T_c_W(:,:,j);
+    T_k(:,:,2) = T_k(:,:,1) * trotz(Rob.MDH.beta(i)) * transl([0;0;Rob.MDH.b(i)]);
+    T_k(:,:,3) = T_k(:,:,2) * trotx(Rob.MDH.alpha(i)) * transl([Rob.MDH.a(i);0;0]);
+    if Rob.MDH.sigma(i) == 0 % Drehgelenk
+      theta = q_JV(i) + Rob.MDH.offset(i);
+      d = Rob.MDH.d(i);
+    elseif Rob.MDH.sigma(i) == 1 % Schubgelenk
+      theta = Rob.MDH.theta(i);
+      d = q_JV(i) + Rob.MDH.offset(i);
+    else % statische Transformation (z.B. zu Schnitt-Koordinatensystemen)
+      theta = Rob.MDH.theta(i);
+      d = Rob.MDH.d(i);
+    end
+    T_k(:,:,4) = T_k(:,:,3) * trotz(theta) * transl([0;0;d]);
+
+    for k = 1:3
+      T1 = T_k(:,:,k);
+      T2 = T_k(:,:,k+1);
+      if abs(T1(1:3,4)-T2(1:3,4)) < 1e-10
+        continue % nicht zeichnen, wenn keine Veränderung
+      end
+      if any(s.mode == 1)
+        % Strichmodell: Dicke Linie zeichnen
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',4,'Color','k');
+      elseif any(s.mode == 3)
+        % Trägheitsellipsen: Dünnere Linie zeichnen
+        plot3([T1(1,4),T2(1,4)],[T1(2,4),T2(2,4)],[T1(3,4),T2(3,4)], ...
+          'LineWidth',1,'Color','k');
+      end
+    end
+  end
 end
 
 %% CAD-Modelle zeichnen
@@ -583,15 +620,11 @@ if ~s.only_bodies
       'LineWidth',1,'Color','k')  
   elseif any(s.mode == 4)
     % Als Zylinder entsprechend der Entwurfsparameter zeichnen (falls >0)
-    if Rob.DesPar.seg_type(i+1) == 1
-      if norm(T_W_N(1:3,4)'-T_W_E(1:3,4)')>1e-9
-        hdl = drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
-          'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
-          'EdgeAlpha', 0.1);
-        set(hdl, 'DisplayName', sprintf('Link_%d', Rob.I_EElink));
-      end
-    else
-      error('Segmenttyp ist nicht definiert');
+    if norm(T_W_N(1:3,4)'-T_W_E(1:3,4)')>1e-9
+      hdl = drawCylinder([T_W_N(1:3,4)', T_W_E(1:3,4)', Rob.DesPar.seg_par(end,2)/2], ...
+        'open', 'FaceAlpha', 0.3, 'FaceColor', 'k', 'edgeColor', 0.7*[0 1 0], ...
+        'EdgeAlpha', 0.1);
+      set(hdl, 'DisplayName', sprintf('Link_%d', Rob.I_EElink));
     end
   end
 end
