@@ -26,7 +26,8 @@ function Tc_stack = %RN%_fkine_coll(q, pkin, T_N_E, I_EElink)
 
 %% Berechnung, siehe %RN%_constr2.m
 Tc_stack = NaN(3*(%NL%+1),4);
-[Tc_ges, Tc_stack(1:end-3,:)] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
+[Tc_ges, Tc_stack_all] = %RN%_fkine_fixb_rotmat_mdh_sym_varpar(q, pkin);
+Tc_stack(1:3*%NL%,:) = Tc_stack_all(1:3*%NL%,:); % Ignoriere virtuellen KS am Ende bei seriell-hybriden Kinematiken
 T_0_E_q = Tc_ges(:,:,I_EElink+1) * T_N_E;
 Tc_stack(end-2:end,:) = T_0_E_q(1:3,:);
 

@@ -73,7 +73,7 @@
 %   Trajektorie von Gelenkbeschleunigungen
 % PHI
 %   Fehlermaß der inversen Kinematik für alle Zeitschritte
-% JointPos_all [NT x (%NQJ%*3)]
+% JointPos_all [NT x ((%NL%-1)*3)]
 %   gestapelte Positionen aller Gelenke für alle Zeitschritte
 %   (Entspricht letzter Spalte aller homogener Transformationsmatrizen)
 % Stats
@@ -175,7 +175,7 @@ Q = NaN(length(T), %NQJ%);
 QD = Q;
 QDD = Q;
 PHI = NaN( length(T), sum(s.I_EE) );
-JointPos_all = NaN( length(T), (%NJ%+1+1)*3 );
+JointPos_all = NaN( length(T), (%NL%+1)*3 );
 
 % Einstellungsvariablen aus Struktur herausholen
 NQJ = %NQJ%;
@@ -403,7 +403,7 @@ for k = 1:nt
   % Abspeichern für Ausgabe.
   Q(k,:) = q_k;
   PHI(k,:) = Phi_k;
-  JointPos_all(k,:) = Tc_stack_k(:,4);
+  JointPos_all(k,:) = Tc_stack_k(:,4)';
   % Prüfe Erfolg der IK
   if any(abs(Phi_k(1:n_Phi_t)) > s_pik.Phit_tol) || ...
      any(abs(Phi_k(n_Phi_t+1:end)) > s_pik.Phir_tol) || ...

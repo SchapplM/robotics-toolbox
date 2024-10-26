@@ -30,7 +30,7 @@
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
-% Tc_stack [(%NJ%+1+1)*3 x 4]
+% Tc_stack [(%NL%+1)*3 x 4]
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
 %   (enthält alle Koordinatensysteme aus direkter Kinematik; inkl. EE)
 % Stats
