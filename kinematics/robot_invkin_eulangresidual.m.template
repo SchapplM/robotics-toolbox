@@ -30,7 +30,7 @@
 %   Lösung der IK
 % Phi
 %   Restfehler mit der IK-Lösung
-% Tc_stack [(%NL%+1)*3 x 4]
+% Tc_stack [(%NJ%+1+1)*3 x 4]
 %   Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
 %   (enthält alle Koordinatensysteme aus direkter Kinematik; inkl. EE)
 % Stats
@@ -279,7 +279,7 @@ damping_active = false; % Standardmäßig noch nicht aktiviert
 q0 = Q0(:,1);
 q1 = NaN(NQJ,1);
 Phi = NaN(length(I_IK),1); % Vorbelegung für Ausgabe ohne Iteration
-Tc_stack = NaN(3*(%NL%+1),4);
+Tc_stack = NaN(3*(%NJ%+1+1),4);
 rejcount = 0; % Zähler für Zurückweisung des Iterationsschrittes, siehe [CorkeIK]
 scale = 1; % Skalierung des Inkrements (kann reduziert werden durch scale_lim)
 N = NaN(NQJ,NQJ); % Nullraum-Projektor
