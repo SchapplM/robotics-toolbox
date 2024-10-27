@@ -11,7 +11,10 @@
 %   4 a
 %   5 theta
 %   6 d
-%   7 offset
+%   7 offset (auf theta oder d, je nach Gelenktyp)
+%   8 undefined (nicht bestimmbar, bspw. bei seriell-hybriden aus ZB)
+%   9 angle parameter (keinem MDH-Parameter zuzuordnen, aber ein Winkel)
+%  10 distance parameter (vermutlich kein Winkel, also eher ein Längenpar.)
 % jointnumber
 %   Nummer des Gelenks in der MDH-Tabelle, das der Parameter beschreibt
 
@@ -25,7 +28,7 @@ mdh2pkin_hdl = eval(sprintf('@%s_mdhparam2pkin', Rob.mdlname));
 pkin2mdh_hdl = eval(sprintf('@%s_pkin2mdhparam', Rob.mdlname));
 
 % Prüfe die Parameter nacheinander, indem NaN eingesetzt wird
-pkin = NaN(6, length(Rob.pkin_gen));
+pkin = NaN(7, length(Rob.pkin_gen));
 pkin(1,:)=mdh2pkin_hdl(ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
 pkin(2,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
 pkin(3,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1)*NaN, ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), zeros(Rob.NJ,1)); 
@@ -37,7 +40,7 @@ pkin(7,:)=mdh2pkin_hdl(ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.NJ,1), ones(Rob.
 % Übersetze die Parameter zwischen Varianten und allgemeinem Modell
 if ~strcmp(Rob.mdlname, Rob.mdlname_var)
   gen2var_hdl = eval(sprintf('@%s_pkin_gen2var', Rob.mdlname_var));
-  pkin_var = NaN(6,length(Rob.pkin));
+  pkin_var = NaN(7,length(Rob.pkin));
   for i = 1:7
     pkin_var(i,:) = gen2var_hdl(pkin(i,:));
   end
@@ -52,7 +55,28 @@ types = zeros(size(pkin_var,2),1);
 for i = 1:7
   types(isnan(pkin_var(i,:))) = uint8(i);
 end
-
+% Trage ein, wenn kein Parametertyp ermittelt werden kann (Fall 8)
+% (kann bei seriell-hybriden Robotern auftreten; dann alle Einträge NaN)
+types(all(isnan(pkin_var))) = 8;
+% Untersuche, wie die unbekannten Parameter in den Funktionen auftreten
+if any(types == 8)
+  fn = which(sprintf('%s_fkine_fixb_rotmat_mdh_sym_varpar.m', Rob.mdlname));
+  if ~isempty(fn)
+    filecontent = fileread(fn); % Lade direkte Kinematik als Beispiel
+    for i = find(types' == 8)
+      % Prüfe, ob der Parameter als Argument von sin/cos auftritt. Das ist
+      % erstmal nur ein schwaches Indiz, trifft aber bei der
+      % trigonometrischen Elimination zu.
+      m_sin = regexp(filecontent, ['(sin\(pkin\(', sprintf('%d',i), '\)\))'], 'match', 'once');
+      m_cos = regexp(filecontent, ['(cos\(pkin\(', sprintf('%d',i), '\)\))'], 'match', 'once');
+      if ~isempty(m_sin) || ~isempty(m_cos)
+        types(i) = 9;
+      else
+        types(i) = 10;
+      end
+    end
+  end
+end
 % Erkenne Gelenknummer durch einsetzen von NaN in pkin und Prüfung der
 % MDH-Variablen
 jointnumber = zeros(length(Rob.pkin),1);
