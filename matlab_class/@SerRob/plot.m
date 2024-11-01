@@ -367,6 +367,9 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
     if i > Rob.NL
       mode_i = 1;  % Für virtuelle Koppelgelenke nichts zeichnen. ToDo: Noch unstimmig.
     end
+    if mode_i ~= 1 && Rob.DesPar.joint_type(i) == 1
+      mode_i = 1; % Gelenktyp für Plotten noch nicht implementiert. Zeichne nur Strich.
+    end
     hdl_link_i = []; hdl_link_im1 = [];
     % Zeichne die Segmente als Verbindung vom vorherigen zum nächsten
     % Segment. Bei seriell-hybriden funktioniert das nicht, da weniger
