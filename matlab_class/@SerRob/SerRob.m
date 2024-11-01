@@ -41,6 +41,7 @@ classdef SerRob < RobBase
 
   properties (Access = public)
     qlim % Minimale und maximale Gelenkkoordinaten q zeilenweise für die Gelenke
+    qlim_elimcoord % Grenzen der eliminierten Koordinaten bei hybriden Kinematiken
     qref % Referenz-Gelenkstellung des Roboters (entspricht "Justage"-Position)
     qDlim % Minimale und maximale Gelenkgeschwindigkeiten zeilenweise für die Gelenke
     qDDlim % Minimale und maximale Beschleunigungen zeilenweise für die Gelenke
@@ -218,6 +219,9 @@ classdef SerRob < RobBase
 
       R.qref = zeros(R.NQJ,1);
       R.qlim = repmat([-inf, inf], R.NQJ,1);
+      if R.Type == 1
+        R.qlim_elimcoord = repmat([-inf, inf], R.NJ-R.NQJ,1);
+      end
       R.qDlim = repmat([-inf, inf], R.NQJ,1);
       R.qDDlim = repmat([-inf, inf], R.NQJ,1);
       R.q_poserr = ones(R.NQJ, 1);
@@ -1465,7 +1469,7 @@ classdef SerRob < RobBase
       end
       qref_out = R.qref;
     end
-    function qlim_out = update_qlim(R, qlim, IIjoint)
+    function [qlim_out, qlim_elimcoord_out] = update_qlim(R, qlim, IIjoint)
       % Aktualisiere die Klasseneigenschaft qlim (gleiche Methode in ParRob)
       % Eingabe:
       % qlim (NJx2), untere und obere Grenze
@@ -1477,6 +1481,21 @@ classdef SerRob < RobBase
         R.qlim(IIjoint,:) = qlim;
       end
       qlim_out = R.qlim;
+      if R.Type == 1 && nargin > 1
+        % Die Gelenkgrenzen der eliminierten Koordinaten verändern sich
+        qmean = mean(qlim,2); % Mittelstellung als Referenz
+        jv_all = NaN(R.NJ, 2*R.NQJ); % Speichere die Auswirkung der Minimalkoordinaten auf die Gelenkvariablen
+        for i = 1:R.NQJ
+          % Probiere das Setzen einer Minimalkoordinaten auf die Grenze
+          q_i_test = qmean;
+          q_i_test(i) = qlim(i,1);
+          jv_all(:,2*i-1) = R.jointvar(q_i_test);
+          q_i_test(i) = qlim(i,2);
+          jv_all(:,2*i) = R.jointvar(q_i_test);
+        end
+        R.qlim_elimcoord = minmax2(jv_all(R.MDH.mu==0,:));
+      end
+      qlim_elimcoord_out = R.qlim_elimcoord;
     end
     function q_poserr_out = update_q_poserr(R, q_poserr)
       % Aktualisiere die Klasseneigenschaft q_poserr (gleiche Methode in ParRob)

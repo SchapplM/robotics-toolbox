@@ -16,19 +16,20 @@
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-08
 % (C) Institut für Mechatronische Systeme, Universität Hannover
 
-function [r_E, r_N] = reach(R, qlim_tmp)
+function [r_E, r_N] = reach(R, qlim_tmp, qlim_elimcoord_tmp)
 
 if nargin < 2
   qlim_tmp = R.qlim;
 end
-if R.Type == 1
-  % Für seriell-hybride Ketten sind nur die Grenzen der aktiven Gelenke
-  % gespeichert. Annahme. Keine passiven Schubgelenke (die bleiben NaN).
-  qlim_tmp_allcoord = NaN(R.NJ,2);
-  qlim_tmp_allcoord(R.MDH.mu==1,:) = qlim_tmp;
-else
-  % Für Beinketten paralleleler Roboter ist mu=1 und mu=2 gesetzt.
-  qlim_tmp_allcoord = qlim_tmp;
+if nargin < 3 % nur für hybride Ketten relevant
+  qlim_elimcoord_tmp = R.qlim_elimcoord;
+end
+qlim_mdh = NaN(R.NJ,2);
+if R.Type == 0 % Serielle kinematische Kette
+  qlim_mdh = qlim_tmp;
+else % hybride Kette (mit eliminierten Gelenken)
+  qlim_mdh(R.MDH.mu> 0,:) = qlim_tmp; % Grenzen der Minimalkoordinaten
+  qlim_mdh(R.MDH.mu==0,:) = qlim_elimcoord_tmp; % wird in SerRob.update_qlim() bestimmt
 end
 % Bestimme den Betrag aller Einzel-Gelenk-Transformationen aus den
 % MDH-Parametern. Gehe dafür vom EE zur Basis (Haupt-Kette bei
@@ -39,7 +40,7 @@ while i ~= 0
   if R.MDH.sigma(i) == 0 % Drehgelenk
     d_max = R.MDH.d(i);
   else % Schubgelenke
-    d_max = max(abs(qlim_tmp_allcoord(i,:)));
+    d_max = max(abs(qlim_mdh(i,:)));
   end
   % Erhöhe die Reichweite des Roboters um die maximale Länge aus der
   % aktuellen Gelenk-Transformation
