@@ -238,8 +238,7 @@ for i=1:size(Q,1)
   end
   % Zurücksetzen der Achsbegrenzungen auf den ersten Wert
   xlim(xyzminmax(1,:));ylim(xyzminmax(2,:));zlim(xyzminmax(3,:));
-  
-  grid on;
+
   if ~isempty(s_anim.gif_name) || video_in_frameloop
     f=getframe(gcf);
     if ~isempty(s_anim.avi_name)

@@ -4,7 +4,7 @@
 % qJ
 %   Gelenk-Winkel (bzw. verallgemeinerte Koordinaten) des Roboters
 % s
-%   Struktur mit Plot-Einstellungen. Felder, siehe Quelltext
+%   Struktur mit Plot-Einstellungen. Felder:
 %   ks
 %     Einträge für alle KS entsprechend der Liste der
 %     Gelenk-Transformationen. NJ+2: End-Effektor

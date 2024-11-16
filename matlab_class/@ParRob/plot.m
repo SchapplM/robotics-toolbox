@@ -6,7 +6,8 @@
 % x
 %   Endeffektor-Pose (entsprechend Roboterdefinition). Bezogen auf Basis-KS
 % s
-%   Struktur mit Plot-Einstellungen. Felder, siehe Quelltext
+%   Struktur mit Plot-Einstellungen. Felder:
+%   * ks_base: Plot des Basis-KS (true/false)
 %   * ks_legs: Plot der durch Nummer gegebenen KS der Beinketten. 
 %     Reihenfolge bzw. Nummerierung wie in ParRob/fkine_legs
 %   * ks_platform: Plot der durch Nummer gegebenen KS der Plattform. 
@@ -22,8 +23,9 @@ s_std = struct( ...
              'mode', 1, ... % Strichmodell
              'straight', 1, ...
              'nojoints', false, ...
-             'ks_platform', Rob.NLEG+2, ... % EE-KS
-             'ks_legs', Rob.I2L_LEG); % nur EE-KS jedes Beins
+             'ks_base', true, ... % (true/false)
+             'ks_platform', Rob.NLEG+2, ... % EE-KS (mit Körper-Index)
+             'ks_legs', Rob.I2L_LEG); % nur EE-KS jedes Beins (mit Körper-Index)
 if nargin < 4
   % Keine Einstellungen übergeben. Standard-Einstellungen
   s = s_std;
@@ -32,7 +34,7 @@ end
 % Prüfe Felder der Einstellungs-Struktur
 for f2 = fields(s_std)'
   f = f2{1};
-  if ~isfield(s, f),s.(f) = s_std.(f); end
+  if ~isfield(s, f), s.(f) = s_std.(f); end
 end
 
 % Einstellungs-Struktur für serielle Beinketten
@@ -65,7 +67,9 @@ hdl = plot3(r_A1_ges(:,1), r_A1_ges(:,2), r_A1_ges(:,3), 'k-');
 set(hdl, 'DisplayName', 'Base');
 
 % Basis-KS
-trplot(Rob.T_W_0, 'frame', '0', 'rgb', 'length', 0.4)
+if s.ks_base
+  trplot(Rob.T_W_0, 'frame', '0', 'rgb', 'length', 0.4)
+end
 %% Beinketten
 % Alle seriellen Beinketten plotten (ohne KS)
 for iLeg = 1:Rob.NLEG
