@@ -81,7 +81,11 @@ s = struct( ...
   'continue_saved_state', false, ... % Lade gespeicherten Zustand aus debug_dir um nach Fehler schnell weiterzumachen
   'debug', false, ... % Zusätzliche Rechnungen zur Fehlersuche
   'fastdebug', false, ... % Einige Prüfungen wieder deaktivieren, damit es schneller geht
+  ... % Standardeinstellung für Debug-Plots der Redundanzkarte
+  'markermindist', [max(t)/200, 1], ... % 200 Marker in der Breite
+  'phiz_range_plot', NaN(1,2), ... % Wird in perfmap_plot.m bestimmt
   'save_video', false, ... % Speichere das schrittweise Ausfüllen des Redundanzkarten-Bildes als Video
+  'verbose_files', false, ... % Speichern der mat-Dateien für die Zwischenstände
   'verbose', 0); % Stufen: 1=Text, 2=Zusammenfassungs-Bilder, 3=alle Bilder
 % Vorgegebene Einstellungen laden
 if nargin == 7
@@ -184,7 +188,7 @@ if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
     end
   end
 end
-if ~isempty(s.debug_dir)
+if s.verbose_files && ~isempty(s.debug_dir)
   % Speichere detaillierte Information zu den Eingabewerten ab
   save(fullfile(s.debug_dir, 'dp_init.mat'), 's', 'X_t_in', 'XD_t_in', ...
     'XDD_t_in', 't', 'q0');
@@ -425,8 +429,8 @@ if s.verbose > 1
     [Hdl_all, s_pmp, PlotData] = R.perfmap_plot(s.PM_H_all, s.PM_phiz_range, ...
       t_tref, struct( ...
       'reference', 'time', 'wn', s.wn, 'abort_thresh_h', abort_thresh_hpos, ...
-      'PM_limit', s.PM_limit, ...
-      'markermindist', [max(t)/200, 1])); % leichtes Ausdünnen der Marker
+      'PM_limit', s.PM_limit, 'phiz_range_plot', s.phiz_range_plot, ...
+      'markermindist', s.markermindist));
     % Grenzen für Zustände einzeichnen
     for v = [s.phi_min, s.phi_max]*180/pi
       plot(t_tref([1; end]), repmat(v,2,1), 'k--');
@@ -662,7 +666,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             else % PKM
               [q_i, Phi_i, ~, Stats_PosIK] = R.invkin4(xl_posik, q0_posik, s_Pos);
             end
-            if ~isempty(s.debug_dir)
+            if s.verbose_files && ~isempty(s.debug_dir)
               % Speichere Zustands-Transfer ab
               Stats_PosIK_full = Stats_PosIK;
               % Reduziere Felder, sonst werden die tmp-Dateien zu groß.
@@ -909,7 +913,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           [X_t_l(1:ii1,6),XD_t_l(1:ii1,6),XDD_t_l(1:ii1,6),tSamples] = trapveltraj([z_k, z_l],ii1,...
             'EndTime',t_i(ii1)-t_i(1), 'Acceleration', s.xDDlim(6,2)); % 'PeakVelocity', s.xDlim(6,2));
           if ~all(abs(t_i(1)+tSamples(:)-t_i(1:ii1)) < 1e-10) % Teste Ausgabe
-            if ~isempty(s.debug_dir)
+            if s.verbose_files && ~isempty(s.debug_dir)
               save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
                 'to%d_error_trapveltrajsampletime.mat'], i-1, k, l)));
             end
@@ -1062,7 +1066,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
         if isinf(s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.poserr_ee)) && ... % s.debug && 
             any(Stats.h(1:Stats.iter,1+R.idx_iktraj_hn.poserr_ee)==0) % Zum Debuggen bei Unstimmigkeiten
-          if ~isempty(s.debug_dir)
+          if s.verbose_files && ~isempty(s.debug_dir)
             save(fullfile(s.debug_dir, sprintf(['dp_stage%d_state%d_', ...
               'to%d_error_positionerrorzero.mat'], i-1, k, l)));
           end
@@ -1399,7 +1403,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         QE_stage(:, k, l) = Q(end,:)'; % Gelenkkonfiguration (Vermeidung von Umklappen)
         YE_stage(k, l) = X_l(end,6); % EE-Drehung / kontinuierliche Optimierungsvariable
       end
-      if ~isempty(s.debug_dir)
+      if s.verbose_files && ~isempty(s.debug_dir)
         % Speichere detaillierten Zwischen-Zustand ab
         X6_traj = X_l(:,6);
         X6_traj_ref = X_t_l(:,6);
@@ -1683,6 +1687,9 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           % Ändere nochmal die Farbe im Bild
           set(DbgLineHdl(k_best,l), 'Color', 'c'); % cyan für lokal optimal
           ZOrderSet(DbgLineHdl(k_best,l), 1); % Linie ist voll sichtbar
+          if s.save_video % Farb-Änderung als eigener Frame im Video. ....
+            writeVideo(v,getframe(figikhdl)); % ... Sonst kein Abschluss der Stufe sichtbar
+          end          
         end
       end
       % Nummer zum besten Zustand der Vor-Stufe
@@ -1725,7 +1732,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       F_all(i,I_delete_in_jj) = inf;
     end
   end
-  if ~isempty(s.debug_dir)
+  if s.verbose_files && ~isempty(s.debug_dir)
     % Speichere detaillierten Zwischen-Zustand ab
     save(fullfile(s.debug_dir, sprintf('dp_stage%d_final.mat', i-1)), ...
       'F_stage_sum', 'F_stage_filt', 'F_stage', 'F_stage_cond', 'QE_stage', 'YE_stage');
@@ -1776,7 +1783,7 @@ if s.verbose
   end
 end
 assert(~any(isnan(XE(I_validstates,6))), 'Logik-Fehler. angeblich erfolgreiche Stufen in XE enthalten NaN.');
-if ~isempty(s.debug_dir)
+if s.verbose_files && ~isempty(s.debug_dir)
   % Speichere detaillierten Zwischen-Zustand ab
   save(fullfile(s.debug_dir, 'dp_final.mat'), 'I_best', 'XE_all', 'QE_all', 'I_all');
 end
@@ -1986,7 +1993,10 @@ if s.verbose > 1 && length(I_validstates) > 1 % Bild nur Sinnvoll, wenn mind. ei
   if s.verbose > 1
     change_current_figure(figikhdl);
     plot(t, 180/pi*X_neu(:,6), 'g-', 'linewidth', 3);
-    % Bildausschnitt ändern
+    if s.save_video
+      writeVideo(v,getframe(figikhdl)); % Schreibe Frame des Videos
+    end
+    % Bildausschnitt ändern (nach Ende des Videos)
     ylim(180/pi*minmax2([s.PM_phiz_range;XE_all(:);X_neu(:,6)]'));
     % Zeichne Stützstellen aus DP ein. Dadurch Abweichung der finalen
     % Trajektorie zu Rast-zu-Rast-Trajektorie aus DP deutlich
@@ -1999,9 +2009,6 @@ if s.verbose > 1
   % Legende erst hier einzeichnen, damit sie nicht automatisch gefüllt wird
   I_hdl = ~isnan(PM_hdl); % nur im Plot aktive Nebenbedingungen in Legende
   legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
-  if s.save_video
-    writeVideo(v,getframe(figikhdl)); % Schreibe Frame des Videos
-  end
 end
 %% Ausgabe schreiben
 DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
@@ -2012,10 +2019,10 @@ DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
   'XD6', XD_neu(:,6), 'XDD6', XDD_neu(:,6));
-if s.verbose > 1 && ~isempty(s.debug_dir)
+if s.verbose > 1 && s.verbose_files && ~isempty(s.debug_dir)
   saveas(figikhdl, fullfile(s.debug_dir, 'dp_perfmap_traj.fig'));
 end
-if ~isempty(s.debug_dir)
+if s.verbose_files && ~isempty(s.debug_dir)
   save(fullfile(s.debug_dir, 'dp_output.mat'), 'DPstats', 'TrajDetail');
 end
 if s.save_video
