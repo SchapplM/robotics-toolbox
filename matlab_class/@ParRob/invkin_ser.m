@@ -79,6 +79,9 @@ if nargin < 4 || isempty(s_ser_in)
   s = s_ser_std;
 else
   s = s_ser_in;
+  if isfield(s, 'wn') % Keine Nullraumbewegung sinnvoll (beträfe eh nur ...
+    s = rmfield(s, 'wn'); % ... die Führungs-Beinkette)
+  end
   for f = fields(s_ser_std)'
     if ~isfield(s, f{1}) % Feld Fehlt in Eingabe. Nehme aus Standard-Einstellungen
       s.(f{1}) = s_ser_std.(f{1});
