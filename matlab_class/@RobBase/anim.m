@@ -284,7 +284,7 @@ for i=1:size(Q,1)
     % Speichere Einzelbild als hochauflösendes PNG. Interpretation des
     % Backslash durch sprintf bei Windows-Pfaden vermeiden
     tmpimage_png = sprintf(strrep(s_anim.png_name,'\','\\'), i); % Nummer hochzählen
-    print(tmpimage_png,'-dpng','-r300','-opengl');
+    print(tmpimage_png,'-dpng','-r300','-image');
 %     % Befehl exportgraphics geht nicht (schneidet Ränder variabel ab)
 %     % exportgraphics(gcf,fullfile(tdir,sprintf('frame_%05d.png',i)),'Resolution',300);
   end
@@ -297,10 +297,17 @@ end
 %% Erzeuge AVI aus png-Einzelbildern
 if isfield(s_anim, 'resolution') && ...
     (~isempty(s_anim.mp4_name) || ~isempty(s_anim.avi_name))
-  % Speichere alle PNG-Dateien als Video: h264-Codec mit verlustfreier
-  % Speicherung. Dateiformat .avi, damit das nachfolgende
-  % Kompressionsskript damit direkt funktioniert.
-  avsettings = '-c:v libx264 -qp 0';
+  % Speichere alle PNG-Dateien als Video: Dateiformat .avi ohne Kompression, 
+  % damit das nachfolgende Kompressionsskript damit direkt funktioniert
+  % https://superuser.com/questions/347433/how-to-create-an-uncompressed-avi-from-a-series-of-1000s-of-png-images-using-ff
+  if isunix()
+    % h264-Codec mit verlustfreier Speicherung
+    avsettings = '-c:v libx264 -qp 0'; % libx264 -qp 0';
+  else % unter Windows (?) mit x264 evtl. Probleme beim Laden mit readFrame
+    % Benutze stattdessen MJPEG. Alternativen (mit -c:v): "ayuv" is too big; "qtrle" crashes Matlab; "utvideo -pix_fmt rgb24" requires codeg ULRG; 
+    avsettings = '-vcodec mjpeg -qscale:v 1';
+  end
+
   cmd = sprintf('ffmpeg -y -f image2 -r %d -i "%s" %s "%s" -loglevel 0', ...
     s_anim.FrameRate, s_anim.png_name, avsettings, s_anim.avi_name);
   res = system(cmd);
