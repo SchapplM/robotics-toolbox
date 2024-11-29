@@ -150,6 +150,9 @@ if isfield(s, 'Fext') && any(s.Fext(:))
   assert(size(s.Fext,1)==size(X_t_in,1) && size(s.Fext,2)==6, ...
     'Externe Kraft ist nicht konsistent zur Trajektorie');
 end
+if ~isempty(s.debug_dir) && s.verbose > 0
+  fid = fopen(fullfile(s.debug_dir, 'dp.log'), 'w');
+end
 if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
   if ~isempty(s.PM_H_all)
     % Skaliere die Zeit-Trajektorie zu den normalisierten Koordinaten
@@ -183,7 +186,7 @@ if s.verbose > 1 || s.debug % Notwendig für Debug-Bilder
         end % for ii
       end % for kk
       if s.verbose > 0
-        fprintf('Redundanzkarte gegen Eingabe-Trajektorie geprüft (in %1.1fs)\n', toc(t1));
+        fprintf2(fid,'Redundanzkarte gegen Eingabe-Trajektorie geprüft (in %1.1fs)\n', toc(t1));
       end
     end
   end
@@ -273,7 +276,7 @@ if R.I_EE_Task(6) == R.I_EE(6)
   for f = fields(R.idx_iktraj_hn)'
     if ~isnan(s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1})))
       s_Traj.wn(R.idx_iktraj_wnP.(f{1})) = 1;
-%       fprintf('Setze wn(%s) auf 1.\n', f{1});
+%       fprintf2(fid,'Setze wn(%s) auf 1.\n', f{1});
     end
   end
   s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) = 0; % irrelevant bei 3T3R
@@ -464,17 +467,17 @@ end
 %% Dynamische Programmierung berechnen
 t0 = tic();
 if s.verbose
-  fprintf('Starte Dynamische Programmierung über %d Stufen\n', N);
+  fprintf2(fid, 'Starte Dynamische Programmierung über %d Stufen\n', N);
 end
 % Schleife über alle Stufen (= Eckpunkte der Trajektorie)
 for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   if i > 2 && s.verbose
-    fprintf(['Starte Berechnungen für Stufe %d. Zeit bis hier: %1.1fs. ', ...
+    fprintf2(fid,['Starte Berechnungen für Stufe %d. Zeit bis hier: %1.1fs. ', ...
       'Verbleibend: ca. %1.1fs\n'], i, toc(t0), (size(XE,1)-i)*toc(t0)/(i-2));
   end
   if all(isnan(XE_all(i-1,:)))
     if s.verbose
-      fprintf(['Stufe %d kann nicht erreicht werden. Kein gültiger ', ...
+      fprintf2(fid,['Stufe %d kann nicht erreicht werden. Kein gültiger ', ...
         'Zustand auf Stufe %d.\n'], i, i-1);
     end
     break;
@@ -500,7 +503,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     YE_stage = d.YE_stage;
     QE_stage = d.QE_stage;
     if s.verbose
-      fprintf('Zustand %d aus Datei geladen. Überspringe Berechnung\n', i);
+      fprintf2(fid,'Zustand %d aus Datei geladen. Überspringe Berechnung\n', i);
     end
   end
   % Gehe die Zustände nicht nach der Reihe durch, sondern nach Ähnlichkeit
@@ -508,7 +511,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   [~, I_phidistasc] = sort(abs(XE_all(i-1,:)-x0(6)));
   I_phidistasc = I_phidistasc(~isinf(F_all(i-1,I_phidistasc)));
   if s.verbose
-    fprintf('Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
+    fprintf2(fid,'Prüfe %d gültige Anfangs-Zustände für Transfer zu Stufe %d: [%s]\n', ...
       length(I_phidistasc), i, disp_array(I_phidistasc, '%d'));
   end
   % Summe der auf dieser Stufe insgesamt zu prüfenden Übergänge
@@ -521,13 +524,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     z_k = XE_all(i-1, k);
     if isnan(z_k) % dürfte gar nicht mehr vorkommen aufgrund Filter vor Schleife
       if s.verbose
-        fprintf(['Überspringe Zustand %d. Keine Teilpolitik führt von ', ...
+        fprintf2(fid,['Überspringe Zustand %d. Keine Teilpolitik führt von ', ...
           'Stufe %d dahin\n'], k, i-1);
       end
       continue
     end
     if s.verbose
-      fprintf('Stufe %d: Prüfe Start-Orientierung %d (%d/%d) (%1.1f°)\n', ...
+      fprintf2(fid,'Stufe %d: Prüfe Start-Orientierung %d (%d/%d) (%1.1f°)\n', ...
         i, k, find(k==I_phidistasc), length(I_phidistasc), 180/pi*z_k);
     end
     % Anzahl der zu prüfenden Zustands-Transfers auf nächste Stufe.
@@ -552,7 +555,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
     for l = I_l % Zustand auf nächster Stufe. Reihenfolge: Normale Intervalle, Überlappende Intervalle bzw. Optimierung auf normales Intervall, freie Bewegung
       t0_l = tic();
       if s.verbose
-        fprintf('Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
+        fprintf2(fid,'Stufe %d, Start-Orientierung %d: Prüfe Aktion %d/%d\n', i, k, l, nz2_ik);
       end
       % Die zweite Hälfte der Prüfungen bezieht sich auf eine freie Bewegung
       if s.use_free_stage_transfer && l == nz2_ik % ist immer der letzte
@@ -560,7 +563,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         % Wenn die freie Bewegung schon so stattgefunden hat, überspringen
         if unconstrained_transfer_done_k
           if s.verbose
-            fprintf('Unbeschränkte Bewegung wurde bereits durchgeführt. Überspringe.\n');
+            fprintf2(fid,'Unbeschränkte Bewegung wurde bereits durchgeführt. Überspringe.\n');
           end
           continue;
         end
@@ -580,7 +583,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           % Benutze den Zielwert der Stufe der vorherigen Ergebnisse
           if isnan(YE_stage(k,l-z))
             if s.verbose
-              fprintf(['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
+              fprintf2(fid,['Nachbearbeitung von Transfer %d/%d nicht möglich, ', ...
                 'keine Lösung\n'], i, l-z);
             end
             % Bei der Stufenoptimierung kann es passieren, dass die
@@ -593,7 +596,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             end
             if z_l == z_k % Ziel-Wert entspricht dem Start-Wert. Einmal probieren, ob es doch geht.
               if s.verbose
-                fprintf('Benutze den Wert der vorherigen Stufe als Startwert\n');
+                fprintf2(fid,'Benutze den Wert der vorherigen Stufe als Startwert\n');
               end
             else
               continue
@@ -648,7 +651,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
                  any(abs(d.q0_posik(:) - q0_posik(:)) > 1e-6) && ...
                  any(abs(s_Pos.xlim(6,:)-d.s_Pos.xlim(6,:)) > 1e-6)
                 if s.verbose && calc_posik
-                  fprintf(['Geladene Daten passen nicht zu den Startwerten. ', ...
+                  fprintf2(fid,['Geladene Daten passen nicht zu den Startwerten. ', ...
                     'Kein weiteres Laden von Ergebnissen versuchen.\n']);
                   s.continue_saved_state = false;
                 end
@@ -745,7 +748,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           % Prüfe das Ergebnis der Positions-IK.
           if any(abs(Phi_i) > 1e-8)
             if s.verbose
-              fprintf('Keine Optimierung mit Positions-IK möglich bei %d/%d\n', i, l-z);
+              fprintf2(fid,'Keine Optimierung mit Positions-IK möglich bei %d/%d\n', i, l-z);
             end
             continue
           end
@@ -757,14 +760,14 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
                   critviol = [critviol, f{1}]; %#ok<AGROW> 
                 end
               end
-              fprintf(['Nebenbedingung (%s) in zusätzlicher Optimierung ', ...
+              fprintf2(fid,['Nebenbedingung (%s) in zusätzlicher Optimierung ', ...
                 'überschritten bei %d/%d\n'], disp_array(critviol, '%s'), i, l);
             end
             continue
           end
           if Stats_PosIK.iter == 1 && all(abs(q_i-q0_posik(:,1))<1e-10)
             if s.verbose
-              fprintf('Optimierung mit Positions-IK direkt abgebrochen %d/%d\n', i, l-z);
+              fprintf2(fid,'Optimierung mit Positions-IK direkt abgebrochen %d/%d\n', i, l-z);
             end
             continue
           end
@@ -772,7 +775,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           if x_i_neu(end) < xl_posik(end) + s_Pos.xlim(6,1) || ...
               x_i_neu(end) > xl_posik(end) + s_Pos.xlim(6,2)
             if s.verbose
-              fprintf(['Optimierung mit Positions-IK führt zu unzulässigem ', ...
+              fprintf2(fid,['Optimierung mit Positions-IK führt zu unzulässigem ', ...
                 'Wert für Koord. bei %d/%d: Bereich: %1.1f°...%1.1f°. Wert: ', ...
                 '%1.1f°. Setze auf Grenze.\n'], ...
                 i, l, 180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), ...
@@ -787,7 +790,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
           % Nehme mit Positions-IK berechneten neuen Wert als Zielwert
           if s.verbose
-            fprintf(['Optimaler Zustand %1.1f° für Stufe %d im Bereich ', ...
+            fprintf2(fid,['Optimaler Zustand %1.1f° für Stufe %d im Bereich ', ...
               '%1.1f°...%1.1f° mit Positions-IK bestimmt. Ursprünglich: %1.1f°\n'], 180/pi*x_i_neu(end), k, ...
               180/pi*(xl_posik(end) + s_Pos.xlim(6,1)), 180/pi*(xl_posik(end) + s_Pos.xlim(6,2)), 180/pi*xl_posik(end));
           end
@@ -844,7 +847,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         z_l = z_k + deltaphi_bb * sign(z_l_orig2 - z_k);
         z_l_changed = true;
         if s.verbose
-          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
+          fprintf2(fid,['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
             'aufgrund Beschleunigungsgrenze %1.1fs rad/s² nicht möglich. ', ...
             'Erlaubt nur Distanz %1.1f°. Korrigiere Ziel auf %1.2f°\n'], ...
             i-1, k, 180/pi*z_k, i, l, 180/pi*z_l_orig2, (t_i(end)-t_i(1)), ...
@@ -868,7 +871,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         z_l = z_k + deltaphi_i * sign(z_l_orig - z_k);
         z_l_changed = true;
         if s.verbose
-          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
+          fprintf2(fid,['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
             'erfordert Phase konst. Geschw. (%1.2frad/s) von %1.2fs. Nach Abzug konst. ' ...
             'Beschl. in %1.2fs nur %1.2fs verfügbar. Reduziere Ziel auf %1.2f°\n'], ...
             i-1, k, 180/pi*z_k, i, l, 180/pi*z_l_orig, (t_i(end)-t_i(1)), ...
@@ -877,7 +880,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       elseif t_test1(end)>(t_i(ii1)-t_i(1)) || ...
           any(abs(qd_test1)>s.xDlim(6,2)) || any(abs(qdd_test1)>s.xDDlim(6,2))
         if s.verbose
-          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
+          fprintf2(fid,['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ', ...
             'würde %1.2fs dauern (Geschw. %1.2frad/s, Beschl. %1.2frad/s²). ' ...
             'Fall noch nicht abgefangen\n'], i-1, k, 180/pi*z_k, i, l, 180/pi*z_l, ...
             t_i(end)-t_i(1), t_test1(end), max(abs(qd_test1)), max(abs(qdd_test1)));
@@ -891,7 +894,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         if z_l < (phi_range(l) - delta_phi/2) || ...
             z_l> (phi_range(l) + delta_phi/2)
           if s.verbose
-            fprintf(['Nach der Änderung des Ziels auf %1.2f° liegt das Ziel ' ...
+            fprintf2(fid,['Nach der Änderung des Ziels auf %1.2f° liegt das Ziel ' ...
               'in einem anderen Intervall. Vermeide doppelte Prüfung.\n'], 180/pi*z_l);
           end
           continue
@@ -943,7 +946,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       
       if max(abs(XD_t_l(:,6))) > s.xDlim(6,2)
         if s.verbose
-          fprintf(['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ',...
+          fprintf2(fid,['Transfer %d/%d (%1.2f°) nach %d/%d (%1.2f°) in %1.1fs ',...
             '(nach Berücksichtigung der Geschwindigkeits-Trapez-Traj.) ', ...
             'erfordert Geschw. %1.1f rad/s größer als Grenze %1.1f rad/s.\n'], ...
             i-1, k, 180/pi*z_k, i, l, 180/pi*z_l, (t_i(ii1)-t_i(1)), ...
@@ -1028,7 +1031,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
               any(abs(d.Q(1,:) - qs')>1e-8) || ... % Startkonfiguration stimmt nicht überein
               ~isnan(z_l) && d.z_l ~= z_l
             if s.verbose && calc_traj
-              fprintf(['Geladene Daten passen nicht zu der Trajektorie. ', ...
+              fprintf2(fid,['Geladene Daten passen nicht zu der Trajektorie. ', ...
                 'Kein weiteres Laden von Ergebnissen versuchen.\n']);
             end
             s.continue_saved_state = false;
@@ -1042,13 +1045,13 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           end
         else % ~exist(resfile_l, 'file')
           if s.verbose
-            fprintf(['Datei für Übergang %d/%d-%d/%d nicht vorhanden. ', ...
+            fprintf2(fid,['Datei für Übergang %d/%d-%d/%d nicht vorhanden. ', ...
               'Kein Laden weiterer Ergebnisse versuchen.\n'], i-1, k, i, l);
           end
           s.continue_saved_state = false;
         end
         if s.verbose && ~calc_traj
-          fprintf(['Zustand %d/%d-%d/%d aus Datei geladen. Überspringe ', ...
+          fprintf2(fid,['Zustand %d/%d-%d/%d aus Datei geladen. Überspringe ', ...
             'Berechnung der Trajektorie\n'], i-1, k, i, l);
         end
       end
@@ -1061,7 +1064,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           [Q, QD, QDD, ~, JinvE_ges, ~, ~, Stats] = R.invkin2_traj(X_t_l, XD_t_l, XDD_t_l, t_i, qs, s_Traj_l);
         end
         if s.verbose
-          fprintf('Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
+          fprintf2(fid,'Traj. für %d/%d Bahnpunkte. Dauer: %1.1fs. Pro Bahnpunkt: %1.1fms\n', ...
             Stats.iter, length(t_i), toc(t0_traj), 1e3*toc(t0_traj)/Stats.iter);
         end
         if isinf(s_Traj_l.abort_thresh_h(R.idx_iktraj_hn.poserr_ee)) && ... % s.debug && 
@@ -1116,7 +1119,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         [dbg_delta_phi1, I_phistart] = min(abs(s.PM_phiz_range-z_k));
         q_start_PM = s.PM_Q_all(I_phistart,:,I_tstart);
         dbg_delta_q1 = Q(1,:) - q_start_PM;
-        fprintf(['Vergleich Startpunkt (phiz=%1.1f°) mit Werten aus ', ...
+        fprintf2(fid,['Vergleich Startpunkt (phiz=%1.1f°) mit Werten aus ', ...
           'Diskretisierung (%1.1f°): Delta phi %1.1g°. Max delta q %1.3f. delta t %1.1gs.\n'], ...
           180/pi*z_k, 180/pi*s.PM_phiz_range(I_phistart), 180/pi*dbg_delta_phi1, ...
           max(abs(dbg_delta_q1)), dbg_delta_t1);
@@ -1124,7 +1127,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         [dbg_delta_phi2, I_phiend] = min(abs(s.PM_phiz_range-X_l(iter_l,6)));
         q_end_PM = s.PM_Q_all(I_phiend,:,I_tend)';
         dbg_delta_q2 = Q(iter_l,:)' - q_end_PM;
-        fprintf(['Vergleich Endpunkt (phiz=%1.1f°; Soll %1.1f°) mit Werten aus ', ...
+        fprintf2(fid,['Vergleich Endpunkt (phiz=%1.1f°; Soll %1.1f°) mit Werten aus ', ...
           'Diskretisierung (%1.1f°): Delta phi %1.1g°. Max delta q %1.3f. delta t %1.1gs.\n'], ...
           180/pi*X_l(iter_l,6), 180/pi*z_l, 180/pi*s.PM_phiz_range(I_phiend), ...
           180/pi*dbg_delta_phi2, max(abs(dbg_delta_q2)), dbg_delta_t2);
@@ -1147,7 +1150,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
             s_plot = struct(  'ks_legs', [], 'straight', 0, 'mode', 4);
             R.plot( q_iii, x_iii, s_plot );
           end
-          fprintf('Fehler ist sehr groß. Vermutlich inkonsistente Daten\n');
+          fprintf2(fid,'Fehler ist sehr groß. Vermutlich inkonsistente Daten\n');
         end
       end
       % Berechne Verletzung der Geschw.- oder Beschleunigungs-Grenzen.
@@ -1265,7 +1268,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         iter_mc = max(1, iter_l-5);
         corr_PM_traj = corr(h_interp(1:iter_mc), h_traj(1:iter_mc));
         if corr_PM_traj < 0.8
-          fprintf(['Zielkriterium %s stimmt nicht zwischen Trajektorie ', ...
+          fprintf2(fid,['Zielkriterium %s stimmt nicht zwischen Trajektorie ', ...
             'und Redundanzkarte überein. Korrelation %1.3f\n'], 'jac_cond', corr_PM_traj)
           if s.verbose > 2
             change_current_figure(400); clf; hold on;
@@ -1291,7 +1294,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         corrQD = diag(corr(QD_num, QD(1:iter_l,:)));
         corrQ = diag(corr(Q_num, Q(1:iter_l,:)));
         if any(corrQD < 0.95) || any(corrQ < 0.98)
-          fprintf(['Keine konsistenten Gelenkverläufe. Korrelation q ', ...
+          fprintf2(fid,['Keine konsistenten Gelenkverläufe. Korrelation q ', ...
             '%1.2f...%1.2f, qD %1.2f...%1.2f\n'], min(corrQ), max(corrQ), ...
             min(corrQD), max(corrQD));
           if s.verbose > 2 && false % nur manuell untersuchen
@@ -1584,12 +1587,12 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         end
       end % if s.verbose (Debug-Plot)
       if s.verbose
-        fprintf('Stufe %d, Start-Orientierung %d: Aktion %d/%d. Dauer: %1.1fs\n', ...
+        fprintf2(fid,'Stufe %d, Start-Orientierung %d: Aktion %d/%d. Dauer: %1.1fs\n', ...
           i, k, l, z, toc(t0_l));
       end
     end % for l (Zustände Stufe i)
     if s.verbose
-      fprintf('Stufe %d: Start-Orientierung %d/%d geprüft. Dauer: %1.1fs\n', ...
+      fprintf2(fid,'Stufe %d: Start-Orientierung %d/%d geprüft. Dauer: %1.1fs\n', ...
         i, k, z, toc(t0_k));
     end
   end % for k (Zustände Stufe i-1)
@@ -1612,7 +1615,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           I_remove(II_inrangej(III_best)) = false; % ... bis auf den besten
           F_stage_filt(k,I_remove) = inf; % Entferne durch setzen auf inf.
           if s.verbose
-            fprintf(['Transfer von Stufe %d, Zustand %d nach Stufe %d (Intervall %1.1f°...%1.1f°): %d ', ...
+            fprintf2(fid,['Transfer von Stufe %d, Zustand %d nach Stufe %d (Intervall %1.1f°...%1.1f°): %d ', ...
               'doppelt: [%s] (%s). Behalten: %1.1f° (%d)\n'], i-1, k, i, 180/pi*(phi_range(j)-delta_phi/2), ...
               180/pi*(phi_range(j)+delta_phi/2), sum(I_inrangej), ...
               disp_array(180/pi*YE_stage(k,I_inrangej), '%1.1f°'), disp_array(find(I_inrangej), '%d'), ...
@@ -1680,7 +1683,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         k_best = II_equal2(ii_best2); % Index des Zustands mit bester Kondition
       end
       if s.verbose
-        fprintf(['Zustand %d (St. %d) bester Vorgänger für Zustand %d ', ...
+        fprintf2(fid,['Zustand %d (St. %d) bester Vorgänger für Zustand %d ', ...
           '(St. %d). %d Übergänge waren gleich gut, %d in Ordnung.\n'], ...
           k_best, i-1, l, i, sum(I_equal2), sum(~isinf(F_stage_sum(:, l))));
         if s.verbose > 1 && ~isnan(DbgLineHdl(k_best,l))
@@ -1722,10 +1725,10 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
       I_delete_in_jj = I_in_jj; % Binär-Indizes der zu löschenden Zustände
       I_delete_in_jj(II_in_jj(II_min)) = false; % Behalten des besten
       if s.verbose
-        fprintf('Mehr als ein Startwert in Intervall %d (%1.1f°...%1.1f°): [%s] (%s)\n', jj, ...
+        fprintf2(fid,'Mehr als ein Startwert in Intervall %d (%1.1f°...%1.1f°): [%s] (%s)\n', jj, ...
           180/pi*(phi_range(jj)-delta_phi/2), 180/pi*(phi_range(jj)+delta_phi/2), ...
           disp_array(180/pi*XE_all(i, I_in_jj), '%1.1f°'), disp_array(II_in_jj, '%d'));
-        fprintf('Behalte Nr. %d (fval=%1.1f). Verwerfe Nr. [%s] mit fval=[%s]\n', ...
+        fprintf2(fid,'Behalte Nr. %d (fval=%1.1f). Verwerfe Nr. [%s] mit fval=[%s]\n', ...
           II_in_jj(II_min), F_all(i,II_in_jj(II_min)), disp_array(find(I_delete_in_jj),'%d'), ...
           disp_array(F_all(i,I_delete_in_jj), '%1.1f'));
       end
@@ -1739,7 +1742,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
   end
 end % for i (Schleife über Stufen)
 if s.verbose
-  fprintf('Schleife durchgelaufen. Bis hier %1.1fs.\n', toc(t0));
+  fprintf2(fid,'Schleife durchgelaufen. Bis hier %1.1fs.\n', toc(t0));
 end
 %% Ergebnis nachverarbeiten, gestückelte Trajektorie zusammensetzen.
 % Trajektorie neu generieren anstatt für alle Zwischenschritte die Größen
@@ -1775,10 +1778,10 @@ for i = fliplr(I_validstates) % Rekursiv von Ende zu Anfang
 end
 if s.verbose
   if any(~isinf(F_all(end,:)))
-    fprintf('Bestes Ergebnis bei Zuständen [%s]. Zielfunktion: %1.1f\n', ...
+    fprintf2(fid,'Bestes Ergebnis bei Zuständen [%s]. Zielfunktion: %1.1f\n', ...
       disp_array(I_best', '%d'), F_all(end,I_best(end)));
   else
-    fprintf('Trajektorie nicht erfolgreich. Zustände [%s]\n', ...
+    fprintf2(fid,'Trajektorie nicht erfolgreich. Zustände [%s]\n', ...
       disp_array(I_best(I_validstates)', '%d'));
   end
 end
@@ -1908,7 +1911,7 @@ end
 X_neu(:,6) = denormalize_angle_traj(X_neu(:,6));
 
 if Stats.iter < length(t) && s.verbose
-  fprintf(['Trajektorie nicht erfolgreich bei komplettem Durchlauf. ', ...
+  fprintf2(fid,['Trajektorie nicht erfolgreich bei komplettem Durchlauf. ', ...
     'Bis %d/%d gekommen.\n'], Stats.iter, length(t));
 end
 if Stats.iter == 0
@@ -2028,4 +2031,9 @@ end
 if s.save_video
   close(v);
   compress_video_file(fullfile(s.debug_dir, 'dp_anim.avi'), true, 1);
+end
+if ~isempty(s.debug_dir) && s.verbose > 0
+  fclose(fid);
+  gzip(fullfile(s.debug_dir, 'dp.log'));
+  delete(fullfile(s.debug_dir, 'dp.log'));
 end
