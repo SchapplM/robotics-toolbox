@@ -1426,7 +1426,7 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
         else
           linecolor = 'm'; % Erfolgreich: Magenta. Kann später in cyan umgewandelt werden, wenn optimal für Ziel-Zustand
         end
-        if l == 1 && k == 1 % Initialisierung
+        if l == I_l(1) && k == 1 % Initialisierung
           DbgLineHdl(:) = NaN;
         end
         DbgLineHdl(k,l) = plot(t_i(1:iter_l), 180/pi*X_l(:,6), [linecolor,linestyle], 'linewidth', 2);
