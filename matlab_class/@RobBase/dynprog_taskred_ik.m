@@ -149,6 +149,8 @@ if isfield(s, 'Fext') && any(s.Fext(:))
   use_external_force = true;
   assert(size(s.Fext,1)==size(X_t_in,1) && size(s.Fext,2)==6, ...
     'Externe Kraft ist nicht konsistent zur Trajektorie');
+else
+  use_external_force = false;
 end
 if ~isempty(s.debug_dir) && s.verbose > 0
   fid = fopen(fullfile(s.debug_dir, 'dp.log'), 'w');
