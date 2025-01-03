@@ -288,6 +288,11 @@ if R.I_EE_Task(6) == R.I_EE(6)
   % Überlappende Intervalle ebenfalls nicht sinnvoll
   s.overlap = false;
 end
+if task_redundancy && s_Traj.wn(R.idx_iktraj_wnP.xlim_hyp) > 0 && ...
+    all(isnan(R.xlim(6,:))) % Kombination kann entstehen, wenn I_EE_Task nicht zu restlichen Eingaben passt.
+  error(['Logik-Fehler: xlim_hyp kann nicht für Redundanzoptimierung ' ...
+    'benutzt werden, da xlim=NaN ist']);
+end
 % Debug-Einstellung auch in Trajektorie übernehmen
 s_Traj.debug = s.debug; % Damit viele Test-Rechnungen in Traj.-IK
 % Reduziere die Geschwindigkeits- und Beschleunigungsgrenzen in der IK.
@@ -1078,7 +1083,17 @@ for i = 2:size(XE,1) % von der zweiten Position an, bis letzte Position
           error('Positionsfehler soll berechnet werden, ist aber Null. Darf nicht sein.')
         end
       end
-      assert(all(~isnan(Stats.h(1:Stats.iter,1))), 'Nebenbedingung NaN. Logik-Fehler');
+      if ~all(~isnan(Stats.h(1:Stats.iter,1)))
+        I_NaN = find(isnan(Stats.h), 1, 'first'); NaNstr = '';
+        for f = fields(R.idx_iktraj_hn)'
+          if isnan(Stats.h(I_NaN, 1+R.idx_iktraj_hn.(f{1})))
+            if ~isempty(NaNstr), NaNstr = [NaNstr, ', ']; end %#ok<AGROW>
+            NaNstr = [NaNstr, f{1}]; %#ok<AGROW>
+          end
+        end
+        % Kann entstehen, wenn die EE-FG nicht richtig initialisiert sind
+        error('Nebenbedingung NaN (%s). Logik-Fehler', NaNstr);
+      end
       % Anzahl der insgesamt durchführten IK-Schritte speichern
       nt_ik = nt_ik + Stats.iter;
       Stats_nt_ik_all(i,l) = Stats_nt_ik_all(i,l) + Stats.iter;
@@ -2016,10 +2031,17 @@ if s.verbose > 1
   legend(PM_hdl(I_hdl), PM_legtxt(I_hdl), 'Location', 'South', 'Orientation', 'horizontal');
 end
 %% Ausgabe schreiben
-DPstats = struct('F_all', F_all, 'n_statechange_succ', n_statechange_succ, ...
+% Merke den skalaren Zielfunktionswert auf jeder Stufe
+F_opt_stage = NaN(size(I_best));
+for kkk = 1:length(I_best) % optimalen Zustand jeder Stufe bestimmen, dafür den Kraftwert
+  if isnan(I_best(kkk)), break; end
+  F_opt_stage(kkk) = F_all(kkk,I_best(kkk));
+end
+DPstats = struct('F_all', F_all, 'F_opt_stage', F_opt_stage, ...
+  'n_statechange_succ', n_statechange_succ, 'nt_ik_all', Stats_nt_ik_all, ...
   'n_statechange_total', n_statechange_total, 'nt_ik', nt_ik, ...
-  'nt_ik_all', Stats_nt_ik_all, 'Stats_comptime_ik_all', Stats_comptime_ik_all, ...
-  'statechange_succ_all', Stats_statechange_succ_all, ...
+  'Stats_comptime_ik_all', Stats_comptime_ik_all, ...
+  'statechange_succ_all', Stats_statechange_succ_all, 'I_best', I_best, ...
   'phi_range', phi_range, 'z1', z1, 'z2', z2, 'delta_phi', delta_phi);
 TrajDetail = struct('Q', Q, 'QD', QD, 'QDD', QDD, 'PHI', PHI, 'JP', JP, ...
   'Jinv_ges', Jinv_ges, 'Stats', Stats, 'X6', X_neu(:,6), ...
