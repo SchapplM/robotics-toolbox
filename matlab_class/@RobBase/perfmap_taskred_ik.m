@@ -231,6 +231,7 @@ if any(abs(q0-s.q0)>1e-3) || any(abs(Phi)>1e-5)
   warning('initial value q0 for performance map does not match parameter map_phistart');
 end
 %% Rasterung durchführen
+t0 = tic();
 for ii_sign = 1:2 % move redundant coordinate in positive and negative direction
   if s.verbose
     fprintf('Start computation for sign %+d\n', (-1)^ii_sign);
@@ -504,7 +505,7 @@ if false
 end
 
 if s.verbose
-  fprintf('Finished discretization of the trajectory. Total %1.1fmin)\n', toc(t1)/60);
+  fprintf('Finished discretization of the trajectory. Total %1.1fmin)\n', toc(t0)/60);
 end
 if length(unique(phiz_range))~=length(phiz_range)
   error('Something went wrong when assembling phiz_range');
