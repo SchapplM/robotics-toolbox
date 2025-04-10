@@ -36,11 +36,13 @@ NLEG = Rob.NLEG;
 % Position der Plattform-Koppelpunkte Bi im Plattform-KS
 if ~Rob.issym
   r_P_P_Bi_ges = NaN(3,NLEG);
+  phi_P_B_all = NaN(3,NLEG);
 else
   r_P_P_Bi_ges = sym('xx', [3,NLEG]);
   r_P_P_Bi_ges(:)=0;
+  phi_P_B_all = sym('xx', [3,NLEG]);
+  phi_P_B_all(:)=0;
 end
-phi_P_B_all = NaN(3,NLEG);
 
 Rob.DesPar.platform_method = uint8(method);
 % Parameter in Klasse abspeichern. Der letzte Parameter in der
@@ -48,6 +50,9 @@ Rob.DesPar.platform_method = uint8(method);
 if length(Rob.DesPar.platform_par) == length(param)
   Rob.DesPar.platform_par = [param; 0];
 else
+  if Rob.issym
+    Rob.DesPar.platform_par = sym(Rob.DesPar.platform_par);
+  end
   Rob.DesPar.platform_par(1:length(param)) = param; 
 end
 if method <= 3

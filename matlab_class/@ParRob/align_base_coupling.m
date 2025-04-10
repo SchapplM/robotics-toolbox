@@ -70,8 +70,8 @@ if method <= 3 % Kreisförmig
       % TODO: Bessere Methode zur Unterdrückung der Warnung (tritt auf,
       % wenn 0 oder Pi mit Annahmen belegt werden soll
       warning('off', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
-      assume(r_0_0_Ai_ges(:,i), 'real');
-      assume(phi_0_Ai_ges(:,i), 'real');
+      assume(symvar(r_0_0_Ai_ges(:,i)), 'real')
+      assume(symvar(phi_0_Ai_ges(:,i)), 'real');
       warning('on', 'symbolic:sym:sym:AssumptionsOnConstantsIgnored');
     end
     Rob.Leg(i).r_W_0 = r_0_0_Ai_ges(:,i);

@@ -533,6 +533,9 @@ classdef ParRob < RobBase
         Jinv_qD_sDred = R.jacobi_qa_x_fcnhdl(xPred, qJ, pkin, koppelP, legFrame);
         % Erweitere auf 6FG, falls es sich um eine 2T1R/3T0R PKM handelt
         JinvP_qD_sD = zeros(sum(R.I_qa),6);
+        if R.issym
+          JinvP_qD_sD = sym(JinvP_qD_sD);
+        end
         JinvP_qD_sD(:,R.I_EE) = Jinv_qD_sDred;
         % Korrektur für Versatz von Plattform- und Endeffektor-KS
         % Zusätzlicher Hebelarm ändert Einfluss der Winkelgeschwindigkeit
@@ -1676,12 +1679,13 @@ classdef ParRob < RobBase
       % Hier wird nicht zwischen EE- und Plattform-Koordinaten
       % unterschieden. Bzgl der EE-FG sollten sie gleich sein.
       xred = x(R.I_EE);
-      koppelP = R.r_P_B_all';
+      koppelP = R.r_P_B_all.';
       if ~R.issym
         legFrame = NaN(R.NLEG, 3);
       else
         legFrame = sym('xx', [R.NLEG, 3]);
         legFrame(:)=0;
+        assume(symvar(koppelP), 'real');
       end
       for i = 1:R.NLEG
         legFrame(i,:) = R.Leg(i).phi_W_0;
