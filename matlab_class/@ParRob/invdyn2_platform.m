@@ -64,18 +64,19 @@ mrS_P = Rob.DynPar.mrSges(end,:);
 If_P = Rob.DynPar.Ifges(end,:);
 
 NLEG = Rob.NLEG;
+NX = sum(Rob.I_EE);
 NJ = Rob.NJ;
 
 if Rob.issym
   error('Nicht implementiert')
 end
 % Variable zum Speichern der vollständigen Dynamik-Kräfte (Subsysteme)
-Tau_full = NaN(NJ+NLEG,1);
+Tau_full = NaN(NJ+NX,1);
 if nargout == 2
   if Rob.DynPar.mode == 3
-    Tau_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.ipv_n1s));
+    Tau_full_reg = zeros(NJ+NX,length(Rob.DynPar.ipv_n1s));
   elseif Rob.DynPar.mode == 4
-    Tau_full_reg = zeros(NJ+NLEG,length(Rob.DynPar.mpv_n1s));
+    Tau_full_reg = zeros(NJ+NX,length(Rob.DynPar.mpv_n1s));
   else
     error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
   end
@@ -89,7 +90,7 @@ end
 
 % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 % Hier Einheitsmatrix, daher keine Multiplikation notwendig.
-R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
+R1 = [Jinv; eye(NX)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Starrkörper-Dynamik der Plattform
 if any(Rob.DynPar.mode == [1 2])

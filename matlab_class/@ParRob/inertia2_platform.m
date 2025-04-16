@@ -53,6 +53,7 @@ if nargin == 4
 end
 
 NLEG = Rob.NLEG;
+NX = sum(Rob.I_EE);
 
 if Rob.issym
   error('Nicht implementiert')
@@ -68,7 +69,7 @@ if nargin < 4
 end
 % Reihenfolge der Koordinaten (erst Beine, dann Plattform), [DT09]/(9)
 % Hier Einheitsmatrix, daher keine Multiplikation notwendig.
-R1 = [Jinv; eye(NLEG)]; % Projektionsmatrix, [DT09]/(15)
+R1 = [Jinv; eye(NX)]; % Projektionsmatrix, [DT09]/(15)
 
 %% Massenmatrix des vollständigen Systems (alle Subsysteme)
 % Ausgelagert in andere Funktion, da Term auch für Coriolis-Kräfte benötigt

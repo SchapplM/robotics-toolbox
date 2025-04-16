@@ -43,6 +43,7 @@ mrSges = Rob.DynPar.mrSges(end,:);
 Ifges = Rob.DynPar.Ifges(end,:);
 
 NLEG = Rob.NLEG;
+NX = sum(Rob.I_EE);
 NJ = Rob.NJ;
 
 if Rob.issym
@@ -101,16 +102,16 @@ for i = 1:NLEG
     end
     Mq_Leg = vec2symmat(Mvec_Leg);
   end
-  M_full((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NLEG) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg, zeros(Rob.Leg(i).NJ,NJ+NLEG -(Rob.Leg(i).NJ*(i)))];
+  M_full((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NX) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg, zeros(Rob.Leg(i).NJ,NJ+NX -(Rob.Leg(i).NJ*(i)))];
   if nargout == 2
     for jj = 1:size(Mvec_Leg_reg,2)
       Mq_Leg_reg_jj = vec2symmat(Mvec_Leg_reg(:,jj));
-      M_full_reg((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NLEG,jj) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg_reg_jj, zeros(Rob.Leg(i).NJ,NJ+NLEG -(Rob.Leg(i).NJ*(i)))];
+      M_full_reg((i-1)*Rob.Leg(i).NJ+1:Rob.Leg(i).NJ*i,1:NJ+NX,jj) = [zeros(Rob.Leg(i).NJ,(Rob.Leg(i).NJ*(i-1))),Mq_Leg_reg_jj, zeros(Rob.Leg(i).NJ,NJ+NX -(Rob.Leg(i).NJ*(i)))];
     end
   end
 end
 % Massenmatrix-Terme der Plattform
-M_full(NJ+1:end,1:NJ+NLEG) = [zeros(NLEG,NJ),M_plf_red];
+M_full(NJ+1:end,1:NJ+NX) = [zeros(NLEG,NJ),M_plf_red];
 if nargout == 2 % Ausgabe der Regressormatrizen
   % Wiederhole die gleiche Zuweisung, aber für alle Dynamikparameter
   % einzeln (die Spalten in der Starrkörper-Regressormatrix sind andere als
