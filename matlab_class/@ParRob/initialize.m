@@ -86,9 +86,18 @@ structkinpar_hdl = eval(sprintf('@%s_structural_kinematic_parameters', R.mdlname
 % Diese Variable wird von PKM-Funktionen aus der HybrDyn-Toolbox benötigt
 if ~isempty( which(sprintf('%s_structural_kinematic_parameters.m', R.mdlname)) )
   R.NQJ_LEG_bc = structkinpar_hdl();
+elseif ~isempty(R.Leg(1).DesPar.joint_type)
+  % Bestimme anhand der aus der Datenbank bekannten Folge technischer
+  % Gelenke. Relevant ist nur die Wertigkeit des Koppelgelenks.
+  if R.Leg(1).DesPar.joint_type(end) == 3 % Kugelgelenk
+   R.NQJ_LEG_bc = R.Leg(1).NQJ - 3;
+  elseif R.Leg(1).DesPar.joint_type(end) == 2 % Kardangelenk
+   R.NQJ_LEG_bc = R.Leg(1).NQJ - 2;
+  else % muss ein einwertiges Gelenk sein (C-Gelenk nicht implementiert)
+   R.NQJ_LEG_bc = R.Leg(1).NQJ - 1;
+  end
 else
   % Die PKM-Funktion ...structural_kinematic_parameters existiert nicht.
-  % Daher wird die Variable sowieso nicht benötigt.
   % Setze auf plausiblen Wert (die meisten PKM haben 3 Gelenke, die die
   % Position der Koppelpunkte beeinflussen)
   if all(R.I_EE == [1 1 0 0 0 1])
