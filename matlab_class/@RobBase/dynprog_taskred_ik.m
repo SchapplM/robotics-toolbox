@@ -1936,7 +1936,7 @@ if Stats.iter == 0
   for f = fields(R.idx_iktraj_hn)'
     if Stats.h(1,1+R.idx_iktraj_hn.(f{1})) >= s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1}))
       if ~isempty(failstr), failstr = [failstr, ', ']; end %#ok<AGROW> 
-      failstr = [failstr, sprintf('%s: %1.2e>%1.2e', f{1}, ...
+      failstr = [failstr, sprintf('%s: %1.2e>=%1.2e', f{1}, ...
         Stats.h(1,1+R.idx_iktraj_hn.(f{1})), s_Traj.abort_thresh_h(R.idx_iktraj_hn.(f{1})))]; %#ok<AGROW> 
     end
   end
