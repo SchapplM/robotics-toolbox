@@ -73,10 +73,16 @@ if R.islegchain
   % Für Drehgelenk (Aktiv). Nachgiebigkeit Daten aus [Zhang2009] S.79; [Klimchik2011] S.52.
   Nd_a = S*diag([0.0000167, 0.0000167, 0.000022, 0.00002, 0.00002, 0.0000333]);
   % Für Kugelgelenk (Passiv). aus ANSYS Simulation (Modell in ANSYS zu klein, wird mit 0,1 multipliziert)
-  NK_p = S*diag([3.33E-7, 1E-7, 1E-7, 1e9, 1e9, 1e9]); 
-
+  % Annahme: Alle Rotations-Freiheitsgrade sind passiv, also unendlich
+  % nachgiebig. Hier angenähert mit 1e9. Weil weiter unten jeder Gelenk-FG
+  % einzeln genommen wird, wird jeweils eine der drei Gelenk-Drehachsen die
+  % z-Achse im DH-KS sein. Daher hier die x- und y-Komponente zu Null
+  % gesetzt.
+  NK_p = S*diag([3.33E-7, 1E-7, 1E-7, 0, 0, 1e9]); 
   % Für Kardan-Gelenk (Passiv). aus ANSYS Simulation (Wie Kugelgelenk)
-  NU_p = S*diag([1.45E-6, 3E-5, 3E-5, 0.0022, 1e9, 1e9]); 
+  % (in Schleife unten zweimal betrachtet, daher nur letzter Gelenk-FG auf
+  % unendlich nachgiebig gesetzt).
+  NU_p = S*diag([1.45E-6, 3E-5, 3E-5, 0.0022, 0.0022, 1e9]); 
 else % Serieller Roboter
   % Für Drehgelenke
   Nd_a = S*diag([1.428E-8, 1.428E-8, 2.2E-8, 2E-8, 2E-8, 1.52E-7]);%Nachgiebigkeit Daten aus [Klimchik2011] P52.
