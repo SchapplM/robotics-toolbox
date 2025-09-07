@@ -42,6 +42,13 @@ for j = 1:RP.NLEG % Für alle Beinketten
   q_j = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
+  % Indizes der aktuierten Gelenke in den Beinkettengelenken dieser BK j
+  I_qa_j = RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j));
+  % Erster Index der aktuierten Gelenke dieser BK in Antriebskoordinaten
+  % (Für den Fall von mehreren Antrieben pro Beinkette)
+  if j == 1, i1_act = 1;
+  else,      i1_act = nnz(RP.I_qa(RP.I1J_LEG(1):RP.I2J_LEG(j-1)))+1;
+  end
   if nargin < 6
     % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
     % der inversen Dynamik (Massenträgheit, Coriolis, Gravitation)
@@ -58,7 +65,7 @@ for j = 1:RP.NLEG % Für alle Beinketten
   end
   % Antriebsmomente dieses Beins (passive sind Null)
   tau_m_j = zeros(RP.Leg(j).NQJ,1);
-  tau_m_j(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j))) = tauA(j); % TODO: Aktuell nur ein Antrieb pro Bein
+  tau_m_j(I_qa_j) = tauA(i1_act:i1_act+nnz(I_qa_j)-1);
   R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
 
   % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS

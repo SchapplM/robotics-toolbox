@@ -1,18 +1,19 @@
 % Beispiel- und Testskript für die Berechnung der Schnittkräfte einer PKM
+% Im Gegensatz zu ParRob_cutforce_example.m ist die PKM nicht voll-parallel
 % Inhalt:
-% * Definition Roboter (6UPS) und Beispieltrajektorie (singularitätsfrei)
+% * Definition Roboter (3RRPS) und Beispieltrajektorie (singularitätsfrei)
 % * Berechnung inverse Dynamik, Antriebs- und Schnittkräfte
 % * Prüfe energetische Konsistenz für die Umrechnung Antriebe/Plattform
 % * Zeichne Auswertungsbilder zur Prüfung der Plausibilität (optional)
 % 
-% Siehe auch: ParRob_class_example_6UPS.m
+% Siehe auch: ParRob_cutforce_example.m
 %
 % Quellen: 
 % [AbdellatifHei2009] Computational efficient inverse dynamics of 6-DOF fully
 % parallel manipulators by using the Lagrangian formalism
 
-% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2019-05
-% (C) Institut für Mechatronische Systeme, Universität Hannover
+% Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2025-09
+% (C) Institut für Mechatronische Systeme, Leibniz Universität Hannover
 
 clear
 clc
@@ -23,27 +24,25 @@ if isempty(which('parroblib_path_init.m'))
 end
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 respath = fullfile(rob_path, 'examples_tests', 'results');
-usr_jointspring = true; % <-- hier false, um die Gelenkelastizität zu deaktivieren
+usr_jointspring = false; % <-- hier false, um die Gelenkelastizität zu deaktivieren
 usr_nofigures = true; % <-- hier false, falls Bilder gezeichnet werden sollen
 %% Definiere Roboter
-RP = parroblib_create_robot_class('P6RRPRRR14V3G1P1A1', '', 0.5, 0.2);
-parroblib_update_template_functions({'P6RRPRRR14V3G1P1'});
+RP = parroblib_create_robot_class('P3RRPRRR14V5G2P1A1', '', 0.5, 0.2);
+parroblib_update_template_functions({'P3RRPRRR14V5G2P1A1'});
 % Beinketten und PKM mit kompilierten Funktionen
 RP.fill_fcn_handles(true, true);
-% Aktuierung nochmal festlegen
-II_qai = [3 3 3 3 3 3];
-I_qa = false(RP.NJ,1);
-for k = 1:RP.NLEG
-  I_qa(RP.I1J_LEG(k)-1+II_qai(k)) = true;
-end
-RP.update_actuation(I_qa);
-%% Plattform-Konfiguration verändern
-% Mit einer Kreisförmigen Plattformkoppelpunktanordnung ist die PKM
-% singulär (Jacobi der direkten Kinematik). Daher paarweise Anordnung
-RP.align_platform_coupling(4, [0.2;0.1]);
-
+% Mache die Kinematik so ähnlich wie bei 6UPS (S6RRPRRR14V3)
+pkin = zeros(length(RP.Leg(1).pkin),1);
+% Kleiner Offset zwischen Drehgelenken um zu zeigen, dass es kein Kardan-
+% gelenk ist
+pkin(strcmp(RP.Leg(1).pkin_names, 'a2')) = 0.100;
+pkin(strcmp(RP.Leg(1).pkin_names, 'alpha2')) = pi/2;
+pkin(strcmp(RP.Leg(1).pkin_names, 'alpha3')) = pi/2;
+pkin(strcmp(RP.Leg(1).pkin_names, 'alpha4')) = 0;
+pkin(strcmp(RP.Leg(1).pkin_names, 'theta3')) = 0;
+RP.update_mdh_legs(pkin);
 %% Beispieltrajektorie definieren
-X0 = [ [0;0;0.5]; [0;0;0]*pi/180 ];
+X0 = [ [0;0;0.5]; [0;0;30]*pi/180 ];
 % Trajektorie mit beliebigen Bewegungen der Plattform
 XL = [X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]; ...
       X0'+1*[[ 0.0, 0.0, 0.0], [0.0, 0.0, 0.3]]; ...
@@ -71,11 +70,12 @@ end
 t1=tic();
 for i = 1:10 % Mehrere Versuche für IK. Manchmal funktioniert es nicht.
   q0_ik = 0.5-rand(RP.NJ,1);
-  q0_ik(RP.I_qa) = 0.5; % Damit Konfiguration nicht umklappt
+  q0_ik(1:6:end) = -0.5; % Damit die erste Achse so gedreht ist, dass das zweite Gelenk oben ist
+  q0_ik(RP.MDH.sigma==1) = 0.5; % Damit Konfiguration nicht umklappt
   [q0, Phi0] = RP.invkin_ser(X0, q0_ik);
   if any(abs(Phi0) > 1e-8) || any(isnan(q0))
     warning('Versuch %d: IK konvergiert nicht für Startpunkt', i);
-  elseif any(q0(RP.I_qa)<0)
+  elseif any(q0(RP.MDH.sigma==1)<0)
     warning('Versuch %d: IK führt zu negativer Schubgelenkkoordinate', i);
   else
     break;
@@ -138,11 +138,11 @@ RP.update_dynpar1(mges, rSges, Icges);
 t1=tic();
 Fp_t = NaN(nt, 6); % Plattform-Kräfte
 TAUa_t = NaN(nt, sum(RP.I_qa)); % Antriebskräfte
-Det_t = NaN(nt,11); % Verschiedene Determinanten
+Det_t = NaN(nt,5+RP.NLEG); % Verschiedene Determinanten
 P_ges_t = NaN(nt,14); % Leistung versch. Komponenten
 FA_t = NaN(nt, 8*RP.NLEG); % Kräfte und Momente in Gestell-Koppelpunkten
 FB_t = NaN(nt, 8*RP.NLEG); % Kräfte und Momente in Plattform-Koppelpunkten
-FLeg0_t = NaN(7*6, RP.NLEG, nt);
+FLeg0_t = NaN(7*6, RP.NLEG, nt); % 7 Schnittpunkte, 6 Komponenten für Wrench
 FLegl_t = NaN(7*6, RP.NLEG, nt);
 for i = 1:nt
   % Initialisierung von Zuständen für diesen Zeitschritt
@@ -172,7 +172,7 @@ for i = 1:nt
   T_euljac = [eye(3,3), zeros(3,3); zeros(3,3), euljac(x(4:6), RP.phiconv_W_E)];
   Jinv_sym = Jinv_num / T_euljac;
   % Berechne Dynamik in Plattform-Koordinaten (unabhängig von Aktuierung)
-  tauX = RP.invdyn_platform(q,x,xD,xDD);
+  tauX = RP.invdyn2_platform(q,qD,qDD,x,xD,xDD);
   if usr_jointspring
     tauX = tauX + RP.jointtorque_platform(q, x, RP.springtorque(q));
   end
@@ -217,6 +217,13 @@ for i = 1:nt
   Fx_sumB = zeros(6,1); % Kraftsumme der Beine auf die Plattform
   Fx_sumA = zeros(6,1); % Kraftsumme der Reaktionskraft auf die Basis
   for j = 1:RP.NLEG % Für alle Beinketten
+    % Indizes der aktuierten Gelenke in den Beinkettengelenken dieser BK j
+    I_qa_j = RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j));
+    % Erster Index der aktuierten Gelenke dieser BK in Antriebskoordinaten
+    % (Für den Fall von mehreren Antrieben pro Beinkette)
+    if j == 1, i1_act = 1;
+    else,      i1_act = nnz(RP.I_qa(RP.I1J_LEG(1):RP.I2J_LEG(j-1)))+1;
+    end
     q_j = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
     qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
     qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
@@ -225,7 +232,9 @@ for i = 1:nt
       tau_j_spring = RP.Leg(j).springtorque(q_j);
       tau_j = tau_j + tau_j_spring;
     end
-    tau_m_j = zeros(RP.Leg(j).NQJ,1); tau_m_j(II_qai(j)) = tauA(j); % Antriebsmomente dieses Beins (passive sind Null)
+    tau_m_j = zeros(RP.Leg(j).NQJ,1);
+    Iqa_Leg = RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j));
+    tau_m_j(I_qa_j) = tauA(i1_act:i1_act+nnz(I_qa_j)-1); % Antriebsmomente dieses Beins (passive sind Null)
     R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
     % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
     J_j_0 = [R_0_0j, zeros(3,3); zeros(3,3), R_0_0j] * RP.Leg(j).jacobig(q_j);
@@ -381,28 +390,33 @@ end
 II_qa = find(RP.I_qa);
 if ~usr_nofigures
   fhdl=figure(7);clf;set(fhdl, 'Name', 'Antriebsgelenke', 'NumberTitle', 'off');
-  for k = 1:RP.NLEG
+  for k = 1:nnz(RP.I_qa)
+    i_joint = II_qa(k);
+    i_leg = find(RP.I1J_LEG<=i_joint & RP.I2J_LEG>=i_joint);
+    % I_qa_leg = find(RP.I_qa(RP.I1J_LEG(i_leg):RP.I2J_LEG(i_leg)));
+    i_legjoint = i_joint - RP.I1J_LEG(i_leg) + 1;
+
     subplot(4,6,sprc2no(4,6,1,k));hold on;
-    plot(T, Q_t(:,II_qa(k)));
-    plot(T(X_sp), Q_t(X_sp,II_qa(k)), 'o');
+    plot(T, Q_t(:,i_joint));
+    plot(T(X_sp), Q_t(X_sp,i_joint), 'o');
     xlabel('t in s');
-    ylabel(sprintf('q_{a%d} in %s', k, RP.Leg(k).qunit_sci{II_qai(k)}));
+    ylabel(sprintf('q_{a%d} in %s', k, RP.Leg(i_leg).qunit_sci{i_legjoint}));
     grid on;
-    title(sprintf('Achse %d',k));
+    title(sprintf('Achse %d (BK%d, Gel.%d)',k, i_leg, i_legjoint));
     subplot(4,6,sprc2no(4,6,2,k));hold on;
-    plot(T, QD_t(:,II_qa(k)));
+    plot(T, QD_t(:,i_joint));
     xlabel('t in s');
-    ylabel(sprintf('qD_{a%d} in %s/s', k, RP.Leg(k).qunit_sci{II_qai(k)}));
+    ylabel(sprintf('qD_{a%d} in %s/s', k, RP.Leg(i_leg).qunit_sci{i_legjoint}));
     grid on;
     subplot(4,6,sprc2no(4,6,3,k));hold on;
-    plot(T, QDD_t(:,II_qa(k)));
+    plot(T, QDD_t(:,i_joint));
     xlabel('t in s');
-    ylabel(sprintf('qDD_{a%d} in %s/s^2', k, RP.Leg(k).qunit_sci{II_qai(k)}));
+    ylabel(sprintf('qDD_{a%d} in %s/s^2', k, RP.Leg(i_leg).qunit_sci{i_legjoint}));
     grid on;
     subplot(4,6,sprc2no(4,6,4,k));hold on;
     plot(T, TAUa_t(:,k));
     xlabel('t in s');
-    ylabel(sprintf('\\tau_{a%d} in %s', k, RP.Leg(k).tauunit_sci{II_qai(k)}));
+    ylabel(sprintf('\\tau_{a%d} in %s', k, RP.Leg(i_leg).tauunit_sci{i_legjoint}));
     grid on;
   end
   linkxaxes
@@ -424,7 +438,7 @@ if ~usr_nofigures
   xlabel('t in s');
   title('Determinante der Beinketten');
   grid on;
-  legend({'Jinv_{1}', 'Jinv_{2}', 'Jinv_{3}', 'Jinv_{4}', 'Jinv_{5}', 'Jinv_{6}'});
+  legend({'Jinv_{1}', 'Jinv_{2}', 'Jinv_{3}'});
   subplot(2,3,sprc2no(2,3,1,2)); hold on;
   plot(T, Phi_t(:,RP.I_constr_t));
   plot(T([1 end]), s.Phit_tol*[1;1], 'r--');
@@ -465,6 +479,7 @@ if ~usr_nofigures
     plot(T, FA_t(:, (j-1)*8+7))
     if j == RP.NLEG, legend({'fx', 'fy', 'fz', 'norm'}); end
     ylabel(sprintf('Schnittkraft A%d in N', j));
+    title(sprintf('Beinkette %d', j));
     grid on;
     subplot(4,RP.NLEG,sprc2no(4,RP.NLEG,2,j)); hold on;
     plot(T, FA_t(:, (j-1)*8+4:(j*8)-2));
@@ -502,6 +517,7 @@ if ~usr_nofigures
       else
         set(fhdl, 'Name', sprintf('Schnittmoment_Beine_KS%s',ksstr), 'NumberTitle', 'off');
       end
+      sgtitle(get(fhdl, 'Name'), 'Interpreter', 'none');
       sphdl=gobjects(RP.Leg(1).NL, RP.NLEG);
       for k = 1:RP.NLEG % Beine in den Spalten des Bildes
         % Vektor der Schnittkräfte für aktuelles Bein extrahieren
@@ -547,7 +563,7 @@ if ~usr_nofigures
 end
 %% Animation des bewegten Roboters
 if ~usr_nofigures
-  s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_cutforce_example_6UPS.gif'));
+  s_anim = struct( 'gif_name', fullfile(respath, 'ParRob_cutforce_example_notfullyparallel_6RRPS.gif'));
   s_plot = struct( 'ks_legs', [RP.I1L_LEG; RP.I1L_LEG+1; RP.I2L_LEG], 'straight', 0);
   fhdl=figure(5);clf;hold all;set(fhdl, 'Name', 'Animation', 'NumberTitle', 'off');
   set(fhdl, 'color','w', 'units','normalized', 'outerposition', [0 0 1 1]);

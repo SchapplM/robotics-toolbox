@@ -64,6 +64,13 @@ for j = 1:RP.NLEG % Für alle Beinketten
   q_j = q(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qD_j = qD(RP.I1J_LEG(j):RP.I2J_LEG(j));
   qDD_j = qDD(RP.I1J_LEG(j):RP.I2J_LEG(j));
+  % Indizes der aktuierten Gelenke in den Beinkettengelenken dieser BK j
+  I_qa_j = RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j));
+  % Erster Index der aktuierten Gelenke dieser BK in Antriebskoordinaten
+  % (Für den Fall von mehreren Antrieben pro Beinkette)
+  if j == 1, i1_act = 1;
+  else,      i1_act = nnz(RP.I_qa(RP.I1J_LEG(1):RP.I2J_LEG(j-1)))+1;
+  end
   % Schnittkräfte in der Beinkette aufgrund der internen Kräfte
   I_joints = (RP.Leg(j).MDH.sigma==1) .* (3+(3:3:3*RP.Leg(j).NJ)') + ... % erste Einträge entsprechen Schnittkräften und damit Schubgelenken (z-Komponente)
              (RP.Leg(j).MDH.sigma==0) .* (6+3*RP.Leg(j).NJ+(3:3:3*RP.Leg(j).NJ)'); % 
@@ -89,8 +96,8 @@ for j = 1:RP.NLEG % Für alle Beinketten
   % Anzahl der Spalten bei Dynamik: RP.Leg(j).NJ*10+sum(RP.I_platform_dynpar); erste Spalten für Parameter der Beinkette, letzte für die der Plattform
   % Anzahl der Spalten bei Gelenkmoment: RP.NJ
   tau_m_j_reg = zeros( RP.Leg(j).NQJ, size(Fa_reg,2) );
-  tau_m_j_reg(RP.I_qa(RP.I1J_LEG(j):RP.I2J_LEG(j)),:) = Fa_reg(j,:); % TODO: Aktuell nur ein Antrieb pro Bein
-
+  tau_m_j_reg(I_qa_j,:) = Fa_reg(i1_act:i1_act+nnz(I_qa_j)-1,:);
+  
   R_0_0j = RP.Leg(j).T_W_0(1:3,1:3); % Rotation PKM-Basis - Beinkette-Basis
 
   % Bein-Jacobi-Matrix für Koppelpunkt. Im PKM-Basis-KS
