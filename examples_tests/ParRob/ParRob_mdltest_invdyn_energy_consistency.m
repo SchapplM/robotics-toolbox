@@ -39,6 +39,7 @@ EEFG_Ges = [1 1 0 0 0 1; ...
             1 1 1 0 0 0; ...
             1 1 1 0 0 1; ...
             1 1 1 1 1 0; ...
+            1 1 1 1 1 1; ...
             1 1 1 1 1 1];
 rob_path = fileparts(which('robotics_toolbox_path_init.m'));
 % Pfad zum Abspeichern von Maßsynthese-Ergebnissen
@@ -78,8 +79,10 @@ for i_FG = 1:size(EEFG_Ges,1)
         III = find(strcmp(PNames_Kin, 'P4PRRRR8V1G3P1'));
       case 4
         III = find(strcmp(PNames_Kin, 'P5RRRPR4V1G9P8'));
-      case 5
+      case 5 % 3T3R voll-parallel
         III = find(strcmp(PNames_Kin, 'P6PRRRRR6V2G8P1'));
+      case 6 % 3T3R n.v.p.
+        III = find(strcmp(PNames_Kin, 'P3RRPRRR14V5G2P1'));
     end
   else
     III = 1:length(PNames_Kin);
@@ -190,6 +193,11 @@ for i_FG = 1:size(EEFG_Ges,1)
       Set.optimization.base_size = false;
       Set.optimization.platform_size = false;
       Set.optimization.obj_limit = 1e3; % Sofort abbrechen, falls Ergebnis irgendwie funktionierend (hinsichtlich IK der Beingelenke)
+      Set.optimization.pos_ik_abort_on_success = true; % damit es schneller geht
+      Set.optimization.traj_ik_abort_on_success = true;
+      if i_FG == 6
+        Set.structures.use_parallel_notfullyparallel = true;
+      end
       Set.structures.use_parallel_rankdef = 6;
       Set.structures.whitelist = {PName}; % nur diese PKM untersuchen
       Set.structures.nopassiveprismatic = false; % Für Dynamik-Test egal 
