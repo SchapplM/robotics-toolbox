@@ -52,12 +52,12 @@ end
 
 % Variable zum Speichern der vollständigen Massenmatrix (Subsysteme)
 % M_full = NaN((NLEG+1)*NLEG, (NLEG+1)*NLEG);
-M_full = NaN((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG);
+M_full = NaN(NJ+NX, NJ+NX);
 if nargout == 2 % Ausgabe der Regressormatrizen
   if Rob.DynPar.mode == 3
-    M_full_reg = zeros((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG, length(Rob.DynPar.ipv_n1s));
+    M_full_reg = zeros(NJ+NX, NJ+NX, length(Rob.DynPar.ipv_n1s));
   elseif Rob.DynPar.mode == 4
-    M_full_reg = zeros((Rob.Leg(1).NL)*NLEG, (Rob.Leg(1).NL)*NLEG, length(Rob.DynPar.mpv_n1s));
+    M_full_reg = zeros(NJ+NX, NJ+NX, length(Rob.DynPar.mpv_n1s));
   else
     error('Ausgabe des Regressors mit Dynamik-Modus %d nicht möglich', Rob.DynPar.mode);
   end
@@ -72,9 +72,9 @@ else
   % einfacher.
   [~,Mvec_plf_reg] = rigidbody_inertiaB_floatb_eulxyz_reg2_slag_vp_mex(xP(4:6));
   if Rob.DynPar.mode == 3
-    delta = Rob.DynPar.ipv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+    delta = Rob.DynPar.ipv_n1s(end-nnz(Rob.I_platform_dynpar)+1:end);
   else
-    delta = Rob.DynPar.mpv_n1s(end-sum(Rob.I_platform_dynpar)+1:end);
+    delta = Rob.DynPar.mpv_n1s(end-nnz(Rob.I_platform_dynpar)+1:end);
   end
   Mvec_plf = Mvec_plf_reg(:,Rob.I_platform_dynpar) * delta;
   M_plf_full = reshape(Mvec_plf, 6, 6);
@@ -111,7 +111,7 @@ for i = 1:NLEG
   end
 end
 % Massenmatrix-Terme der Plattform
-M_full(NJ+1:end,1:NJ+NX) = [zeros(NLEG,NJ),M_plf_red];
+M_full(NJ+1:NJ+NX,1:NJ+NX) = [zeros(NX,NJ),M_plf_red];
 if nargout == 2 % Ausgabe der Regressormatrizen
   % Wiederhole die gleiche Zuweisung, aber für alle Dynamikparameter
   % einzeln (die Spalten in der Starrkörper-Regressormatrix sind andere als
