@@ -46,9 +46,9 @@ for i = 1:R.NLEG
   R_Bi_P = R_P_Bi';
   r_0_Bi_P = R_0_Ai(1:3,1:3) * T_Ai_Bi(1:3,1:3) * R_Bi_P * -R.r_P_B_all(:,i);
   % Benutze Kreuzprodukt vom Bein-EE zum Plattform-KS
-  Jv = [eye(3), zeros(3); skew(r_0_Bi_P), eye(3)];
+  A_P_Bi = adjoint_jacobian(r_0_Bi_P);
   % Transformation der Steifigkeitsmatrix
-  SF_PB_PE = Jv * R_0_Ai / N_Ai_Bi * R_0_Ai' * Jv';
+  SF_PB_PE = A_P_Bi' * R_0_Ai / N_Ai_Bi * R_0_Ai' * A_P_Bi;
   % Steifigkeit der parallelen Struktur ist Summe der einelnen
   % Steifigkeiten
   Kx = Kx + SF_PB_PE;
@@ -57,9 +57,9 @@ for i = 1:R.NLEG
   % falls Ausgabe gefragt. TODO: Gibt noch Probleme, falls
   % Segmentnachgiebigkeit Null ist.
   if nargout > 1
-    KxJ = KxJ + Jv*R_0_Ai/(N_Ai_Bi_J)*R_0_Ai'*Jv';
+    KxJ = KxJ + A_P_Bi' * R_0_Ai / N_Ai_Bi_J * R_0_Ai' * A_P_Bi;
   end
   if nargout > 2
-    KxL = KxL + Jv*R_0_Ai/(N_Ai_Bi_L)*R_0_Ai'*Jv';
+    KxL = KxL + A_P_Bi' * R_0_Ai / N_Ai_Bi_L * R_0_Ai' * A_P_Bi;
   end
 end
