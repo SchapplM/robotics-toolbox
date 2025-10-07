@@ -490,24 +490,6 @@ classdef ParRob < RobBase
       end
       R.T_P_E = [[eul2r(R.phi_P_E, R.phiconv_P_E), R.r_P_E]; [0 0 0 1]];
     end
-    function update_base(R, r_W_0, phi_W_0, phiconv_W_0)
-      % Aktualisiere die Transformationsmatrix T_W_0 für die Basis
-      % Eingabe:
-      % r_W_0: Neuer Vektor vom Welt-KS-Ursprung zum Basis-KS-Ursprung
-      % phi_W_0: Neue Euler-Winkel für Drehung vom Welt-KS zum Basis-KS
-      % phiconv_W_0: Nummer der Euler-Winkel-Konvention
-      if nargin > 1 && ~isempty(r_W_0)
-        R.r_W_0 = r_W_0;
-      end
-      if nargin > 2 && ~isempty(phi_W_0)
-        R.phi_W_0 = phi_W_0;
-      end
-      if nargin > 3 && ~isempty(phiconv_W_0)
-        R.phiconv_W_0 = phiconv_W_0;
-      end
-      R.T_W_0 = [[eul2r(R.phi_W_0, R.phiconv_W_0), R.r_W_0]; [0 0 0 1]];
-      R.T_0_W = invtr(R.T_W_0);
-    end
     function [Jinv_qaD_xD, Jinv_num_voll] = jacobi_qa_x(R, q, xE, platform_frame)
       % Analytische Jacobi-Matrix zwischen Antriebs- und Endeffektorkoord.
       % Eingabe:
