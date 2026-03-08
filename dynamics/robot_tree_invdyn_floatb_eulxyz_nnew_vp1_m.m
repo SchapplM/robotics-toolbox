@@ -56,11 +56,7 @@ R_W_0 = eulxyz2r(phi_base);
 %% Vorwärts-Iteration
 % Positionen
 T_mdh = NaN(4,4,nq); % Alle Gelenk-Transformationsmatrizen
-for i = 1:nq
-%   T_mdh(:,:,i) = trotz(beta_mdh(i)) * ... 
-%                      transl([0;0;b_mdh(i)]) * trotx(alpha_mdh(i)) * ...
-%                      transl([a_mdh(i);0;0]) * trotz(q(i)+q_offset_mdh(i)) ...
-%                      * transl([0;0;d_mdh(i)]);
+for i = 1:nq % aus gestapelter Eingangsvariable extrahieren
   T_mdh(:,:,i) = [T_stack(3*i-2:3*i,:);[0 0 0 1]];
 end
 

@@ -399,7 +399,9 @@ classdef SerRob < RobBase
       % Ausgabe:
       % T: Transformationsmatrizen
       % T_stack: Gestapelte Transformationsmatrizen (jew. ohne 0001-Zeile)
-      if nargout <= 1
+      if isempty(R.jtraffcnhdl)
+        T = R.fkine_num(q);
+      elseif nargout <= 1
         T = R.jtraffcnhdl(q, R.pkin_gen);
       else
         [T, T_stack] = R.jtraffcnhdl(q, R.pkin_gen);
@@ -416,7 +418,15 @@ classdef SerRob < RobBase
       % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
       % Tc_W: Bezugssystem ist das Welt-KS
       % Tc_stack: Gestapelte homogene Transformationsmatrizen für q (jew. ohne 0001-Zeile)
-      if nargout >= 3
+      if isempty(R.fkinfcnhdl)
+        [~, Tc_0] = R.fkine_num(q);
+        if nargout > 2
+          Tc_stack = NaN(size(Tc_0,3)*3,4);
+          for i = 1:size(Tc_0,3)
+            Tc_stack(3*i-2:3*i,:) = Tc_0(1:3,:,i);
+          end
+        end
+      elseif nargout >= 3
         [Tc_0, Tc_stack] = R.fkinfcnhdl(q, R.pkin_gen);
       else
         Tc_0 = R.fkinfcnhdl(q, R.pkin_gen);
@@ -432,6 +442,16 @@ classdef SerRob < RobBase
         for i = 1:size(Tc_0,3)
           Tc_W_stack(3*i-2:3*i,:) = Tc_W(1:3,:,i);
         end
+      end
+    end
+    function [T_mdh, Tc_0] = fkine_num(R, q)
+      % Numerische Berechnung der direkten Kinematik ohne symbolischen Code
+      if nargout == 1
+        T_mdh = robot_fkine_mdh(q, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
+          R.MDH.theta, R.MDH.d, R.MDH.offset, R.MDH.sigma, R.MDH.v);
+      else
+        [T_mdh, Tc_0] = robot_fkine_mdh(q, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
+          R.MDH.theta, R.MDH.d, R.MDH.offset, R.MDH.sigma, R.MDH.v);
       end
     end
     function [Tc_0, Tc_W] = fkine_vp(R, q, pkin2)

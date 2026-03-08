@@ -56,20 +56,7 @@ R_W_0 = eulxyz2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
-T_mdh = NaN(4,4,nq); % Alle Gelenk-Transformationsmatrizen
-for i = 1:nq
-  if sigma(i) == 0 % Rotationsgelenk
-    d_i = d_mdh(i);
-    theta_i = q(i)+q_offset_mdh(i);
-  else % Schubgelenk
-    d_i = q(i)+q_offset_mdh(i);
-    theta_i = theta_mdh(i);
-  end
-  T_mdh(:,:,i) = trotz(beta_mdh(i)) * ... 
-                     transl([0;0;b_mdh(i)]) * trotx(alpha_mdh(i)) * ...
-                     transl([a_mdh(i);0;0]) * trotz(theta_i) ...
-                     * transl([0;0;d_i]);
-end
+T_mdh = mdh2tr(q, beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, q_offset_mdh, sigma, v_mdh);
 
 v_i_i_ges = NaN(3,nb);
 w_i_i_ges = NaN(3,nb);
