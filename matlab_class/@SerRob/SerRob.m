@@ -445,12 +445,26 @@ classdef SerRob < RobBase
       end
     end
     function [T_mdh, Tc_0] = fkine_num(R, q)
+      % Direkte Kinematik vom Inertial-KS zu den Körper-KS; numerisch
+      % Eingabe:
+      % q: Gelenkkoordinaten
+      %
+      % Ausgabe:
+      % Tc_0: Kumulierte Transformationsmatrizen von der Basis zu den Körper-KS
+      % Tc_W: Bezugssystem ist das Welt-KS
+      if R.Type == 1 % seriell-hybrid
+        % Für numerische direkte Kinematik Koordinaten aller Gelenke 
+        % notwendig; in q nur Minimalkoordinaten
+        q_jv = R.jointvar(q);
+      else
+        q_jv = q;
+      end
       % Numerische Berechnung der direkten Kinematik ohne symbolischen Code
       if nargout == 1
-        T_mdh = robot_fkine_mdh(q, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
+        T_mdh = robot_fkine_mdh(q_jv, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
           R.MDH.theta, R.MDH.d, R.MDH.offset, R.MDH.sigma, R.MDH.v);
       else
-        [T_mdh, Tc_0] = robot_fkine_mdh(q, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
+        [T_mdh, Tc_0] = robot_fkine_mdh(q_jv, R.MDH.beta, R.MDH.b, R.MDH.alpha, R.MDH.a, ...
           R.MDH.theta, R.MDH.d, R.MDH.offset, R.MDH.sigma, R.MDH.v);
       end
     end
