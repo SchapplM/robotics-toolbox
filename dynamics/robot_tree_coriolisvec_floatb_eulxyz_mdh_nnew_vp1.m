@@ -50,7 +50,7 @@ R_W_0 = eulxyz2r(phi_base);
 
 %% Vorwärts-Iteration
 % Positionen
-T_mdh = mdh2tr(q, beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, q_offset_mdh, sigma, v_mdh);
+T_mdh = robot_fkine_mdh(q, beta_mdh, b_mdh, alpha_mdh, a_mdh, theta_mdh, d_mdh, q_offset_mdh, sigma, v_mdh);
 
 v_i_i_ges = NaN(3,nb);
 w_i_i_ges = NaN(3,nb);
