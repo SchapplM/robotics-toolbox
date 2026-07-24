@@ -604,7 +604,7 @@ classdef ParRob < RobBase
       % Ausgabe:
       % Jinv_E: Inverse Jacobi-Matrix (Verhältnis Antriebs-Geschw. zu
       % Plattform-Geschw. mit Euler-Zeitableitung)
-      if nargin < 3
+      if nargin < 4
         xP = R.xE2xP(xE);
       end
       % Bezogen auf EE-Position, Euler-Winkel als Rotation
@@ -635,7 +635,7 @@ classdef ParRob < RobBase
       %
       % Ausgabe:
       % JinvP_ges: Zeilenweise Jacobi-Matrizen bezogen auf Plattform-Koord.
-      if nargin < 3
+      if nargin < 4
         XP = R.xE2xP_traj(XE);
       end
       JinvP_ges = NaN(size(JinvE_ges));
@@ -1247,23 +1247,24 @@ classdef ParRob < RobBase
     end
     function [Fa, Fa_reg] = jointtorque_actjoint(R, q, xP, tau, JinvP)
       % Berechne Antriebskraft aufgrund von Gelenkmomenten (unabhängig
-      % von inverser Dynamik). Z.B. Gelenkfeder oder Reibung.
+      % von inverser Dynamik). Z.B. Gelenkfeder, Kollisionskraft oder Reibung.
       % Eingabe:
-      % q: Gelenkkoordinaten
+      % q: Gelenkkoordinaten aller N Gelenke (inklusive passive und Koppelgelenke)
       % xP: Plattform-Koordinaten (nicht: Endeffektor)
-      % tau: Gelenkmomente in den Gelenken der Beinketten
+      % tau: Gelenkmomente in den N Gelenken der Beinketten [N x NTau]
+      %      (Vorgabe mehrerer Gelenkmomente über NTau Spalten möglich)
       % JinvP: Inverse Jacobi-Matrix (bezogen auf Plattform-Koordinaten und
       % alle Gelenke). Siehe ParRob/jacobi_qa_x
       %
       % Ausgabe:
-      % Fa: Kraft auf Antriebsgelenke (kartesische Momente)
+      % Fa: Kraft in N_a Antriebsgelenkenkoordinaten [NTau x N_a]
       % Fa_reg: Regressor-Matrix der Kraft (bezogen auf Gelenke)
       % 
       % Siehe auch: invdyn2_actjoint
       if nargout == 1 % keine Regressorform
-        Fx = R.jointtorque_platform(q, xP, tau, JinvP);
+        Fs = R.jointtorque_platform(q, xP, tau, JinvP);
       else % mit Regressorform
-        [Fx, Fx_reg] = R.jointtorque_platform(q, xP, tau, JinvP);
+        [Fs, Fs_reg] = R.jointtorque_platform(q, xP, tau, JinvP);
       end
       % Umrechnen der vollständigen inversen Jacobi
       Jinv_qaD_xD = JinvP(R.I_qa,:);
@@ -1277,35 +1278,37 @@ classdef ParRob < RobBase
         Jinv_qaD_sD = Jinv_qaD_xD;
       end
       % Umrechnen auf Antriebskoordinaten. [AbdellatifHei2009], Text nach Gl. (37)
-      Fa = Jinv_qaD_sD' \ Fx;
+      Fa = Jinv_qaD_sD' \ Fs;
       % Umrechnen der Regressor-Matrix
       if nargout == 2
-        Fa_reg = Jinv_qaD_sD' \ Fx_reg;
+        Fa_reg = Jinv_qaD_sD' \ Fs_reg;
       end
     end
-    function [Fx_traj,Fx_traj_reg] = jointtorque_platform_traj(R, Q, XP, TAU, JinvP_ges)
+    function [Fs_traj,Fs_traj_reg] = jointtorque_platform_traj(R, Q, XP, TAU, JinvP_ges)
       % Plattform-Kraft aufgrund von Gelenkmomenten als Trajektorie (Zeit als Zeilen)
       % Eingabe:
-      % Q: Gelenkkoordinaten (Trajektorie)
+      % Q: Gelenkkoordinaten (Trajektorie, alle Gelenke, auch passive)
       % XP: Plattform-Koordinaten (nicht: Endeffektor), Trajektorie
       % TAU: Gelenkmomente (Trajektorie)
       % JinvP_ges: Zeilenweise inverse Jacobi-Matrix für alle Gelenke (Traj.)
       % (bezogen auf Plattform-Koordinaten; siehe jacobi_qa_x)
       %
       % Ausgabe:
-      % Fx_traj: äquivalente Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
-      % Fx_traj_reg: Regressormatrizen von Fx_traj (als Zeitreihe)
-      Fx_traj = NaN(size(Q,1),sum(R.I_EE));
+      % Fs_traj: äquivalente Kraft auf Plattform (Inverse Dynamik, als Zeitreihe)
+      %          (Kartesische Momente sind bezogen auf das Basis-KS, also
+      %          auf Quasi-Koordinaten s, nicht auf Plattform-Koordinaten x)
+      % Fs_traj_reg: Regressormatrizen von Fx_traj (als Zeitreihe)
+      Fs_traj = NaN(size(Q,1),sum(R.I_EE));
       if nargout == 2
-        Fx_traj_reg = NaN(size(Q,1), size(JinvP_ges,2));
+        Fs_traj_reg = NaN(size(Q,1), size(JinvP_ges,2));
       end
       for i = 1:size(Q,1)
         Jinv_full = reshape(JinvP_ges(i,:), R.NJ, sum(R.I_EE));
         if nargout < 2 % ohne Regressorform
-          Fx_traj(i,:) = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+          Fs_traj(i,:) = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
         else % mit Regressorform
-          [Fx_traj(i,:),Fx_traj_reg_i] = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
-          Fx_traj_reg(i,:) = Fx_traj_reg_i(:);
+          [Fs_traj(i,:),Fx_traj_reg_i] = R.jointtorque_platform(Q(i,:)', XP(i,:)', TAU(i,:)', Jinv_full);
+          Fs_traj_reg(i,:) = Fx_traj_reg_i(:);
         end
       end
     end
