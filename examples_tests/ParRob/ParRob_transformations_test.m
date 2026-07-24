@@ -135,4 +135,70 @@ for i = 0:4 % drei Fälle durchgehen: mit/ohne Rotation und 180° um x
   end
   linkxaxes
 end
+
 fprintf('Klassen-Methode transform_traj in sich getestet\n');
+%% Teste Wrench-Transformation zwischen EE- und Plattform-KS
+xE = X_E(1,:)';
+w_E = [1.0; -2.0; 0.5; 0.1; -0.2; 0.3];
+w_P = RP.wrench_EE2P(w_E, xE, true);
+w_E_back = RP.wrench_EE2P(w_P, xE, false);
+assert(all(abs(w_E - w_E_back) < 1e-10), ...
+  'Umrechnung von Wrench zwischen EE- und Plattform-KS stimmt nicht.');
+fprintf('Klassen-Methode wrench_EE2P in sich getestet\n');
+
+rng(1);
+W_E = randn(size(X_E,1), 6);
+W_P = RP.wrench_EE2P_traj(W_E, X_E, true);
+W_E_back = RP.wrench_EE2P_traj(W_P, X_E, false);
+assert(all(abs(W_E(:) - W_E_back(:)) < 1e-10), ...
+  'Umrechnung von Wrench-Trajektorien zwischen EE- und Plattform-KS stimmt nicht.');
+
+fprintf('Klassen-Methode wrench_EE2P_traj in sich getestet\n');
+%% Teste Wrench-Transformation über Jacobi-Matrizen
+q0 = zeros(RP.NJ,1);
+XD_E_test = randn(size(X_E,1), 6);
+XD_E_test(1:6,1:6) = eye(6); % zuerst immer nur eine Komponente
+[Q,QD,~,~,~,~,~,~] = RP.invkin2_traj(X_E, XD_E_test, XDD_E, T, q0);
+rng(2);
+%% Test
+W_P_test = randn(size(X_E,1), 6);
+W_E_via_jac = NaN(size(W_P_test));
+W_E_direct = NaN(size(W_P_test));
+for i = 1:size(X_E,1)
+  q_i = Q(i,:)';
+  qD_i = QD(i,:)';
+  xE_i = X_E(i,:)';
+  xP_i = X_P(i,:)';
+  xDP_i = XD_P(i,:)';
+  JinvP_i = RP.jacobi_qa_x(q_i, xP_i, true);
+  TeulP = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP_i(4:6), RP.phiconv_W_E)];
+  JinvP_qaD_sD = JinvP_i / TeulP;
+  tau_i = JinvP_qaD_sD' \ W_P_test(i,:)'; % siehe ParRob/invdyn_actjoint
+  % Teste ob Umrechnung in Gelenkraum richtig war
+  p_jointspace = tau_i'*qD_i(RP.I_qa);
+  sDP_i = JinvP_qaD_sD\qD_i(RP.I_qa);
+  p_platform = W_P_test(i,:) * sDP_i;
+  assert(abs(p_jointspace-p_platform)<1e-10, 'Leistung stimmt nicht Plf vs Joint');
+
+  JinvE_i = RP.jacobi_qa_x(q_i, xE_i, false);
+  TeulE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE_i(4:6), RP.phiconv_W_E)];
+  JinvE_qaD_sD = JinvE_i / TeulE;
+  W_E_via_jac(i,:) = (JinvE_qaD_sD' * tau_i)';
+  % Teste ob Umrechnung in EE-Koordinaten richtig war
+  sDE_i = JinvE_qaD_sD\qD_i(RP.I_qa);
+  p_endeffector = W_E_via_jac(i,:) * sDE_i;
+  assert(abs(p_jointspace-p_endeffector)<1e-10, 'Leistung stimmt nicht EE (via Jac) vs joint');
+
+  wP_direct = RP.wrench_EE2P(W_E_via_jac(i,:)', xE_i, true);
+  assert(all(abs(wP_direct-W_P_test(i,:)')<1e-10), 'Wrench stimmt nicht Plf (via direct)');
+  continue
+  W_E_direct(i,:) = RP.wrench_EE2P(W_P_test(i,:)', xE_i, false)';
+
+  p_endeffector2 = W_E_direct(i,:) * sDE_i;
+  assert(abs(p_jointspace-p_endeffector2)<1e-10, 'Leistung stimmt nicht EE (via direct) vs joint');
+  continue
+  assert(all(abs(W_E_via_jac(i,:) - W_E_direct(i,:)) < 1e-6), ...
+    'Umrechnung von Wrench über Jacobi-Matrizen stimmt nicht mit wrench_EE2P überein.');
+end
+
+fprintf('Klassen-Methode wrench_EE2P über Jacobi-Matrizen getestet\n');

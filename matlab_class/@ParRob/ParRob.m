@@ -2088,6 +2088,50 @@ classdef ParRob < RobBase
         end
       end
     end
+
+    function w_out = wrench_EE2P(R, w_in, xE, direction)
+      % Transformiere einen 6x1-Wrench zwischen EE- und Plattform-KS
+      % Funktionsweise:
+      % direction = true  -> EE -> Plattform
+      % direction = false -> Plattform -> EE
+    
+      if nargin < 4 || isempty(direction), direction = true; end
+    
+      T_0_E = R.x2t(xE);
+      r_P_P_E = R.T_P_E(1:3,4);
+      r_E_P_E = R.T_P_E(1:3,1:3)' * r_P_P_E;
+      r_0_P_E = T_0_E(1:3,1:3) * r_E_P_E;
+    
+      A = adjoint_jacobian(-r_0_P_E);
+      if direction
+        w_E = w_in;
+        w_P = A' * w_E;
+        w_out = w_P;
+      else
+        w_P = w_in;
+        % A_inv = adjoint_jacobian(-r_0_P_E);
+        w_E = A' \ w_P;
+        w_out = w_E;
+      end
+    end
+
+    function W_P = wrench_EE2P_traj(R, W_E, XE, direction)
+      % Transformiere mehrere 6x1-Wrench zwischen EE- und Plattform-KS
+      % Eingabe:
+      % W_E: Nx6 wrenches im EE-KS definiert
+      % XE: EE-Trajektorie
+      % direction: Schalter zur Umkehrung der Transformationsrichtung
+      %
+      % Ausgabe:
+      % W_P: Nx6 wrenches im Plattform-KS definiert
+      W_P = NaN(size(W_E,1), 6);
+      for i = 1:size(W_E,1)
+        W_P(i,:) = R.wrench_EE2P(W_E(i,:)', XE(i,:)', direction);
+      end
+ 
+
+    end
+
     function update_collbodies(R, cbtype_selection, assign_to_base)
       % Aktualisiere die Kollisionskörper für die PKM. Notwendig, da Körper
       % für die Beinketten getrennt gespeichert sind. Ergebnis: In Klassen-
