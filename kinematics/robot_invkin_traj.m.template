@@ -63,6 +63,10 @@
 %    (23) wie 22, aber auf Geschwindigkeitsebene
 %    (24) Positionsfehler am Endeffektor
 %    (25) Wie 20, aber D-Anteil
+%   .ik_solution_min_norm [1x1 logical] Task part of qD_k_T/qDD_k_T.
+%     true (default): from the task-DOF Jacobian (s.I_EE), minimum norm via
+%       pinv. false: from the structural-DOF Jacobian, i.e. the redundant EE
+%       coordinate is fed forward from X/XD/XDD.
 %
 % Ausgabe:
 % Q [NT x %NQJ%]
@@ -264,6 +268,10 @@ else
   % Nullraumbewegungen genutzt.
   redundant = true;
 end
+% Structural redundancy (more joints than robot DOF, e.g. 7-DOF robot). The
+% system built from the structural DOF (Rob_I_EE) is then underdetermined
+% as well. See the comment on qD_k_T below.
+redundant_struct = sum(Rob_I_EE) < NQJ;
 % Stelle fest, ob Schwellen der Zielfunktion zum Abbruch führen sollen
 if ~nsoptim && any(~isnan(s.abort_thresh_h))
   % Setze Marker, damit auch im nicht-redundanten Fall die Zielkriterien
@@ -386,7 +394,7 @@ dt = 0; % Initialisierung, wird überschrieben.
 J_x_alt = zeros(6,NQJ);
 Stats = struct('file', 'robot_invkin_traj', 'iter', 0, 'h', NaN(nt,1+idx_ik_length.hntraj), ...
   'h_instspc_thresh', NaN, 'condJ', NaN(nt,2), 'h_coll_thresh', NaN, ...
-  'errorcode', 0, 'version', 11);
+  'errorcode', 0, 'version', 12);
 h = zeros(idx_ik_length.hntraj,1);
 %% Iterative Berechnung der gesamten Trajektorie
 for k = 1:nt
@@ -421,9 +429,22 @@ for k = 1:nt
   % Gelenk-Geschwindigkeit mit inverser Jacobi
   % resultierend aus Aufgabe 
   if s.ik_solution_min_norm % (minimale Norm der Geschw.)
-    qD_k_T(:) = J_x(I_EE,1:NQJ) \ XD(k,I_EE)';
+    if redundant % underdetermined system: form the pseudo inverse
+      % explicitly. "\" would return a basic solution with at most rank(J)
+      % non-zero entries, i.e. some joint velocity is set to exactly zero
+      % (which one depends on the QR column pivoting). With pinv, qD_k_T is
+      % orthogonal to the nullspace and thus consistent with the nullspace
+      % projector N below.
+      qD_k_T(:) = pinv(J_x(I_EE,1:NQJ)) * XD(k,I_EE)';
+    else % square (or overdetermined) system; solution is unique
+      qD_k_T(:) = J_x(I_EE,1:NQJ) \ XD(k,I_EE)';
+    end
   else % Vorgesteuerte Geschwindigkeit auch bei Aufgabenredundanz möglich
-    qD_k_T(:) = J_x(Rob_I_EE,1:NQJ) \ XD(k,Rob_I_EE)';
+    if redundant_struct % underdetermined as well, see above
+      qD_k_T(:) = pinv(J_x(Rob_I_EE,1:NQJ)) * XD(k,Rob_I_EE)';
+    else
+      qD_k_T(:) = J_x(Rob_I_EE,1:NQJ) \ XD(k,Rob_I_EE)';
+    end
   end
   xD_k_T_ist = J_x * qD_k_T;
   xD_k_ist = J_x * qD_k;
@@ -441,8 +462,10 @@ for k = 1:nt
     % Berechnung aus (k-1) führt nicht zur korrekten EE-Geschw. in (k)
     xD_korr = -xD_pre+XD(k,I_EE)'; % dieses Residuum sollte klein bleiben
     % Korrekturwert für Gelenk-Geschw. berechnet mit Pseudo-Inverse (ohne
-    % Nullraumoptimierung, da nur Ausgleich für numerische Ungenauigkeit)
-    qD_korr = J_x(I_EE,:) \ xD_korr;
+    % Nullraumoptimierung, da nur Ausgleich für numerische Ungenauigkeit).
+    % redundant=true always holds here (nsoptim implies redundant), so the
+    % system is underdetermined and pinv is required, see above.
+    qD_korr = pinv(J_x(I_EE,:)) * xD_korr;
     % zu xD passende Gelenk-Geschw. für diesen Zeitschritt (k)
     qD_k = qD_k_T + qDNk0 + qD_korr;
     % Debug: 
@@ -478,12 +501,19 @@ for k = 1:nt
   % Gelenk-Beschleunigung mit inverser Jacobi (bzw. Pseudo-Inv.) berechnen
   % Siehe z.B. [RMG16]/(19)
   if s.ik_solution_min_norm
-    % Pseudo-Inverse: Minimale Norm des Vektors
-    qDD_k_T(:) = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+    if redundant % pseudo inverse: minimum norm, see qD_k_T above
+      qDD_k_T(:) = pinv(J_x(I_EE,:)) * (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+    else % square (or overdetermined) system; solution is unique
+      qDD_k_T(:) = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+    end
   else
     % Normale Inverse. Nehme die Beschleunigung aus XDD an. Damit auch Vor-
     % steuerung einer Nullraumbeschleunigung möglich
-    qDD_k_T(:) = J_x(Rob_I_EE,:) \ (XDD(k,Rob_I_EE)' - JD_x(Rob_I_EE,:)*qD_k);
+    if redundant_struct % underdetermined as well, see above
+      qDD_k_T(:) = pinv(J_x(Rob_I_EE,:)) * (XDD(k,Rob_I_EE)' - JD_x(Rob_I_EE,:)*qD_k);
+    else
+      qDD_k_T(:) = J_x(Rob_I_EE,:) \ (XDD(k,Rob_I_EE)' - JD_x(Rob_I_EE,:)*qD_k);
+    end
   end
   % Setze die Grenzen für qDD_N basierend auf gegebenen Grenzen für 
   % gesamte Beschleunigung und notwendige Beschleunigung qDD_T

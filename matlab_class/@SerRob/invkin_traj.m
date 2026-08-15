@@ -49,6 +49,10 @@ if nargin < 7
 end
 
 I_EE = Rob.I_EE;
+% More joints than EE DOF (e.g. 7-DOF robot). The system is underdetermined
+% and "\" would return a basic solution with at most rank(J) non-zero
+% entries instead of the minimum-norm solution. Use pinv in that case.
+redundant = sum(I_EE) < Rob.NQJ;
 
 Q = NaN(length(T), Rob.NQJ);
 QD = Q;
@@ -62,11 +66,19 @@ for k = 1:nt
   
   % Gelenk-Geschwindigkeit berechnen (Siehe [1]).
   J_x = Rob.jacobia(q_k);
-  qD_k = J_x(I_EE,:) \ XD(k,I_EE)';
+  if redundant % minimum-norm solution, see above
+    qD_k = pinv(J_x(I_EE,:)) * XD(k,I_EE)';
+  else
+    qD_k = J_x(I_EE,:) \ XD(k,I_EE)';
+  end
   
   % Gelenk-Beschleunigung berechnen
   JD_x = Rob.jacobiaD(q_k, qD_k);
-  qDD_k = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+  if redundant % minimum-norm solution, see above
+    qDD_k = pinv(J_x(I_EE,:)) * (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+  else
+    qDD_k = J_x(I_EE,:) \ (XDD(k,I_EE)' - JD_x(I_EE,:)*qD_k);
+  end
   
   % Aus Geschwindigkeit berechneter neuer Winkel für den nächsten Zeitschritt
   % Taylor-Reihe bis 2. Ordnung für Position (Siehe [2])
