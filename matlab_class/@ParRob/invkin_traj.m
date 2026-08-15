@@ -467,6 +467,12 @@ for k = 1:nt
       J_x_inv = -Phi_q \ Phi_x;
     end
   end
+  % Unlike the serial case (SerRob/invkin_traj, robot_invkin_traj.m.template),
+  % "\" is applied to Phi_q here, which is square (NJ x NJ, see the projector N
+  % below). The solve is determined and does NOT return a basic solution with a
+  % joint frozen at exactly zero, so the minimum-norm fix of the serial
+  % trajectory IK must not be copied here. The pinv in N covers rank deficiency
+  % of structurally 3T2R PKM, not minimum norm.
   if ~taskred_rot || ... % beliebige PKM (3T0R, 3T1R, 3T3R) ohne Aufg.Red.
       dof_3T2R || ... % beliebige 3T2R-PKM
       ~s.ik_solution_min_norm % Vorsteuerung der Geschwindigkeit.

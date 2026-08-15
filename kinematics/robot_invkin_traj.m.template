@@ -282,6 +282,10 @@ else
   % Nullraumbewegungen genutzt.
   redundant = true;
 end
+% Invariant: nsoptim implies redundant, since nsoptim is reset to false above
+% whenever sum(I_EE) >= NQJ. The condition "nsoptim || redundant" used further
+% down is therefore equivalent to "redundant" alone, i.e. inside those blocks
+% the system J_x(I_EE,:)*qD = xD is always underdetermined.
 % Structural redundancy (more joints than robot DOF, e.g. 7-DOF robot). The
 % system built from the structural DOF (Rob_I_EE) is then underdetermined
 % as well. See the comment on qD_k_T below.
