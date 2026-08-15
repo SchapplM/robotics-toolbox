@@ -9,6 +9,8 @@
 %     Einträge für alle KS entsprechend der Liste der
 %     Gelenk-Transformationen. NJ+2: End-Effektor
 %   mode
+%     Darf auch ein Vektor sein. Dann werden die Darstellungsarten
+%     übereinander gezeichnet (z.B. [1 6] für Strichmodell mit Bauraum).
 %     1: Strichmodell mit stilisierten Gelenken (Zylinder, Quader)
 %     2: CAD-Modell des Roboters aus hinterlegten STL-Dateien der Körper
 %     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)
@@ -367,7 +369,10 @@ if ~s.only_bodies && length(intersect(s.mode, [3 4 5]))==length(s.mode) || ...
     if i > Rob.NL
       mode_i = 1;  % Für virtuelle Koppelgelenke nichts zeichnen. ToDo: Noch unstimmig.
     end
-    if mode_i ~= 1 && Rob.DesPar.joint_type(i) == 1
+    % `mode` darf mehrere Darstellungsarten gleichzeitig enthalten. Daher
+    % `any` benutzen: Nur wenn das Strichmodell nicht ohnehin schon
+    % angefordert ist, wird darauf zurückgefallen.
+    if ~any(mode_i == 1) && Rob.DesPar.joint_type(i) == 1
       mode_i = 1; % Gelenktyp für Plotten noch nicht implementiert. Zeichne nur Strich.
     end
     hdl_link_i = []; hdl_link_im1 = [];
