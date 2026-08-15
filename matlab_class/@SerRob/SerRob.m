@@ -865,6 +865,7 @@ classdef SerRob < RobBase
          'reci', true, ... % Reziproke Euler-Winkel für Orientierungs-Residuum
          'simplify_acc', false, ... % Vereinfachte Berechnung der Beschleunigung
          'ik_solution_min_norm', true, ... % minimum norm of joint velocity and acceleration
+         'joint_weight', ones(R.NQJ,1), ... % weighting of the joints for the redundancy resolution
          'optimcrit_limits_hyp_deact', 0.9, ... % Hyperbolisches Kriterium in Mitte deaktivieren
          ... % Schwellwert zur Aktivierung der Nullraumbewegung für die Jacobi-
          ... % Konditionszahl. Dadurch Singularitätsvermeidung möglich ohne
