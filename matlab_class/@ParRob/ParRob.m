@@ -2089,47 +2089,79 @@ classdef ParRob < RobBase
       end
     end
 
-    function w_out = wrench_EE2P(R, w_in, xE, direction)
-      % Transformiere einen 6x1-Wrench zwischen EE- und Plattform-KS
-      % Funktionsweise:
-      % direction = true  -> EE -> Plattform
-      % direction = false -> Plattform -> EE
-    
-      if nargin < 4 || isempty(direction), direction = true; end
-    
+    function w_out = wrench_EE2P(R, w_in, xE, direction_E_P)
+      % Transform a wrench between the EE frame and the platform frame.
+      % Both wrenches have their components in the base frame and only
+      % differ in the point the moment refers to (E or P). The forces are
+      % identical, the moments differ by the lever arm between P and E.
+      %
+      % Input:
+      % w_in (6x1): Wrench [force; moment] with components in the base
+      %   frame. Moment w.r.t. the EE (E) or the platform (P), see
+      %   direction_E_P
+      % xE (6x1): Pose of the EE frame in the robot base frame. Always the
+      %   EE pose, independent of the direction of the transformation
+      % direction_E_P [1x1 logical]
+      %   Direction of the transformation. For true (default) the input is
+      %   w.r.t. the EE and the output w.r.t. the platform. For false the
+      %   other way round.
+      %
+      % Output:
+      % w_out (6x1): Wrench w.r.t. the other reference point
+      %
+      % The wrench is the dual quantity of the twist, so it is transformed
+      % with the transposed adjoint matrix (invariance of the virtual
+      % power w'*v). See kinematics/adjoint_jacobian.m and ParRob/xP2xE,
+      % which uses the same adjoint matrix for the twist.
+      if nargin < 4 || isempty(direction_E_P), direction_E_P = true; end
+      assert(isreal(w_in) && all(size(w_in) == [6 1]), ...
+        'ParRob/wrench_EE2P: w_in has to be 6x1');
+      if ~any(R.T_P_E(1:3,4))
+        % Only the offset between P and E matters, not the rotation. There
+        % is no offset, so both wrenches are identical.
+        w_out = w_in;
+        return
+      end
+      % Lever arm from P to E in base frame. Same computation as in
+      % ParRob/jacobi_qa_x
       T_0_E = R.x2t(xE);
       r_P_P_E = R.T_P_E(1:3,4);
       r_E_P_E = R.T_P_E(1:3,1:3)' * r_P_P_E;
       r_0_P_E = T_0_E(1:3,1:3) * r_E_P_E;
-    
-      A = adjoint_jacobian(-r_0_P_E);
-      if direction
-        w_E = w_in;
-        w_P = A' * w_E;
-        w_out = w_P;
+      if direction_E_P
+        % A_E_P maps the platform twist to the EE twist (see ParRob/xP2xE).
+        % Therefore its transpose maps the EE wrench to the platform
+        % wrench: f_P = f_E and m_P = m_E + r_0_P_E x f_E
+        w_out = adjoint_jacobian(r_0_P_E)' * w_in;
       else
-        w_P = w_in;
-        % A_inv = adjoint_jacobian(-r_0_P_E);
-        w_E = A' \ w_P;
-        w_out = w_E;
+        % Inverse transformation. The inverse of the adjoint matrix is
+        % obtained by negating the vector, see adjoint_jacobian.m
+        w_out = adjoint_jacobian(-r_0_P_E)' * w_in;
       end
     end
 
-    function W_P = wrench_EE2P_traj(R, W_E, XE, direction)
-      % Transformiere mehrere 6x1-Wrench zwischen EE- und Plattform-KS
-      % Eingabe:
-      % W_E: Nx6 wrenches im EE-KS definiert
-      % XE: EE-Trajektorie
-      % direction: Schalter zur Umkehrung der Transformationsrichtung
+    function W_out = wrench_EE2P_traj(R, W_in, XE, direction_E_P)
+      % Transform multiple wrenches between EE frame and platform frame
       %
-      % Ausgabe:
-      % W_P: Nx6 wrenches im Plattform-KS definiert
-      W_P = NaN(size(W_E,1), 6);
-      for i = 1:size(W_E,1)
-        W_P(i,:) = R.wrench_EE2P(W_E(i,:)', XE(i,:)', direction);
+      % Input:
+      % W_in (Nx6): Wrenches [force, moment] for N time steps, row-wise.
+      %   Components in the base frame, moment w.r.t. E or P, see
+      %   direction_E_P
+      % XE (Nx6): Trajectory of EE poses in the robot base frame. Always
+      %   the EE pose, independent of the direction of the transformation
+      % direction_E_P [1x1 logical]
+      %   Direction of the transformation, see ParRob/wrench_EE2P
+      %
+      % Output:
+      % W_out (Nx6): Wrenches w.r.t. the other reference point
+      if nargin < 4 || isempty(direction_E_P), direction_E_P = true; end
+      assert(size(W_in,2) == 6, 'ParRob/wrench_EE2P_traj: W_in has to be Nx6');
+      assert(size(XE,1) == size(W_in,1), ['ParRob/wrench_EE2P_traj: XE ', ...
+        'has to have as many rows as W_in']);
+      W_out = NaN(size(W_in,1), 6);
+      for i = 1:size(W_in,1)
+        W_out(i,:) = R.wrench_EE2P(W_in(i,:)', XE(i,:)', direction_E_P);
       end
- 
-
     end
 
     function update_collbodies(R, cbtype_selection, assign_to_base)

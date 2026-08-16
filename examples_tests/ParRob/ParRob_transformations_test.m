@@ -137,68 +137,104 @@ for i = 0:4 % drei Fälle durchgehen: mit/ohne Rotation und 180° um x
 end
 
 fprintf('Klassen-Methode transform_traj in sich getestet\n');
-%% Teste Wrench-Transformation zwischen EE- und Plattform-KS
-xE = X_E(1,:)';
+%% Test the wrench transformation between EE and platform frame
+% Deterministic setup that does not depend on the state the sections above
+% leave behind (random base transformation and random EE transformation).
+RP.update_base(zeros(3,1), zeros(3,1));
+RP.update_EE([0.1;-0.2;0.3], [0.3;-0.1;0.2]); % offset and rotation between P and E
+% EE trajectory belonging to the (unchanged) platform trajectory X_P
+X_EW = RP.xP2xE_traj(X_P);
+rng(0);
+
+% Check against the definition: the force is the same in both frames and
+% only the moment is shifted by the lever arm from P to E.
+for i = [1, round(size(X_EW,1)/2), size(X_EW,1)]
+  xE_i = X_EW(i,:)';
+  w_E_i = randn(6,1);
+  w_P_i = RP.wrench_EE2P(w_E_i, xE_i, true);
+  T_0_E_i = RP.x2t(xE_i);
+  r_0_P_E_i = T_0_E_i(1:3,1:3) * (RP.T_P_E(1:3,1:3)' * RP.T_P_E(1:3,4));
+  assert(all(abs(w_P_i(1:3) - w_E_i(1:3)) < 1e-12), ...
+    'The force has to be identical in EE and platform frame.');
+  assert(all(abs(w_P_i(4:6) - (w_E_i(4:6) + cross(r_0_P_E_i, w_E_i(1:3)))) < 1e-12), ...
+    'The moment w.r.t. the platform does not match the lever-arm shift.');
+end
+fprintf('Class method wrench_EE2P checked against the moment shift\n');
+
+% Round trip EE -> platform -> EE
+xE = X_EW(1,:)';
 w_E = [1.0; -2.0; 0.5; 0.1; -0.2; 0.3];
 w_P = RP.wrench_EE2P(w_E, xE, true);
 w_E_back = RP.wrench_EE2P(w_P, xE, false);
 assert(all(abs(w_E - w_E_back) < 1e-10), ...
-  'Umrechnung von Wrench zwischen EE- und Plattform-KS stimmt nicht.');
-fprintf('Klassen-Methode wrench_EE2P in sich getestet\n');
+  'Transformation of a wrench between EE and platform frame is not invertible.');
+fprintf('Class method wrench_EE2P tested for consistency\n');
 
-rng(1);
-W_E = randn(size(X_E,1), 6);
-W_P = RP.wrench_EE2P_traj(W_E, X_E, true);
-W_E_back = RP.wrench_EE2P_traj(W_P, X_E, false);
-assert(all(abs(W_E(:) - W_E_back(:)) < 1e-10), ...
-  'Umrechnung von Wrench-Trajektorien zwischen EE- und Plattform-KS stimmt nicht.');
-
-fprintf('Klassen-Methode wrench_EE2P_traj in sich getestet\n');
-%% Teste Wrench-Transformation über Jacobi-Matrizen
-q0 = zeros(RP.NJ,1);
-XD_E_test = randn(size(X_E,1), 6);
-XD_E_test(1:6,1:6) = eye(6); % zuerst immer nur eine Komponente
-[Q,QD,~,~,~,~,~,~] = RP.invkin2_traj(X_E, XD_E_test, XDD_E, T, q0);
-rng(2);
-%% Test
-W_P_test = randn(size(X_E,1), 6);
-W_E_via_jac = NaN(size(W_P_test));
-W_E_direct = NaN(size(W_P_test));
-for i = 1:size(X_E,1)
-  q_i = Q(i,:)';
-  qD_i = QD(i,:)';
-  xE_i = X_E(i,:)';
-  xP_i = X_P(i,:)';
-  xDP_i = XD_P(i,:)';
+W_E = randn(size(X_EW,1), 6);
+W_P = RP.wrench_EE2P_traj(W_E, X_EW, true);
+W_E_back = RP.wrench_EE2P_traj(W_P, X_EW, false);
+assert(all(abs(W_E(:) - W_E_back(:)) < 1e-10), ['Transformation of wrench ', ...
+  'trajectories between EE and platform frame is not invertible.']);
+% The trajectory version has to be identical to the single-point version
+assert(all(abs(W_P(1,:)' - RP.wrench_EE2P(W_E(1,:)', X_EW(1,:)', true)) < 1e-10), ...
+  'wrench_EE2P_traj does not match wrench_EE2P.');
+fprintf('Class method wrench_EE2P_traj tested for consistency\n');
+%% Test the wrench transformation against the Jacobian matrices
+% The wrench is the dual quantity of the twist. Transforming the wrench with
+% wrench_EE2P therefore has to be consistent with the Jacobian matrices,
+% which relate the actuator velocities to the platform resp. EE twist.
+% Joint limits only serve to draw a sensible initial value for the IK, see
+% ParRob_class_example_6UPS.m
+for i = 1:RP.NLEG
+  RP.Leg(i).qlim = repmat([-2*pi, 2*pi], RP.Leg(i).NQJ, 1);
+  RP.Leg(i).qlim(3,:) = [0.4, 0.7]; % length of the prismatic actuator
+end
+qlim_pkm = cat(1, RP.Leg.qlim);
+q0 = qlim_pkm(:,1)+rand(RP.NJ,1).*(qlim_pkm(:,2)-qlim_pkm(:,1));
+q0(RP.I_qa) = 0.5; % start with positive actuator length (configuration must not flip)
+% Only look at a few samples of the trajectory. The IK is computed for each
+% of them separately and warm-started with the previous solution.
+II = round(linspace(1, size(X_EW,1), 20));
+for i = II
+  xE_i = X_EW(i,:)';
+  xP_i = RP.xE2xP(xE_i); % has to belong to xE_i, do not take it from X_P
+  [q_i, Phi_i] = RP.invkin1(xE_i, q0);
+  assert(all(abs(Phi_i) < 1e-8), sprintf(...
+    'Inverse kinematics did not converge for sample %d', i));
+  q0 = q_i; % warm start for the next sample
+  % Arbitrary actuator velocity and platform wrench. The identities checked
+  % below hold for any value, so no velocity IK is necessary.
+  qD_a = randn(sum(RP.I_qa),1);
+  w_P_i = randn(6,1);
+  % Jacobian related to the platform twist instead of the Euler angle rates
+  % and the corresponding actuator forces. See ParRob/invdyn_actjoint
   JinvP_i = RP.jacobi_qa_x(q_i, xP_i, true);
   TeulP = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xP_i(4:6), RP.phiconv_W_E)];
   JinvP_qaD_sD = JinvP_i / TeulP;
-  tau_i = JinvP_qaD_sD' \ W_P_test(i,:)'; % siehe ParRob/invdyn_actjoint
-  % Teste ob Umrechnung in Gelenkraum richtig war
-  p_jointspace = tau_i'*qD_i(RP.I_qa);
-  sDP_i = JinvP_qaD_sD\qD_i(RP.I_qa);
-  p_platform = W_P_test(i,:) * sDP_i;
-  assert(abs(p_jointspace-p_platform)<1e-10, 'Leistung stimmt nicht Plf vs Joint');
-
+  tau_i = JinvP_qaD_sD' \ w_P_i;
+  % Check that the mapping into the joint space preserves the power
+  p_jointspace = tau_i' * qD_a;
+  sDP_i = JinvP_qaD_sD \ qD_a;
+  p_platform = w_P_i' * sDP_i;
+  assert(abs(p_jointspace-p_platform) < 1e-8*max(1,abs(p_jointspace)), ...
+    'Power does not match: platform vs. joint space');
+  % Same in the EE frame
   JinvE_i = RP.jacobi_qa_x(q_i, xE_i, false);
   TeulE = [eye(3,3), zeros(3,3); zeros(3,3), euljac(xE_i(4:6), RP.phiconv_W_E)];
   JinvE_qaD_sD = JinvE_i / TeulE;
-  W_E_via_jac(i,:) = (JinvE_qaD_sD' * tau_i)';
-  % Teste ob Umrechnung in EE-Koordinaten richtig war
-  sDE_i = JinvE_qaD_sD\qD_i(RP.I_qa);
-  p_endeffector = W_E_via_jac(i,:) * sDE_i;
-  assert(abs(p_jointspace-p_endeffector)<1e-10, 'Leistung stimmt nicht EE (via Jac) vs joint');
-
-  wP_direct = RP.wrench_EE2P(W_E_via_jac(i,:)', xE_i, true);
-  assert(all(abs(wP_direct-W_P_test(i,:)')<1e-10), 'Wrench stimmt nicht Plf (via direct)');
-  continue
-  W_E_direct(i,:) = RP.wrench_EE2P(W_P_test(i,:)', xE_i, false)';
-
-  p_endeffector2 = W_E_direct(i,:) * sDE_i;
-  assert(abs(p_jointspace-p_endeffector2)<1e-10, 'Leistung stimmt nicht EE (via direct) vs joint');
-  continue
-  assert(all(abs(W_E_via_jac(i,:) - W_E_direct(i,:)) < 1e-6), ...
-    'Umrechnung von Wrench über Jacobi-Matrizen stimmt nicht mit wrench_EE2P überein.');
+  w_E_via_jac = JinvE_qaD_sD' * tau_i;
+  sDE_i = JinvE_qaD_sD \ qD_a;
+  p_endeffector = w_E_via_jac' * sDE_i;
+  assert(abs(p_jointspace-p_endeffector) < 1e-8*max(1,abs(p_jointspace)), ...
+    'Power does not match: EE (via Jacobian) vs. joint space');
+  % The direct transformation has to give the same result as the detour via
+  % the Jacobian matrices. This is the actual test of the transformation.
+  w_P_direct = RP.wrench_EE2P(w_E_via_jac, xE_i, true);
+  assert(all(abs(w_P_direct-w_P_i) < 1e-8*max(1,max(abs(w_P_i)))), ['wrench_EE2P ', ...
+    '(EE->platform) does not match the transformation via the Jacobian matrices.']);
+  w_E_direct = RP.wrench_EE2P(w_P_i, xE_i, false);
+  assert(all(abs(w_E_direct-w_E_via_jac) < 1e-8*max(1,max(abs(w_E_via_jac)))), ...
+    ['wrench_EE2P (platform->EE) does not match the transformation via the ', ...
+    'Jacobian matrices.']);
 end
-
-fprintf('Klassen-Methode wrench_EE2P über Jacobi-Matrizen getestet\n');
+fprintf('Class method wrench_EE2P tested against the Jacobian matrices\n');
