@@ -81,3 +81,16 @@ Hier erfolgt eine kurze Übersicht der im Repo enthaltenen Funktionen. Die Funkt
 
 Weitere allgemeine Funktionen sollen unter Verwendung des Benennungsschemas und grundsätzlicher Programmierkonventionen ergänzt werden und damit allen Institutsangehörigen zur Verfügung gestellt werden.
 
+### Template functions
+
+The files `kinematics/*.m.template` are not run directly. They are copied to `template_functions/` in the model libraries (`serrob_mdlbib`, `parrob_mdlbib`), where the placeholders (`%RN%`, `%NQJ%`, ...) are replaced by the values of each robot. The result is a robot-specific function such as `serrob_mdlbib/mdl_3dof/S3RRR1/tpl/S3RRR1_invkin_traj.m`.
+
+Below the `%% Coder Information` heading the templates carry the argument type specification for codegen, marked with `%$cgargs` at the start of each line. It is read by `coder_gen_cgargs` when the function is compiled to mex. The marker must not appear in a normal comment: every line containing it is treated as part of the block, so a comment mentioning it corrupts the argument list.
+
+Four things to know before changing a template:
+
+* Increment `'version'` in the template after every change. `serroblib_update_template_functions` compares it against the value reported by the generated function and only then refreshes it.
+* `serroblib_create_template_functions({Name}, false, false)` regenerates the `.m` files without compiling mex.
+* The `tpl` folders are listed in the `.gitignore` of the model libraries, so regenerating produces no diff.
+* If a template gets a new field in its settings struct, the calling method of the robot class needs it too, in the same order. Otherwise the compilation fails.
+

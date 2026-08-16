@@ -8,9 +8,12 @@
 %   ks
 %     Einträge für alle KS entsprechend der Liste der
 %     Gelenk-Transformationen. NJ+2: End-Effektor
+%     An empty value draws no coordinate systems at all.
 %   mode
 %     Darf auch ein Vektor sein. Dann werden die Darstellungsarten
 %     übereinander gezeichnet (z.B. [1 6] für Strichmodell mit Bauraum).
+%     The colours are fixed for every mode, there is no setting for them.
+%     In the stick model the segments are always drawn in black.
 %     1: Strichmodell mit stilisierten Gelenken (Zylinder, Quader)
 %     2: CAD-Modell des Roboters aus hinterlegten STL-Dateien der Körper
 %     3: Trägheitsellipsen (basierend auf Masse und Trägheitstensor)

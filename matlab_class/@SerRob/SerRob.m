@@ -827,6 +827,9 @@ classdef SerRob < RobBase
       % T: Zeitbasis
       % q0: Start-Pose
       % s_in: Einstellparameter für die IK. Felder, siehe Implementierung.
+      %   A field that does not exist only triggers a warning here and is
+      %   then ignored (invkin2 throws an error instead). A misspelled option
+      %   name therefore has no effect without aborting the computation.
       %
       % Ausgabe:
       % Q: Gelenkpositionen (Zeilen: Zeit, Spalten: Gelenkkoordinaten)

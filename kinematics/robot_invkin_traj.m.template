@@ -22,7 +22,8 @@
 % s
 %   Struktur mit Eingabedaten. Felder, siehe Quelltext dieser Funktion und
 %   von `%RN%_invkin_eulangresidual` sowie aufrufende Methode aus
-%   SerRob-Klasse. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
+%   SerRob-Klasse. The default values are not defined here, but in
+%   SerRob/invkin2_traj. Zusätzliche Felder gegenüber invkin-Funktion. Auswahl:
 %   .wn [25x1] Gewichtungen der Zielfunktionen für Nullraumbewegung
 %     Indiziert mit idx_iktraj_wnP und idx_iktraj_wnD aus ik_optimcrit_index.m
 %     (1) Quadratischer Abstand der Gelenkkoordinaten von ihrer Mitte
@@ -132,6 +133,12 @@
 function [Q, QD, QDD, PHI, JointPos_all, Stats] = %RN%_invkin_traj(X, XD, XDD, T, q0, s)
 
 %% Coder Information
+% Two couplings to SerRob/invkin2_traj are not visible from this file:
+% * The default values of the settings struct s are defined there, not here.
+% * The order of the fields in the block below must match the order of the
+%   struct there, otherwise the compilation fails. So when adding an option,
+%   change both files and increment 'version' further below.
+% For the template and code generation workflow see the repo README.
 %#codegen
 %$cgargs {coder.newtype('double',[inf,6]),coder.newtype('double',[inf,6]),
 %$cgargs  coder.newtype('double',[inf,6]),coder.newtype('double',[inf,1]),

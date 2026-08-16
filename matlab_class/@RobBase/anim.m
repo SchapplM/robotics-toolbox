@@ -24,7 +24,14 @@
 % Vorbereitung:
 % Vor Starten der Animation muss ein Figure geöffnet werden und vorbereitet
 % werden mit passenden Formateinstellungen
-% 
+% Objects that are drawn into the axes before this function is called are
+% kept for the whole animation (only the robot is redrawn per frame). This is
+% the intended way to show a reference trajectory.
+% The existing axis limits are used as a lower bound and are widened to
+% enclose the robot over the whole trajectory. They are then enlarged by the
+% factor 1.21 (twice 5 percent per side). Exact limits therefore have to be
+% pre-scaled accordingly.
+%
 % Siehe auch: SerRob/anim.m
 
 % Moritz Schappler, moritz.schappler@imes.uni-hannover.de, 2018-12
